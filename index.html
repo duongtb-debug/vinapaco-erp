@@ -89,9 +89,9 @@
                             <tr>
                                 <th class="p-4 border-r border-gray-200 text-center w-14 bg-gray-100">STT</th>
                                 <th class="p-4 border-r border-gray-200 w-52 bg-gray-100 text-base">Họ và tên</th>
-                                <th class="p-4 border-r border-gray-200 w-20 text-center bg-gray-100">Năm</th>
-                                <th class="p-4 border-r border-gray-200 w-32 text-center bg-gray-100">Ngày tháng năm sinh</th>
-                                <th class="p-4 border-r border-gray-200 w-28 text-center bg-gray-100">Năm nghỉ hưu</th>
+                                <th class="p-4 border-r border-gray-200 w-28 text-center bg-gray-100">Năm</th>
+                                <th class="p-4 border-r border-gray-200 w-36 text-center bg-gray-100">Ngày sinh</th>
+                                <th class="p-4 border-r border-gray-200 w-36 text-center bg-gray-100">Ngày nghỉ hưu</th>
                                 <th class="p-4 border-r border-gray-200 w-20 text-center bg-gray-100">Giới tính</th>
                                 <th class="p-4 border-r border-gray-200 w-36 bg-gray-100 font-mono">Số sổ BHXH</th>
                                 <th class="p-4 border-r border-gray-200 w-38 bg-gray-100 font-mono">Số CCCD</th>
@@ -146,9 +146,9 @@
                 dbHeThong = { nhansu: [
                     {
                         "HoTen": "TRIỆU THỊ NĂM", 
-                        "Nam": "2026", 
+                        "Nam": "01/01/2026", 
                         "NamSinh": "15/08/1980", 
-                        "NamNghiHuu": "2036", 
+                        "NamNghiHuu": "01/10/2036", 
                         "GioiTinh": "Nữ", 
                         "BHXH": "8298010513", 
                         "CCCD": "025169015152", 
@@ -168,45 +168,46 @@
                 .replace(/[^a-z0-9]/g, "");
         }
 
-        // --- THUẬT TOÁN ĐỔI SỐ EXCEL VÀ CHUẨN HÓA THÀNH CHUỖI NGÀY THÁNG NĂM (DD/MM/YYYY) ĐẦY ĐỦ ---
-        function dinhDangVeNgayThangNamChuan(v, chiLayNam = false) {
+        // --- THUẬT TOÁN ĐỔI SỐ EXCEL VÀ CHUẨN HÓA THÀNH CHUỖI NGÀY THÁNG NĂM (DD/MM/YYYY) ĐẦY ĐỦ CHO TẤT CẢ CÁC TRƯỜNG NGÀY THÁNG ---
+        function dinhDangVeNgayThangNamChuan(v) {
             if (!v) return "-";
             let s = v.toString().trim();
             if (s === "" || s === "-") return "-";
 
             let ngay = "", thang = "", nam = "";
 
-            // 1. Trường hợp là Số đếm ngày Serial của Excel (ví dụ: 25425)
-            if (/^\d{5}$/.test(s)) {
+            // 1. Trường hợp là Số đếm ngày Serial của Excel (ví dụ: 25425 hoặc 45261)
+            if (/^\d+$/.test(s)) {
                 let sNum = parseInt(s, 10);
+                // Nếu số nhập vào quá nhỏ (như chỉ nhập mỗi số năm là 2026), giữ nguyên làm chuỗi hiển thị
+                if (sNum > 1000 && sNum < 2100) return `01/01/${sNum}`;
+                
                 let dateUtc = new Date((sNum - 25569) * 86400 * 1000);
                 if (!isNaN(dateUtc.getTime())) {
                     ngay = dateUtc.getDate().toString().padStart(2, '0');
                     thang = (dateUtc.getMonth() + 1).toString().padStart(2, '0');
                     nam = dateUtc.getFullYear().toString();
-                    return chiLayNam ? nam : `${ngay}/${thang}/${nam}`;
+                    return `${ngay}/${thang}/${nam}`;
                 }
             }
 
             // 2. Trường hợp là dạng chuỗi định dạng ngày sẵn (Ví dụ: 1985-08-15 hoặc 15/8/1985)
-            // Tìm cụm 4 số liên tiếp đại diện cho năm
             let matchNam = s.match(/\d{4}/);
             if (matchNam) {
                 nam = matchNam[0];
-                if (chiLayNam) return nam;
-
-                // Tách tìm ngày và tháng dựa trên dấu gạch chéo hoặc gạch ngang
                 let parts = s.split(/[-/.]/);
                 if (parts.length >= 3) {
-                    // Nếu năm nằm đầu (YYYY-MM-DD)
-                    if (parts[0].length === 4) {
+                    if (parts[0].length === 4) { // YYYY-MM-DD
                         thang = parts[1].padStart(2, '0');
                         ngay = parts[2].substring(0, 2).padStart(2, '0');
-                    } else { // Nếu năm nằm cuối (DD-MM-YYYY hoặc D/M/YYYY)
+                    } else { // DD-MM-YYYY hoặc D/M/YYYY
                         ngay = parts[0].padStart(2, '0');
                         thang = parts[1].padStart(2, '0');
                     }
                     return `${ngay}/${thang}/${nam}`;
+                } else if (parts.length === 1 && s.length === 4) {
+                    // Nếu dữ liệu gốc chỉ có mỗi 4 chữ số năm (ví dụ: 1980) -> Mặc định gán đầu ngày đầu năm để tránh trống ô
+                    return `01/01/${nam}`;
                 }
             }
 
@@ -235,106 +236,111 @@
             }
 
             reader.onload = function(e) {
-                const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, { type: 'array' });
-                const firstSheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[firstSheetName];
-                
-                const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
-                if(rows.length === 0) {
-                    alert("Tệp Excel trống!");
-                    return;
-                }
-
-                let indexDongTieuDe = 0;
-                for (let i = 0; i < Math.min(10, rows.length); i++) {
-                    let textDong = rows[i].map(cell => chuanHoaTieuDe(cell)).join(" ");
-                    if (textDong.includes("hovaten") || textDong.includes("hoten") || textDong.includes("socccd") || textDong.includes("cccd") || textDong.includes("sosobhxh")) {
-                        indexDongTieuDe = i;
-                        break;
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    
+                    const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+                    if(rows.length === 0) {
+                        alert("Tệp Excel trống!");
+                        return;
                     }
-                }
 
-                const rawJson = XLSX.utils.sheet_to_json(worksheet, { range: indexDongTieuDe, defval: "" });
-
-                let mảngChuanHoa = rawJson.map(row => {
-                    let hoTen = "", nam = "", namSinh = "", namNghiHuu = "", gioiTinh = "", bhxh = "", cccd = "", atv = "", nndh = "", maDonVi = "", chucDanh = "";
-
-                    for (let key in row) {
-                        let kCH = chuanHoaTieuDe(key);
-                        let val = row[key];
-
-                        if (["hovaten", "hoten", "ten", "name", "fullname", "nguoilaodong", "tennhanvien"].some(tk => kCH === tk || kCH.includes(tk))) {
-                            if(!hoTen) hoTen = val;
-                        }
-                        else if (kCH === "nam" || kCH === "namquanly" || kCH === "nambaocao") {
-                            if(!nam) nam = val;
-                        }
-                        else if (["namsinh", "ns", "ngaysinh", "namsinhns", "ngaysinhthangnam"].some(tk => kCH === tk || kCH.includes(tk))) {
-                            if(!namSinh) namSinh = val;
-                        }
-                        else if (["namnghihuu", "nghihuu", "namvehuu", "vehuu", "namnghihuu"].some(tk => kCH === tk || kCH.includes(tk))) {
-                            if(!namNghiHuu) namNghiHuu = val;
-                        }
-                        else if (["gioitinh", "gt", "namnu"].some(tk => kCH === tk || kCH.includes(tk))) {
-                            if(!gioiTinh) gioiTinh = val;
-                        }
-                        else if (["sosobhxh", "bhxh", "sobhxh", "masobhxh", "sobh", "soso"].some(tk => kCH === tk || kCH.includes(tk))) {
-                            if(!bhxh) bhxh = val;
-                        }
-                        else if (["socccd", "cccd", "cmnd", "socmnd", "cancuoc", "cancuoccongdan", "sochungminh"].some(tk => kCH === tk || kCH.includes(tk))) {
-                            if(!cccd) cccd = val;
-                        }
-                        else if (["antoanvien", "atv", "chucdanhatv", "antoanve", "atvct", "atvpt"].some(tk => kCH === tk || kCH.includes(tk))) {
-                            if(!atv) atv = val;
-                        }
-                        else if (["nndh", "nghedochai", "dochai", "chedochai", "doc", "nghenghiepdochai"].some(tk => kCH === tk || kCH.includes(tk))) {
-                            if(!nndh) nndh = val;
-                        }
-                        else if (["madonvi", "bophan", "phongban", "phong", "phanxuong", "px", "mabv", "madv", "donvi", "noilamviec", "tendonvi", "nhamay"].some(tk => kCH === tk || kCH.includes(tk))) {
-                            if(!maDonVi) maDonVi = val;
-                        }
-                        else if (["chucdanhcongviec", "chucdanh", "congviec", "vitri", "chucvu", "nganhnghe"].some(tk => kCH === tk || kCH.includes(tk))) {
-                            if(!chucDanh) chucDanh = val;
+                    let indexDongTieuDe = 0;
+                    for (let i = 0; i < Math.min(15, rows.length); i++) {
+                        let textDong = rows[i].map(cell => chuanHoaTieuDe(cell)).join(" ");
+                        if (textDong.includes("hovaten") || textDong.includes("hoten") || textDong.includes("socccd") || textDong.includes("cccd") || textDong.includes("sosobhxh")) {
+                            indexDongTieuDe = i;
+                            break;
                         }
                     }
 
-                    let kiemTraTichXanh = (v) => {
-                        if (!v) return false;
-                        let s = v.toString().trim().toLowerCase();
-                        if (s === "" || s === "-" || s === "0" || s === "khong" || s === "false" || s === "o") return false;
-                        return true;
-                    };
+                    const rawJson = XLSX.utils.sheet_to_json(worksheet, { range: indexDongTieuDe, defval: "" });
 
-                    let chuoiMaDonVi = maDonVi.toString().trim();
-                    if(chuoiMaDonVi === "" || chuoiMaDonVi === "-") chuoiMaDonVi = "CHƯA XẾP";
+                    let mảngChuanHoa = rawJson.map(row => {
+                        let hoTen = "", nam = "", namSinh = "", namNghiHuu = "", gioiTinh = "", bhxh = "", cccd = "", atv = "", nndh = "", maDonVi = "", chucDanh = "";
 
-                    return {
-                        "HoTen": String(hoTen).trim().toUpperCase(),
-                        "Nam": dinhDangVeNgayThangNamChuan(nam, true), // Cột năm quản lý chỉ giữ nguyên số năm
-                        "NamSinh": dinhDangVeNgayThangNamChuan(namSinh, false), // Hiện ĐẦY ĐỦ ngày tháng năm sinh
-                        "NamNghiHuu": dinhDangVeNgayThangNamChuan(namNghiHuu, true), // Cột năm nghỉ hưu giữ nguyên số năm
-                        "GioiTinh": gioiTinh.toString().trim() || "-",
-                        "BHXH": String(bhxh).trim(),
-                        "CCCD": String(cccd).trim(),
-                        "ATV": kiemTraTichXanh(atv) ? "1" : "-",
-                        "NNDH": kiemTraTichXanh(nndh) ? "1" : "-",
-                        "MaDonVi": chuoiMaDonVi.toUpperCase(),
-                        "ChucDanh": String(chucDanh).trim()
-                    };
-                });
+                        for (let key in row) {
+                            let kCH = chuanHoaTieuDe(key);
+                            let val = row[key];
 
-                mảngChuanHoa = mảngChuanHoa.filter(p => p["HoTen"] !== "");
+                            if (["hovaten", "hoten", "ten", "name", "fullname", "nguoilaodong", "tennhanvien"].some(tk => kCH === tk || kCH.includes(tk))) {
+                                if(!hoTen) hoTen = val;
+                            }
+                            else if (["nam", "namquanly", "nambaocao", "namkehoach"].some(tk => kCH === tk || kCH.includes(tk))) {
+                                if(!nam) nam = val;
+                            }
+                            else if (["namsinh", "ns", "ngaysinh", "namsinhns", "ngaysinhthangnam"].some(tk => kCH === tk || kCH.includes(tk))) {
+                                if(!namSinh) namSinh = val;
+                            }
+                            else if (["namnghihuu", "nghihuu", "namvehuu", "vehuu", "ngaynghihuu"].some(tk => kCH === tk || kCH.includes(tk))) {
+                                if(!namNghiHuu) namNghiHuu = val;
+                            }
+                            else if (["gioitinh", "gt", "namnu"].some(tk => kCH === tk || kCH.includes(tk))) {
+                                if(!gioiTinh) gioiTinh = val;
+                            }
+                            else if (["sosobhxh", "bhxh", "sobhxh", "masobhxh", "sobh", "soso"].some(tk => kCH === tk || kCH.includes(tk))) {
+                                if(!bhxh) bhxh = val;
+                            }
+                            else if (["socccd", "cccd", "cmnd", "socmnd", "cancuoc", "cancuoccongdan", "sochungminh"].some(tk => kCH === tk || kCH.includes(tk))) {
+                                if(!cccd) cccd = val;
+                            }
+                            else if (["antoanvien", "atv", "chucdanhatv", "antoanve", "atvct", "atvpt"].some(tk => kCH === tk || kCH.includes(tk))) {
+                                if(!atv) atv = val;
+                            }
+                            else if (["nndh", "nghedochai", "dochai", "chedochai", "doc", "nghenghiepdochai"].some(tk => kCH === tk || kCH.includes(tk))) {
+                                if(!nndh) nndh = val;
+                            }
+                            else if (["madonvi", "bophan", "phongban", "phong", "phanxuong", "px", "mabv", "madv", "donvi", "noilamviec", "tendonvi", "nhamay"].some(tk => kCH === tk || kCH.includes(tk))) {
+                                if(!maDonVi) maDonVi = val;
+                            }
+                            else if (["chucdanhcongviec", "chucdanh", "congviec", "vitri", "chucvu", "nganhnghe"].some(tk => kCH === tk || kCH.includes(tk))) {
+                                if(!chucDanh) chucDanh = val;
+                            }
+                        }
 
-                if (mảngChuanHoa.length === 0) {
-                    alert("Không tìm thấy dữ liệu lao động hợp lệ!");
-                    return;
+                        let kiemTraTichXanh = (v) => {
+                            if (!v) return false;
+                            let s = v.toString().trim().toLowerCase();
+                            if (s === "" || s === "-" || s === "0" || s === "khong" || s === "false" || s === "o") return false;
+                            return true;
+                        };
+
+                        let chuoiMaDonVi = maDonVi.toString().trim();
+                        if(chuoiMaDonVi === "" || chuoiMaDonVi === "-") chuoiMaDonVi = "CHƯA XẾP";
+
+                        return {
+                            "HoTen": String(hoTen).trim().toUpperCase(),
+                            "Nam": dinhDangVeNgayThangNamChuan(nam), 
+                            "NamSinh": dinhDangVeNgayThangNamChuan(namSinh), 
+                            "NamNghiHuu": dinhDangVeNgayThangNamChuan(namNghiHuu), 
+                            "GioiTinh": gioiTinh.toString().trim() || "-",
+                            "BHXH": String(bhxh).trim(),
+                            "CCCD": String(cccd).trim(),
+                            "ATV": kiemTraTichXanh(atv) ? "1" : "-",
+                            "NNDH": kiemTraTichXanh(nndh) ? "1" : "-",
+                            "MaDonVi": chuoiMaDonVi.toUpperCase(),
+                            "ChucDanh": String(chucDanh).trim()
+                        };
+                    });
+
+                    mảngChuanHoa = mảngChuanHoa.filter(p => p["HoTen"] !== "");
+
+                    if (mảngChuanHoa.length === 0) {
+                        alert("Không tìm thấy trường dữ liệu lao động hợp lệ. Hãy kiểm tra lại dòng tiêu đề tệp Excel!");
+                        return;
+                    }
+
+                    dbHeThong.nhansu = dbHeThong.nhansu.concat(mảngChuanHoa);
+                    luuVaoBoNho(); lamMoiBoLocDonVi(); locDuLieuNhanSuTongHop();
+                    alert(`Thành công! Đã tải danh sách và đồng bộ định dạng Ngày/Tháng/Năm cho ${mảngChuanHoa.length} người lao động.`);
+                } catch (error) {
+                    alert("Có lỗi xảy ra trong quá trình đọc file cấu trúc dữ liệu: " + error.message);
+                } finally {
+                    document.getElementById("excel-file-input").value = "";
                 }
-
-                dbHeThong.nhansu = dbHeThong.nhansu.concat(mảngChuanHoa);
-                luuVaoBoNho(); lamMoiBoLocDonVi(); locDuLieuNhanSuTongHop();
-                alert(`Thành công! Đã nạp và chuẩn hóa trọn vẹn ngày tháng năm sinh cho ${mảngChuanHoa.length} lao động.`);
-                document.getElementById("excel-file-input").value = "";
             };
             reader.readAsArrayBuffer(file);
         }
@@ -395,7 +401,7 @@
                     <td class="p-4 border-r border-gray-200 text-gray-950 font-black text-lg">${row["HoTen"]}</td>
                     <td class="p-4 border-r border-gray-200 text-center text-gray-700 font-bold">${row["Nam"]}</td>
                     <td class="p-4 border-r border-gray-200 text-center text-emerald-950 font-black tracking-wide">${row["NamSinh"]}</td>
-                    <td class="p-4 border-r border-gray-200 text-center text-gray-700 font-bold">${row["NamNghiHuu"]}</td>
+                    <td class="p-4 border-r border-gray-200 text-center text-amber-950 font-black tracking-wide">${row["NamNghiHuu"]}</td>
                     <td class="p-4 border-r border-gray-200 text-center text-gray-700 font-bold">${row["GioiTinh"]}</td>
                     <td class="p-4 border-r border-gray-200 font-mono font-bold text-gray-600 text-base">${row["BHXH"] || '-'}</td>
                     <td class="p-4 border-r border-gray-200 font-mono font-bold text-gray-600 text-base">${row["CCCD"] || '-'}</td>
@@ -411,7 +417,7 @@
             `).join('');
         }
 
-        function xuatFileJsonSao Luu() {
+        function xuatFileJsonSaoLuu() {
             const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dbHeThong));
             const dlAnchor = document.createElement('a');
             dlAnchor.setAttribute("href", dataStr);
@@ -430,7 +436,7 @@
             let ten = prompt("Nhập họ và tên:"); if(!ten) return;
             let dv = prompt("Nhập mã đơn vị bộ phận:"); if(!dv) return;
             dbHeThong.nhansu.push({
-                "HoTen": ten.trim().toUpperCase(), "Nam": "2026", "NamSinh": "", "NamNghiHuu": "", "GioiTinh": "", "BHXH": "", "CCCD": "",
+                "HoTen": ten.trim().toUpperCase(), "Nam": "01/01/2026", "NamSinh": "", "NamNghiHuu": "", "GioiTinh": "", "BHXH": "", "CCCD": "",
                 "ATV": "-", "NNDH": "-", "MaDonVi": dv.trim().toUpperCase(), "ChucDanh": ""
             });
             luuVaoBoNho(); lamMoiBoLocDonVi(); locDuLieuNhanSuTongHop();
