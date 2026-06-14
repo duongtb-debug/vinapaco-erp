@@ -91,7 +91,7 @@
                                 <th class="p-4 border-r border-gray-200 w-52 bg-gray-100 text-base">Họ và tên</th>
                                 <th class="p-4 border-r border-gray-200 w-28 text-center bg-gray-100">Năm</th>
                                 <th class="p-4 border-r border-gray-200 w-36 text-center bg-gray-100">Ngày sinh</th>
-                                <th class="p-4 border-r border-gray-200 w-36 text-center bg-gray-100">Ngày nghỉ hưu</th>
+                                <th class="p-4 border-r border-gray-200 w-36 text-center bg-gray-100">Năm nghỉ hưu</th>
                                 <th class="p-4 border-r border-gray-200 w-20 text-center bg-gray-100">Giới tính</th>
                                 <th class="p-4 border-r border-gray-200 w-36 bg-gray-100 font-mono">Số sổ BHXH</th>
                                 <th class="p-4 border-r border-gray-200 w-38 bg-gray-100 font-mono">Số CCCD</th>
@@ -146,9 +146,9 @@
                 dbHeThong = { nhansu: [
                     {
                         "HoTen": "TRIỆU THỊ NĂM", 
-                        "Nam": "01/01/2026", 
+                        "Nam": "2026", 
                         "NamSinh": "15/08/1980", 
-                        "NamNghiHuu": "01/10/2036", 
+                        "NamNghiHuu": "2036", 
                         "GioiTinh": "Nữ", 
                         "BHXH": "8298010513", 
                         "CCCD": "025169015152", 
@@ -168,50 +168,50 @@
                 .replace(/[^a-z0-9]/g, "");
         }
 
-        // --- THUẬT TOÁN ĐỔI SỐ EXCEL VÀ CHUẨN HÓA THÀNH CHUỖI NGÀY THÁNG NĂM (DD/MM/YYYY) ĐẦY ĐỦ CHO TẤT CẢ CÁC TRƯỜNG NGÀY THÁNG ---
-        function dinhDangVeNgayThangNamChuan(v) {
+        // 1. THUẬT TOÁN ÉP ĐỊNH DẠNG NGÀY SINH VỀ DD/MM/YYYY ĐẦY ĐỦ VÀ CHUẨN XÁC
+        function dinhDangNgaySinhChuan(v) {
             if (!v) return "-";
             let s = v.toString().trim();
             if (s === "" || s === "-") return "-";
 
-            let ngay = "", thang = "", nam = "";
-
-            // 1. Trường hợp là Số đếm ngày Serial của Excel (ví dụ: 25425 hoặc 45261)
-            if (/^\d+$/.test(s)) {
+            // Nếu trúng số đếm ngày của Excel (ví dụ: 25425)
+            if (/^\d{5}$/.test(s)) {
                 let sNum = parseInt(s, 10);
-                // Nếu số nhập vào quá nhỏ (như chỉ nhập mỗi số năm là 2026), giữ nguyên làm chuỗi hiển thị
-                if (sNum > 1000 && sNum < 2100) return `01/01/${sNum}`;
-                
                 let dateUtc = new Date((sNum - 25569) * 86400 * 1000);
                 if (!isNaN(dateUtc.getTime())) {
-                    ngay = dateUtc.getDate().toString().padStart(2, '0');
-                    thang = (dateUtc.getMonth() + 1).toString().padStart(2, '0');
-                    nam = dateUtc.getFullYear().toString();
+                    let ngay = dateUtc.getDate().toString().padStart(2, '0');
+                    let thang = (dateUtc.getMonth() + 1).toString().padStart(2, '0');
+                    let nam = dateUtc.getFullYear().toString();
                     return `${ngay}/${thang}/${nam}`;
                 }
             }
 
-            // 2. Trường hợp là dạng chuỗi định dạng ngày sẵn (Ví dụ: 1985-08-15 hoặc 15/8/1985)
+            // Nếu là chuỗi ngày tháng thông thường có kí tự phân tách
             let matchNam = s.match(/\d{4}/);
             if (matchNam) {
-                nam = matchNam[0];
+                let nam = matchNam[0];
                 let parts = s.split(/[-/.]/);
                 if (parts.length >= 3) {
                     if (parts[0].length === 4) { // YYYY-MM-DD
-                        thang = parts[1].padStart(2, '0');
-                        ngay = parts[2].substring(0, 2).padStart(2, '0');
+                        let thang = parts[1].padStart(2, '0');
+                        let ngay = parts[2].substring(0, 2).padStart(2, '0');
+                        return `${ngay}/${thang}/${nam}`;
                     } else { // DD-MM-YYYY hoặc D/M/YYYY
-                        ngay = parts[0].padStart(2, '0');
-                        thang = parts[1].padStart(2, '0');
+                        let ngay = parts[0].padStart(2, '0');
+                        let thang = parts[1].padStart(2, '0');
+                        return `${ngay}/${thang}/${nam}`;
                     }
-                    return `${ngay}/${thang}/${nam}`;
-                } else if (parts.length === 1 && s.length === 4) {
-                    // Nếu dữ liệu gốc chỉ có mỗi 4 chữ số năm (ví dụ: 1980) -> Mặc định gán đầu ngày đầu năm để tránh trống ô
-                    return `01/01/${nam}`;
                 }
             }
+            return s;
+        }
 
-            return s; 
+        // 2. THUẬT TOÁN GIỮ NGUYÊN ĐỊNH DẠNG GỐC CỦA FILE ĐỐI VỚI NĂM VÀ NĂM VỀ HƯU
+        function giuNguyenDinhDangGoc(v) {
+            if (v === undefined || v === null) return "-";
+            let s = v.toString().trim();
+            if (s === "" || s === "-") return "-";
+            return s; // Không can thiệp ép kiểu, trả về đúng giá trị thô gốc trong file excel nhập vào
         }
 
         function xuLyNhapFileHangLoat(event) {
@@ -257,7 +257,8 @@
                         }
                     }
 
-                    const rawJson = XLSX.utils.sheet_to_json(worksheet, { range: indexDongTieuDe, defval: "" });
+                    // Đọc dạng thô (raw: true) để giữ nguyên cấu trúc ký tự của trường năm và năm về hưu
+                    const rawJson = XLSX.utils.sheet_to_json(worksheet, { range: indexDongTieuDe, defval: "", raw: true });
 
                     let mảngChuanHoa = rawJson.map(row => {
                         let hoTen = "", nam = "", namSinh = "", namNghiHuu = "", gioiTinh = "", bhxh = "", cccd = "", atv = "", nndh = "", maDonVi = "", chucDanh = "";
@@ -313,9 +314,9 @@
 
                         return {
                             "HoTen": String(hoTen).trim().toUpperCase(),
-                            "Nam": dinhDangVeNgayThangNamChuan(nam), 
-                            "NamSinh": dinhDangVeNgayThangNamChuan(namSinh), 
-                            "NamNghiHuu": dinhDangVeNgayThangNamChuan(namNghiHuu), 
+                            "Nam": giuNguyenDinhDangGoc(nam),          // GIỮ NGUYÊN FILE GỐC
+                            "NamSinh": dinhDangNgaySinhChuan(namSinh),  // CHUẨN HÓA ĐẦY ĐỦ NGÀY THÁNG NĂM
+                            "NamNghiHuu": giuNguyenDinhDangGoc(namNghiHuu), // GIỮ NGUYÊN FILE GỐC
                             "GioiTinh": gioiTinh.toString().trim() || "-",
                             "BHXH": String(bhxh).trim(),
                             "CCCD": String(cccd).trim(),
@@ -335,7 +336,7 @@
 
                     dbHeThong.nhansu = dbHeThong.nhansu.concat(mảngChuanHoa);
                     luuVaoBoNho(); lamMoiBoLocDonVi(); locDuLieuNhanSuTongHop();
-                    alert(`Thành công! Đã tải danh sách và đồng bộ định dạng Ngày/Tháng/Năm cho ${mảngChuanHoa.length} người lao động.`);
+                    alert(`Thành công! Đã tải và đồng bộ dữ liệu chuẩn quy trình cho ${mảngChuanHoa.length} lao động.`);
                 } catch (error) {
                     alert("Có lỗi xảy ra trong quá trình đọc file cấu trúc dữ liệu: " + error.message);
                 } finally {
@@ -401,7 +402,7 @@
                     <td class="p-4 border-r border-gray-200 text-gray-950 font-black text-lg">${row["HoTen"]}</td>
                     <td class="p-4 border-r border-gray-200 text-center text-gray-700 font-bold">${row["Nam"]}</td>
                     <td class="p-4 border-r border-gray-200 text-center text-emerald-950 font-black tracking-wide">${row["NamSinh"]}</td>
-                    <td class="p-4 border-r border-gray-200 text-center text-amber-950 font-black tracking-wide">${row["NamNghiHuu"]}</td>
+                    <td class="p-4 border-r border-gray-200 text-center text-amber-950 font-bold">${row["NamNghiHuu"]}</td>
                     <td class="p-4 border-r border-gray-200 text-center text-gray-700 font-bold">${row["GioiTinh"]}</td>
                     <td class="p-4 border-r border-gray-200 font-mono font-bold text-gray-600 text-base">${row["BHXH"] || '-'}</td>
                     <td class="p-4 border-r border-gray-200 font-mono font-bold text-gray-600 text-base">${row["CCCD"] || '-'}</td>
@@ -436,7 +437,7 @@
             let ten = prompt("Nhập họ và tên:"); if(!ten) return;
             let dv = prompt("Nhập mã đơn vị bộ phận:"); if(!dv) return;
             dbHeThong.nhansu.push({
-                "HoTen": ten.trim().toUpperCase(), "Nam": "01/01/2026", "NamSinh": "", "NamNghiHuu": "", "GioiTinh": "", "BHXH": "", "CCCD": "",
+                "HoTen": ten.trim().toUpperCase(), "Nam": "2026", "NamSinh": "", "NamNghiHuu": "", "GioiTinh": "", "BHXH": "", "CCCD": "",
                 "ATV": "-", "NNDH": "-", "MaDonVi": dv.trim().toUpperCase(), "ChucDanh": ""
             });
             luuVaoBoNho(); lamMoiBoLocDonVi(); locDuLieuNhanSuTongHop();
