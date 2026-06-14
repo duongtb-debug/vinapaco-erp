@@ -168,6 +168,29 @@
                 .replace(/[^a-z0-9]/g, "");
         }
 
+        // --- THUẬT TOÁN CHUYỂN ĐỔI SỐ EXCEL THÀNH NĂM CHUẨN XÁC 100% ---
+        function dinhDangVeNamChuan(v) {
+            if (!v) return "-";
+            let s = v.toString().trim();
+            if (s === "" || s === "-") return "-";
+
+            // Nếu là số nguyên lớn (Ví dụ: 25425 hoặc 45678 - Số đếm ngày của Excel)
+            if (/^\d{5}$/.test(s)) {
+                let sNum = parseInt(s, 10);
+                // Công thức quy đổi Serial Date của Excel sang đối tượng ngày trong Javascript
+                let dateUtc = new Date((sNum - 25569) * 86400 * 1000);
+                if (!isNaN(dateUtc.getTime())) {
+                    return dateUtc.getFullYear().toString();
+                }
+            }
+
+            // Nếu chứa chuỗi có 4 số liền nhau (Ví dụ: 15/08/1985 hoặc 1985-02-10)
+            let match = s.match(/\d{4}/);
+            if (match) return match[0];
+
+            return s; // Trả về giá trị gốc nếu không rơi vào TH nào
+        }
+
         function xuLyNhapFileHangLoat(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -261,21 +284,14 @@
                         return true;
                     };
 
-                    let formatNam = (v) => {
-                        if(!v) return "-";
-                        let match = v.toString().trim().match(/\d{4}/);
-                        return match ? match[0] : v.toString().trim();
-                    };
-
                     let chuoiMaDonVi = maDonVi.toString().trim();
                     if(chuoiMaDonVi === "" || chuoiMaDonVi === "-") chuoiMaDonVi = "CHƯA XẾP";
 
-                    // KHỚP CHUẨN ĐỊNH DANH ĐỒNG BỘ ĐỂ HIỂN THỊ TRÁNH LỖI UNDEFINED
                     return {
                         "HoTen": String(hoTen).trim().toUpperCase(),
-                        "Nam": nam.toString().trim() || "-",
-                        "NamSinh": formatNam(namSinh),
-                        "NamNghiHuu": formatNam(namNghiHuu),
+                        "Nam": dinhDangVeNamChuan(nam),
+                        "NamSinh": dinhDangVeNamChuan(namSinh),
+                        "NamNghiHuu": dinhDangVeNamChuan(namNghiHuu),
                         "GioiTinh": gioiTinh.toString().trim() || "-",
                         "BHXH": String(bhxh).trim(),
                         "CCCD": String(cccd).trim(),
@@ -295,7 +311,7 @@
 
                 dbHeThong.nhansu = dbHeThong.nhansu.concat(mảngChuanHoa);
                 luuVaoBoNho(); lamMoiBoLocDonVi(); locDuLieuNhanSuTongHop();
-                alert(`Thành công! Đã nạp thêm ${mảngChuanHoa.length} lao động vào hệ thống.`);
+                alert(`Thành công! Đã nạp và chuẩn hóa năm sinh cho ${mảngChuanHoa.length} lao động.`);
                 document.getElementById("excel-file-input").value = "";
             };
             reader.readAsArrayBuffer(file);
