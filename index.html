@@ -119,7 +119,6 @@
         }
 
         async function khoiDongHeThong() {
-            // Thử kiểm tra dữ liệu sao lưu tự động trên hosting
             try {
                 const res = await fetch('data.json');
                 if(res.ok) {
@@ -141,18 +140,18 @@
                 dbHeThong = JSON.parse(localData);
             } else {
                 dbHeThong = { nhansu: [
-                    {"Họ và tên": "NGUYỄN VĂN MẪU", "Số sổ BHXH": "8200102787", "Số CCCD": "042174013492", "An toàn viên": "-", "NNĐH": "1", "Mã đơn vị": "P.NHÂN SỰ", "Chức danh công việc": "Chuyên viên quản lý lao động"}
+                    {"Họ và tên": "TRIỆU THỊ NĂM", "Số sổ BHXH": "8298010513", "Số CCCD": "025169015152", "An toàn viên": "-", "NNĐH": "-", "Mã đơn vị": "PX SỬA CHỮA", "Chức danh công việc": "Công nhân nguội sửa chữa cơ khí"}
                 ]};
             }
         }
 
-        // ========================== THUẬT TOÁN KHỚP TRƯỜNG THÔNG MINH ĐA TẦNG ==========================
+        // THUẬT TOÁN QUÉT DÒ DỮ LIỆU NÂNG CẤP TỐI ƯU
         function timGiaTriTheoCot(rowObject, mangTuKhoaNhanDien) {
-            // Quét qua tất cả các phím tiêu đề có trong dòng dữ liệu Excel hiện tại
             for (let key in rowObject) {
-                let keyChuanHoa = key.trim().toLowerCase()
-                                    .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Xóa dấu tiếng Việt
-                                    .replace(/\s+/g, ""); // Xóa khoảng trắng
+                // Chuẩn hóa chuỗi tiêu đề cột: xóa dấu, viết thường, xóa khoảng cách và ký tự lạ để dò chính xác
+                let keyChuanHoa = key.toString().trim().toLowerCase()
+                                    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+                                    .replace(/[^a-z0-9]/g, ""); // Chỉ giữ lại chữ và số
                 
                 for (let tuKhoa of mangTuKhoaNhanDien) {
                     if (keyChuanHoa === tuKhoa || keyChuanHoa.includes(tuKhoa)) {
@@ -169,7 +168,6 @@
 
             const reader = new FileReader();
 
-            // Nếu nạp tệp cấu hình .json sao lưu nhanh
             if(file.name.endsWith('.json')) {
                 reader.onload = function(e) {
                     try {
@@ -185,7 +183,6 @@
                 return;
             }
 
-            // Nếu nạp tệp Excel danh sách hàng loạt (.xlsx, .xls)
             reader.onload = function(e) {
                 const data = new Uint8Array(e.target.result);
                 const workbook = XLSX.read(data, { type: 'array' });
@@ -198,19 +195,30 @@
                     return;
                 }
 
-                // Từ điển từ khóa thông minh dùng để quét tiêu đề cột bất kể định dạng
                 let mảngChuanHoa = rawJson.map(row => {
-                    let hoTen = timGiaTriTheoCot(row, ["hovaten", "hoten", "ten", "name", "fullname"]);
-                    let bhxh = timGiaTriTheoCot(row, ["sosobhxh", "bhxh", "sobhxh", "masobhxh"]);
-                    let cccd = timGiaTriTheoCot(row, ["socccd", "cccd", "cmnd", "socmnd", "cancuoc"]);
-                    let atv = timGiaTriTheoCot(row, ["antoanvien", "atv", "chucdanhatv"]);
-                    let nndh = timGiaTriTheoCot(row, ["nndh", "nghedochai", "dochai", "chedochai", "doc"]);
-                    let maDonVi = timGiaTriTheoCot(row, ["madonvi", "bophan", "phongban", "phong", "phanxuong", "px"]);
-                    let chucDanh = timGiaTriTheoCot(row, ["chucdanhcongviec", "chucdanh", "congviec", "vitri"]);
+                    let hoTen = timGiaTriTheoCot(row, ["hovaten", "hoten", "ten", "name", "fullname", "nguoilaoong"]);
+                    let bhxh = timGiaTriTheoCot(row, ["sosobhxh", "bhxh", "sobhxh", "masobhxh", "sobh"]);
+                    let cccd = timGiaTriTheoCot(row, ["socccd", "cccd", "cmnd", "socmnd", "cancuoc", "cancuoccongdan"]);
+                    let atv = timGiaTriTheoCot(row, ["antoanvien", "atv", "chucdanhatv", "antoanve"]);
+                    let nndh = timGiaTriTheoCot(row, ["nndh", "nghedochai", "dochai", "chedochai", "doc", "doc_hai", "nghe_doc_hai"]);
+                    
+                    // Nâng cấp từ khóa nhận mã đơn vị linh hoạt theo file của VINAPACO
+                    let maDonVi = timGiaTriTheoCot(row, ["madonvi", "bophan", "phongban", "phong", "phanxuong", "px", "mabv", "madv", "donvi"]);
+                    let chucDanh = timGiaTriTheoCot(row, ["chucdanhcongviec", "chucdanh", "congviec", "vitri", "chucvu"]);
 
-                    // Chuẩn hóa định dạng giá trị hiển thị đặc thù
-                    let chuoiAtv = (atv && atv.toString().trim() !== "" && atv.toString().trim() !== "-") ? "1" : "-";
-                    let chuoiNndh = (nndh && nndh.toString().trim() !== "" && nndh.toString().trim() !== "-") ? "1" : "-";
+                    // KIỂM TRA ĐỊNH DẠNG ĐỂ BẬT DẤU TÍCH XANH CHUẨN XÁC
+                    let kiemTraGiaTriCheck = (val) => {
+                        if (!val) return false;
+                        let vStr = val.toString().trim().toLowerCase();
+                        return (vStr !== "" && vStr !== "-" && vStr !== "0" && vStr !== "khong" && vStr !== "false");
+                    };
+
+                    let chuoiAtv = kiemTraGiaTriCheck(atv) ? "1" : "-";
+                    let chuoiNndh = kiemTraGiaTriCheck(nndh) ? "1" : "-";
+
+                    // Chuyển mã đơn vị về chữ hoa sạch, nếu trống hoàn toàn mới để "CHƯA XẾP"
+                    let chuoiMaDonVi = maDonVi.toString().trim();
+                    if(chuoiMaDonVi === "" || chuoiMaDonVi === "-") chuoiMaDonVi = "CHƯA XẾP";
 
                     return {
                         "Họ và tên": String(hoTen).trim().toUpperCase(),
@@ -218,23 +226,22 @@
                         "Số CCCD": String(cccd).trim(),
                         "An toàn viên": chuoiAtv,
                         "NNĐH": chuoiNndh,
-                        "Mã đơn vị": String(maDonVi || "CHƯA XẾP").trim().toUpperCase(),
+                        "Mã đơn vị": chuoiMaDonVi.toUpperCase(),
                         "Chức danh công việc": String(chucDanh).trim()
                     };
                 });
 
-                // Lọc bỏ những dòng trống không có tên nhân viên để tránh rác bảng
+                // Lọc loại bỏ dòng trắng rác
                 mảngChuanHoa = mảngChuanHoa.filter(p => p["Họ và tên"] !== "");
 
                 dbHeThong.nhansu = dbHeThong.nhansu.concat(mảngChuanHoa);
                 luuVaoBoNho(); lamMoiBoLocDonVi(); locDuLieuNhanSuTongHop();
-                alert(`Nhập file thành công! Thuật toán đã tự động bóc tách và nạp ${mảngChuanHoa.length} nhân sự khớp chính xác các trường thông tin.`);
+                alert(`Nhập file thành công! Thuật toán mới đã xử lý và bóc tách ${mảngChuanHoa.length} nhân sự khớp chính xác các cột.`);
                 document.getElementById("excel-file-input").value = "";
             };
             reader.readAsArrayBuffer(file);
         }
 
-        // TỰ ĐỘNG PHÂN TÍCH NHÓM ĐƠN VỊ ĐỂ LỌC CHÍNH XÁC
         function lamMoiBoLocDonVi() {
             const select = document.getElementById("ns-select-donvi");
             let danhSachDonVi = [];
@@ -252,7 +259,6 @@
             select.innerHTML = html;
         }
 
-        // BỘ LỌC ĐA TẦNG KẾT HỢP THÔNG MINH
         function locDuLieuNhanSuTongHop() {
             const tuKhoa = document.getElementById("ns-search-box").value.trim().toLowerCase();
             const maDonViDaChon = document.getElementById("ns-select-donvi").value;
