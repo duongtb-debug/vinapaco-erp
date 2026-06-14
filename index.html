@@ -90,7 +90,7 @@
                                 <th class="p-4 border-r border-gray-200 text-center w-14 bg-gray-100">STT</th>
                                 <th class="p-4 border-r border-gray-200 w-52 bg-gray-100 text-base">Họ và tên</th>
                                 <th class="p-4 border-r border-gray-200 w-20 text-center bg-gray-100">Năm</th>
-                                <th class="p-4 border-r border-gray-200 w-24 text-center bg-gray-100">Năm sinh</th>
+                                <th class="p-4 border-r border-gray-200 w-32 text-center bg-gray-100">Ngày tháng năm sinh</th>
                                 <th class="p-4 border-r border-gray-200 w-28 text-center bg-gray-100">Năm nghỉ hưu</th>
                                 <th class="p-4 border-r border-gray-200 w-20 text-center bg-gray-100">Giới tính</th>
                                 <th class="p-4 border-r border-gray-200 w-36 bg-gray-100 font-mono">Số sổ BHXH</th>
@@ -147,7 +147,7 @@
                     {
                         "HoTen": "TRIỆU THỊ NĂM", 
                         "Nam": "2026", 
-                        "NamSinh": "1980", 
+                        "NamSinh": "15/08/1980", 
                         "NamNghiHuu": "2036", 
                         "GioiTinh": "Nữ", 
                         "BHXH": "8298010513", 
@@ -168,27 +168,49 @@
                 .replace(/[^a-z0-9]/g, "");
         }
 
-        // --- THUẬT TOÁN CHUYỂN ĐỔI SỐ EXCEL THÀNH NĂM CHUẨN XÁC 100% ---
-        function dinhDangVeNamChuan(v) {
+        // --- THUẬT TOÁN ĐỔI SỐ EXCEL VÀ CHUẨN HÓA THÀNH CHUỖI NGÀY THÁNG NĂM (DD/MM/YYYY) ĐẦY ĐỦ ---
+        function dinhDangVeNgayThangNamChuan(v, chiLayNam = false) {
             if (!v) return "-";
             let s = v.toString().trim();
             if (s === "" || s === "-") return "-";
 
-            // Nếu là số nguyên lớn (Ví dụ: 25425 hoặc 45678 - Số đếm ngày của Excel)
+            let ngay = "", thang = "", nam = "";
+
+            // 1. Trường hợp là Số đếm ngày Serial của Excel (ví dụ: 25425)
             if (/^\d{5}$/.test(s)) {
                 let sNum = parseInt(s, 10);
-                // Công thức quy đổi Serial Date của Excel sang đối tượng ngày trong Javascript
                 let dateUtc = new Date((sNum - 25569) * 86400 * 1000);
                 if (!isNaN(dateUtc.getTime())) {
-                    return dateUtc.getFullYear().toString();
+                    ngay = dateUtc.getDate().toString().padStart(2, '0');
+                    thang = (dateUtc.getMonth() + 1).toString().padStart(2, '0');
+                    nam = dateUtc.getFullYear().toString();
+                    return chiLayNam ? nam : `${ngay}/${thang}/${nam}`;
                 }
             }
 
-            // Nếu chứa chuỗi có 4 số liền nhau (Ví dụ: 15/08/1985 hoặc 1985-02-10)
-            let match = s.match(/\d{4}/);
-            if (match) return match[0];
+            // 2. Trường hợp là dạng chuỗi định dạng ngày sẵn (Ví dụ: 1985-08-15 hoặc 15/8/1985)
+            // Tìm cụm 4 số liên tiếp đại diện cho năm
+            let matchNam = s.match(/\d{4}/);
+            if (matchNam) {
+                nam = matchNam[0];
+                if (chiLayNam) return nam;
 
-            return s; // Trả về giá trị gốc nếu không rơi vào TH nào
+                // Tách tìm ngày và tháng dựa trên dấu gạch chéo hoặc gạch ngang
+                let parts = s.split(/[-/.]/);
+                if (parts.length >= 3) {
+                    // Nếu năm nằm đầu (YYYY-MM-DD)
+                    if (parts[0].length === 4) {
+                        thang = parts[1].padStart(2, '0');
+                        ngay = parts[2].substring(0, 2).padStart(2, '0');
+                    } else { // Nếu năm nằm cuối (DD-MM-YYYY hoặc D/M/YYYY)
+                        ngay = parts[0].padStart(2, '0');
+                        thang = parts[1].padStart(2, '0');
+                    }
+                    return `${ngay}/${thang}/${nam}`;
+                }
+            }
+
+            return s; 
         }
 
         function xuLyNhapFileHangLoat(event) {
@@ -248,7 +270,7 @@
                         else if (kCH === "nam" || kCH === "namquanly" || kCH === "nambaocao") {
                             if(!nam) nam = val;
                         }
-                        else if (["namsinh", "ns", "ngaysinh", "namsinhns"].some(tk => kCH === tk || kCH.includes(tk))) {
+                        else if (["namsinh", "ns", "ngaysinh", "namsinhns", "ngaysinhthangnam"].some(tk => kCH === tk || kCH.includes(tk))) {
                             if(!namSinh) namSinh = val;
                         }
                         else if (["namnghihuu", "nghihuu", "namvehuu", "vehuu", "namnghihuu"].some(tk => kCH === tk || kCH.includes(tk))) {
@@ -289,9 +311,9 @@
 
                     return {
                         "HoTen": String(hoTen).trim().toUpperCase(),
-                        "Nam": dinhDangVeNamChuan(nam),
-                        "NamSinh": dinhDangVeNamChuan(namSinh),
-                        "NamNghiHuu": dinhDangVeNamChuan(namNghiHuu),
+                        "Nam": dinhDangVeNgayThangNamChuan(nam, true), // Cột năm quản lý chỉ giữ nguyên số năm
+                        "NamSinh": dinhDangVeNgayThangNamChuan(namSinh, false), // Hiện ĐẦY ĐỦ ngày tháng năm sinh
+                        "NamNghiHuu": dinhDangVeNgayThangNamChuan(namNghiHuu, true), // Cột năm nghỉ hưu giữ nguyên số năm
                         "GioiTinh": gioiTinh.toString().trim() || "-",
                         "BHXH": String(bhxh).trim(),
                         "CCCD": String(cccd).trim(),
@@ -311,7 +333,7 @@
 
                 dbHeThong.nhansu = dbHeThong.nhansu.concat(mảngChuanHoa);
                 luuVaoBoNho(); lamMoiBoLocDonVi(); locDuLieuNhanSuTongHop();
-                alert(`Thành công! Đã nạp và chuẩn hóa năm sinh cho ${mảngChuanHoa.length} lao động.`);
+                alert(`Thành công! Đã nạp và chuẩn hóa trọn vẹn ngày tháng năm sinh cho ${mảngChuanHoa.length} lao động.`);
                 document.getElementById("excel-file-input").value = "";
             };
             reader.readAsArrayBuffer(file);
@@ -372,7 +394,7 @@
                     <td class="p-4 border-r border-gray-200 text-center font-mono text-gray-400 font-black">${idx + 1}</td>
                     <td class="p-4 border-r border-gray-200 text-gray-950 font-black text-lg">${row["HoTen"]}</td>
                     <td class="p-4 border-r border-gray-200 text-center text-gray-700 font-bold">${row["Nam"]}</td>
-                    <td class="p-4 border-r border-gray-200 text-center text-gray-700 font-bold">${row["NamSinh"]}</td>
+                    <td class="p-4 border-r border-gray-200 text-center text-emerald-950 font-black tracking-wide">${row["NamSinh"]}</td>
                     <td class="p-4 border-r border-gray-200 text-center text-gray-700 font-bold">${row["NamNghiHuu"]}</td>
                     <td class="p-4 border-r border-gray-200 text-center text-gray-700 font-bold">${row["GioiTinh"]}</td>
                     <td class="p-4 border-r border-gray-200 font-mono font-bold text-gray-600 text-base">${row["BHXH"] || '-'}</td>
@@ -389,7 +411,7 @@
             `).join('');
         }
 
-        function xuatFileJsonSaoLuu() {
+        function xuatFileJsonSao Luu() {
             const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dbHeThong));
             const dlAnchor = document.createElement('a');
             dlAnchor.setAttribute("href", dataStr);
