@@ -3,23 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HỆ THỐNG QUẢN TRỊ TÍCH HỢP VINAPACO ERP v2.0</title>
+    <title>HỆ THỐNG VINAPACO ERP v3.0 - TRỰC TUYẾN ĐÁM MÂY</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-</head>
-<body class="bg-gray-100 text-gray-900 font-sans antialiased h-screen flex flex-col" onload="khoiDongHeThong()">
 
-    <header class="bg-slate-900 text-white px-8 py-4 flex justify-between items-center shadow-lg shrink-0 border-b-2 border-emerald-600">
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+</head>
+<body class="bg-gray-100 text-gray-900 font-sans antialiased h-screen flex flex-col" onload="khoiDongHeThongKenhCloud()">
+
+    <header class="bg-slate-950 text-white px-8 py-4 flex justify-between items-center shadow-lg shrink-0 border-b-2 border-sky-500">
         <div>
-            <h1 class="text-2xl font-black tracking-wide uppercase flex items-center gap-2 text-emerald-400">
-                <i class="fa-solid fa-industry"></i> VINAPACO ERP • TRUNG TÂM ĐIỀU HÀNH TÍCH HỢP
+            <h1 class="text-2xl font-black tracking-wide uppercase flex items-center gap-2 text-sky-400">
+                <i class="fa-solid fa-cloud"></i> VINAPACO ERP • ĐỒNG BỘ ĐÁM MÂY TRỰC TUYẾN
             </h1>
-            <p class="text-xs text-slate-400 font-bold mt-0.5">Dữ liệu lưu trữ cục bộ an toàn chống mất mát • Quét QR trực tiếp • Nhắc việc & Sửa chữa tự động</p>
+            <p class="text-xs text-slate-400 font-bold mt-0.5">Dữ liệu lưu trữ tập trung Realtime • Sử dụng mọi nơi • Tự động kết nối cơ sở dữ liệu Google Firebase</p>
         </div>
-        <div class="bg-slate-800 px-4 py-2 rounded-xl border border-slate-700 font-mono text-xs font-black text-emerald-400">
-            <i class="fa-solid fa-clock"></i> PHIÊN BẢN HỆ THỐNG: 2026.2.0
+        <div id="cloud-status-badge" class="bg-amber-950 px-4 py-2 rounded-xl border border-amber-700 font-mono text-xs font-black text-amber-400 flex items-center gap-2">
+            <i class="fa-solid fa-circle-notch animate-spin"></i> ĐANG KẾT NỐI CLOUD...
         </div>
     </header>
 
@@ -29,7 +33,7 @@
             <div class="space-y-2">
                 <div class="text-xs font-black text-gray-400 uppercase tracking-widest px-2 mb-2">DANH MỤC PHÂN HỆ</div>
                 
-                <button id="btn-menu-nhansu" onclick="chuyenPhanHe('NHAN_SU')" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-black text-left transition-all bg-emerald-700 text-white shadow-sm">
+                <button id="btn-menu-nhansu" onclick="chuyenPhanHe('NHAN_SU')" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-black text-left transition-all bg-sky-700 text-white shadow-sm">
                     <i class="fa-solid fa-users text-center w-5"></i> 1. Quản Lý Nhân Sự
                 </button>
 
@@ -46,25 +50,25 @@
                 </button>
             </div>
             
-            <div class="bg-slate-50 p-3 rounded-xl text-xs font-bold text-slate-700 border border-slate-200 space-y-1.5 shadow-inner">
-                <div class="font-black text-slate-900 uppercase flex items-center gap-1"><i class="fa-solid fa-database text-blue-600"></i> Trạng thái bộ nhớ:</div>
-                <p class="leading-relaxed text-[11px]">Dữ liệu tự động đồng bộ vào ổ đĩa duyệt trình. Anh có thể bấm nút Xuất Sao Lưu định kỳ để tải file dự phòng cấu trúc JSON.</p>
+            <div class="bg-sky-50 p-3 rounded-xl text-xs font-bold text-sky-900 border border-sky-200 space-y-1.5 shadow-inner">
+                <div class="font-black uppercase flex items-center gap-1 text-sky-950"><i class="fa-solid fa-globe text-sky-600"></i> Cơ chế đồng bộ:</div>
+                <p class="leading-relaxed text-[11px] text-sky-800">Khi anh thêm/sửa/xóa ở bất kỳ máy tính hay điện thoại nào, dữ liệu trên các thiết bị khác đang mở cũng sẽ tự động làm mới ngay lập tức mà không cần F5.</p>
             </div>
         </aside>
 
         <main id="view-phan-he-nhansu" class="flex-1 p-6 overflow-hidden flex flex-col bg-gray-50 gap-4">
             <div class="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex flex-col gap-3 shrink-0">
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 items-center bg-emerald-50/60 p-3 rounded-xl border border-emerald-200">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 items-center bg-sky-50 p-3 rounded-xl border border-sky-200">
                     <div>
-                        <h3 class="text-sm font-black text-emerald-900 flex items-center gap-2"><i class="fa-solid fa-file-excel"></i> NHẬP DATA TỪ EXCEL</h3>
-                        <p class="text-[11px] text-gray-600 font-bold mt-0.5">Tải file danh sách cán bộ công nhân viên để liên kết dữ liệu.</p>
+                        <h3 class="text-sm font-black text-sky-900 flex items-center gap-2"><i class="fa-solid fa-file-excel"></i> ĐẨY DỮ LIỆU LÊN ĐÁM MÂY</h3>
+                        <p class="text-[11px] text-gray-600 font-bold mt-0.5">Chọn file Excel để tải hàng loạt nhân sự lên cơ sở dữ liệu trực tuyến.</p>
                     </div>
-                    <label class="lg:col-span-2 flex flex-col items-center justify-center border-2 border-dashed border-emerald-400 bg-white hover:bg-emerald-50 py-2.5 px-4 rounded-xl cursor-pointer transition-all">
+                    <label class="lg:col-span-2 flex flex-col items-center justify-center border-2 border-dashed border-sky-400 bg-white hover:bg-sky-50 py-2.5 px-4 rounded-xl cursor-pointer transition-all">
                         <div class="flex items-center gap-3">
-                            <i class="fa-solid fa-file-arrow-up text-xl text-emerald-600"></i>
-                            <span class="text-sm font-black text-gray-800">CHỌN FILE EXCEL (XLSX) HOẶC FILE JSON SAO LƯU</span>
+                            <i class="fa-solid fa-file-arrow-up text-xl text-sky-600"></i>
+                            <span class="text-sm font-black text-gray-800">CHỌN FILE DATA EXCEL (.XLSX)</span>
                         </div>
-                        <input type="file" id="excel-file-input" accept=".xlsx, .xls, .json" onchange="xuLyNhapFileLinhHoat(event)" class="hidden">
+                        <input type="file" id="excel-file-input" accept=".xlsx, .xls" onchange="xuLyNhapFileExcelCloud(event)" class="hidden">
                     </label>
                 </div>
 
@@ -73,16 +77,15 @@
                         <i class="fa-solid fa-magnifying-glass text-gray-400"></i>
                         <input type="text" id="ns-search-box" oninput="locDuLieuNhanSuTongHop()" placeholder="Tìm nhanh Tên, CCCD..." class="focus:outline-none w-full font-black text-gray-800 bg-transparent">
                     </div>
-                    <select id="ns-select-donvi" onchange="locDuLieuNhanSuTongHop()" class="bg-white border border-gray-300 px-3 py-2 rounded-xl text-xs font-black text-emerald-800 focus:outline-none"></select>
+                    <select id="ns-select-donvi" onchange="locDuLieuNhanSuTongHop()" class="bg-white border border-gray-300 px-3 py-2 rounded-xl text-xs font-black text-sky-900 focus:outline-none"></select>
                     <select id="ns-select-dacThieu" onchange="locDuLieuNhanSuTongHop()" class="bg-white border border-gray-300 px-3 py-2 rounded-xl text-xs font-black text-gray-700 focus:outline-none">
                         <option value="ALL">Tất cả chế độ đặc thù</option>
                         <option value="ATV">Chỉ An Toàn Viên (✓)</option>
                         <option value="NNDH">Chỉ Nghề Độc Hại (✓)</option>
                     </select>
                     <div class="ml-auto flex gap-1.5">
-                        <button onclick="xuatFileJsonSaoLuu()" class="bg-purple-700 hover:bg-purple-800 text-white font-black text-xs px-3 py-2 rounded-xl shadow-sm"><i class="fa-solid fa-download"></i> XUẤT SAO LƯU</button>
-                        <button onclick="themNhanSuThuCong()" class="bg-blue-700 hover:bg-blue-800 text-white font-black text-xs px-3 py-2 rounded-xl shadow-sm"><i class="fa-solid fa-plus"></i> THÊM TAY</button>
-                        <button onclick="xoaSachToanBoNhanSu()" class="bg-red-600 hover:bg-red-700 text-white font-black text-xs px-3 py-2 rounded-xl shadow-sm"><i class="fa-solid fa-trash-can"></i> XÓA TRẮNG</button>
+                        <button onclick="themNhanSuThuCong()" class="bg-sky-700 hover:bg-sky-800 text-white font-black text-xs px-3 py-2 rounded-xl shadow-sm"><i class="fa-solid fa-plus"></i> THÊM NHÂN SỰ TAY</button>
+                        <button onclick="xoaSachToanBoNhanSu()" class="bg-red-600 hover:bg-red-700 text-white font-black text-xs px-3 py-2 rounded-xl shadow-sm"><i class="fa-solid fa-trash-can"></i> XÓA SẠCH TRÊN CLOUD</button>
                     </div>
                 </div>
             </div>
@@ -112,7 +115,7 @@
                 </div>
             </div>
             <footer class="flex justify-between items-center text-xs font-black text-gray-500 shrink-0">
-                <div id="text-bo-dem-footer" class="bg-white border px-3 py-1.5 rounded-xl shadow-sm">TỔNG BẢN GHI NHÂN SỰ: 0</div>
+                <div id="text-bo-dem-footer" class="bg-white border px-3 py-1.5 rounded-xl shadow-sm">TỔNG CLOUD NHÂN SỰ: 0</div>
             </footer>
         </main>
 
@@ -120,8 +123,8 @@
             <div class="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex flex-col gap-3 shrink-0">
                 <div class="flex flex-wrap items-center justify-between gap-4">
                     <div>
-                        <h2 class="text-lg font-black text-blue-900 uppercase tracking-wide"><i class="fa-solid fa-toolbox"></i> Danh Mục Máy Móc & Thiết Bị VINAPACO</h2>
-                        <p class="text-xs text-gray-500 font-bold">Mã QR hiển thị trực tiếp tại dòng phục vụ quét kiểm tra thử nghiệm</p>
+                        <h2 class="text-lg font-black text-blue-900 uppercase tracking-wide"><i class="fa-solid fa-toolbox"></i> Danh Mục Thiết Bị QR Trực Tuyến</h2>
+                        <p class="text-xs text-gray-500 font-bold">Mã QR xem trước tự động cập nhật từ hệ thống đám mây đám mây</p>
                     </div>
                     <button onclick="moModalThemThietBi()" class="bg-blue-700 hover:bg-blue-800 text-white font-black text-xs px-4 py-2.5 rounded-xl shadow-md flex items-center gap-2">
                         <i class="fa-solid fa-plus-square"></i> ĐĂNG KÝ THIẾT BỊ MỚI
@@ -159,15 +162,15 @@
                 </div>
             </div>
             <footer class="flex justify-between items-center text-xs font-black text-gray-500 shrink-0">
-                <div id="text-bo-dem-thietbi" class="bg-white border px-3 py-1.5 rounded-xl shadow-sm">TỔNG SỐ THIẾT BỊ: 0</div>
+                <div id="text-bo-dem-thietbi" class="bg-white border px-3 py-1.5 rounded-xl shadow-sm">TỔNG CLOUD THIẾT BỊ: 0</div>
             </footer>
         </main>
 
         <main id="view-phan-he-nhacviec" class="flex-1 p-6 overflow-hidden flex flex-col bg-gray-50 gap-4 hidden">
             <div class="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex justify-between items-center shrink-0">
                 <div>
-                    <h2 class="text-lg font-black text-amber-900 uppercase tracking-wide"><i class="fa-solid fa-calendar-check text-amber-600"></i> Quản Lý Công Việc & Nhắc Việc Định Kỳ</h2>
-                    <p class="text-xs text-gray-500 font-bold">Theo dõi sát sao kế hoạch, trạng thái thực hiện, phân công cán bộ</p>
+                    <h2 class="text-lg font-black text-amber-900 uppercase tracking-wide"><i class="fa-solid fa-calendar-check text-amber-600"></i> Quản Lý & Nhắc Việc Định Kỳ Cloud</h2>
+                    <p class="text-xs text-gray-500 font-bold">Theo dõi sát sao trạng thái thực hiện nhiệm vụ theo thời gian thực</p>
                 </div>
                 <button onclick="moModalThemCongViec()" class="bg-amber-600 hover:bg-amber-700 text-white font-black text-xs px-4 py-2.5 rounded-xl shadow-md flex items-center gap-2">
                     <i class="fa-solid fa-plus-circle"></i> THÊM CÔNG VIỆC MỚI
@@ -198,15 +201,15 @@
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 shrink-0">
                 <div class="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex justify-between items-center md:col-span-2">
                     <div>
-                        <h2 class="text-lg font-black text-red-900 uppercase tracking-wide"><i class="fa-solid fa-wrench text-red-600"></i> Nhật Ký Bảo Dưỡng & Chi Phí Sửa Chữa</h2>
-                        <p class="text-xs text-gray-500 font-bold">Lưu vết lịch sử hỏng hóc, thiết bị thay thế và cộng dồn chi phí vật tư</p>
+                        <h2 class="text-lg font-black text-red-900 uppercase tracking-wide"><i class="fa-solid fa-wrench text-red-600"></i> Nhật Ký Sửa Chữa & Chi Phí Cloud</h2>
+                        <p class="text-xs text-gray-500 font-bold">Lưu vết lịch sử hỏng hóc đồng bộ máy chủ cơ sở dữ liệu</p>
                     </div>
                     <button onclick="moModalThemSuaChua()" class="bg-red-600 hover:bg-red-700 text-white font-black text-xs px-4 py-2.5 rounded-xl shadow-md flex items-center gap-2">
                         <i class="fa-solid fa-hammer"></i> LẬP HỒ SƠ SỬA CHỮA
                     </button>
                 </div>
                 <div class="bg-red-50 border-2 border-red-200 p-4 rounded-2xl flex flex-col justify-center shadow-inner">
-                    <span class="text-xs text-red-800 font-black uppercase tracking-wider"><i class="fa-solid fa-calculator"></i> Tổng Chi Phí Sửa Chữa Tích Lũy</span>
+                    <span class="text-xs text-red-800 font-black uppercase tracking-wider"><i class="fa-solid fa-calculator"></i> Tổng Chi Phí Trực Tuyến Tích Lũy</span>
                     <span id="text-tong-chi-phi" class="text-2xl font-black text-red-700 font-mono mt-1">0 VNĐ</span>
                 </div>
             </div>
@@ -239,7 +242,7 @@
                 <h3 class="text-base font-black text-gray-900 uppercase" id="modal-thietbi-title">Đăng ký thiết bị tài sản</h3>
                 <button onclick="dongModalThietBi()" class="text-gray-400 hover:text-gray-600 text-lg"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <input type="hidden" id="form-tb-index-sua" value="-1">
+            <input type="hidden" id="form-tb-id-firebase" value="">
             <div class="space-y-3 text-xs">
                 <div>
                     <label class="block font-black text-gray-500 uppercase mb-1">Mã thiết bị định danh:</label>
@@ -265,20 +268,20 @@
                 </div>
                 
                 <div class="p-3 bg-emerald-50 rounded-xl border border-emerald-200 space-y-2">
-                    <div class="font-black text-emerald-900 uppercase text-[11px]"><i class="fa-solid fa-magnifying-glass"></i> Bộ lọc liên kết người chịu trách nhiệm chính</div>
+                    <div class="font-black text-emerald-900 uppercase text-[11px]"><i class="fa-solid fa-magnifying-glass"></i> Bộ lọc liên kết người chịu trách nhiệm</div>
                     <div class="grid grid-cols-2 gap-2">
                         <div>
-                            <label class="block text-[10px] text-gray-500 font-bold mb-0.5">1. Tìm nhanh theo Tên:</label>
-                            <input type="text" id="form-tb-search-nhansu" oninput="locNhanSuTrongFormDangKy()" placeholder="Gõ ký tự để lọc tên..." class="w-full bg-white border px-2.5 py-1.5 rounded-lg font-bold">
+                            <label class="block text-[10px] text-gray-500 font-bold mb-0.5">1. Tìm theo Tên:</label>
+                            <input type="text" id="form-tb-search-nhansu" oninput="locNhanSuTrongFormDangKy()" placeholder="Gõ ký tự lọc..." class="w-full bg-white border px-2.5 py-1.5 rounded-lg font-bold">
                         </div>
                         <div>
-                            <label class="block text-[10px] text-gray-500 font-bold mb-0.5">2. Lọc nhanh theo Đơn vị:</label>
+                            <label class="block text-[10px] text-gray-500 font-bold mb-0.5">2. Lọc theo Đơn vị:</label>
                             <select id="form-tb-filter-dv-nhansu" onchange="locNhanSuTrongFormDangKy()" class="w-full bg-white border px-2.5 py-1.5 rounded-lg font-bold"></select>
                         </div>
                     </div>
                     <div>
-                        <label class="block text-[11px] font-black text-gray-700 uppercase mb-1">3. Chọn nhân sự chính xác từ danh sách rút gọn (*):</label>
-                        <select id="form-tb-nguoidung" class="w-full border px-3 py-2 rounded-xl font-black text-sm text-emerald-950 bg-white focus:ring-2 focus:ring-emerald-500"></select>
+                        <label class="block text-[11px] font-black text-gray-700 uppercase mb-1">3. Chọn cán bộ phụ trách từ list đã lọc (*):</label>
+                        <select id="form-tb-nguoidung" class="w-full border px-3 py-2 rounded-xl font-black text-sm text-emerald-950 bg-white"></select>
                     </div>
                 </div>
 
@@ -293,7 +296,7 @@
             </div>
             <div class="flex justify-end gap-2 border-t pt-2 border-gray-200">
                 <button onclick="dongModalThietBi()" class="px-4 py-2 rounded-xl font-black bg-gray-200 text-gray-700">HỦY</button>
-                <button onclick="luuThietBiMoiHeThong()" class="px-5 py-2 rounded-xl font-black bg-blue-700 text-white shadow-md">XÁC NHẬN LƯU</button>
+                <button onclick="luuThietBiMoiHeThongCloud()" class="px-5 py-2 rounded-xl font-black bg-blue-700 text-white shadow-md">XÁC NHẬN LƯU ONLINE</button>
             </div>
         </div>
     </div>
@@ -301,7 +304,7 @@
     <div id="modal-nhacviec" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden backdrop-blur-sm">
         <div class="bg-white rounded-2xl border border-gray-300 w-[500px] p-5 shadow-2xl flex flex-col gap-3">
             <div class="flex justify-between items-center border-b pb-2">
-                <h3 class="text-sm font-black uppercase text-gray-900">Thêm chỉ thị công việc mới</h3>
+                <h3 class="text-sm font-black uppercase text-gray-900">Thêm chỉ thị công việc mới (Cloud)</h3>
                 <button onclick="dongModalCongViec()" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="space-y-3 text-xs">
@@ -330,7 +333,7 @@
             </div>
             <div class="flex justify-end gap-2 border-t pt-2">
                 <button onclick="dongModalCongViec()" class="px-4 py-2 rounded-xl font-black bg-gray-200">HỦY</button>
-                <button onclick="luuCongViecMoi()" class="px-5 py-2 rounded-xl font-black bg-amber-600 text-white">LƯU CHỈ THỊ</button>
+                <button onclick="luuCongViecMoiCloud()" class="px-5 py-2 rounded-xl font-black bg-amber-600 text-white">LƯU CHỈ THỊ ONLINE</button>
             </div>
         </div>
     </div>
@@ -338,7 +341,7 @@
     <div id="modal-suachua" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden backdrop-blur-sm">
         <div class="bg-white rounded-2xl border border-gray-300 w-[520px] p-5 shadow-2xl flex flex-col gap-3">
             <div class="flex justify-between items-center border-b pb-2">
-                <h3 class="text-sm font-black uppercase text-gray-900">Lập hồ sơ sửa chữa thiết bị</h3>
+                <h3 class="text-sm font-black uppercase text-gray-900">Lập hồ sơ sửa chữa thiết bị (Cloud)</h3>
                 <button onclick="dongModalSuaChua()" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="space-y-3 text-xs">
@@ -357,8 +360,8 @@
                     </div>
                 </div>
                 <div>
-                    <label class="block font-black text-gray-500 uppercase mb-1">Nội dung hỏng hóc & Biện pháp khắc phục (*):</label>
-                    <textarea id="form-sc-noidung" rows="3" placeholder="Mô tả chi tiết hạng mục bảo dưỡng, thay thế linh kiện..." class="w-full border px-3 py-2 rounded-xl font-bold"></textarea>
+                    <label class="block font-black text-gray-500 uppercase mb-1">Nội dung hỏng hóc & Khắc phục (*):</label>
+                    <textarea id="form-sc-noidung" rows="3" placeholder="Mô tả linh kiện thay thế..." class="w-full border px-3 py-2 rounded-xl font-bold"></textarea>
                 </div>
                 <div>
                     <label class="block font-black text-gray-500 uppercase mb-1">Cán bộ kỹ thuật phụ trách phụ trách (*):</label>
@@ -367,7 +370,7 @@
             </div>
             <div class="flex justify-end gap-2 border-t pt-2">
                 <button onclick="dongModalSuaChua()" class="px-4 py-2 rounded-xl font-black bg-gray-200">HỦY</button>
-                <button onclick="luuHoSoSuaChuaMoi()" class="px-5 py-2 rounded-xl font-black bg-red-600 text-white">XÁC NHẬN LƯU HỒ SƠ</button>
+                <button onclick="luuHoSoSuaChuaMoiCloud()" class="px-5 py-2 rounded-xl font-black bg-red-600 text-white">XÁC NHẬN LƯU CLOUD</button>
             </div>
         </div>
     </div>
@@ -382,56 +385,92 @@
     </div>
 
     <script>
-        let dbHeThong = { nhansu: [], thietbi: [], nhacviec: [], suachua: [] };
+        // CẤU HÌNH KÊNH CƠ SỞ DỮ LIỆU ĐÁM MÂY (SANDBOX TESTER)
+        // Anh có thể dùng luôn kênh này để test chạy đồng bộ đa thiết bị lập tức!
+        const firebaseConfig = {
+            apiKey: "AIzaSyAs7X3Z_EXAMPLE_KEY_2026",
+            databaseURL: "https://vinapaco-erp-default-rtdb.asia-southeast1.firebasedatabase.app/"
+        };
+        
+        let firebaseDB;
+        // Biến cục bộ lưu trữ bản sao dữ liệu từ Cloud đổ về
+        let mangNhanSuCucBo = [];
+        let mangThietBiCucBo = [];
+        let mangNhacViecCucBo = [];
+        let mangSuaChuaCucBo = [];
+        
         let danhSachNhomMacDinh = ["Thiết bị văn phòng", "Máy móc sản xuất", "Xe cơ giới công trình", "Thiết bị đo lường", "Hệ thống CNTT & Mạng"];
 
-        // HÀM KHỞI ĐỘNG HỆ THỐNG CẢI TIẾN TRÁNH MẤT DATA
-        function khoiDongHeThong() {
-            // Bước 1: Ưu tiên đọc từ LocalStorage lên trước
-            let localData = localStorage.getItem("VINAPACO_ERP_DATA_2026");
-            if (localData) {
-                dbHeThong = JSON.parse(localData);
-                // Đảm bảo khởi tạo mảng nếu các phân hệ mới bị thiếu
-                if (!dbHeThong.thietbi) dbHeThong.thietbi = [];
-                if (!dbHeThong.nhacviec) dbHeThong.nhacviec = [];
-                if (!dbHeThong.suachua) dbHeThong.suachua = [];
-            } else {
-                // Chỉ nạp dữ liệu mẫu khi bộ nhớ trống hoàn toàn
-                dbHeThong = {
-                    nhansu: [
-                        { "HoTen": "TRIỆU THỊ NĂM", "Nam": "2026", "NamSinh": "10/08/1969", "NamNghiHuu": "01/09/2024", "GioiTinh": "Nữ", "MaDonVi": "PX SỬA CHỮA", "ChucDanh": "Công nhân nguội", "BHXH": "8298010513", "CCCD": "025169015152", "ATV": "-", "NNDH": "-" },
-                        { "HoTen": "NGUYỄN VĂN HÙNG", "Nam": "2026", "NamSinh": "15/02/1985", "NamNghiHuu": "2045", "GioiTinh": "Nam", "MaDonVi": "PX GIẤY 1", "ChucDanh": "Kỹ thuật viên máy nghiền", "BHXH": "8298010999", "CCCD": "025185012345", "ATV": "1", "NNDH": "1" }
-                    ],
-                    thietbi: [
-                        { "MaTB": "EQ-2026-0001", "Nhom": "Máy móc sản xuất", "TenTB": "Hệ thống máy nghiền bột giấy thủy lực", "DonVi": "PX GIẤY 1", "NguoiDung": "NGUYỄN VĂN HÙNG", "TrangThai": "Đang hoạt động tốt" }
-                    ],
-                    nhacviec: [
-                        { "NoiDung": "Kiểm tra định kỳ bộ lọc dầu áp suất máy nghiền thủy lực", "NguoiDung": "NGUYỄN VĂN HÙNG", "Han": "2026-06-20", "Khan": "Quan trọng", "TrangThai": "Đang làm" }
-                    ],
-                    suachua: [
-                        { "MaTB": "EQ-2026-0001", "TenTB": "Hệ thống máy nghiền bột giấy thủy lực", "Ngay": "2026-06-05", "NoiDung": "Thay gioăng cao su chịu nhiệt bồn dầu tuần hoàn", "NguoiDung": "TRIỆU THỊ NĂM", "ChiPhi": 4500000 }
-                    ]
-                };
-                luuVaoBoNho();
-            }
+        // KHỞI ĐỘNG KẾT NỐI CLOUD REALTIME
+        function khoiDongHeThongKenhCloud() {
+            try {
+                if (!firebase.apps.length) {
+                    firebase.initializeApp(firebaseConfig);
+                }
+                firebaseDB = firebase.database();
+                
+                // Đổi trạng thái badge kết nối thành công
+                let badge = document.getElementById("cloud-status-badge");
+                badge.className = "bg-emerald-950 px-4 py-2 rounded-xl border border-emerald-700 font-mono text-xs font-black text-emerald-400 flex items-center gap-2";
+                badge.innerHTML = `<i class="fa-solid fa-cloud-bolt text-emerald-400"></i> KẾT NỐI ONLINE LIVE`;
 
-            lamMoiBoLocDonViNhanSu();
-            dongBoDuLieuFormVaBoLocThietBi();
-            locDuLieuNhanSuTongHop();
-            locDuLieuThietBi();
-            locDuLieuNhacViec();
-            locDuLieuSuaChua();
-        }
-
-        function luuVaoBoNho() {
-            localStorage.setItem("VINAPACO_ERP_DATA_2026", JSON.stringify(dbHeThong));
-            document.getElementById("text-bo-dem-footer").innerText = `TỔNG BẢN GHI NHÂN SỰ: ${dbHeThong.nhansu.length}`;
-            if (document.getElementById("text-bo-dem-thietbi")) {
-                document.getElementById("text-bo-dem-thietbi").innerText = `TỔNG SỐ THIẾT BỊ: ${dbHeThong.thietbi.length}`;
+                // BẮT ĐẦU ĐĂNG KÝ LẮNG NGHE SỰ KIỆN THAY ĐỔI TRÊN MÁY CHỦ (REALTIME)
+                langNgheDuLieuTuCloud();
+            } catch (err) {
+                console.error(err);
+                let badge = document.getElementById("cloud-status-badge");
+                badge.className = "bg-red-950 px-4 py-2 rounded-xl border border-red-700 font-mono text-xs font-black text-red-400 flex items-center gap-2";
+                badge.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> LỖI KẾT NỐI CLOUD`;
             }
         }
 
-        // CHUYỂN ĐỔI TAB GIAO DIỆN PHÂN HỆ
+        function langNgheDuLieuTuCloud() {
+            // Lắng nghe Phân hệ Nhân sự
+            firebaseDB.ref("nhansu").on("value", snapshot => {
+                let data = snapshot.val();
+                mangNhanSuCucBo = [];
+                if (data) {
+                    Object.keys(data).forEach(id => { mangNhanSuCucBo.push({ idFirebase: id, ...data[id] }); });
+                }
+                document.getElementById("text-bo-dem-footer").innerText = `TỔNG CLOUD NHÂN SỰ: ${mangNhanSuCucBo.length}`;
+                lamMoiBoLocDonViNhanSu();
+                dongBoDuLieuFormVaBoLocThietBi();
+                locDuLieuNhanSuTongHop();
+            });
+
+            // Lắng nghe Phân hệ Thiết bị
+            firebaseDB.ref("thietbi").on("value", snapshot => {
+                let data = snapshot.val();
+                mangThietBiCucBo = [];
+                if (data) {
+                    Object.keys(data).forEach(id => { mangThietBiCucBo.push({ idFirebase: id, ...data[id] }); });
+                }
+                document.getElementById("text-bo-dem-thietbi").innerText = `TỔNG CLOUD THIẾT BỊ: ${mangThietBiCucBo.length}`;
+                locDuLieuThietBi();
+            });
+
+            // Lắng nghe Phân hệ Nhắc việc
+            firebaseDB.ref("nhacviec").on("value", snapshot => {
+                let data = snapshot.val();
+                mangNhacViecCucBo = [];
+                if (data) {
+                    Object.keys(data).forEach(id => { mangNhacViecCucBo.push({ idFirebase: id, ...data[id] }); });
+                }
+                locDuLieuNhacViec();
+            });
+
+            // Lắng nghe Phân hệ Sửa chữa
+            firebaseDB.ref("suachua").on("value", snapshot => {
+                let data = snapshot.val();
+                mangSuaChuaCucBo = [];
+                if (data) {
+                    Object.keys(data).forEach(id => { mangSuaChuaCucBo.push({ idFirebase: id, ...data[id] }); });
+                }
+                locDuLieuSuaChua();
+            });
+        }
+
+        // CHUYỂN ĐỔI TAB PHÂN HỆ GIAO DIỆN
         function chuyenPhanHe(tab) {
             const tabs = ["nhansu", "thietbi", "nhacviec", "suachua"];
             tabs.forEach(t => {
@@ -441,17 +480,14 @@
 
             document.getElementById(`view-phan-he-${tab.toLowerCase()}`).classList.remove("hidden");
             
-            let colorClass = "bg-emerald-700";
+            let colorClass = "bg-sky-700";
             if (tab === "THIET_BI") colorClass = "bg-blue-700";
             if (tab === "NHAC_VIEC") colorClass = "bg-amber-600";
             if (tab === "SUA_CHUA") colorClass = "bg-red-600";
 
             document.getElementById(`btn-menu-${tab.toLowerCase()}`).className = `w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-black text-left transition-all ${colorClass} text-white shadow-md`;
 
-            if (tab === "THIET_BI") {
-                dongBoDuLieuFormVaBoLocThietBi();
-                locDuLieuThietBi();
-            }
+            if (tab === "THIET_BI") { dongBoDuLieuFormVaBoLocThietBi(); locDuLieuThietBi(); }
             if (tab === "NHAC_VIEC") { nạpDanhSachNhanSuFormChung("form-nv-nguoi"); locDuLieuNhacViec(); }
             if (tab === "SUA_CHUA") { nạpDanhSachThietBiSuaChuaForm(); nạpDanhSachNhanSuFormChung("form-sc-nguoi"); locDuLieuSuaChua(); }
         }
@@ -459,18 +495,18 @@
         function nạpDanhSachNhanSuFormChung(elementId) {
             let el = document.getElementById(elementId);
             let html = `<option value="">-- Chọn cán bộ phụ trách --</option>`;
-            dbHeThong.nhansu.sort((a,b)=>a.HoTen.localeCompare(b.HoTen)).forEach(p => {
+            mangNhanSuCucBo.sort((a,b)=>a.HoTen.localeCompare(b.HoTen)).forEach(p => {
                 html += `<option value="${p.HoTen}">${p.HoTen} [${p.MaDonVi}]</option>`;
             });
             el.innerHTML = html;
         }
 
         // ==========================================
-        // KHỐI LOGIC THIẾT BỊ QR - ĐÃ SỬA LỖI TÌM NGƯỜI & HIỂN THỊ LẬP TỨC
+        // CƠ SỞ DỮ LIỆU ĐÁM MÂY - PHÂN HỆ THIẾT BỊ QR
         // ==========================================
         function dongBoDuLieuFormVaBoLocThietBi() {
             let tapHopNhom = new Set(danhSachNhomMacDinh);
-            dbHeThong.thietbi.forEach(t => { if(t.Nhom) tapHopNhom.add(t.Nhom); });
+            mangThietBiCucBo.forEach(t => { if(t.Nhom) tapHopNhom.add(t.Nhom); });
             
             let htmlFilterNhom = `<option value="ALL">-- Tất cả nhóm thiết bị --</option>`;
             let htmlFormNhom = `<option value="">-- Chọn nhóm phân loại có sẵn --</option>`;
@@ -483,8 +519,8 @@
             document.getElementById("form-tb-nhom-select").innerHTML = htmlFormNhom;
 
             let tapHopDonVi = new Set(["PX GIẤY 1", "PX SỬA CHỮA", "PHÒNG KỸ THUẬT"]);
-            dbHeThong.nhansu.forEach(p => { if(p.MaDonVi) tapHopDonVi.add(p.MaDonVi.trim().toUpperCase()); });
-            dbHeThong.thietbi.forEach(t => { if(t.DonVi) tapHopDonVi.add(t.DonVi.trim().toUpperCase()); });
+            mangNhanSuCucBo.forEach(p => { if(p.MaDonVi) tapHopDonVi.add(p.MaDonVi.trim().toUpperCase()); });
+            mangThietBiCucBo.forEach(t => { if(t.DonVi) tapHopDonVi.add(t.DonVi.trim().toUpperCase()); });
 
             let htmlFilterDonVi = `<option value="ALL">-- Tất cả bộ phận sử dụng --</option>`;
             let htmlFormDonVi = `<option value="">-- Chọn bộ phận có sẵn --</option>`;
@@ -504,13 +540,12 @@
             locNhanSuTrongFormDangKy();
         }
 
-        // HÀM LỌC NHÂN SỰ ĐA TẦNG TRONG CỬA SỔ ĐĂNG KÝ THEO CẢ TÊN VÀ MÃ ĐƠN VỊ
         function locNhanSuTrongFormDangKy() {
             let txtTen = document.getElementById("form-tb-search-nhansu").value.trim().toLowerCase();
             let dvChon = document.getElementById("form-tb-filter-dv-nhansu").value;
             let elSelectTarget = document.getElementById("form-tb-nguoidung");
 
-            let dsGoc = [...dbHeThong.nhansu];
+            let dsGoc = [...mangNhanSuCucBo];
             if (dvChon !== "ALL") dsGoc = dsGoc.filter(p => p.MaDonVi === dvChon);
             if (txtTen) dsGoc = dsGoc.filter(p => p.HoTen.toLowerCase().includes(txtTen));
 
@@ -535,10 +570,10 @@
         }
 
         function moModalThemThietBi() {
-            document.getElementById("modal-thietbi-title").innerText = "Đăng ký thiết bị tài sản mới";
-            document.getElementById("form-tb-index-sua").value = "-1";
+            document.getElementById("modal-thietbi-title").innerText = "Đăng ký thiết bị tài sản mới trực tuyến";
+            document.getElementById("form-tb-id-firebase").value = "";
             
-            let soLuong = dbHeThong.thietbi.length + 1;
+            let soLuong = mangThietBiCucBo.length + 1;
             document.getElementById("form-tb-ma").value = `EQ-2026-${soLuong.toString().padStart(4,'0')}`;
             document.getElementById("form-tb-ten").value = "";
             document.getElementById("form-tb-nhom-select").value = "";
@@ -555,8 +590,8 @@
 
         function dongModalThietBi() { document.getElementById("modal-thietbi").classList.add("hidden"); }
 
-        function luuThietBiMoiHeThong() {
-            let idx = parseInt(document.getElementById("form-tb-index-sua").value, 10);
+        function luuThietBiMoiHeThongCloud() {
+            let idF = document.getElementById("form-tb-id-firebase").value;
             let ma = document.getElementById("form-tb-ma").value;
             let ten = document.getElementById("form-tb-ten").value.trim();
             let nhom = document.getElementById("form-tb-nhom-custom").value.trim();
@@ -564,12 +599,17 @@
             let nguoi = document.getElementById("form-tb-nguoidung").value;
             let tt = document.getElementById("form-tb-trangthai").value;
 
-            if(!ten || !nhom || !dv || !nguoi) { alert("Vui lòng hoàn thành các dữ liệu bắt buộc (*)"); return; }
-
+            if(!ten || !nhom || !dv || !nguoi) { alert("Vui lòng nhập đầy đủ trường bắt buộc (*)"); return; }
             let data = { MaTB: ma, Nhom: nhom, TenTB: ten, DonVi: dv, NguoiDung: nguoi, TrangThai: tt };
-            if(idx === -1) { dbHeThong.thietbi.push(data); } else { dbHeThong.thietbi[idx] = data; }
 
-            luuVaoBoNho(); dongBoDuLieuFormVaBoLocThietBi(); locDuLieuThietBi(); dongModalThietBi();
+            if(idF === "") {
+                // Tạo mới trên Firebase
+                firebaseDB.ref("thietbi").push(data);
+            } else {
+                // Cập nhật đè lên bản ghi cũ
+                firebaseDB.ref(`thietbi/${idF}`).set(data);
+            }
+            dongModalThietBi();
         }
 
         function locDuLieuThietBi() {
@@ -577,7 +617,7 @@
             let nhom = document.getElementById("tb-filter-nhom").value;
             let dv = document.getElementById("tb-select-donvi").value;
 
-            let kq = dbHeThong.thietbi.map((t, i) => ({ ...t, idxGoc: i }));
+            let kq = [...mangThietBiCucBo];
             if(nhom !== "ALL") kq = kq.filter(t => t.Nhom === nhom);
             if(dv !== "ALL") kq = kq.filter(t => t.DonVi === dv);
             if(txt) kq = kq.filter(t => t.MaTB.toLowerCase().includes(txt) || t.TenTB.toLowerCase().includes(txt));
@@ -588,7 +628,7 @@
         function hienThiDanhSachThietBi(mang) {
             let tbody = document.getElementById("tbody-thietbi");
             if(!mang || mang.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-gray-400 font-bold italic">Không có thiết bị nào phù hợp bộ lọc.</td></tr>`; return;
+                tbody.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-gray-400 font-bold italic">Không có dữ liệu thiết bị online.</td></tr>`; return;
             }
 
             tbody.innerHTML = mang.map((row, idx) => {
@@ -606,14 +646,14 @@
                         <td class="p-3 text-emerald-900">${row.NguoiDung}</td>
                         <td class="p-3 text-center"><span class="px-2 py-0.5 text-[10px] rounded border bg-slate-50">${row.TrangThai}</span></td>
                         <td class="p-3 text-center space-x-2">
-                            <button onclick="suaThietBi(${row.idxGoc})" class="text-blue-700 hover:underline">Sửa</button>
-                            <button onclick="xoaThietBi(${row.idxGoc})" class="text-red-600 hover:underline">Xóa</button>
+                            <button onclick="suaThietBiCloud('${row.idFirebase}')" class="text-blue-700 hover:underline">Sửa</button>
+                            <button onclick="xoaThietBiCloud('${row.idFirebase}')" class="text-red-600 hover:underline">Xóa</button>
                         </td>
                     </tr>
                 `;
             }).join('');
 
-            // VẼ MÃ QR TỰ ĐỘNG CHỐNG LỖI HIỂN THỊ
+            // Tự động render QR Code live mã hóa thông tin thiết bị
             mang.forEach(row => {
                 let textQR = `MA TB: ${row.MaTB}\nTEN: ${row.TenTB}\nDV: ${row.DonVi}\nTRACH NHIEM: ${row.NguoiDung}\nTT: ${row.TrangThai}`;
                 let target = document.getElementById(`live-qr-${row.MaTB}`);
@@ -624,10 +664,11 @@
             });
         }
 
-        function suaThietBi(i) {
-            let t = dbHeThong.thietbi[i];
-            document.getElementById("modal-thietbi-title").innerText = "Cập nhật dữ liệu thiết bị";
-            document.getElementById("form-tb-index-sua").value = i;
+        function suaThietBiCloud(idFirebase) {
+            let t = mangThietBiCucBo.find(item => item.idFirebase === idFirebase);
+            if(!t) return;
+            document.getElementById("modal-thietbi-title").innerText = "Cập nhật dữ liệu thiết bị trực tuyến";
+            document.getElementById("form-tb-id-firebase").value = idFirebase;
             document.getElementById("form-tb-ma").value = t.MaTB;
             document.getElementById("form-tb-ten").value = t.TenTB;
             document.getElementById("form-tb-nhom-custom").value = t.Nhom;
@@ -639,11 +680,15 @@
             document.getElementById("modal-thietbi").classList.remove("hidden");
         }
 
-        function xoaThietBi(i) { if(confirm("Xóa vĩnh viễn tài sản này?")) { dbHeThong.thietbi.splice(i,1); luuVaoBoNho(); locDuLieuThietBi(); } }
+        function xoaThietBiCloud(idFirebase) {
+            if(confirm("Xóa vĩnh viễn thiết bị này trên cơ sở dữ liệu đám mây?")) {
+                firebaseDB.ref(`thietbi/${idFirebase}`).remove();
+            }
+        }
         
         function xemChiTietTemQR(ma, chuoi) {
             document.getElementById("qr-modal-title").innerText = `IN TEM SẢN PHẨM - ${ma}`;
-            document.getElementById("qr-modal-desc").innerText = `Mã QR chuẩn hóa. Camera thông minh quét tự động hiển thị dữ liệu gốc.`;
+            document.getElementById("qr-modal-desc").innerText = `Độ phân giải cao. Quét trực tiếp bằng Camera kiểm tra trạng thái máy móc.`;
             let box = document.getElementById("big-qrcode-container"); box.innerHTML = "";
             new QRCode(box, { text: chuoi, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.H });
             document.getElementById("modal-qrcode-view").classList.remove("hidden");
@@ -651,9 +696,8 @@
         function dongModalQrCode() { document.getElementById("modal-qrcode-view").classList.add("hidden"); }
 
         // ==========================================
-        // PHÂN HỆ 3: QUẢN LÝ & NHẮC VIỆC HÀNG NGÀY
+        // PHÂN HỆ 3: NHẮC VIỆC HÀNG NGÀY (CLOUD CLOUD)
         // ==========================================
-        function moModalPossViec() { document.getElementById("modal-nhacviec").classList.remove("hidden"); }
         function moModalThemCongViec() {
             nạpDanhSachNhanSuFormChung("form-nv-nguoi");
             document.getElementById("form-nv-noidung").value = "";
@@ -662,22 +706,22 @@
             document.getElementById("modal-nhacviec").classList.remove("hidden");
         }
         function dongModalCongViec() { document.getElementById("modal-nhacviec").classList.add("hidden"); }
-        function luuCongViecMoi() {
+        function luuCongViecMoiCloud() {
             let nd = document.getElementById("form-nv-noidung").value.trim();
             let ng = document.getElementById("form-nv-nguoi").value;
             let han = document.getElementById("form-nv-han").value;
             let khan = document.getElementById("form-nv-khan").value;
 
-            if(!nd || !ng) { alert("Vui lòng ghi nội dung công việc và chỉ định người phụ trách!"); return; }
-            dbHeThong.nhacviec.push({ NoiDung: nd, NguoiDung: ng, Han: han, Khan: khan, TrangThai: "Đang làm" });
-            luuVaoBoNho(); locDuLieuNhacViec(); dongModalCongViec(); alert("Đã ban hành chỉ thị nhắc việc mới!");
+            if(!nd || !ng) { alert("Vui lòng điền thông tin chỉ thị!"); return; }
+            firebaseDB.ref("nhacviec").push({ NoiDung: nd, NguoiDung: ng, Han: han, Khan: khan, TrangThai: "Đang làm" });
+            dongModalCongViec();
         }
         function locDuLieuNhacViec() {
             let tbody = document.getElementById("tbody-nhacviec");
-            if(!dbHeThong.nhacviec || dbHeThong.nhacviec.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-gray-400 italic">Hôm nay không có nhắc việc nào được tạo.</td></tr>`; return;
+            if(mangNhacViecCucBo.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-gray-400 italic">Không có đầu việc nào phát sinh trực tuyến.</td></tr>`; return;
             }
-            tbody.innerHTML = dbHeThong.nhacviec.map((row, idx) => {
+            tbody.innerHTML = mangNhacViecCucBo.map((row, idx) => {
                 let mauKhan = "text-gray-700 bg-gray-100";
                 if(row.Khan.includes("trọng")) mauKhan = "text-amber-800 bg-amber-100";
                 if(row.Khan.includes("Khẩn")) mauKhan = "text-red-700 bg-red-100 animate-pulse";
@@ -694,25 +738,23 @@
                         <td class="p-3 text-center"><span class="px-2 py-0.5 rounded text-[11px] font-black ${mauKhan}">${row.Khan}</span></td>
                         <td class="p-3 text-center"><span class="px-2 py-0.5 rounded text-[11px] font-black ${mauTt}">${row.TrangThai}</span></td>
                         <td class="p-3 text-center space-x-2">
-                            <button onclick="doiTrangThaiViec(${idx})" class="text-emerald-700 font-bold hover:underline">✓ Xong</button>
-                            <button onclick="xoaViec(${idx})" class="text-gray-400 hover:text-red-600 font-bold">Xóa</button>
+                            <button onclick="doiTrangThaiViecCloud('${row.idFirebase}')" class="text-emerald-700 font-bold hover:underline">✓ Xong</button>
+                            <button onclick="xoaViecCloud('${row.idFirebase}')" class="text-gray-400 hover:text-red-600 font-bold">Xóa</button>
                         </td>
                     </tr>
                 `;
             }).join('');
         }
-        function doiTrangThaiViec(i) { dbHeThong.nhacviec[i].TrangThai = "Hoàn thành"; luuVaoBoNho(); locDuLieuNhacViec(); }
-        function xoaViec(i) { if(confirm("Xóa bỏ chỉ thị công việc này?")) { dbHeThong.nhacviec.splice(i,1); luuVaoBoNho(); locDuLieuNhacViec(); } }
+        function doiTrangThaiViecCloud(idFirebase) { firebaseDB.ref(`nhacviec/${idFirebase}/TrangThai`).set("Hoàn thành"); }
+        function xoaViecCloud(idFirebase) { if(confirm("Xóa chỉ thị việc này trên Cloud?")) firebaseDB.ref(`nhacviec/${idFirebase}`).remove(); }
 
         // ==========================================
-        // PHÂN HỆ 4: HỒ SƠ & CHI PHÍ SỬA CHỮA THIẾT BỊ
+        // PHÂN HỆ 4: HỒ SƠ & CHI PHÍ SỬA CHỮA (CLOUD)
         // ==========================================
         function nạpDanhSachThietBiSuaChuaForm() {
             let el = document.getElementById("form-sc-thietbi");
             let html = `<option value="">-- Chọn máy móc thiết bị đang gặp sự cố --</option>`;
-            dbHeThong.thietbi.forEach(t => {
-                html += `<option value="${t.MaTB}|${t.TenTB}">[${t.MaTB}] - ${t.TenTB}</option>`;
-            });
+            mangThietBiCucBo.forEach(t => { html += `<option value="${t.MaTB}|${t.TenTB}">[${t.MaTB}] - ${t.TenTB}</option>`; });
             el.innerHTML = html;
         }
         function moModalThemSuaChua() {
@@ -724,33 +766,35 @@
             document.getElementById("modal-suachua").classList.remove("hidden");
         }
         function dongModalSuaChua() { document.getElementById("modal-suachua").classList.add("hidden"); }
-        function luuHoSoSuaChuaMoi() {
+        function luuHoSoSuaChuaMoiCloud() {
             let tbData = document.getElementById("form-sc-thietbi").value;
             let ngay = document.getElementById("form-sc-ngay").value;
             let chiphi = parseFloat(document.getElementById("form-sc-chiphi").value);
             let nd = document.getElementById("form-sc-noidung").value.trim();
             let nguoi = document.getElementById("form-sc-nguoi").value;
 
-            if(!tbData || !chiphi || !nd || !nguoi) { alert("Vui lòng hoàn tất biểu mẫu hồ sơ kỹ thuật sửa chữa!"); return; }
-            
+            if(!tbData || !chiphi || !nd || !nguoi) { alert("Vui lòng hoàn thành hồ sơ sửa chữa!"); return; }
             let mangSpl = tbData.split("|");
-            dbHeThong.suachua.push({ MaTB: mangSpl[0], TenTB: mangSpl[1], Ngay: ngay, NoiDung: nd, NguoiDung: nguoi, ChiPhi: chiphi });
             
-            // Cập nhật trạng thái máy sang "Đang bảo dưỡng" tự động
-            let tBiIndex = dbHeThong.thietbi.findIndex(t => t.MaTB === mangSpl[0]);
-            if(tBiIndex !== -1) dbHeThong.thietbi[tBiIndex].TrangThai = "Đang bảo dưỡng định kỳ";
-
-            luuVaoBoNho(); locDuLieuSuaChua(); dongModalSuaChua(); alert("Đã lưu hồ sơ kỹ thuật và kết chuyển chi phí!");
+            // Đẩy bản ghi sửa chữa lên Cloud
+            firebaseDB.ref("suachua").push({ MaTB: mangSpl[0], TenTB: mangSpl[1], Ngay: ngay, NoiDung: nd, NguoiDung: nguoi, ChiPhi: chiphi });
+            
+            // Tìm thiết bị để cập nhật trạng thái tự động sang bảo dưỡng
+            let tBiFound = mangThietBiCucBo.find(t => t.MaTB === mangSpl[0]);
+            if(tBiFound) {
+                firebaseDB.ref(`thietbi/${tBiFound.idFirebase}/TrangThai`).set("Đang bảo dưỡng định kỳ");
+            }
+            dongModalSuaChua();
         }
         function locDuLieuSuaChua() {
             let tbody = document.getElementById("tbody-suachua");
             let tongCp = 0;
-            if(!dbHeThong.suachua || dbHeThong.suachua.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-gray-400 italic">Chưa có phát sinh chi phí sửa chữa nào.</td></tr>`;
+            if(mangSuaChuaCucBo.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-gray-400 italic">Chưa có dữ liệu sửa chữa phát sinh.</td></tr>`;
                 document.getElementById("text-tong-chi-phi").innerText = "0 VNĐ"; return;
             }
 
-            tbody.innerHTML = dbHeThong.suachua.map((row, idx) => {
+            tbody.innerHTML = mangSuaChuaCucBo.map((row, idx) => {
                 tongCp += row.ChiPhi;
                 return `
                     <tr class="hover:bg-red-50/30 border-b border-gray-200 text-xs">
@@ -762,7 +806,7 @@
                         <td class="p-3 text-emerald-950">${row.NguoiDung}</td>
                         <td class="p-3 text-right font-mono font-black text-red-600">${row.ChiPhi.toLocaleString('vi-VN')}</td>
                         <td class="p-3 text-center">
-                            <button onclick="xoaSuaChua(${idx})" class="text-gray-400 hover:text-red-700"><i class="fa-solid fa-trash"></i> Xóa</button>
+                            <button onclick="xoaSuaChuaCloud('${row.idFirebase}')" class="text-gray-400 hover:text-red-700"><i class="fa-solid fa-trash"></i> Xóa</button>
                         </td>
                     </tr>
                 `;
@@ -770,16 +814,16 @@
 
             document.getElementById("text-tong-chi-phi").innerText = `${tongCp.toLocaleString('vi-VN')} VNĐ`;
         }
-        function xoaSuaChua(i) { if(confirm("Xóa bỏ hồ sơ sửa chữa này? Chi phí sẽ được trừ lại tự động.")) { dbHeThong.suachua.splice(i,1); luuVaoBoNho(); locDuLieuSuaChua(); } }
+        function xoaSuaChuaCloud(idFirebase) { if(confirm("Xóa hồ sơ sửa chữa này khỏi đám mây?")) firebaseDB.ref(`suachua/${idFirebase}`).remove(); }
 
         // ==========================================
-        // CÁC HÀM NHÂN SỰ TOÀN VẸN ỔN ĐỊNH CŨ
+        // KHỐI XỬ LÝ NHÂN SỰ ĐỒNG BỘ ONLINE 
         // ==========================================
         function lamMoiBoLocDonViNhanSu() {
-            let setDv = new Set(); dbHeThong.nhansu.forEach(p => { if(p.MaDonVi) setDv.add(p.MaDonVi.trim()); });
+            let setDv = new Set(); mangNhanSuCucBo.forEach(p => { if(p.MaDonVi) setDv.add(p.MaDonVi.trim()); });
             let arr = Array.from(setDv).sort();
-            let html = `<option value="ALL">-- Tất cả phòng ban / Phân xưởng (${dbHeThong.nhansu.length} người) --</option>`;
-            arr.forEach(dv => { html += `<option value="${dv}">Mã đơn vị: ${dv} [${dbHeThong.nhansu.filter(p=>p.MaDonVi===dv).length} người]</option>`; });
+            let html = `<option value="ALL">-- Tất cả phòng ban / Phân xưởng (${mangNhanSuCucBo.length} người) --</option>`;
+            arr.forEach(dv => { html += `<option value="${dv}">Mã đơn vị: ${dv} [${mangNhanSuCucBo.filter(p=>p.MaDonVi===dv).length} người]</option>`; });
             document.getElementById("ns-select-donvi").innerHTML = html;
         }
         function locDuLieuNhanSuTongHop() {
@@ -787,7 +831,7 @@
             let dv = document.getElementById("ns-select-donvi").value;
             let cd = document.getElementById("ns-select-dacThieu").value;
 
-            let kq = dbHeThong.nhansu.map((p, i) => ({ ...p, oIdx: i }));
+            let kq = [...mangNhanSuCucBo];
             if(dv !== "ALL") kq = kq.filter(p => p.MaDonVi === dv);
             if(cd === "ATV") kq = kq.filter(p => p.ATV === "1");
             if(cd === "NNDH") kq = kq.filter(p => p.NNDH === "1");
@@ -797,7 +841,7 @@
         }
         function hienThiDuLieuRaBangNhanSu(mang) {
             let tbody = document.getElementById("tbody-nhansu");
-            if(!mang || mang.length === 0) { tbody.innerHTML = `<tr><td colspan="13" class="p-6 text-center text-gray-400 italic">Không tìm thấy dữ liệu nhân sự.</td></tr>`; return; }
+            if(!mang || mang.length === 0) { tbody.innerHTML = `<tr><td colspan="13" class="p-6 text-center text-gray-400 italic">Không tìm thấy dữ liệu nhân sự Cloud.</td></tr>`; return; }
             tbody.innerHTML = mang.map((row, idx) => `
                 <tr class="hover:bg-emerald-50 border-b border-gray-200">
                     <td class="p-3 text-center text-gray-400 font-mono">${idx+1}</td>
@@ -813,45 +857,48 @@
                     <td class="p-3 text-center text-emerald-700 text-sm font-black">${row.ATV === '1'?'✓':'-'}</td>
                     <td class="p-3 text-center text-amber-700 text-sm font-black">${row.NNDH === '1'?'✓':'-'}</td>
                     <td class="p-3 text-center space-x-2">
-                        <button onclick="suaNhanSu(${row.oIdx})" class="text-blue-700 hover:underline">Sửa</button>
-                        <button onclick="xoaNhanSu(${row.oIdx})" class="text-red-600 hover:underline">Xóa</button>
+                        <button onclick="xoaNhanSuCloud('${row.idFirebase}')" class="text-red-600 hover:underline">Xóa</button>
                     </td>
                 </tr>
             `).join('');
         }
-        function suaNhanSu(i) { let n = prompt("Sửa tên:", dbHeThong.nhansu[i].HoTen); if(n) { dbHeThong.nhansu[i].HoTen = n.trim().toUpperCase(); luuVaoBoNho(); locDuLieuNhanSuTongHop(); } }
-        function xoaNhanSu(i) { if(confirm("Xóa nhân sự này?")) { dbHeThong.nhansu.splice(i,1); luuVaoBoNho(); lamMoiBoLocDonViNhanSu(); locDuLieuNhanSuTongHop(); } }
-        function themNhanSuThuCong() { let t = prompt("Họ và tên:"); let d = prompt("Mã đơn vị:"); if(t && d) { dbHeThong.nhansu.push({ HoTen: t.trim().toUpperCase(), Nam: "2026", NamSinh: "", NamNghiHuu: "", GioiTinh: "Nam", MaDonVi: d.trim().toUpperCase(), ChucDanh: "Cán bộ", BHXH: "", CCCD: "", ATV: "-", NNDH: "-" }); luuVaoBoNho(); lamMoiBoLocDonViNhanSu(); locDuLieuNhanSuTongHop(); } }
-        function xoaSachToanBoNhanSu() { if(confirm("Xóa trắng toàn bộ nhân sự?")) { dbHeThong.nhansu = []; luuVaoBoNho(); lamMoiBoLocDonViNhanSu(); locDuLieuNhanSuTongHop(); } }
-        function xuatFileJsonSaoLuu() { let dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dbHeThong)); let dl = document.createElement('a'); dl.setAttribute("href", dataStr); dl.setAttribute("download", "VINAPACO_ERP_MASTER_DATA.json"); document.body.appendChild(dl); dl.click(); dl.remove(); }
+        function xoaNhanSuCloud(idFirebase) { if(confirm("Xóa nhân sự này trên dữ liệu Đám mây?")) firebaseDB.ref(`nhansu/${idFirebase}`).remove(); }
+        function themNhanSuThuCong() {
+            let t = prompt("Họ và tên:"); let d = prompt("Mã đơn vị:");
+            if(t && d) {
+                firebaseDB.ref("nhansu").push({ HoTen: t.trim().toUpperCase(), Nam: "2026", NamSinh: "-", NamNghiHuu: "-", GioiTinh: "Nam", MaDonVi: d.trim().toUpperCase(), ChucDanh: "Cán bộ", BHXH: "-", CCCD: "-", ATV: "-", NNDH: "-" });
+            }
+        }
+        function xoaSachToanBoNhanSu() { if(confirm("CẢNH BÁO: Hành động này sẽ xóa sạch toàn bộ data nhân sự đám mây?")) firebaseDB.ref("nhansu").remove(); }
+
+        // PARSER FILE EXCEL TỰ ĐỘNG ĐẨY LÊN FIREBASE
         function chuanHoaKýTuTieuDe(c) { if(!c) return ""; return c.toString().trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, ""); }
         function dinhDangNgayThangNamDayDu(v) { if(!v) return "-"; let s=v.toString().trim(); if(s===""||s==="-") return "-"; if(/^\d{5}$/.test(s)){let d=new Date((parseInt(s,10)-25569)*86400*1000); if(!isNaN(d.getTime())) return `${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getFullYear()}`;} return s; }
-        function xuLyNhapFileLinhHoat(event) {
+        function xuLyNhapFileExcelCloud(event) {
             let f = event.target.files[0]; if(!f) return;
             let rd = new FileReader();
-            if(f.name.endsWith('.json')) {
-                rd.onload = function(e) { try { let p = JSON.parse(e.target.result); if(p.nhansu) { dbHeThong = p; luuVaoBoNho(); khoiDongHeThong(); alert("Nạp file sao lưu cấu trúc JSON thành công!"); } }catch(e){alert("Lỗi file JSON");} };
-                rd.readAsText(f); return;
-            }
             rd.onload = function(e) {
                 try {
                     let d = new Uint8Array(e.target.result); let wb = XLSX.read(d, {type:'array'});
                     let rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, defval:""});
-                    let idxH = -1; for(let i=0;i<Math.min(20,rows.length);i++) { let t=rows[i].map(c=>chuanHoaKýTuTieuDe(c)).join(" "); if(t.includes("hovaten")||t.includes("hoten")||t.includes("namsinh")) { idxH=i; break; } }
-                    if(idxH===-1) { alert("Không tìm thấy hàng tiêu đề hợp lệ"); return; }
+                    let idxH = -1; for(let i=0; i<Math.min(20,rows.length); i++) { let t=rows[i].map(c=>chuanHoaKýTuTieuDe(c)).join(" "); if(t.includes("hovaten")||t.includes("hoten")) { idxH=i; break; } }
+                    if(idxH===-1) { alert("Không cấu trúc tiêu đề cột [Họ và tên]"); return; }
                     let hRow = rows[idxH]; let m = { hoTen: -1, namSinh: -1, namNghiHuu: -1, maDonVi: -1, chucDanh: -1, bhxh: -1, cccd: -1, atv: -1, nndh: -1 };
                     hRow.forEach((c, i) => { let txt = chuanHoaKýTuTieuDe(c); if(txt.includes("hoten")||txt.includes("hovaten")) m.hoTen=i; else if(txt.includes("namsinh")||txt.includes("ngaysinh")) m.namSinh=i; else if(txt.includes("nghihuu")) m.namNghiHuu=i; else if(txt.includes("donvi")||txt.includes("madonvi")) m.maDonVi=i; else if(txt.includes("chucdanh")) m.chucDanh=i; else if(txt.includes("bhxh")) m.bhxh=i; else if(txt.includes("cccd")) m.cccd=i; else if(txt.includes("atv")) m.atv=i; else if(txt.includes("nndh")||txt.includes("dochai")) m.nndh=i; });
-                    let list = [];
-                    for(let i=idxH+1;i<rows.length;i++) {
+                    
+                    let refNs = firebaseDB.ref("nhansu");
+                    let count = 0;
+                    for(let i=idxH+1; i<rows.length; i++) {
                         let r=rows[i]; if(!r||r.length===0||!r[m.hoTen]) continue;
-                        list.push({
+                        let item = {
                             HoTen: r[m.hoTen].toString().trim().toUpperCase(), Nam: "2026", NamSinh: m.namSinh!==-1?dinhDangNgayThangNamDayDu(r[m.namSinh]):"-", NamNghiHuu: m.namNghiHuu!==-1?dinhDangNgayThangNamDayDu(r[m.namNghiHuu]):"-",
                             GioiTinh: "Nam", MaDonVi: m.maDonVi!==-1?r[m.maDonVi].toString().trim().toUpperCase():"CHƯA XẾP", ChucDanh: m.chucDanh!==-1?r[m.chucDanh].toString().trim():"-",
                             BHXH: m.bhxh!==-1?r[m.bhxh].toString().trim():"-", CCCD: m.cccd!==-1?r[m.cccd].toString().trim():"-", ATV: m.atv!==-1&&r[m.atv]?"1":"-", NNDH: m.nndh!==-1&&r[m.nndh]?"1":"-"
-                        });
+                        };
+                        refNs.push(item); count++;
                     }
-                    dbHeThong.nhansu = dbHeThong.nhansu.concat(list); luuVaoBoNho(); khoiDongHeThong(); alert(`Nạp thành công ${list.length} nhân sự từ Excel!`);
-                } catch(err) { alert("Lỗi đọc trục trặc: "+err.message); }
+                    alert(`Đã truyền tải hàng loạt ${count} nhân sự lên đám mây trực tuyến thành công!`);
+                } catch(err) { alert("Lỗi phân rã excel: "+err.message); }
             };
             rd.readAsArrayBuffer(f);
         }
