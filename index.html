@@ -3,420 +3,260 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quản Lý Nhân Sự - VINAPACO ERP</title>
+    <title>Danh Sách Nhân Sự Nghỉ Hưu - VINAPACO</title>
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.8/dist/umd/supabase.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     
     <style>
-        :root {
-            --primary-color: #007f5f;
-            --sidebar-width: 260px;
-        }
         body {
             font-family: Arial, sans-serif;
             background-color: #f4f6f9;
             margin: 0;
-            padding: 0;
+            padding: 40px 20px;
             display: flex;
+            justify-content: center;
         }
-        /* Giao diện Thanh Menu Bên Trái */
-        .sidebar {
-            width: var(--sidebar-width);
-            background-color: #ffffff;
-            height: 100vh;
-            position: fixed;
-            border-right: 1px solid #e0e0e0;
-            padding: 20px 15px;
-            box-sizing: border-box;
+        .container {
+            width: 100%;
+            max-width: 1100px;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
-        .sidebar-title {
-            font-size: 11px;
-            color: #7f8c8d;
+        h2 {
+            text-align: center;
+            color: #1e3a8a;
+            margin-bottom: 25px;
             text-transform: uppercase;
-            font-weight: bold;
-            margin-bottom: 15px;
             letter-spacing: 0.5px;
         }
-        .menu-item {
-            padding: 12px 15px;
-            margin-bottom: 8px;
-            border-radius: 8px;
-            font-weight: bold;
-            color: #333;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            transition: all 0.2s;
-        }
-        .menu-item:hover {
-            background-color: #f1f2f6;
-        }
-        .menu-item.active {
-            background-color: var(--primary-color);
-            color: white;
-        }
-        /* Nội dung chính bên phải */
-        .main-content {
-            margin-left: var(--sidebar-width);
-            flex: 1;
-            padding: 20px 40px;
-            box-sizing: border-box;
-        }
-        /* Khung Nạp Data Excel */
-        .upload-container {
-            background: #ffffff;
-            border: 2px dashed var(--primary-color);
-            border-radius: 12px;
-            padding: 20px;
-            text-align: center;
-            margin-bottom: 25px;
+        
+        /* Khung Tiện Ích Tải File Excel */
+        .upload-section {
             background-color: #f0fdf4;
-            position: relative;
+            border: 2px dashed #007f5f;
+            border-radius: 6px;
+            padding: 15px;
+            text-align: center;
+            margin-bottom: 20px;
         }
-        .upload-btn {
+        .upload-label {
             background-color: #007f5f;
             color: white;
-            padding: 12px 24px;
-            border: none;
-            border-radius: 6px;
+            padding: 10px 20px;
+            border-radius: 4px;
             font-weight: bold;
             cursor: pointer;
+            display: inline-block;
             font-size: 14px;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
         }
-        .upload-btn:hover { background-color: #00664c; }
+        .upload-label:hover { background-color: #00664c; }
         #excel-file-input { display: none; }
 
-        /* Thanh tìm kiếm & Bộ lọc */
-        .filter-bar {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 20px;
-            align-items: center;
-        }
-        .search-box {
-            flex: 2;
-            padding: 10px 15px;
-            border: 1px solid #cccccc;
-            border-radius: 6px;
-            font-size: 14px;
-        }
-        .select-box {
-            flex: 1.5;
-            padding: 10px;
-            border: 1px solid #cccccc;
-            border-radius: 6px;
-            font-size: 14px;
-            background-color: white;
-        }
-        .btn {
-            padding: 10px 15px;
-            border: none;
+        .status-badge {
+            background-color: #f1f5f9;
+            color: #ef4444;
+            padding: 8px 15px;
             border-radius: 6px;
             font-weight: bold;
-            cursor: pointer;
             font-size: 14px;
+            display: inline-block;
+            margin-bottom: 20px;
         }
-        .btn-add { background-color: #0284c7; color: white; }
-        .btn-add:hover { background-color: #0369a1; }
-        .btn-delete { background-color: #dc2626; color: white; }
-        .btn-delete:hover { background-color: #b91c1c; }
-
-        /* Bảng Dữ Liệu */
-        .table-container {
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-            overflow-x: auto;
-            border: 1px solid #e2e8f0;
-        }
+        
+        /* Cấu trúc thiết kế Bảng Chuẩn của bạn */
         table {
             width: 100%;
             border-collapse: collapse;
+            margin-top: 10px;
         }
         th, td {
             padding: 12px 15px;
             text-align: left;
-            border-bottom: 1px solid #eeeeee;
+            border: 1px solid #cbd5e1;
             font-size: 14px;
-            white-space: nowrap;
         }
         th {
-            background-color: #f8fafc;
-            color: #64748b;
-            font-weight: 600;
-            border-bottom: 2px solid #e2e8f0;
-        }
-        tr:hover { background-color: #f8fafc; }
-        
-        .badge-total {
-            background-color: #e0f2fe;
-            color: #0369a1;
-            padding: 6px 14px;
-            border-radius: 20px;
+            background-color: #2c3e50;
+            color: white;
             font-weight: bold;
-            font-size: 13px;
-            display: inline-block;
-            margin-top: 15px;
         }
-        .loading-text {
-            text-align: center;
-            color: #34495e;
-            font-style: italic;
+        tr:nth-child(even) { background-color: #f8fafc; }
+        tr:hover { background-color: #f1f5f9; }
+
+        .btn-clear {
+            background-color: #dc2626;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
             font-weight: bold;
-            padding: 20px;
+            cursor: pointer;
+            float: right;
+            margin-bottom: 20px;
         }
+        .btn-clear:hover { background-color: #b91c1c; }
     </style>
 </head>
 <body>
 
-<div class="sidebar">
-    <div class="sidebar-title">⚙️ Trực thuộc hệ điều hành</div>
-    <div class="menu-item active">👥 1. Quản Lý Nhân Sự</div>
-    <div class="menu-item">📱 2. Quản Lý Thiết Bị QR</div>
-    <div class="menu-item">⏰ 3. Nhắc Việc Tự Động</div>
-    <div class="menu-item">🛠️ 4. Bảo Dưỡng Sửa Chữa</div>
-</div>
+<div class="container">
+    <h2>Danh Sách Nhân Sự Nghỉ Hưu</h2>
 
-<div class="main-content">
-    <div class="upload-container">
-        <h3 style="margin-top:0; color: var(--primary-color); font-size: 16px;">📊 HỆ THỐNG QUẢN LÝ NHÂN SỰ VINAPACO</h3>
-        <p style="color:#666; font-size:13px; margin-bottom: 15px;">Tải file dữ liệu Excel đồng loạt, tự động sửa lỗi lệch dòng và dịch tên phân xưởng.</p>
-        <label for="excel-file-input" class="upload-btn">
-            📥 BẤM VÀO ĐÂY ĐỂ CẬP NHẬT / NẠP FILE EXCEL (.XLSX)
+    <div class="upload-section">
+        <label for="excel-file-input" class="upload-label">
+            📥 BẤM VÀO ĐÂY ĐỂ CHỌN FILE EXCEL NẠP DỮ LIỆU (.XLSX)
         </label>
         <input type="file" id="excel-file-input" accept=".xlsx, .xls">
+        <button class="btn-clear" id="btn-clear-cloud">🗑️ XÓA DỮ LIỆU CŨ</button>
+        <div style="clear: both;"></div>
     </div>
 
-    <div class="filter-bar">
-        <input type="text" class="search-box" id="searchName" placeholder="🔍 Tìm nhanh theo Tên, Số CCCD hoặc Chức danh công việc...">
-        <select class="select-box" id="filterUnit">
-            <option value="">-- Tất cả phòng ban / Phân xưởng --</option>
-        </select>
-        <select class="select-box" id="filterSpecial">
-            <option value="">Tất cả chế độ đặc thù</option>
-        </select>
-        <button class="btn btn-delete" id="btnDeleteAll">🗑️ XÓA SẠCH MÂY</button>
+    <div class="status-badge">
+        Tổng số nhân sự: <span id="total-count">Đang tải...</span>
     </div>
 
-    <div class="table-container">
-        <table>
-            <thead>
-                <tr>
-                    <th style="text-align: center; width: 5%;">STT</th>
-                    <th>Họ và tên</th>
-                    <th style="text-align: center;">Năm sinh</th>
-                    <th style="text-align: center;">Ngày sinh chi tiết</th>
-                    <th style="text-align: center; color: #dc2626;">Năm về hưu</th>
-                    <th style="text-align: center;">Giới tính</th>
-                    <th>Đơn vị / Phân xưởng</th>
-                    <th>Chức danh công việc</th>
-                    <th>Số BHXH</th>
-                    <th>Số CCCD</th>
-                </tr>
-            </thead>
-            <tbody id="employee-table-body">
-                <tr>
-                    <td colspan="10" class="loading-text" id="status-cell">Đang tải danh sách nhân sự từ Cloud Supabase...</td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
-
-    <div>
-        <span class="badge-total">TỔNG NHÂN SỰ TOÀN CÔNG TY: <span id="total-employees">0</span> người</span>
-    </div>
+    <table>
+        <thead>
+            <tr>
+                <th style="text-align: center; width: 6%;">STT</th>
+                <th>Họ và Tên</th>
+                <th style="text-align: center; width: 12%;">Giới Tính</th>
+                <th style="text-align: center; width: 15%;">Ngày Sinh</th>
+                <th>Chức Danh Công Việc</th>
+                <th style="text-align: center; width: 18%; color: #f87171;">Năm Về Hưu</th>
+            </tr>
+        </thead>
+        <tbody id="render-table-body">
+            <tr>
+                <td colspan="6" style="text-align: center; color: #64748b; font-style: italic;" id="msg-cell">
+                    Đang tải dữ liệu từ hệ thống Cloud Supabase... Vui lòng đợi.
+                </td>
+            </tr>
+        </tbody>
+    </table>
 </div>
 
 <script>
-    const CONFIG_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co"; 
-    const CONFIG_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ";
+    // Cấu hình định danh kết nối API Supabase của bạn
+    const SUPABASE_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co"; 
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ";
 
-    // Bảng bộ từ điển tự động dịch Mã Số sang Tên Tiếng Việt trực quan
-    const TU_DIEN_DON_VI = {
-        "2": "Hội đồng Thành viên / Ban Giám Đốc",
-        "6": "Phòng Kỹ thuật KCS",
-        "8.1": "Phòng Thị trường",
-        "10": "Thủ kho thành phẩm / Tổng kho",
-        "11.1": "Phân xưởng Nguyên liệu",
-        "11.2": "Phân xưởng Bột",
-        "11.3": "Nhà máy Giấy (Phó Quản đốc)",
-        "14": "Xí nghiệp Bảo dưỡng (Điện - Tự động)",
-        "14.2": "Xí nghiệp Bảo dưỡng (Cơ khí - Sửa chữa)"
-    };
+    const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    let dbClient = supabase.createClient(CONFIG_URL, CONFIG_KEY);
-    let danhSachNhanSuGoc = [];
+    // --- HÀM 1: LẤY VÀ HIỂN THỊ DỮ LIỆU TỪ SUPABASE LÊN WEB ---
+    async function taiVaDoDuLieu() {
+        const msgCell = document.getElementById('msg-cell');
+        const totalCountSpan = document.getElementById('total-count');
+        const tbody = document.getElementById('render-table-body');
 
-    async function taiDuLieuTuSupabase() {
-        const cell = document.getElementById('status-cell');
         try {
-            const { data, error } = await dbClient.from('nhan_su').select('*');
+            // Thực hiện truy vấn chính xác bảng nhan_su viết thường
+            const { data, error } = await client.from('nhan_su').select('*');
+
             if (error) {
-                if (cell) cell.innerHTML = `<span style="color: red;">Lỗi kết nối API: ${error.message}</span>`;
+                console.error("Lỗi đồng bộ mây:", error);
+                if (msgCell) msgCell.innerHTML = `<span style="color:red; font-weight:bold;">Lỗi hệ thống: ${error.message}</span>`;
                 return;
             }
-            danhSachNhanSuGoc = data || [];
-            napDanhSachDonViXoXuong(danhSachNhanSuGoc);
-            hienThiDuLieuRaBang(danhSachNhanSuGoc);
+
+            const danhSach = data || [];
+            totalCountSpan.innerText = danhSach.length + " người";
+            totalCountSpan.style.color = "#16a34a"; // Đổi màu xanh lá khi tải xong thành công
+
+            // Nếu mây trống
+            if (danhSach.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #94a3b8;">Hệ thống chưa có dữ liệu. Vui lòng chọn file Excel ở trên để nạp!</td></tr>`;
+                return;
+            }
+
+            // Đổ dữ liệu vòng lặp vào đúng bảng HTML
+            tbody.innerHTML = '';
+            danhSach.forEach((emp, index) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="text-align: center; color: #64748b;">${index + 1}</td>
+                    <td><strong>${emp.ho_ten || ''}</strong></td>
+                    <td style="text-align: center;">${emp.gioi_tinh || '-'}</td>
+                    <td style="text-align: center; color: #0284c7;">${emp.nam_sinh || ''}</td>
+                    <td style="color: #334155;">${emp.chuc_danh_cong_viec || ''}</td>
+                    <td style="text-align: center; font-weight: bold; color: #dc2626;">${emp.nam_ve_huu || ''}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
         } catch (err) {
             console.error(err);
         }
     }
 
-    function hienThiDuLieuRaBang(danhSach) {
-        document.getElementById('total-employees').innerText = danhSach.length;
-        const tableBody = document.getElementById('employee-table-body');
-        tableBody.innerHTML = '';
-
-        if (danhSach.length === 0) {
-            tableBody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: #7f8c8d; padding: 20px;">Hệ thống trống. Vui lòng bấm nút phía trên để nạp file Excel!</td></tr>`;
-            return;
-        }
-
-        danhSach.forEach((emp, index) => {
-            // Sửa lỗi đảo lộn: kiểm tra nếu nam_sinh quá ngắn (như số 2) thì đổi lại từ trường ngày sinh
-            let ngaySinhChuan = emp.nam_sinh || '';
-            let namSinhGoc = '';
-
-            if (ngaySinhChuan && String(ngaySinhChuan).length <= 4) {
-                namSinhGoc = ngaySinhChuan;
-                if (emp.ma_don_vi && String(emp.ma_don_vi).includes('-')) {
-                    ngaySinhChuan = emp.ma_don_vi; 
-                }
-            } else if (ngaySinhChuan) {
-                const s = String(ngaySinhChuan);
-                if (s.includes('/')) {
-                    namSinhGoc = s.split('/').pop();
-                } else if (s.includes('-')) {
-                    namSinhGoc = s.split('-')[0];
-                }
-            }
-
-            // Thực hiện dịch mã đơn vị sang tiếng Việt thân thiện
-            const maDVString = String(emp.ma_don_vi || '').trim();
-            const tenDonViChuan = TU_DIEN_DON_VI[maDVString] || `Mã đơn vị: ${maDVString}`;
-
-            const trHTML = `
-                <tr>
-                    <td style="text-align: center; color: #777;">${index + 1}</td>
-                    <td><strong>${emp.ho_ten || ''}</strong></td>
-                    <td style="text-align: center; font-weight: bold; color: #475569;">${namSinhGoc || ''}</td>
-                    <td style="text-align: center; color: #16a34a; font-weight: 500;">${ngaySinhChuan || ''}</td>
-                    <td style="text-align: center; color: #dc2626; font-weight: bold;">${emp.nam_ve_huu || ''}</td>
-                    <td style="text-align: center;">${emp.gioi_tinh || '-'}</td>
-                    <td style="color: #0000ff; font-weight: 500;">${tenDonViChuan}</td>
-                    <td style="color: #475569;">${emp.chuc_danh_cong_viec || ''}</td>
-                    <td>${emp.so_bhxh || ''}</td>
-                    <td>${emp.so_cccd || ''}</td>
-                </tr>
-            `;
-            tableBody.insertAdjacentHTML('beforeend', trHTML);
-        });
-    }
-
-    function napDanhSachDonViXoXuong(danhSach) {
-        const selectBox = document.getElementById('filterUnit');
-        if (!selectBox) return;
-        const cacMaoDV = [...new Set(danhSach.map(emp => String(emp.ma_don_vi || '').trim()).filter(Boolean))];
-        
-        selectBox.innerHTML = '<option value="">-- Tất cả phòng ban / Phân xưởng --</option>';
-        cacMaoDV.sort((a,b) => a.localeCompare(b, undefined, {numeric: true})).forEach(ma => {
-            const name = TU_DIEN_DON_VI[ma] || `Mã bộ phận ${ma}`;
-            selectBox.insertAdjacentHTML('beforeend', `<option value="${ma}">${name}</option>`);
-        });
-    }
-
+    // --- HÀM 2: LẮNG NGHE SỰ KIỆN NẠP FILE EXCEL ---
     document.addEventListener('DOMContentLoaded', () => {
-        taiDuLieuTuSupabase();
+        taiVaDoDuLieu();
 
-        // Tìm kiếm thời gian thực theo Tên, Chức vụ, CCCD hoặc theo Phân xưởng tuyển chọn
-        const triggerFilter = () => {
-            const tuKhoa = document.getElementById('searchName').value.toLowerCase().trim();
-            const donViDuocChon = document.getElementById('filterUnit').value;
-
-            let ketQuaLoc = danhSachNhanSuGoc;
-            if (tuKhoa) {
-                ketQuaLoc = ketQuaLoc.filter(emp => 
-                    (emp.ho_ten || '').toLowerCase().includes(tuKhoa) || 
-                    (emp.so_cccd || '').toLowerCase().includes(tuKhoa) || 
-                    (emp.chuc_danh_cong_viec || '').toLowerCase().includes(tuKhoa)
-                );
-            }
-            if (donViDuocChon) {
-                ketQuaLoc = ketQuaLoc.filter(emp => String(emp.ma_don_vi || '').trim() === donViDuocChon);
-            }
-            hienThiDuLieuRaBang(ketQuaLoc);
-        };
-
-        document.getElementById('searchName').addEventListener('input', triggerFilter);
-        document.getElementById('filterUnit').addEventListener('change', triggerFilter);
-
-        // Đọc Excel xử lý chống lệch dòng chuyên sâu
         document.getElementById('excel-file-input').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
 
-            document.getElementById('employee-table-body').innerHTML = `<tr><td colspan="10" style="text-align: center; color: blue; font-weight: bold;">⏳ Đang đồng bộ hóa dữ liệu lên Cloud...</td></tr>`;
+            document.getElementById('render-table-body').innerHTML = `<tr><td colspan="6" style="text-align: center; color: #2563eb; font-weight: bold;">⏳ Hệ thống đang tiến hành đẩy dữ liệu trực tiếp lên đám mây... Vui lòng không đóng tab!</td></tr>`;
 
             const reader = new FileReader();
             reader.onload = async function(e) {
                 try {
-                    const arrData = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(arrData, { type: 'array' });
-                    const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+                    const arr = new Uint8Array(e.target.result);
+                    const wb = XLSX.read(arr, { type: 'array' });
+                    const sheet = wb.Sheets[wb.SheetNames[0]];
+                    const json = XLSX.utils.sheet_to_json(sheet);
 
-                    if (jsonData.length === 0) { alert("File trống!"); taiDuLieuTuSupabase(); return; }
+                    if (json.length === 0) {
+                        alert("File Excel trống rỗng!");
+                        taiVaDoDuLieu();
+                        return;
+                    }
 
-                    const danhSachUpload = jsonData.map(row => {
-                        const getVal = (aliases) => {
-                            const key = Object.keys(row).find(k => aliases.includes(k.toLowerCase().replace(/\s+/g, '').replace(/_/g, '')));
-                            return key ? row[key] : null;
+                    // Chuẩn hóa khớp trường dữ liệu tự động dữ dằn
+                    const dataDich = json.map(row => {
+                        const tim = (keys) => {
+                            const k = Object.keys(row).find(x => keys.includes(x.toLowerCase().replace(/\s+/g,'').replace(/_/g,'')));
+                            return k ? row[k] : null;
                         };
-                        
-                        let maDVRaw = getVal(['madonvi', 'mãđơnvị', 'phòngban', 'bộphận', 'mãđv', 'đơnvị']);
-                        let ngaySinhRaw = getVal(['namsinh', 'ngaysinh', 'ngày sinh']);
-                        
-                        // Sửa lỗi đảo lộn chéo dòng khi nạp file
-                        if (ngaySinhRaw && String(ngaySinhRaw).length <= 3 && maDVRaw && String(maDVRaw).includes('-')) {
-                            let temp = ngaySinhRaw; ngaySinhRaw = maDVRaw; maDVRaw = temp;
-                        }
-
                         return {
-                            ho_ten: getVal(['hoten', 'hovaten', 'tên', 'ten']),
-                            nam_sinh: ngaySinhRaw,
-                            nam_ve_huu: getVal(['namvehuu', 'nămvềhưu', 'vềhưu']),
-                            gioi_tinh: getVal(['gioitinh', 'giớitính']),
-                            ma_don_vi: maDVRaw,
-                            chuc_danh_cong_viec: getVal(['chucdanhcongviec', 'chứcdanh', 'chứcvụ', 'côngviệc']),
-                            so_bhxh: getVal(['sobhxh', 'bhxh']),
-                            so_cccd: getVal(['socccd', 'cccd'])
+                            ho_ten: tim(['hoten', 'hovaten', 'tên', 'ten', 'họvàtên']),
+                            nam_sinh: tim(['namsinh', 'ngaysinh', 'ngàysinh']),
+                            nam_ve_huu: tim(['namvehuu', 'nămvềhưu', 'vềhưu']),
+                            gioi_tinh: tim(['gioitinh', 'giớitính']),
+                            ma_don_vi: tim(['madonvi', 'mãđơnvị', 'bộphận', 'phòngban']),
+                            chuc_danh_cong_viec: tim(['chucdanhcongviec', 'chứcdanh', 'chứcvụ', 'côngviệc']),
+                            so_bhxh: tim(['sobhxh', 'bhxh']),
+                            so_cccd: tim(['socccd', 'cccd'])
                         };
                     });
 
-                    const BATCH_SIZE = 100;
-                    for (let i = 0; i < danhSachUpload.length; i += BATCH_SIZE) {
-                        await dbClient.from('nhan_su').insert(danhSachUpload.slice(i, i + BATCH_SIZE));
+                    // Thực thi chia cụm 100 dòng ghi mây một lần
+                    const CUM = 100;
+                    for (let i = 0; i < dataDich.length; i += CUM) {
+                        await client.from('nhan_su').insert(dataDich.slice(i, i + CUM));
                     }
 
-                    alert(`🎉 Nạp thành công và sửa lỗi hoàn tất!`);
-                    taiDuLieuTuSupabase();
+                    alert(`🎉 Hoàn tất! Đã đồng bộ thành công dữ liệu nhân sự lên Cloud Supabase!`);
+                    taiVaDoDuLieu();
+
                 } catch (err) {
-                    alert("Lỗi đọc file!"); taiDuLieuTuSupabase();
+                    alert("Lỗi cấu trúc xử lý file!");
+                    taiVaDoDuLieu();
                 }
             };
             reader.readAsArrayBuffer(file);
         });
 
-        // Xóa sạch mây dữ liệu
-        document.getElementById('btnDeleteAll').addEventListener('click', async () => {
-            if (!confirm("Bạn có chắc chắn muốn dọn sạch mây không?")) return;
-            await dbClient.from('nhan_su').delete().gt('id', 0);
-            alert("Đã xóa sạch!");
-            taiDuLieuTuSupabase();
+        // Nút dọn dẹp sạch kho dữ liệu
+        document.getElementById('btn-clear-cloud').addEventListener('click', async () => {
+            if (!confirm("Bạn có chắc chắn muốn xóa dọn dẹp toàn bộ dữ liệu hiện tại trên Cloud không?")) return;
+            await client.from('nhan_su').delete().gt('id', 0);
+            alert("Đã xóa sạch dữ liệu trên mây!");
+            taiVaDoDuLieu();
         });
     });
 </script>
