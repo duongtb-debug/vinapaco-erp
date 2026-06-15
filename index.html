@@ -143,7 +143,7 @@
 
     const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // HÀM ĐỌC VÀ ĐỔ DỮ LIỆU RA MÀN HÌNH CHUẨN ĐẸP 10 CỘT
+    // HÀM HIỂN THỊ CHUẨN XÁC DỮ LIỆU LÊN 10 CỘT GIAO DIỆN
     async function lamMoiBangDuLieu() {
         const totalCountSpan = document.getElementById('total-count');
         const tbody = document.getElementById('render-table-body');
@@ -155,7 +155,7 @@
                 .order('id', { ascending: true });
 
             if (error) {
-                tbody.innerHTML = `<tr><td colspan="10" class="text-center" style="color:red; font-weight:bold;">❌ Lỗi: ${error.message}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="10" class="text-center" style="color:red; font-weight:bold;">❌ Lỗi tải bảng: ${error.message}</td></tr>`;
                 totalCountSpan.innerText = "Lỗi";
                 return;
             }
@@ -174,18 +174,19 @@
                 
                 let chuoiChucDanh = emp.chuc_danh_cong_viec || '';
                 let hienThiChucDanh = chuoiChucDanh;
-                let hienThiNam = '---';
                 let hienThiBHXH = '---';
                 let hienThiCCCD = '---';
 
-                // Tách gói chuỗi dữ liệu một cách chính xác
+                // Tách gói chuỗi chứa BHXH và CCCD nếu được mã hóa an toàn gộp vào trường chức danh
                 if (chuoiChucDanh.includes("||")) {
                     const parts = chuoiChucDanh.split("||");
                     hienThiChucDanh = parts[0] ? parts[0].trim() : '---';
-                    hienThiNam = parts[1] ? parts[1].trim() : '---';
-                    hienThiBHXH = parts[2] ? parts[2].trim() : '---';
-                    hienThiCCCD = parts[3] ? parts[3].trim() : '---';
+                    hienThiBHXH = parts[1] ? parts[1].trim() : '---';
+                    hienThiCCCD = parts[2] ? parts[2].trim() : '---';
                 }
+
+                // Cột Năm hiển thị đúng Năm sinh theo yêu cầu của bạn
+                const hienThiNam = emp.nam_sinh || '---';
 
                 tr.innerHTML = `
                     <td class="text-center" style="color: #64748b;">${index + 1}</td>
@@ -204,19 +205,19 @@
 
         } catch (err) {
             console.error(err);
-            tbody.innerHTML = `<tr><td colspan="10" class="text-center" style="color:orange; font-weight:bold;">⚠️ Hệ thống đang làm mới bảng...</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="10" class="text-center" style="color:orange; font-weight:bold;">⚠️ Đang đồng bộ giao diện...</td></tr>`;
         }
     }
 
     document.addEventListener('DOMContentLoaded', () => {
         lamMoiBangDuLieu();
 
-        // THUẬT TOÁN TỰ ĐỘNG DÒ CỘT THÔNG MINH (DÙNG ĐỂ KHẮC PHỤC LỆCH CỘT EXCEL)
+        // THUẬT TOÁN ĐỌC MAPPING TỰ ĐỘNG DÒ CỘT TỪ FILE EXCEL
         document.getElementById('excel-file-input').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
 
-            document.getElementById('render-table-body').innerHTML = `<tr><td colspan="10" class="text-center" style="color: #2563eb; font-weight: bold; padding: 20px;">⏳ Đang phân tích thông minh tiêu đề và đẩy dữ liệu lên mây...</td></tr>`;
+            document.getElementById('render-table-body').innerHTML = `<tr><td colspan="10" class="text-center" style="color: #2563eb; font-weight: bold; padding: 20px;">⏳ Hệ thống đang bóc tách chính xác các trường thông tin... Vui lòng đợi!</td></tr>`;
 
             const reader = new FileReader();
             reader.onload = async function(e) {
@@ -225,98 +226,96 @@
                     const wb = XLSX.read(arr, { type: 'array' });
                     const sheet = wb.Sheets[wb.SheetNames[0]];
                     
-                    // Chuyển sang định dạng mảng JSON để dễ tìm kiếm tên tiêu đề cột
+                    // Chuyển sang JSON dạng mảng để định vị chính xác tên tiêu đề cột
                     const jsonRows = XLSX.utils.sheet_to_json(sheet);
                     if (jsonRows.length === 0) {
-                        alert("File Excel trống hoặc không đúng định dạng!");
+                        alert("File Excel trống!");
                         lamMoiBangDuLieu();
                         return;
                     }
 
-                    // Tìm kiếm các key (tiêu đề cột thực tế) trong file Excel của bạn
+                    // Tự động quét lấy chính xác tiêu đề bất kể thứ tự sắp xếp cột
                     const mauRow = jsonRows[0];
-                    let keyHoTen = "", keyNam = "", keyNamSinh = "", keyNamVeHuu = "", keyGioiTinh = "", keyMaDonVi = "", keyChucDanh = "", keyBHXH = "", keyCCCD = "";
+                    let keyHoTen = "", keyNamSinh = "", keyNamVeHuu = "", keyGioiTinh = "", keyMaDonVi = "", keyChucDanh = "", keyBHXH = "", keyCCCD = "";
 
                     Object.keys(mauRow).forEach(key => {
                         const k = key.toString().toLowerCase().trim();
                         if (k.includes("họ và tên") || k.includes("ho ten") || k.includes("họ tên")) keyHoTen = key;
-                        else if (k === "năm" || k === "nam" || k === "năm xét") keyNam = key;
-                        else if (k.includes("ngày sinh") || k.includes("năm sinh") || k.includes("ngay sinh")) keyNamSinh = key;
+                        else if (k.includes("ngày sinh") || k.includes("năm sinh") || k.includes("ngay sinh") || k === "năm sinh") keyNamSinh = key;
                         else if (k.includes("về hưu") || k.includes("ve huu") || k.includes("nghỉ hưu")) keyNamVeHuu = key;
-                        else if (k.includes("giới tính") || k.includes("gioi tinh")) keyGioiTinh = key;
-                        else if (k.includes("mã đơn vị") || k.includes("ma don vi")) keyMaDonVi = key;
-                        else if (k.includes("chức danh") || k.includes("chuc danh") || k.includes("công việc")) keyChucDanh = key;
+                        else if (k.includes("giới tính") || k.includes("gioi tinh") || k === "giới tính") keyGioiTinh = key;
+                        else if (k.includes("mã đơn vị") || k.includes("ma don vi") || k.includes("đơn vị")) keyMaDonVi = key;
+                        else if (k.includes("chức danh") || k.includes("chuc danh") || k.includes("công việc") || k.includes("nndh") || k.includes("an toàn viên")) keyChucDanh = key;
                         else if (k.includes("bhxh") || k.includes("bảo hiểm")) keyBHXH = key;
-                        else if (k.includes("cccd") || k.includes("chứng minh") || k.includes("cmnd")) keyCCCD = key;
+                        else if (k.includes("cccd") || k.includes("chứng minh") || k.includes("số cccd")) keyCCCD = key;
                     });
 
-                    // Nếu không tìm thấy bằng thuật toán thông minh, dùng fallback dự phòng vị trí mảng mặc định
                     const dataDich = [];
                     let baseId = Date.now();
 
                     jsonRows.forEach((row, i) => {
-                        const ten = keyHoTen ? row[keyHoTen] : row[1];
-                        if (!ten) return; // Bỏ qua hàng trống không có tên
+                        const tenRaw = keyHoTen ? row[keyHoTen] : null;
+                        if (!tenRaw) return;
 
-                        const hoTenStr = String(ten).trim();
+                        const hoTenStr = String(tenRaw).trim();
                         if (hoTenStr.toLowerCase().includes("họ và tên")) return;
 
-                        const valNam = keyNam ? row[keyNam] : (row[2] || '---');
-                        const valNamSinh = keyNamSinh ? row[keyNamSinh] : (row[3] || '---');
-                        const valNamVeHuu = keyNamVeHuu ? row[keyNamVeHuu] : (row[4] || '---');
-                        const valGioiTinh = keyGioiTinh ? row[keyGioiTinh] : (row[5] || '---');
-                        const valMaDonVi = keyMaDonVi ? row[keyMaDonVi] : (row[6] || '---');
-                        const valChucDanh = keyChucDanh ? row[keyChucDanh] : (row[7] || '---');
-                        const valBHXH = keyBHXH ? row[keyBHXH] : (row[8] || '---');
-                        const valCCCD = keyCCCD ? row[keyCCCD] : (row[9] || '---');
+                        // Trích xuất dữ liệu thô sạch từ file Excel
+                        const valNamSinh = keyNamSinh ? String(row[keyNamSinh] || '').trim() : '---';
+                        const valNamVeHuu = keyNamVeHuu ? String(row[keyNamVeHuu] || '').trim() : '---';
+                        const valGioiTinh = keyGioiTinh ? String(row[keyGioiTinh] || '').trim() : '---';
+                        const valMaDonVi = keyMaDonVi ? String(row[keyMaDonVi] || '').trim() : '---';
+                        const valChucDanh = keyChucDanh ? String(row[keyChucDanh] || '').trim() : '---';
+                        const valBHXH = keyBHXH ? String(row[keyBHXH] || '').trim() : '---';
+                        const valCCCD = keyCCCD ? String(row[keyCCCD] || '').trim() : '---';
 
-                        // Gói dữ liệu an toàn bằng ký tự ngăn cách tách biệt "||"
-                        const chuoiGopAnToan = `${String(valChucDanh).trim()} || ${String(valNam).trim()} || ${String(valBHXH).trim()} || ${String(valCCCD).trim()}`;
+                        // Đóng gói thông tin chức danh kèm BHXH và CCCD để không bị lệch Schema Supabase
+                        const chuoiGopAnToan = `${valChucDanh} || ${valBHXH} || ${valCCCD}`;
 
                         dataDich.push({
                             id: baseId + i,
                             ho_ten: hoTenStr,
-                            nam_sinh: String(valNamSinh).trim(),
-                            nam_ve_huu: String(valNamVeHuu).trim(),
-                            gioi_tinh: String(valGioiTinh).trim(),
-                            ma_don_vi: String(valMaDonVi).trim(),
+                            nam_sinh: valNamSinh,
+                            nam_ve_huu: valNamVeHuu,
+                            gioi_tinh: valGioiTinh,
+                            ma_don_vi: valMaDonVi,
                             chuc_danh_cong_viec: chuoiGopAnToan
                         });
                     });
 
-                    // Đẩy dữ liệu đồng bộ lên Supabase
+                    // Đẩy dữ liệu khối lên Supabase
                     const BATCH = 100;
                     for (let i = 0; i < dataDich.length; i += BATCH) {
                         const batchData = dataDich.slice(i, i + BATCH);
                         const { error } = await client.from('nhan_su').insert(batchData);
                         if (error) {
-                            alert("Lỗi đồng bộ lên Cloud: " + error.message);
+                            alert("Lỗi đồng bộ mây: " + error.message);
                             lamMoiBangDuLieu();
                             return;
                         }
                     }
 
-                    alert(`🎉 Tuyệt vời! Đã tự động dò cột thành công và đồng bộ ${dataDich.length} nhân sự chuẩn xác.`);
+                    alert(`🎉 Hoàn tất thành công! Đã xử lý phân tách thông tin chuẩn xác cho ${dataDich.length} nhân sự.`);
                     await lamMoiBangDuLieu();
 
                 } catch (err) {
                     console.error(err);
-                    alert("Có lỗi xảy ra khi xử lý file Excel, vui lòng kiểm tra lại tiêu đề hàng đầu.");
+                    alert("Có lỗi xảy ra khi bóc tách file Excel.");
                     lamMoiBangDuLieu();
                 }
             };
             reader.readAsArrayBuffer(file);
         });
 
-        // Nút dọn dẹp sạch mây cũ để làm mới cấu trúc
+        // Nút dọn sạch mây phục vụ việc up đè cấu trúc mới
         document.getElementById('btn-clear-cloud').addEventListener('click', async () => {
-            if (!confirm("Bạn có chắc chắn muốn dọn sạch mây cũ để nạp lại bản sửa lỗi đảo cột này không?")) return;
+            if (!confirm("Bạn có chắc chắn muốn dọn sạch mây cũ để nạp lại bản sửa lỗi chia cột chính xác này không?")) return;
             try {
                 await client.from('nhan_su').delete().gte('id', 0);
-                alert("Đã xóa dữ liệu cũ trên mây!");
+                alert("Đã làm sạch mây!");
                 await lamMoiBangDuLieu();
             } catch (err) {
-                alert("Lỗi khi xóa dữ liệu.");
+                alert("Lỗi khi dọn dữ liệu.");
             }
         });
     });
