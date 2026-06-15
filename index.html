@@ -281,17 +281,26 @@
         }
 
         danhSach.forEach((emp, index) => {
-            // Lấy năm sinh dạng số 4 chữ số từ chuỗi ngày sinh dạng YYYY-MM-DD
+            // Trích xuất năm sinh dạng số 4 chữ số từ chuỗi ngày sinh (Vd: từ 10/08/1969 lấy ra 1969)
             let namSinhGoc = '';
             if (emp.nam_sinh) {
-                namSinhGoc = String(emp.nam_sinh).includes('/') ? String(emp.nam_sinh).split('/')[2] : String(emp.nam_sinh).split('-')[0];
+                const chuoiNamSinh = String(emp.nam_sinh);
+                if (chuoiNamSinh.includes('/')) {
+                    const mangSlices = chuoiNamSinh.split('/');
+                    namSinhGoc = mangSlices[mangSlices.length - 1]; // Lấy phần tử cuối cùng là Năm
+                } else if (chuoiNamSinh.includes('-')) {
+                    namSinhGoc = chuoiNamSinh.split('-')[0]; // Định dạng YYYY-MM-DD lấy phần đầu
+                } else {
+                    namSinhGoc = chuoiNamSinh;
+                }
             }
 
+            // Đồng bộ chính xác 100% với tên trường viết thường có gạch dưới trên Supabase của bạn
             const trHTML = `
                 <tr>
                     <td style="text-align: center; color: #777;">${index + 1}</td>
                     <td><strong>${emp.ho_ten || ''}</strong></td>
-                    <td style="text-align: center;">${namSinhGoc || emp.nam_sinh || ''}</td>
+                    <td style="text-align: center;">${namSinhGoc || ''}</td>
                     <td style="text-align: center; color: #16a34a; font-weight: 500;">${emp.nam_sinh || ''}</td>
                     <td style="text-align: center; color: #dc2626; font-weight: bold;">${emp.nam_ve_huu || ''}</td>
                     <td style="text-align: center;">${emp.gioi_tinh || '-'}</td>
@@ -308,7 +317,6 @@
     // --- HÀM 3: TỰ ĐỘNG TẠO BỘ LỌC ĐƠN VỊ ---
     function napDanhSachDonViXoXuong(danhSach) {
         const selectBox = document.getElementById('filterUnit');
-        // Lấy danh sách các mã đơn vị duy nhất, loại bỏ trùng lặp
         const cacDonVi = [...new Set(danhSach.map(emp => emp.ma_don_vi).filter(Boolean))];
         
         selectBox.innerHTML = '<option value="">-- Tất cả phòng ban / Phân xưởng --</option>';
@@ -332,7 +340,6 @@
 
             let ketQuaLoc = danhSachNhanSuGoc;
 
-            // Lọc theo từ khóa ô tìm kiếm
             if (tuKhoa) {
                 ketQuaLoc = ketQuaLoc.filter(emp => {
                     return (emp.ho_ten || '').toLowerCase().includes(tuKhoa) || 
@@ -341,7 +348,6 @@
                 });
             }
 
-            // Lọc theo phòng ban/phân xưởng xổ xuống
             if (donViDuocChon) {
                 ketQuaLoc = ketQuaLoc.filter(emp => emp.ma_don_vi === donViDuocChon);
             }
@@ -374,8 +380,6 @@
 
                     console.log("Dữ liệu đọc từ file Excel:", jsonData);
                     alert(`Đọc thành công ${jsonData.length} dòng từ file Excel! Đang tiến hành xử lý...`);
-                    
-                    // Tại đây bạn có thể viết thêm vòng lặp gửi data lên Supabase tùy chọn thêm
                 } catch (err) {
                     alert("Có lỗi khi đọc file Excel. Vui lòng kiểm tra định dạng file!");
                 }
@@ -390,7 +394,6 @@
             }
 
             try {
-                // Thực hiện lệnh DELETE diện rộng dựa trên điều kiện id luôn lớn hơn 0
                 const { error } = await supabase
                     .from('nhan_su')
                     .delete()
@@ -401,7 +404,7 @@
                     console.error(error);
                 } else {
                     alert("Đã xóa sạch toàn bộ dữ liệu nhân sự trên Cloud thành công!");
-                    taiDuLieuTuSupabase(); // Load lại bảng trắng
+                    taiDuLieuTuSupabase(); 
                 }
             } catch (err) {
                 console.error(err);
