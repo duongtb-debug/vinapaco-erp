@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quản Lý Nhân Sự - VINAPACO ERP</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    
     <style>
         :root {
             --primary-color: #007f5f;
@@ -17,7 +19,7 @@
             padding: 0;
             display: flex;
         }
-        /* Sidebar Giao diện gốc của bạn */
+        /* Giao diện Thanh Menu Bên Trái */
         .sidebar {
             width: var(--sidebar-width);
             background-color: #ffffff;
@@ -26,6 +28,14 @@
             border-right: 1px solid #e0e0e0;
             padding: 20px 15px;
             box-sizing: border-box;
+        }
+        .sidebar-title {
+            font-size: 11px;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            font-weight: bold;
+            margin-bottom: 15px;
+            letter-spacing: 0.5px;
         }
         .menu-item {
             padding: 12px 15px;
@@ -36,57 +46,91 @@
             cursor: pointer;
             display: flex;
             align-items: center;
+            transition: all 0.2s;
+        }
+        .menu-item:hover {
+            background-color: #f1f2f6;
         }
         .menu-item.active {
             background-color: var(--primary-color);
             color: white;
         }
-        /* Vùng nội dung chính */
+        /* Nội dung chính bên phải */
         .main-content {
             margin-left: var(--sidebar-width);
             flex: 1;
             padding: 20px 40px;
             box-sizing: border-box;
         }
+        /* Khung Nạp Data Excel */
         .upload-container {
             background: #ffffff;
-            border: 2px dashed #007f5f;
+            border: 2px dashed var(--primary-color);
             border-radius: 12px;
             padding: 20px;
             text-align: center;
             margin-bottom: 25px;
             background-color: #f0fdf4;
+            position: relative;
         }
+        .upload-btn {
+            background-color: #007f5f;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .upload-btn:hover { background-color: #00664c; }
+        #excel-file-input { display: none; }
+
+        /* Thanh tìm kiếm & Bộ lọc */
         .filter-bar {
             display: flex;
             gap: 15px;
             margin-bottom: 20px;
             align-items: center;
         }
-        .filter-bar input, .filter-bar select {
-            padding: 10px;
+        .search-box {
+            flex: 2;
+            padding: 10px 15px;
             border: 1px solid #cccccc;
             border-radius: 6px;
             font-size: 14px;
         }
-        .search-box { flex: 2; }
-        .select-box { flex: 1; }
+        .select-box {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #cccccc;
+            border-radius: 6px;
+            font-size: 14px;
+            background-color: white;
+        }
         .btn {
             padding: 10px 15px;
             border: none;
             border-radius: 6px;
             font-weight: bold;
             cursor: pointer;
+            font-size: 14px;
         }
         .btn-add { background-color: #0284c7; color: white; }
+        .btn-add:hover { background-color: #0369a1; }
         .btn-delete { background-color: #dc2626; color: white; }
-        
-        /* Bảng hiển thị dữ liệu */
+        .btn-delete:hover { background-color: #b91c1c; }
+
+        /* Bảng Dữ Liệu */
         .table-container {
             background: white;
             border-radius: 8px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.05);
             overflow-x: auto;
+            border: 1px solid #e2e8f0;
         }
         table {
             width: 100%;
@@ -97,26 +141,37 @@
             text-align: left;
             border-bottom: 1px solid #eeeeee;
             font-size: 14px;
+            white-space: nowrap;
         }
         th {
             background-color: #f8fafc;
             color: #64748b;
             font-weight: 600;
+            border-bottom: 2px solid #e2e8f0;
         }
         tr:hover { background-color: #f8fafc; }
+        
         .badge-total {
             background-color: #e0f2fe;
             color: #0369a1;
-            padding: 5px 12px;
+            padding: 6px 14px;
             border-radius: 20px;
             font-weight: bold;
-            font-size: 14px;
+            font-size: 13px;
+            display: inline-block;
+            margin-top: 15px;
+        }
+        .loading-text {
+            text-align: center;
+            color: #666;
+            font-style: italic;
         }
     </style>
 </head>
 <body>
 
 <div class="sidebar">
+    <div class="sidebar-title">⚙️ Trực thuộc hệ điều hành</div>
     <div class="menu-item active">👥 1. Quản Lý Nhân Sự</div>
     <div class="menu-item">📱 2. Quản Lý Thiết Bị QR</div>
     <div class="menu-item">⏰ 3. Nhắc Việc Tự Động</div>
@@ -126,21 +181,27 @@
 <div class="main-content">
     
     <div class="upload-container">
-        <h3 style="margin-top:0; color: var(--primary-color);">💚 NẠP DATA EXCEL TỔNG CÔNG TY</h3>
-        <p style="color:#666; font-size:14px;">Tải file đồng loạt, tự động dịch định dạng Năm và Năm về hưu.</p>
-        <button class="btn btn-add">📤 BẤM VÀO ĐÂY ĐỂ CHỌN FILE EXCEL TẢI LÊN (.XLSX)</button>
+        <h3 style="margin-top:0; color: var(--primary-color); font-size: 16px;">📊 NẠP DATA EXCEL TỔNG CÔNG TY</h3>
+        <p style="color:#666; font-size:13px; margin-bottom: 15px;">Tải file đồng loạt, tự động dịch định dạng Năm và Năm về hưu kế hoạch.</p>
+        <label for="excel-file-input" class="upload-btn">
+            📥 BẤM VÀO ĐÂY ĐỂ CHỌN FILE EXCEL TẢI LÊN (.XLSX)
+        </label>
+        <input type="file" id="excel-file-input" accept=".xlsx, .xls">
     </div>
 
     <div class="filter-bar">
-        <input type="text" class="search-box" id="searchName" placeholder="🔍 Tìm nhanh Tên, CCCD hoặc Chức danh...">
-        <select class="select-box">
-            <option>-- Tất cả phòng ban / Phân xưởng --</option>
+        <input type="text" class="search-box" id="searchName" placeholder="🔍 Tìm nhanh Tên, Số CCCD hoặc Chức danh công việc...">
+        
+        <select class="select-box" id="filterUnit">
+            <option value="">-- Tất cả phòng ban / Phân xưởng --</option>
         </select>
-        <select class="select-box">
-            <option>Tất cả chế độ đặc thù</option>
+        
+        <select class="select-box" id="filterSpecial">
+            <option value="">Tất cả chế độ đặc thù</option>
         </select>
-        <button class="btn btn-add">+ THÊM TAY</button>
-        <button class="btn btn-delete">🗑️ XÓA SẠCH MÂY</button>
+        
+        <button class="btn btn-add" onclick="alert('Tính năng Thêm Tay đang được phát triển!')">+ THÊM TAY</button>
+        <button class="btn btn-delete" id="btnDeleteAll">🗑️ XÓA SẠCH MÂY</button>
     </div>
 
     <div class="table-container">
@@ -153,81 +214,200 @@
                     <th style="text-align: center;">Ngày sinh</th>
                     <th style="text-align: center; color: #dc2626;">Năm về hưu</th>
                     <th style="text-align: center;">Giới tính</th>
-                    <th>Mã Đơn Vị</th>
+                    <th style="text-align: center;">Mã Đơn Vị</th>
                     <th>Chức danh công việc</th>
+                    <th>Số BHXH</th>
+                    <th>Số CCCD</th>
                 </tr>
             </thead>
             <tbody id="employee-table-body">
                 <tr>
-                    <td colspan="8" style="text-align: center; color: #666; font-style: italic;">Đang tải dữ liệu từ Cloud Supabase...</td>
+                    <td colspan="10" class="loading-text">Đang tải dữ liệu từ Cloud Supabase...</td>
                 </tr>
             </tbody>
         </table>
     </div>
 
-    <div style="margin-top: 15px;">
+    <div>
         <span class="badge-total">TỔNG NHÂN SỰ CLOUD: <span id="total-employees">0</span> người</span>
     </div>
 </div>
 
 <script>
-    // Cấu hình đồng bộ chuẩn hệ thống mới của bạn
+    // Khai báo thông tin kết nối mới nhất và chính xác 100% của bạn
     const SUPABASE_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co"; 
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ";
 
     // Khởi tạo Supabase client
     const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // Hàm gọi API lấy danh sách
-    async function layDataNhanSu() {
+    // Mảng toàn cục lưu trữ danh sách nhân sự tải từ database về
+    let danhSachNhanSuGoc = [];
+
+    // --- HÀM 1: TẢI DỮ LIỆU TỪ SUPABASE VỀ ---
+    async function taiDuLieuTuSupabase() {
         try {
+            console.log("Đang tải dữ liệu từ bảng nhan_su...");
             const { data, error } = await supabase
                 .from('nhan_su')
                 .select('*');
 
             if (error) {
-                console.error("Lỗi khi kết nối API:", error);
+                console.error("Lỗi API Supabase:", error);
                 document.getElementById('employee-table-body').innerHTML = `
-                    <tr><td colspan="8" style="color: red; text-align: center; font-weight: bold;">Lỗi kết nối API bảo mật. Hãy kiểm tra lại cấu hình RLS hoặc API Key!</td></tr>
+                    <tr><td colspan="10" style="color: red; text-align: center; font-weight: bold;">Lỗi tải dữ liệu. Hãy kiểm tra lại cấu hình API / RLS Policy!</td></tr>
                 `;
                 return;
             }
 
-            // Gán tổng số nhân viên tìm thấy lên thẻ đếm
-            document.getElementById('total-employees').innerText = data.length;
-
-            const tableBody = document.getElementById('employee-table-body');
-            tableBody.innerHTML = ''; // Làm sạch hàng chờ ban đầu
-
-            if (data.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: #999;">Bảng dữ liệu trên Supabase đang trống, hãy thử nạp lại Excel.</td></tr>`;
-                return;
-            }
-
-            // Đổ chính xác dữ liệu từ Database vào từng dòng cột tương ứng
-            data.forEach((emp, index) => {
-                const tr = `
-                    <tr>
-                        <td style="text-align: center; color: #666;">${index + 1}</td>
-                        <td><strong>${emp.ho_ten || ''}</strong></td>
-                        <td style="text-align: center;">${emp.nam_sinh ? String(emp.nam_sinh).substring(0,4) : ''}</td>
-                        <td style="text-align: center; color: #16a34a;">${emp.nam_sinh || ''}</td>
-                        <td style="text-align: center; color: #dc2626; font-weight: bold;">${emp.nam_ve_huu || ''}</td>
-                        <td style="text-align: center;">${emp.gioi_tinh || '-'}</td>
-                        <td style="color: #00f; font-weight: bold;">${emp.ma_don_vi || 'CHƯA XẾP'}</td>
-                        <td style="color: #475569;">${emp.chuc_danh_cong_viec || ''}</td>
-                    </tr>
-                `;
-                tableBody.insertAdjacentHTML('beforeend', tr);
-            });
+            danhSachNhanSuGoc = data || [];
+            napDanhSachDonViXoXuong(danhSachNhanSuGoc);
+            hienThiDuLieuRaBang(danhSachNhanSuGoc);
 
         } catch (err) {
-            console.error("Lỗi hệ thống:", err);
+            console.error("Hệ thống lỗi xảy ra bất ngờ:", err);
         }
     }
 
-    // Tự động kích hoạt khi trang hoàn tất xử lý DOM
-    document.addEventListener('DOMContentLoaded', layDataNhanSu);
+    // --- HÀM 2: ĐỔ DỮ LIỆU VÀO BẢNG HTML ---
+    function hienThiDuLieuRaBang(danhSach) {
+        document.getElementById('total-employees').innerText = danhSach.length;
+        const tableBody = document.getElementById('employee-table-body');
+        tableBody.innerHTML = '';
+
+        if (danhSach.length === 0) {
+            tableBody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: #999;">Không tìm thấy kết quả phù hợp hoặc bảng dữ liệu trống.</td></tr>`;
+            return;
+        }
+
+        danhSach.forEach((emp, index) => {
+            // Lấy năm sinh dạng số 4 chữ số từ chuỗi ngày sinh dạng YYYY-MM-DD
+            let namSinhGoc = '';
+            if (emp.nam_sinh) {
+                namSinhGoc = String(emp.nam_sinh).includes('/') ? String(emp.nam_sinh).split('/')[2] : String(emp.nam_sinh).split('-')[0];
+            }
+
+            const trHTML = `
+                <tr>
+                    <td style="text-align: center; color: #777;">${index + 1}</td>
+                    <td><strong>${emp.ho_ten || ''}</strong></td>
+                    <td style="text-align: center;">${namSinhGoc || emp.nam_sinh || ''}</td>
+                    <td style="text-align: center; color: #16a34a; font-weight: 500;">${emp.nam_sinh || ''}</td>
+                    <td style="text-align: center; color: #dc2626; font-weight: bold;">${emp.nam_ve_huu || ''}</td>
+                    <td style="text-align: center;">${emp.gioi_tinh || '-'}</td>
+                    <td style="text-align: center; color: #0000ff; font-weight: bold;">${emp.ma_don_vi || 'CHƯA XẾP'}</td>
+                    <td style="color: #475569;">${emp.chuc_danh_cong_viec || ''}</td>
+                    <td>${emp.so_bhxh || ''}</td>
+                    <td>${emp.so_cccd || ''}</td>
+                </tr>
+            `;
+            tableBody.insertAdjacentHTML('beforeend', trHTML);
+        });
+    }
+
+    // --- HÀM 3: TỰ ĐỘNG TẠO BỘ LỌC ĐƠN VỊ ---
+    function napDanhSachDonViXoXuong(danhSach) {
+        const selectBox = document.getElementById('filterUnit');
+        // Lấy danh sách các mã đơn vị duy nhất, loại bỏ trùng lặp
+        const cacDonVi = [...new Set(danhSach.map(emp => emp.ma_don_vi).filter(Boolean))];
+        
+        selectBox.innerHTML = '<option value="">-- Tất cả phòng ban / Phân xưởng --</option>';
+        cacDonVi.sort().forEach(dv => {
+            selectBox.insertAdjacentHTML('beforeend', `<option value="${dv}">${dv}</option>`);
+        });
+    }
+
+    // --- KHU VỰC KÍCH HOẠT CÁC SỰ KIỆN TƯƠNG TÁC KHI TẢI TRANG XONG ---
+    document.addEventListener('DOMContentLoaded', () => {
+        // Tải dữ liệu ban đầu
+        taiDuLieuTuSupabase();
+
+        // 1. Logic Tìm Kiếm Gõ Nhanh (Real-time Search)
+        document.getElementById('searchName').addEventListener('input', thucHienLocDuLieu);
+        document.getElementById('filterUnit').addEventListener('change', thucHienLocDuLieu);
+
+        function thucHienLocDuLieu() {
+            const tuKhoa = document.getElementById('searchName').value.toLowerCase().trim();
+            const donViDuocChon = document.getElementById('filterUnit').value;
+
+            let ketQuaLoc = danhSachNhanSuGoc;
+
+            // Lọc theo từ khóa ô tìm kiếm
+            if (tuKhoa) {
+                ketQuaLoc = ketQuaLoc.filter(emp => {
+                    return (emp.ho_ten || '').toLowerCase().includes(tuKhoa) || 
+                           (emp.so_cccd || '').toLowerCase().includes(tuKhoa) || 
+                           (emp.chuc_danh_cong_viec || '').toLowerCase().includes(tuKhoa);
+                });
+            }
+
+            // Lọc theo phòng ban/phân xưởng xổ xuống
+            if (donViDuocChon) {
+                ketQuaLoc = ketQuaLoc.filter(emp => emp.ma_don_vi === donViDuocChon);
+            }
+
+            hienThiDuLieuRaBang(ketQuaLoc);
+        }
+
+        // 2. Tương tác chuyển Menu dọc bên trái (Sidebar)
+        const items = document.querySelectorAll('.sidebar .menu-item');
+        items.forEach(item => {
+            item.addEventListener('click', function() {
+                items.forEach(i => i.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+
+        // 3. Tính năng Đọc file Excel tải lên trực tiếp
+        document.getElementById('excel-file-input').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const sheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[sheetName];
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+                    console.log("Dữ liệu đọc từ file Excel:", jsonData);
+                    alert(`Đọc thành công ${jsonData.length} dòng từ file Excel! Đang tiến hành xử lý...`);
+                    
+                    // Tại đây bạn có thể viết thêm vòng lặp gửi data lên Supabase tùy chọn thêm
+                } catch (err) {
+                    alert("Có lỗi khi đọc file Excel. Vui lòng kiểm tra định dạng file!");
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        // 4. Tính năng bấm nút Xóa Sạch Mây toàn bộ dữ liệu bảng nhan_su
+        document.getElementById('btnDeleteAll').addEventListener('click', async () => {
+            if (!confirm("⚠️ CẢNH BÁO QUAN TRỌNG:\nBạn có chắc chắn muốn xóa SẠCH TOÀN BỘ dữ liệu nhân sự trên Cloud không? Hành động này không thể hoàn tác!")) {
+                return;
+            }
+
+            try {
+                // Thực hiện lệnh DELETE diện rộng dựa trên điều kiện id luôn lớn hơn 0
+                const { error } = await supabase
+                    .from('nhan_su')
+                    .delete()
+                    .gt('id', 0);
+
+                if (error) {
+                    alert("Không thể xóa dữ liệu. Hãy chắc chắn bạn đã cấp quyền DELETE trong RLS Policy!");
+                    console.error(error);
+                } else {
+                    alert("Đã xóa sạch toàn bộ dữ liệu nhân sự trên Cloud thành công!");
+                    taiDuLieuTuSupabase(); // Load lại bảng trắng
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        });
+    });
 </script>
 
 </body>
