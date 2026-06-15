@@ -102,14 +102,14 @@
 
     <div class="upload-section">
         <label for="excel-file-input" class="upload-label">
-            📥 BẤM VÀO ĐÂY ĐỂ CHỌN FILE EXCEL NẠP DỮ LIỆU (.XLSX)
+            📥 BẤM VÀO ĐỂ CHỌN FILE EXCEL NẠP DỮ LIỆU (.XLSX)
         </label>
         <input type="file" id="excel-file-input" accept=".xlsx, .xls">
         <button class="btn-clear" id="btn-clear-cloud">🗑️ XÓA DỮ LIỆU CŨ TỪ MÂY</button>
     </div>
 
     <div class="status-badge">
-        Tổng số nhân sự trên Cloud: <span id="total-count">Đang tính toán...</span>
+        Tổng số nhân sự trên Cloud: <span id="total-count">Đang kết nối...</span>
     </div>
 
     <table>
@@ -117,10 +117,10 @@
             <tr>
                 <th style="text-align: center; width: 6%;">STT</th>
                 <th>Họ và Tên</th>
-                <th style="text-align: center; width: 12%;">Giới Tính</th>
-                <th style="text-align: center; width: 18%;">Ngày Sinh Chi Tiết</th>
+                <th style="text-align: center; width: 15%;">Giới Tính</th>
+                <th style="text-align: center; width: 20%;">Ngày Sinh / Năm Sinh</th>
                 <th>Chức Danh Công Việc</th>
-                <th style="text-align: center; width: 18%; color: #f87171;">Năm Về Hưu</th>
+                <th style="text-align: center; width: 20%; color: #f87171;">Năm Về Hưu Dự Kiến</th>
             </tr>
         </thead>
         <tbody id="render-table-body">
@@ -139,32 +139,14 @@
 
     const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // Hàm định dạng ngày tháng hiển thị an toàn tuyệt đối, chống crash giao diện
-    function dinhDangNgaySinhSafe(valGoc, empData) {
-        if (!valGoc) return '-';
-        let s = String(valGoc).trim();
-        
-        // Sửa lỗi đảo lộn chéo cột của dòng 3 và dòng 4 (nếu năm sinh chỉ có 1 ký tự số hoặc mã đơn vị lọt vào)
-        if (s.length <= 4 && empData && String(empData.ma_don_vi).includes('-')) {
-            return String(empData.ma_don_vi).trim();
-        }
-        return s;
-    }
-
-    // Hàm định dạng năm về hưu an toàn
-    function dinhDangNamVeHuuSafe(valGoc) {
-        if (!valGoc) return '-';
-        return String(valGoc).trim();
-    }
-
-    // Hàm đồng bộ và hiển thị dữ liệu trực tiếp từ Supabase công khai
+    // Tải và hiển thị dữ liệu bảng nhân sự
     async function lamMoiBangDuLieu() {
         const msgCell = document.getElementById('msg-cell');
         const totalCountSpan = document.getElementById('total-count');
         const tbody = document.getElementById('render-table-body');
 
         try {
-            const { data, error } = await client.from('nhan_su').select('*');
+            const { data, error } = await client.from('nhan_su').select('ho_ten, nam_sinh, nam_ve_huu, gioi_tinh, chuc_danh_cong_viec');
 
             if (error) {
                 if (msgCell) msgCell.innerHTML = `<span style="color:red;">Lỗi kết nối database: ${error.message}</span>`;
@@ -182,37 +164,31 @@
             tbody.innerHTML = '';
             danhSach.forEach((emp, index) => {
                 const tr = document.createElement('tr');
-                
-                // Trích xuất dữ liệu thông qua bộ lọc an toàn
-                const ngaySinhHienThi = dinhDangNgaySinhSafe(emp.nam_sinh, emp);
-                const namVeHuuHienThi = dinhDangNamVeHuuSafe(emp.nam_ve_huu);
-
                 tr.innerHTML = `
                     <td style="text-align: center; color: #64748b;">${index + 1}</td>
-                    <td><strong>${emp.ho_ten || 'Không rõ tên'}</strong></td>
+                    <td><strong>${emp.ho_ten || '---'}</strong></td>
                     <td style="text-align: center;">${emp.gioi_tinh || '-'}</td>
-                    <td style="text-align: center; color: #0284c7; font-weight: 500;">${ngaySinhHienThi}</td>
+                    <td style="text-align: center; color: #0284c7; font-weight: 500;">${emp.nam_sinh || ''}</td>
                     <td style="color: #334155;">${emp.chuc_danh_cong_viec || ''}</td>
-                    <td style="text-align: center; font-weight: bold; color: #dc2626;">${namVeHuuHienThi}</td>
+                    <td style="text-align: center; font-weight: bold; color: #dc2626;">${emp.nam_ve_huu || ''}</td>
                 `;
                 tbody.appendChild(tr);
             });
 
         } catch (err) {
-            console.error("Lỗi crash render bảng:", err);
-            tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: red;">Lỗi hiển thị dữ liệu bảng: ${err.message}</td></tr>`;
+            console.error(err);
         }
     }
 
     document.addEventListener('DOMContentLoaded', () => {
         lamMoiBangDuLieu();
 
-        // Xử lý nạp file dữ liệu Excel thông minh
+        // Đọc file Excel thông minh và lọc trường an toàn khớp 100% với DB hiện tại
         document.getElementById('excel-file-input').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
 
-            document.getElementById('render-table-body').innerHTML = `<tr><td colspan="6" style="text-align: center; color: #2563eb; font-weight: bold; padding: 20px;">⏳ Hệ thống đang quét cấu hình và tải dữ liệu lên mây... Vui lòng đợi trong giây lát.</td></tr>`;
+            document.getElementById('render-table-body').innerHTML = `<tr><td colspan="6" style="text-align: center; color: #2563eb; font-weight: bold; padding: 20px;">⏳ Hệ thống đang tải dữ liệu lên mây... Vui lòng đợi trong giây lát.</td></tr>`;
 
             const reader = new FileReader();
             reader.onload = async function(e) {
@@ -223,12 +199,12 @@
                     const json = XLSX.utils.sheet_to_json(sheet);
 
                     if (json.length === 0) {
-                        alert("File Excel này không chứa dữ liệu dòng nào!");
+                        alert("File Excel này không chứa dữ liệu!");
                         lamMoiBangDuLieu();
                         return;
                     }
 
-                    // Thuật toán nhận diện cột siêu rộng, chấp nhận mọi kiểu đặt tên của người dùng
+                    // Chỉ trích xuất các cột có thực tế trên database hiện tại của bạn
                     const dataDich = json.map(row => {
                         const keys = Object.keys(row);
                         const layGiaTri = (cacTuKhoa) => {
@@ -239,59 +215,44 @@
                             return cotTimThay ? row[cotTimThay] : null;
                         };
 
-                        let maDVRaw = layGiaTri(['madonvi', 'mãđơnvị', 'bộphận', 'phòngban', 'mãđv', 'đơnvị']);
-                        let ngaySinhRaw = layGiaTri(['namsinh', 'ngaysinh', 'ngàysinh', 'sinhngày', 'năm']);
-
-                        // Sửa lỗi chéo dòng trực tiếp ngay lúc đọc file đầu vào
-                        if (ngaySinhRaw && String(ngaySinhRaw).length <= 3 && maDVRaw && String(maDVRaw).includes('-')) {
-                            let temp = ngaySinhRaw; ngaySinhRaw = maDVRaw; maDVRaw = temp;
-                        }
-
                         return {
-                            ho_ten: layGiaTri(['hoten', 'hovaten', 'tên', 'ten', 'họvàtên', 'ngườithựchiện']),
-                            nam_sinh: ngaySinhRaw,
-                            nam_ve_huu: layGiaTri(['namvehuu', 'nămvềhưu', 'vềhưu', 'nghỉhưu', 'kếhoạch']),
+                            ho_ten: layGiaTri(['hoten', 'hovaten', 'tên', 'ten', 'họvàtên']),
+                            nam_sinh: layGiaTri(['namsinh', 'ngaysinh', 'ngàysinh', 'sinhngày', 'năm']),
+                            nam_ve_huu: layGiaTri(['namvehuu', 'nămvềhưu', 'vềhưu', 'nghỉhưu']),
                             gioi_tinh: layGiaTri(['gioitinh', 'giớitính', 'nam/nữ']),
-                            ma_don_vi: maDVRaw,
-                            chuc_danh_cong_viec: layGiaTri(['chucdanh', 'chứcdanh', 'chứcvụ', 'côngviệc', 'vịtrí']),
-                            so_bhxh: layGiaTri(['sobhxh', 'bhxh', 'bảohiểm']),
-                            so_cccd: layGiaTri(['socccd', 'cccd', 'cmnd', 'chứngminh'])
+                            chuc_danh_cong_viec: layGiaTri(['chucdanh', 'chứcdanh', 'chứcvụ', 'côngviệc', 'vịtrí'])
                         };
                     });
 
-                    // Tiến hành đẩy lên database theo từng đợt công khai
+                    // Thực hiện insert lên Cloud
                     const BATCH = 100;
                     for (let i = 0; i < dataDich.length; i += BATCH) {
                         const batchData = dataDich.slice(i, i + BATCH);
                         const { error } = await client.from('nhan_su').insert(batchData);
                         if (error) {
-                            alert("Lỗi khi ghi lên đám mây: " + error.message);
+                            alert("Lỗi khi ghi dữ liệu: " + error.message);
                             lamMoiBangDuLieu();
                             return;
                         }
                     }
 
-                    alert(`🎉 Thành công! Đã đồng bộ hoàn chỉnh ${dataDich.length} nhân sự lên hệ thống Cloud!`);
+                    alert(`🎉 Nạp thành công dữ liệu nhân sự lên Cloud!`);
                     lamMoiBangDuLieu();
 
                 } catch (err) {
-                    alert("Định dạng file lỗi hoặc không đọc được cấu trúc Excel.");
+                    alert("Định dạng file lỗi hoặc cấu trúc Excel không tương thích.");
                     lamMoiBangDuLieu();
                 }
             };
             reader.readAsArrayBuffer(file);
         });
 
-        // Sự kiện xóa sạch kho dữ liệu
+        // Nút xóa mây
         document.getElementById('btn-clear-cloud').addEventListener('click', async () => {
-            if (!confirm("Bạn có chắc chắn muốn xóa dọn dẹp toàn bộ dữ liệu nhân sự đang lưu trên Cloud không?")) return;
-            const { error } = await client.from('nhan_su').delete().gt('id', 0);
-            if (error) {
-                alert("Lỗi khi xóa dữ liệu: " + error.message);
-            } else {
-                alert("Đã làm sạch kho lưu trữ trên mây.");
-                lamMoiBangDuLieu();
-            }
+            if (!confirm("Bạn có chắc chắn muốn dọn sạch mây không?")) return;
+            await client.from('nhan_su').delete().gt('id', 0);
+            alert("Đã xóa sạch dữ liệu cũ.");
+            lamMoiBangDuLieu();
         });
     });
 </script>
