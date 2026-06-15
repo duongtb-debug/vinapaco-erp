@@ -200,7 +200,7 @@
             <option value="">Tất cả chế độ đặc thù</option>
         </select>
         
-        <button class="btn btn-add" onclick="alert('Tính năng Thêm Tay đang được phát triển!')">+ THÊM TAY</button>
+        <button class="btn btn-add" onclick="alert('Tính năng Thêm Tay đang được phát triển!')">+ THEM TAY</button>
         <button class="btn btn-delete" id="btnDeleteAll">🗑️ XÓA SẠCH MÂY</button>
     </div>
 
@@ -222,7 +222,7 @@
             </thead>
             <tbody id="employee-table-body">
                 <tr>
-                    <td colspan="10" class="loading-text">Đang tải dữ liệu từ Cloud Supabase...</td>
+                    <td colspan="10" class="loading-text" id="status-cell">Đang kết nối Cloud Supabase... Vui lòng đợi trong giây lát.</td>
                 </tr>
             </tbody>
         </table>
@@ -234,18 +234,15 @@
 </div>
 
 <script>
-    // Khai báo thông tin kết nối mới nhất và chính xác 100% của bạn
     const SUPABASE_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co"; 
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ";
 
-    // Khởi tạo Supabase client
     const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-    // Mảng toàn cục lưu trữ danh sách nhân sự tải từ database về
     let danhSachNhanSuGoc = [];
 
-    // --- HÀM 1: TẢI DỮ LIỆU TỪ SUPABASE VỀ ---
+    // --- HÀM TẢI DỮ LIỆU TỪ CLOUD ---
     async function taiDuLieuTuSupabase() {
+        const statusCell = document.getElementById('status-cell');
         try {
             console.log("Đang tải dữ liệu từ bảng nhan_su...");
             const { data, error } = await supabase
@@ -254,9 +251,7 @@
 
             if (error) {
                 console.error("Lỗi API Supabase:", error);
-                document.getElementById('employee-table-body').innerHTML = `
-                    <tr><td colspan="10" style="color: red; text-align: center; font-weight: bold;">Lỗi tải dữ liệu. Hãy kiểm tra lại cấu hình API / RLS Policy!</td></tr>
-                `;
+                if (statusCell) statusCell.innerHTML = `<span style="color: red; font-weight: bold;">Lỗi kết nối API: ${error.message}</span>`;
                 return;
             }
 
@@ -265,37 +260,35 @@
             hienThiDuLieuRaBang(danhSachNhanSuGoc);
 
         } catch (err) {
-            console.error("Hệ thống lỗi xảy ra bất ngờ:", err);
+            console.error(err);
         }
     }
 
-    // --- HÀM 2: ĐỔ DỮ LIỆU VÀO BẢNG HTML ---
+    // --- HÀM ĐỔ DỮ LIỆU VÀO BẢNG HTML ---
     function hienThiDuLieuRaBang(danhSach) {
         document.getElementById('total-employees').innerText = danhSach.length;
         const tableBody = document.getElementById('employee-table-body');
         tableBody.innerHTML = '';
 
         if (danhSach.length === 0) {
-            tableBody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: #999;">Không tìm thấy kết quả phù hợp hoặc bảng dữ liệu trống.</td></tr>`;
+            tableBody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: #999; padding: 20px;">Bảng trên mây trống hoặc chưa có ai. Bấm nút phía trên để nạp file Excel!</td></tr>`;
             return;
         }
 
         danhSach.forEach((emp, index) => {
-            // Trích xuất năm sinh dạng số 4 chữ số từ chuỗi ngày sinh (Vd: từ 10/08/1969 lấy ra 1969)
             let namSinhGoc = '';
             if (emp.nam_sinh) {
                 const chuoiNamSinh = String(emp.nam_sinh);
                 if (chuoiNamSinh.includes('/')) {
                     const mangSlices = chuoiNamSinh.split('/');
-                    namSinhGoc = mangSlices[mangSlices.length - 1]; // Lấy phần tử cuối cùng là Năm
+                    namSinhGoc = mangSlices[mangSlices.length - 1];
                 } else if (chuoiNamSinh.includes('-')) {
-                    namSinhGoc = chuoiNamSinh.split('-')[0]; // Định dạng YYYY-MM-DD lấy phần đầu
+                    namSinhGoc = chuoiNamSinh.split('-')[0];
                 } else {
                     namSinhGoc = chuoiNamSinh;
                 }
             }
 
-            // Đồng bộ chính xác 100% với tên trường viết thường có gạch dưới trên Supabase của bạn
             const trHTML = `
                 <tr>
                     <td style="text-align: center; color: #777;">${index + 1}</td>
@@ -314,20 +307,18 @@
         });
     }
 
-    // --- HÀM 3: TỰ ĐỘNG TẠO BỘ LỌC ĐƠN VỊ ---
+    // --- HÀM TẠO BỘ LỌC ĐƠN VỊ ---
     function napDanhSachDonViXoXuong(danhSach) {
         const selectBox = document.getElementById('filterUnit');
         const cacDonVi = [...new Set(danhSach.map(emp => emp.ma_don_vi).filter(Boolean))];
-        
         selectBox.innerHTML = '<option value="">-- Tất cả phòng ban / Phân xưởng --</option>';
         cacDonVi.sort().forEach(dv => {
             selectBox.insertAdjacentHTML('beforeend', `<option value="${dv}">${dv}</option>`);
         });
     }
 
-    // --- KHU VỰC KÍCH HOẠT CÁC SỰ KIỆN TƯƠNG TÁC KHI TẢI TRANG XONG ---
+    // --- KÍCH HOẠT SỰ KIỆN KHI MỞ TRANG TẢI XONG ---
     document.addEventListener('DOMContentLoaded', () => {
-        // Tải dữ liệu ban đầu
         taiDuLieuTuSupabase();
 
         // 1. Logic Tìm Kiếm Gõ Nhanh (Real-time Search)
@@ -339,7 +330,6 @@
             const donViDuocChon = document.getElementById('filterUnit').value;
 
             let ketQuaLoc = danhSachNhanSuGoc;
-
             if (tuKhoa) {
                 ketQuaLoc = ketQuaLoc.filter(emp => {
                     return (emp.ho_ten || '').toLowerCase().includes(tuKhoa) || 
@@ -347,15 +337,13 @@
                            (emp.chuc_danh_cong_viec || '').toLowerCase().includes(tuKhoa);
                 });
             }
-
             if (donViDuocChon) {
                 ketQuaLoc = ketQuaLoc.filter(emp => emp.ma_don_vi === donViDuocChon);
             }
-
             hienThiDuLieuRaBang(ketQuaLoc);
         }
 
-        // 2. Tương tác chuyển Menu dọc bên trái (Sidebar)
+        // 2. Chuyển Menu dọc bên trái (Sidebar)
         const items = document.querySelectorAll('.sidebar .menu-item');
         items.forEach(item => {
             item.addEventListener('click', function() {
@@ -364,10 +352,13 @@
             });
         });
 
-        // 3. Tính năng Đọc file Excel tải lên trực tiếp
+        // 3. TÍNH NĂNG CHỦ CHỐT: ĐỌC FILE EXCEL VÀ ĐẨY THẲNG LÊN CLOUD SUPABASE
         document.getElementById('excel-file-input').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
+
+            const tableBody = document.getElementById('employee-table-body');
+            tableBody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: blue; font-weight: bold;">⏳ Đang xử lý đọc file và upload dữ liệu lên Cloud... Vui lòng không tắt trình duyệt!</td></tr>`;
 
             const reader = new FileReader();
             reader.onload = async function(e) {
@@ -378,10 +369,60 @@
                     const worksheet = workbook.Sheets[sheetName];
                     const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-                    console.log("Dữ liệu đọc từ file Excel:", jsonData);
-                    alert(`Đọc thành công ${jsonData.length} dòng từ file Excel! Đang tiến hành xử lý...`);
+                    if (jsonData.length === 0) {
+                        alert("File Excel trống, không có dữ liệu!");
+                        taiDuLieuTuSupabase();
+                        return;
+                    }
+
+                    // Bản đồ hóa chuẩn hóa tên cột tự động: Khớp không phân biệt chữ hoa, chữ thường hay dấu gạch
+                    const danhSachUpload = jsonData.map(row => {
+                        const timGiaTri = (cacTenCot) => {
+                            const khoaTimThay = Object.keys(row).find(k => cacTenCot.includes(k.toLowerCase().replace(/\s+/g, '').replace(/_/g, '')));
+                            return khoaTimThay ? row[khoaTimThay] : null;
+                        };
+
+                        return {
+                            ho_ten: timGiaTri(['hoten', 'hovaten', 'tên', 'ten']),
+                            nam_sinh: timGiaTri(['namsinh', 'ngaysinh', 'ngày sinh']),
+                            nam_ve_huu: timGiaTri(['namvehuu', 'nămvềhưu', 'vềhưu']),
+                            gioi_tinh: timGiaTri(['gioitinh', 'giớitính']),
+                            ma_don_vi: timGiaTri(['madonvi', 'mãđơnvị', 'phòngban', 'bộphận']),
+                            chuc_danh_cong_viec: timGiaTri(['chucdanhcongviec', 'chứcdanh', 'chứcvụ']),
+                            so_bhxh: timGiaTri(['sobhxh', 'bảohiểm', 'bhxh']),
+                            so_cccd: timGiaTri(['socccd', 'cccd', 'cmnd'])
+                        };
+                    });
+
+                    console.log("Dữ liệu đã chuẩn hóa cấu hình chuẩn để gửi mây:", danhSachUpload);
+
+                    // Thực hiện chia nhỏ dữ liệu đẩy theo từng cụm (Mỗi lần 100 bản ghi để không bị quá tải đường truyền)
+                    const KICH_THUOC_CUM = 100;
+                    let soDongThanhCong = 0;
+
+                    for (let i = 0; i < danhSachUpload.length; i += KICH_THUOC_CUM) {
+                        const cumDuLieu = danhSachUpload.slice(i, i + KICH_THUOC_CUM);
+                        const { error } = await supabase
+                            .from('nhan_su')
+                            .insert(cumDuLieu);
+
+                        if (error) {
+                            console.error("Lỗi khi chèn cụm dữ liệu:", error);
+                            alert(`Lỗi khi đẩy dữ liệu lên mây: ${error.message}`);
+                            taiDuLieuTuSupabase();
+                            return;
+                        }
+                        soDongThanhCong += cumDuLieu.length;
+                    }
+
+                    alert(`🎉 Thao tác thành công! Đã nạp thành công ${soDongThanhCong} nhân sự vào Cloud Supabase!`);
+                    // Gọi hàm tải lại dữ liệu mới nhất từ Cloud về bảng
+                    taiDuLieuTuSupabase();
+
                 } catch (err) {
-                    alert("Có lỗi khi đọc file Excel. Vui lòng kiểm tra định dạng file!");
+                    console.error(err);
+                    alert("Có lỗi xảy ra trong quá trình xử lý file Excel!");
+                    taiDuLieuTuSupabase();
                 }
             };
             reader.readAsArrayBuffer(file);
