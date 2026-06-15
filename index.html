@@ -145,7 +145,7 @@
 
     const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // Hiển thị dữ liệu lên bảng tương ứng chuẩn xác từ Cloud
+    // Tải và hiển thị chính xác dữ liệu từ Cloud lên bảng tương ứng
     async function lamMoiBangDuLieu() {
         const msgCell = document.getElementById('msg-cell');
         const totalCountSpan = document.getElementById('total-count');
@@ -196,12 +196,12 @@
     document.addEventListener('DOMContentLoaded', () => {
         lamMoiBangDuLieu();
 
-        // Thuật toán quét thông minh theo tên tiêu đề cột (Không sợ lệch cột, không sợ hàng trống)
+        // Thuật toán bốc trích vị trí cột tuyệt đối (Chống lệch hàng, bỏ qua tiêu đề phụ của file)
         document.getElementById('excel-file-input').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
 
-            document.getElementById('render-table-body').innerHTML = `<tr><td colspan="10" class="text-center" style="color: #2563eb; font-weight: bold; padding: 20px;">⏳ Hệ thống đang quét tìm tiêu đề cột và đồng bộ dữ liệu... Vui lòng chờ.</td></tr>`;
+            document.getElementById('render-table-body').innerHTML = `<tr><td colspan="10" class="text-center" style="color: #2563eb; font-weight: bold; padding: 20px;">⏳ Hệ thống đang bốc tách vị trí cột và đồng bộ lên đám mây... Vui lòng chờ.</td></tr>`;
 
             const reader = new FileReader();
             reader.onload = async function(e) {
@@ -210,82 +210,75 @@
                     const wb = XLSX.read(arr, { type: 'array' });
                     const sheet = wb.Sheets[wb.SheetNames[0]];
                     
-                    // Đọc dạng JSON chuẩn có chứa Key là tên cột thực tế trong file Excel
-                    const json = XLSX.utils.sheet_to_json(sheet);
-
-                    if (json.length === 0) {
-                        alert("File Excel trống hoặc sai cấu trúc định dạng!");
-                        lamMoiBangDuLieu();
-                        return;
-                    }
+                    // Đọc dạng mảng 2 chiều nguyên bản (Giữ nguyên cấu trúc dòng, cột vật lý từ A -> J)
+                    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
                     let baseId = Date.now();
-                    
-                    // Hàm quét tìm giá trị của cột dựa theo từ khóa Tiếng Việt linh hoạt
-                    const bocDuLieuTheoTuKhoa = (rowObject, cacTuKhoa) => {
-                        const keys = Object.keys(rowObject);
-                        const khoaTimThay = keys.find(k => {
-                            const kClean = String(k).toLowerCase().replace(/\s+/g, '').replace(/_/g, '').trim();
-                            return cacTuKhoa.some(tk => kClean.includes(tk));
-                        });
-                        return khoaTimThay ? String(rowObject[khoaTimThay]).trim() : null;
-                    };
+                    const dataDich = [];
 
-                    const dataDich = json.map((row, index) => {
-                        // Tìm kiếm chính xác dữ liệu dựa trên tên cột thực tế của file gốc
-                        const ho_ten = bocDuLieuTheoTuKhoa(row, ['hoten', 'hovaten', 'tên', 'ten']);
+                    // VÒNG LẶP THÔNG MINH: Quét từ dòng đầu đến dòng cuối để tìm xem dòng nào thực sự chứa dữ liệu nhân sự
+                    for (let i = 0; i < rows.length; i++) {
+                        const row = rows[i];
+                        if (!row || row.length === 0) continue;
+
+                        // Điều kiện nhận diện hàng chứa nhân sự hợp lệ: 
+                        // Cột B (index 1) phải có tên, và cột A (index 0) hoặc cột C (index 2) phải có dữ liệu số (STT hoặc Năm)
+                        const cotTen = row[1] ? String(row[1]).trim() : "";
                         
-                        // Bỏ qua nếu dòng này không quét được Tên nhân sự
-                        if (!ho_ten) return null; 
+                        // Bỏ qua các hàng tiêu đề của file ("Họ và tên", "DANH SÁCH...", hoặc dòng trống)
+                        if (!cotTen || cotTen.toLowerCase().includes("họ và tên") || cotTen.toLowerCase().includes("danh sách")) {
+                            continue; 
+                        }
 
-                        return {
-                            id: baseId + index,
-                            ho_ten: ho_ten,
-                            nam: bocDuLieuTheoTuKhoa(row, ['nămxét', 'namxet', /^năm$/i, /^nam$/i]), // Ưu tiên tìm cột "Năm" chính xác
-                            nam_sinh: bocDuLieuTheoTuKhoa(row, ['namsinh', 'ngaysinh', 'ngàysinh', 'sinhngày']),
-                            nam_ve_huu: bocDuLieuTheoTuKhoa(row, ['namvehuu', 'nămvềhưu', 'vềhưu', 'nghỉhưu']),
-                            gioi_tinh: bocDuLieuTheoTuKhoa(row, ['gioitinh', 'giớitính', 'nam/nữ']),
-                            ma_don_vi: bocDuLieuTheoTuKhoa(row, ['madonvi', 'mãđơnvị', 'đơnvị', 'donvi']),
-                            chuc_danh_cong_viec: bocDuLieuTheoTuKhoa(row, ['chucdanh', 'chứcdanh', 'chứcvụ', 'côngviệc', 'vitri']),
-                            so_bhxh: bocDuLieuTheoTuKhoa(row, ['sobhxh', 'sốbhxh', 'bảohiểm', 'bhxh']),
-                            so_cccd: bocDuLieuTheoTuKhoa(row, ['socccd', 'sốcccd', 'cccd', 'cmnd', 'chứngminh'])
-                        };
-                    }).filter(item => item !== null); // Loại bỏ dòng rỗng hoàn toàn
+                        // Bốc chính xác 100% theo đúng số thứ tự cột vật lý trong file Excel gốc của bạn
+                        dataDich.push({
+                            id: baseId + i,
+                            ho_ten: cotTen,                                              // Cột B (Mảng index 1)
+                            nam: row[2] ? String(row[2]).trim() : null,                  // Cột C (Mảng index 2) - Lưu trực tiếp vào trường 'nam'
+                            nam_sinh: row[3] ? String(row[3]).trim() : null,             // Cột D (Mảng index 3)
+                            nam_ve_huu: row[4] ? String(row[4]).trim() : null,           // Cột E (Mảng index 4)
+                            gioi_tinh: row[5] ? String(row[5]).trim() : null,            // Cột F (Mảng index 5)
+                            ma_don_vi: row[6] ? String(row[6]).trim() : null,            // Cột G (Mảng index 6)
+                            chuc_danh_cong_viec: row[7] ? String(row[7]).trim() : null,  // Cột H (Mảng index 7)
+                            so_bhxh: row[8] ? String(row[8]).trim() : null,              // Cột I (Mảng index 8)
+                            so_cccd: row[9] ? String(row[9]).trim() : null               // Cột J (Mảng index 9)
+                        });
+                    }
 
                     if (dataDich.length === 0) {
-                        alert("Không tìm thấy cột thông tin phù hợp trong file Excel! Hãy kiểm tra lại dòng tiêu đề.");
+                        alert("Không tìm thấy dữ liệu nhân sự hợp lệ trong file Excel!");
                         lamMoiBangDuLieu();
                         return;
                     }
 
-                    // Upload đồng bộ lên Cloud Supabase
+                    // Thực hiện gửi dữ liệu lên mây Supabase
                     const BATCH = 100;
                     for (let i = 0; i < dataDich.length; i += BATCH) {
                         const batchData = dataDich.slice(i, i + BATCH);
                         const { error } = await client.from('nhan_su').insert(batchData);
                         if (error) {
-                            alert("Lỗi database đám mây: " + error.message);
+                            alert("Lỗi ghi nhận trường dữ liệu từ Cloud: " + error.message);
                             lamMoiBangDuLieu();
                             return;
                         }
                     }
 
-                    alert(`🎉 Hoàn tất thành công! Đã nhận diện và xếp ${dataDich.length} nhân sự tương ứng vào các cột!`);
+                    alert(`🎉 Hoàn tất! Đã bốc tách và hiển thị thành công ${dataDich.length} nhân sự tương ứng vào 10 cột!`);
                     lamMoiBangDuLieu();
 
                 } catch (err) {
-                    alert("Có lỗi xảy ra khi xử lý file Excel.");
+                    alert("Có lỗi xảy ra khi xử lý tệp Excel.");
                     lamMoiBangDuLieu();
                 }
             };
             reader.readAsArrayBuffer(file);
         });
 
-        // Nút dọn mây cũ
+        // Nút làm sạch dữ liệu cũ
         document.getElementById('btn-clear-cloud').addEventListener('click', async () => {
-            if (!confirm("Bạn có chắc chắn muốn dọn sạch mây để nạp lại bản chuẩn hóa này không?")) return;
+            if (!confirm("Bạn có chắc chắn muốn xóa toàn bộ dữ liệu trên mây để nạp bản phân tách cột chuẩn xác này không?")) return;
             await client.from('nhan_su').delete().gte('id', 0);
-            alert("Đã làm sạch mây.");
+            alert("Đã xóa sạch bộ nhớ mây.");
             lamMoiBangDuLieu();
         });
     });
