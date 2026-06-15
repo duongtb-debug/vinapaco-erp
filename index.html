@@ -102,7 +102,7 @@
 
     <div class="upload-section">
         <label for="excel-file-input" class="upload-label">
-            📥 BẤM VÀO ĐỂ CHỌN FILE EXCEL NẠP DỮ LIỆU (.XLSX)
+            📥 BẤM VÀO ĐÂY ĐỂ CHỌN FILE EXCEL NẠP DỮ LIỆU (.XLSX)
         </label>
         <input type="file" id="excel-file-input" accept=".xlsx, .xls">
         <button class="btn-clear" id="btn-clear-cloud">🗑️ XÓA DỮ LIỆU CŨ TỪ MÂY</button>
@@ -139,14 +139,14 @@
 
     const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // Tải và hiển thị dữ liệu bảng nhân sự
+    // Tải và hiển thị dữ liệu bảng nhân sự từ Supabase
     async function lamMoiBangDuLieu() {
         const msgCell = document.getElementById('msg-cell');
         const totalCountSpan = document.getElementById('total-count');
         const tbody = document.getElementById('render-table-body');
 
         try {
-            const { data, error } = await client.from('nhan_su').select('ho_ten, nam_sinh, nam_ve_huu, gioi_tinh, chuc_danh_cong_viec');
+            const { data, error } = await client.from('nhan_su').select('ho_ten, nam_sinh, nam_ve_huu, gioi_tinh, chuc_danh_cong_viec').order('ho_ten', { ascending: true });
 
             if (error) {
                 if (msgCell) msgCell.innerHTML = `<span style="color:red;">Lỗi kết nối database: ${error.message}</span>`;
@@ -183,12 +183,12 @@
     document.addEventListener('DOMContentLoaded', () => {
         lamMoiBangDuLieu();
 
-        // Đọc file Excel thông minh và lọc trường an toàn khớp 100% với DB hiện tại
+        // Đọc file Excel thông minh và xử lý cột id thủ công chống lỗi Not-Null Constraint
         document.getElementById('excel-file-input').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
 
-            document.getElementById('render-table-body').innerHTML = `<tr><td colspan="6" style="text-align: center; color: #2563eb; font-weight: bold; padding: 20px;">⏳ Hệ thống đang tải dữ liệu lên mây... Vui lòng đợi trong giây lát.</td></tr>`;
+            document.getElementById('render-table-body').innerHTML = `<tr><td colspan="6" style="text-align: center; color: #2563eb; font-weight: bold; padding: 20px;">⏳ Hệ thống đang nạp dữ liệu lên mây... Vui lòng chờ giây lát.</td></tr>`;
 
             const reader = new FileReader();
             reader.onload = async function(e) {
@@ -204,8 +204,10 @@
                         return;
                     }
 
-                    // Chỉ trích xuất các cột có thực tế trên database hiện tại của bạn
-                    const dataDich = json.map(row => {
+                    // Lấy mốc thời gian làm ID cơ sở ngẫu nhiên không trùng lặp
+                    let baseId = Date.now();
+
+                    const dataDich = json.map((row, index) => {
                         const keys = Object.keys(row);
                         const layGiaTri = (cacTuKhoa) => {
                             const cotTimThay = keys.find(k => {
@@ -216,6 +218,7 @@
                         };
 
                         return {
+                            id: baseId + index, // Tự động điền ID duy nhất tăng dần tránh lỗi database hoàn toàn
                             ho_ten: layGiaTri(['hoten', 'hovaten', 'tên', 'ten', 'họvàtên']),
                             nam_sinh: layGiaTri(['namsinh', 'ngaysinh', 'ngàysinh', 'sinhngày', 'năm']),
                             nam_ve_huu: layGiaTri(['namvehuu', 'nămvềhưu', 'vềhưu', 'nghỉhưu']),
@@ -224,7 +227,7 @@
                         };
                     });
 
-                    // Thực hiện insert lên Cloud
+                    // Thực hiện chèn ghi lên Supabase
                     const BATCH = 100;
                     for (let i = 0; i < dataDich.length; i += BATCH) {
                         const batchData = dataDich.slice(i, i + BATCH);
@@ -236,7 +239,7 @@
                         }
                     }
 
-                    alert(`🎉 Nạp thành công dữ liệu nhân sự lên Cloud!`);
+                    alert(`🎉 Thành công! Đã nạp hoàn tất ${dataDich.length} nhân sự lên Cloud!`);
                     lamMoiBangDuLieu();
 
                 } catch (err) {
@@ -247,10 +250,10 @@
             reader.readAsArrayBuffer(file);
         });
 
-        // Nút xóa mây
+        // Nút xóa mây dọn dẹp bộ nhớ
         document.getElementById('btn-clear-cloud').addEventListener('click', async () => {
-            if (!confirm("Bạn có chắc chắn muốn dọn sạch mây không?")) return;
-            await client.from('nhan_su').delete().gt('id', 0);
+            if (!confirm("Bạn có chắc chắn muốn dọn sạch dữ liệu cũ trên đám mây không?")) return;
+            await client.from('nhan_su').delete().gte('id', 0);
             alert("Đã xóa sạch dữ liệu cũ.");
             lamMoiBangDuLieu();
         });
