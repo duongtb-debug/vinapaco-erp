@@ -72,22 +72,29 @@
 <script>
     const SUPABASE_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co"; 
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ";
+    
+    // Khởi tạo kết nối trực tiếp không qua trung gian
     const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     async function lamMoiBangDuLieu() {
         const totalCountSpan = document.getElementById('total-count');
         const tbody = document.getElementById('render-table-body');
+        
         try {
-            const { data, error } = await client.from('nhan_su').select('*').order('id', { ascending: true });
+            // Chỉ gọi chính xác các trường lõi an toàn
+            const { data, error } = await client.from('nhan_su').select('id, ho_ten, nam_sinh, nam_ve_huu, gioi_tinh, ma_don_vi, chuc_danh_cong_viec').order('id', { ascending: true });
+            
             if (error) {
-                tbody.innerHTML = `<tr><td colspan="10" class="text-center" style="color:red;">❌ Lỗi: ${error.message}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="10" class="text-center" style="color:red; font-weight:bold;">❌ Lỗi kết nối Supabase: ${error.message}</td></tr>`;
+                totalCountSpan.innerText = "Lỗi";
                 return;
             }
+
             const danhSach = data || [];
             totalCountSpan.innerText = danhSach.length + " người";
 
             if (danhSach.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="10" class="text-center" style="color: #94a3b8; padding: 30px;">☁️ Đám mây trống. Vui lòng nạp file Excel!</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="10" class="text-center" style="color: #94a3b8; padding: 30px;">☁️ Đám mây trống. Vui lòng nhấn nút chọn file Excel để tải lên!</td></tr>`;
                 return;
             }
 
@@ -98,6 +105,7 @@
                 let hienThiBHXH = '---';
                 let hienThiCCCD = '---';
 
+                // Tách chuỗi đóng gói chức danh công việc, số BHXH và số CCCD
                 if (hienThiChucDanh.includes("||")) {
                     const parts = hienThiChucDanh.split("||");
                     hienThiChucDanh = parts[0] ? parts[0].trim() : '---';
@@ -105,6 +113,7 @@
                     hienThiCCCD = parts[2] ? parts[2].trim() : '---';
                 }
 
+                // Xử lý lấy đúng số năm sinh rút gọn (4 số cuối của Ngày sinh)
                 let chuoiNgaySinh = emp.nam_sinh || '';
                 let hienThiNamSinhRutGon = '---';
                 if (chuoiNgaySinh && chuoiNgaySinh !== '---') {
@@ -113,32 +122,34 @@
                 }
 
                 tr.innerHTML = `
-                    <td class="text-center">${index + 1}</td>
+                    <td class="text-center" style="color: #64748b;">${index + 1}</td>
                     <td><strong>${emp.ho_ten || '---'}</strong></td>
                     <td class="text-center" style="font-weight: bold; color: #334155;">${hienThiNamSinhRutGon}</td>
-                    <td class="text-center" style="color: #0284c7;">${emp.nam_sinh || '---'}</td>
-                    <td class="text-center" style="color: #dc2626; font-weight:bold;">${emp.nam_ve_huu || '---'}</td>
-                    <td class="text-center" style="font-weight: 600; color: #0f766e;">${emp.gioi_tinh || '---'}</td>
-                    <td class="text-center" style="color: #2563eb; font-weight: 600;">${emp.ma_don_vi || '---'}</td>
+                    <td class="text-center" style="color: #0284c7; font-weight: 500;">${emp.nam_sinh || '---'}</td>
+                    <td class="text-center" style="color: #dc2626; font-weight: bold;">${emp.nam_ve_huu || '---'}</td>
+                    <td class="text-center" style="font-weight: bold; color: #0f766e;">${emp.gioi_tinh || '---'}</td>
+                    <td class="text-center" style="color: #2563eb; font-weight: bold;">${emp.ma_don_vi || '---'}</td>
                     <td>${hienThiChucDanh}</td>
-                    <td class="text-center">${hienThiBHXH}</td>
-                    <td class="text-center">${hienThiCCCD}</td>
+                    <td class="text-center" style="color: #475569;">${hienThiBHXH}</td>
+                    <td class="text-center" style="color: #475569;">${hienThiCCCD}</td>
                 `;
                 tbody.appendChild(tr);
             });
         } catch (err) {
-            tbody.innerHTML = `<tr><td colspan="10" class="text-center" style="color:orange;">⚠️ Đang tải dữ liệu...</td></tr>`;
+            console.error(err);
+            tbody.innerHTML = `<tr><td colspan="10" class="text-center" style="color:red; font-weight:bold;">❌ Lỗi hệ thống hiển thị: Lỗi cú pháp dữ liệu.</td></tr>`;
         }
     }
 
     document.addEventListener('DOMContentLoaded', () => {
         lamMoiBangDuLieu();
 
+        // THUẬT TOÁN QUÉT DÒ TIÊU ĐỀ THEO REGEX CHUẨN XÁC CAO
         document.getElementById('excel-file-input').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
 
-            document.getElementById('render-table-body').innerHTML = `<tr><td colspan="10" class="text-center" style="color: #2563eb; font-weight: bold; padding: 20px;">⏳ Hệ thống đang bốc dữ liệu chính xác tuyệt đối...</td></tr>`;
+            document.getElementById('render-table-body').innerHTML = `<tr><td colspan="10" class="text-center" style="color: #2563eb; font-weight: bold; padding: 20px;">⏳ Hệ thống đang bóc tách chính xác tuyệt đối dữ liệu... Vui lòng chờ!</td></tr>`;
 
             const reader = new FileReader();
             reader.onload = async function(e) {
@@ -148,13 +159,13 @@
                     const sheet = wb.Sheets[wb.SheetNames[0]];
                     
                     const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-                    if (rawRows.length === 0) { alert("File trống!"); lamMoiBangDuLieu(); return; }
+                    if (rawRows.length === 0) { alert("File Excel trống!"); lamMoiBangDuLieu(); return; }
 
-                    // BƯỚC 1: DÒ TÌM HÀNG TIÊU ĐỀ THỰC SỰ SỬ DỤNG REGEX TOÀN DIỆN
                     let headerRowIndex = 0;
                     let chiSoHoTen = -1, chiSoNgaySinh = -1, chiSoNamVeHuu = -1, chiSoGioiTinh = -1, chiSoMaDonVi = -1, chiSoChucDanh = -1, chiSoBHXH = -1, chiSoCCCD = -1;
 
-                    for (let i = 0; i < Math.min(rawRows.length, 12); i++) {
+                    // Quét sâu 15 hàng đầu tiên để tìm chính xác hàng chứa tiêu đề
+                    for (let i = 0; i < Math.min(rawRows.length, 15); i++) {
                         const row = rawRows[i];
                         if (!row) continue;
                         let foundName = false;
@@ -166,15 +177,10 @@
                             if (text.includes("họ và tên") || text.includes("ho ten") || text.includes("họ tên")) { chiSoHoTen = cellIdx; foundName = true; }
                             if (text.includes("ngày sinh") || text.includes("năm sinh") || text.includes("ngay sinh") || text === "ns") chiSoNgaySinh = cellIdx;
                             if (text.includes("về hưu") || text.includes("ve huu") || text.includes("nghỉ hưu") || text.includes("dự kiến")) chiSoNamVeHuu = cellIdx;
-                            
-                            // Nâng cấp quét Giới tính: Chấp nhận mọi biến thể chữ hoa/thường, khoảng trắng ẩn
-                            if (text.includes("giới tính") || text.includes("gioi tinh") || text === "gt" || text === "phái" || text.includes("nam/nữ") || text.includes("nam/nu")) chiSoGioiTinh = cellIdx;
-                            
-                            // Nâng cấp quét Mã Đơn Vị: Quét diện rộng các từ khóa hành chính nhân sự
-                            if (text.includes("đơn vị") || text.includes("don vi") || text === "mã đv" || text === "ma_dv" || text.includes("bộ phận") || text.includes("bo phan") || text.includes("phòng") || text.includes("ban")) chiSoMaDonVi = cellIdx;
-                            
+                            if (text.includes("giới tính") || text.includes("gioi tinh") || text === "gt" || text === "phái" || text.includes("nam/nữ")) chiSoGioiTinh = cellIdx;
+                            if (text.includes("đơn vị") || text.includes("don vi") || text === "mã đv" || text === "ma_dv" || text.includes("bộ phận") || text.includes("phòng") || text.includes("ban")) chiSoMaDonVi = cellIdx;
                             if (text.includes("chức danh") || text.includes("công việc") || text.includes("nndh") || text.includes("an toàn viên") || text.includes("chức vụ")) chiSoChucDanh = cellIdx;
-                            if (text.includes("bhxh") || text.includes("bảo hiểm")) chiSoBHXH = cellIdx;
+                            if (text.includes("bhxh") || text.includes("bảo hiểm") || text.includes("số sổ")) chiSoBHXH = cellIdx;
                             if (text.includes("cccd") || text.includes("chứng minh") || text === "cmnd" || text.includes("căn cước")) chiSoCCCD = cellIdx;
                         });
 
@@ -184,7 +190,6 @@
                         }
                     }
 
-                    // BƯỚC 2: BỐC DỮ LIỆU CHUẨN ĐÚNG CỘT
                     const dataDich = [];
                     let baseId = Date.now();
 
@@ -197,13 +202,8 @@
 
                         const valNamSinh = chiSoNgaySinh !== -1 && row[chiSoNgaySinh] !== undefined ? String(row[chiSoNgaySinh]).trim() : '---';
                         const valNamVeHuu = chiSoNamVeHuu !== -1 && row[chiSoNamVeHuu] !== undefined ? String(row[chiSoNamVeHuu]).trim() : '---';
-                        
-                        // Trích xuất Giới tính & dọn rác khoảng trắng ẩn
                         const valGioiTinh = chiSoGioiTinh !== -1 && row[chiSoGioiTinh] !== undefined ? String(row[chiSoGioiTinh]).trim() : '---';
-                        
-                        // Trích xuất Mã Đơn Vị & dọn rác khoảng trắng ẩn
                         const valMaDonVi = chiSoMaDonVi !== -1 && row[chiSoMaDonVi] !== undefined ? String(row[chiSoMaDonVi]).trim() : '---';
-                        
                         const valChucDanh = chiSoChucDanh !== -1 && row[chiSoChucDanh] !== undefined ? String(row[chiSoChucDanh]).trim() : '---';
                         const valBHXH = chiSoBHXH !== -1 && row[chiSoBHXH] !== undefined ? String(row[chiSoBHXH]).trim() : '---';
                         const valCCCD = chiSoCCCD !== -1 && row[chiSoCCCD] !== undefined ? String(row[chiSoCCCD]).trim() : '---';
@@ -222,20 +222,20 @@
                     }
 
                     if (dataDich.length === 0) {
-                        alert("Không bốc được dữ liệu. Vui lòng kiểm tra lại thanh tiêu đề file Excel!");
-                        lamMoiBangDu Lieu();
+                        alert("Không tìm thấy dòng dữ liệu hợp lệ.");
+                        lamMoiBangDuLieu();
                         return;
                     }
 
-                    // Đẩy dữ liệu lên Cloud
+                    // Tải dữ liệu lên đám mây theo khối
                     const BATCH = 100;
                     for (let i = 0; i < dataDich.length; i += BATCH) {
                         const batchData = dataDich.slice(i, i + BATCH);
                         const { error } = await client.from('nhan_su').insert(batchData);
-                        if (error) { alert("Lỗi ghi dữ liệu: " + error.message); lamMoiBangDuLieu(); return; }
+                        if (error) { alert("Lỗi tải lên: " + error.message); lamMoiBangDuLieu(); return; }
                     }
 
-                    alert(`🎉 Hoàn hảo! Đã nhận diện tiêu đề lớp sâu, bốc trọn vẹn ${dataDich.length} nhân sự vào 10 cột chính xác.`);
+                    alert(`🎉 Thành công tốt đẹp! Đã nạp và bóc tách chuẩn xác toàn bộ dữ liệu.`);
                     await lamMoiBangDuLieu();
 
                 } catch (err) {
@@ -248,10 +248,10 @@
         });
 
         document.getElementById('btn-clear-cloud').addEventListener('click', async () => {
-            if (!confirm("Bạn có chắc chắn muốn giải phóng mây cũ để nạp bản đồng bộ chuẩn nhất này không?")) return;
+            if (!confirm("Bạn có chắc chắn muốn dọn sạch mây cũ không?")) return;
             try {
                 await client.from('nhan_su').delete().gte('id', 0);
-                alert("Đã làm sạch đám mây!");
+                alert("Đã xóa sạch mây!");
                 await lamMoiBangDuLieu();
             } catch (err) { alert("Lỗi khi dọn dữ liệu."); }
         });
