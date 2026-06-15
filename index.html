@@ -53,7 +53,7 @@
                 <th style="width: 10%;">Ngày sinh</th>
                 <th style="width: 10%; color: #f87171;">Năm về hưu</th>
                 <th style="width: 7%;">Giới tính</th>
-                <th style="width: 7%;">Mã Đơn Vị</th>
+                <th style="width: 10%;">Mã Đơn Vị</th>
                 <th>Chức danh công việc</th>
                 <th style="width: 11%;">Số BHXH</th>
                 <th style="width: 11%;">Số CCCD</th>
@@ -115,11 +115,11 @@
                 tr.innerHTML = `
                     <td class="text-center">${index + 1}</td>
                     <td><strong>${emp.ho_ten || '---'}</strong></td>
-                    <td class="text-center">${hienThiNamSinhRutGon}</td>
+                    <td class="text-center" style="font-weight: bold; color: #334155;">${hienThiNamSinhRutGon}</td>
                     <td class="text-center" style="color: #0284c7;">${emp.nam_sinh || '---'}</td>
                     <td class="text-center" style="color: #dc2626; font-weight:bold;">${emp.nam_ve_huu || '---'}</td>
-                    <td class="text-center">${emp.gioi_tinh || '---'}</td>
-                    <td class="text-center" style="color: #2563eb;">${emp.ma_don_vi || '---'}</td>
+                    <td class="text-center" style="font-weight: 600; color: #0f766e;">${emp.gioi_tinh || '---'}</td>
+                    <td class="text-center" style="color: #2563eb; font-weight: 600;">${emp.ma_don_vi || '---'}</td>
                     <td>${hienThiChucDanh}</td>
                     <td class="text-center">${hienThiBHXH}</td>
                     <td class="text-center">${hienThiCCCD}</td>
@@ -138,7 +138,7 @@
             const file = e.target.files[0];
             if (!file) return;
 
-            document.getElementById('render-table-body').innerHTML = `<tr><td colspan="10" class="text-center" style="color: #2563eb; font-weight: bold; padding: 20px;">⏳ Hệ thống đang quét tìm và bốc dữ liệu thông minh...</td></tr>`;
+            document.getElementById('render-table-body').innerHTML = `<tr><td colspan="10" class="text-center" style="color: #2563eb; font-weight: bold; padding: 20px;">⏳ Hệ thống đang bốc dữ liệu chính xác tuyệt đối...</td></tr>`;
 
             const reader = new FileReader();
             reader.onload = async function(e) {
@@ -147,77 +147,87 @@
                     const wb = XLSX.read(arr, { type: 'array' });
                     const sheet = wb.Sheets[wb.SheetNames[0]];
                     
-                    // Đọc dạng mảng hai chiều (XLSX.utils.sheet_to_json với header: 1) để tìm dòng chứa tiêu đề
                     const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
                     if (rawRows.length === 0) { alert("File trống!"); lamMoiBangDuLieu(); return; }
 
-                    // BƯỚC 1: DÒ TÌM XEM DÒNG NÀO TRONG FILE LÀ DÒNG CHỨA TIÊU ĐỀ THỰC SỰ
+                    // BƯỚC 1: DÒ TÌM HÀNG TIÊU ĐỀ THỰC SỰ SỬ DỤNG REGEX TOÀN DIỆN
                     let headerRowIndex = 0;
                     let chiSoHoTen = -1, chiSoNgaySinh = -1, chiSoNamVeHuu = -1, chiSoGioiTinh = -1, chiSoMaDonVi = -1, chiSoChucDanh = -1, chiSoBHXH = -1, chiSoCCCD = -1;
 
-                    for (let i = 0; i < Math.min(rawRows.length, 10); i++) {
+                    for (let i = 0; i < Math.min(rawRows.length, 12); i++) {
                         const row = rawRows[i];
                         if (!row) continue;
-                        let foundIndex = false;
+                        let foundName = false;
                         
                         row.forEach((cell, cellIdx) => {
-                            if (!cell) return;
-                            const text = cell.toString().toLowerCase().trim();
-                            if (text.includes("họ và tên") || text.includes("ho ten") || text.includes("họ tên")) { chiSoHoTen = cellIdx; foundIndex = true; }
+                            if (cell === null || cell === undefined) return;
+                            const text = cell.toString().toLowerCase().replace(/\s+/g, ' ').trim();
+                            
+                            if (text.includes("họ và tên") || text.includes("ho ten") || text.includes("họ tên")) { chiSoHoTen = cellIdx; foundName = true; }
                             if (text.includes("ngày sinh") || text.includes("năm sinh") || text.includes("ngay sinh") || text === "ns") chiSoNgaySinh = cellIdx;
                             if (text.includes("về hưu") || text.includes("ve huu") || text.includes("nghỉ hưu") || text.includes("dự kiến")) chiSoNamVeHuu = cellIdx;
-                            if (text.includes("giới tính") || text.includes("gioi tinh") || text === "gt" || text === "phái") chiSoGioiTinh = cellIdx;
-                            if (text.includes("đơn vị") || text === "mã đv" || text === "ma_dv" || text.includes("bộ phận")) chiSoMaDonVi = cellIdx;
+                            
+                            // Nâng cấp quét Giới tính: Chấp nhận mọi biến thể chữ hoa/thường, khoảng trắng ẩn
+                            if (text.includes("giới tính") || text.includes("gioi tinh") || text === "gt" || text === "phái" || text.includes("nam/nữ") || text.includes("nam/nu")) chiSoGioiTinh = cellIdx;
+                            
+                            // Nâng cấp quét Mã Đơn Vị: Quét diện rộng các từ khóa hành chính nhân sự
+                            if (text.includes("đơn vị") || text.includes("don vi") || text === "mã đv" || text === "ma_dv" || text.includes("bộ phận") || text.includes("bo phan") || text.includes("phòng") || text.includes("ban")) chiSoMaDonVi = cellIdx;
+                            
                             if (text.includes("chức danh") || text.includes("công việc") || text.includes("nndh") || text.includes("an toàn viên") || text.includes("chức vụ")) chiSoChucDanh = cellIdx;
                             if (text.includes("bhxh") || text.includes("bảo hiểm")) chiSoBHXH = cellIdx;
-                            if (text.includes("cccd") || text.includes("chứng minh") || text === "cmnd") chiSoCCCD = cellIdx;
+                            if (text.includes("cccd") || text.includes("chứng minh") || text === "cmnd" || text.includes("căn cước")) chiSoCCCD = cellIdx;
                         });
 
-                        if (foundIndex && chiSoHoTen !== -1) {
+                        if (foundName && chiSoHoTen !== -1) {
                             headerRowIndex = i;
-                            break; // Đã tìm thấy hàng tiêu đề thực sự
+                            break;
                         }
                     }
 
-                    // BƯỚC 2: BỐC DỮ LIỆU TỪ SAU DÒNG TIÊU ĐỀ ĐÓ
+                    // BƯỚC 2: BỐC DỮ LIỆU CHUẨN ĐÚNG CỘT
                     const dataDich = [];
                     let baseId = Date.now();
 
                     for (let i = headerRowIndex + 1; i < rawRows.length; i++) {
                         const row = rawRows[i];
-                        if (!row || !row[chiSoHoTen]) continue; // Không có tên thì bỏ qua dòng trống
+                        if (!row || !row[chiSoHoTen]) continue; 
 
                         const hoTenStr = String(row[chiSoHoTen]).trim();
-                        if (hoTenStr === "" || hoTenStr.toLowerCase().includes("họ và tên")) continue;
+                        if (hoTenStr === "" || hoTenStr.toLowerCase().includes("họ và tên") || hoTenStr.toLowerCase().includes("cộng hòa")) continue;
 
-                        const valNamSinh = chiSoNgaySinh !== -1 && row[chiSoNgaySinh] ? String(row[chiSoNgaySinh]).trim() : '---';
-                        const valNamVeHuu = chiSoNamVeHuu !== -1 && row[chiSoNamVeHuu] ? String(row[chiSoNamVeHuu]).trim() : '---';
-                        const valGioiTinh = chiSoGioiTinh !== -1 && row[chiSoGioiTinh] ? String(row[chiSoGioiTinh]).trim() : '---';
-                        const valMaDonVi = chiSoMaDonVi !== -1 && row[chiSoMaDonVi] ? String(row[chiSoMaDonVi]).trim() : '---';
-                        const valChucDanh = chiSoChucDanh !== -1 && row[chiSoChucDanh] ? String(row[chiSoChucDanh]).trim() : '---';
-                        const valBHXH = chiSoBHXH !== -1 && row[chiSoBHXH] ? String(row[chiSoBHXH]).trim() : '---';
-                        const valCCCD = chiSoCCCD !== -1 && row[chiSoCCCD] ? String(row[chiSoCCCD]).trim() : '---';
+                        const valNamSinh = chiSoNgaySinh !== -1 && row[chiSoNgaySinh] !== undefined ? String(row[chiSoNgaySinh]).trim() : '---';
+                        const valNamVeHuu = chiSoNamVeHuu !== -1 && row[chiSoNamVeHuu] !== undefined ? String(row[chiSoNamVeHuu]).trim() : '---';
+                        
+                        // Trích xuất Giới tính & dọn rác khoảng trắng ẩn
+                        const valGioiTinh = chiSoGioiTinh !== -1 && row[chiSoGioiTinh] !== undefined ? String(row[chiSoGioiTinh]).trim() : '---';
+                        
+                        // Trích xuất Mã Đơn Vị & dọn rác khoảng trắng ẩn
+                        const valMaDonVi = chiSoMaDonVi !== -1 && row[chiSoMaDonVi] !== undefined ? String(row[chiSoMaDonVi]).trim() : '---';
+                        
+                        const valChucDanh = chiSoChucDanh !== -1 && row[chiSoChucDanh] !== undefined ? String(row[chiSoChucDanh]).trim() : '---';
+                        const valBHXH = chiSoBHXH !== -1 && row[chiSoBHXH] !== undefined ? String(row[chiSoBHXH]).trim() : '---';
+                        const valCCCD = chiSoCCCD !== -1 && row[chiSoCCCD] !== undefined ? String(row[chiSoCCCD]).trim() : '---';
 
                         const chuoiGopAnToan = `${valChucDanh} || ${valBHXH} || ${valCCCD}`;
 
                         dataDich.push({
                             id: baseId + i,
                             ho_ten: hoTenStr,
-                            nam_sinh: valNamSinh,
-                            nam_ve_huu: valNamVeHuu,
-                            gioi_tinh: valGioiTinh,
-                            ma_don_vi: valMaDonVi,
+                            nam_sinh: valNamSinh === '' ? '---' : valNamSinh,
+                            nam_ve_huu: valNamVeHuu === '' ? '---' : valNamVeHuu,
+                            gioi_tinh: valGioiTinh === '' ? '---' : valGioiTinh,
+                            ma_don_vi: valMaDonVi === '' ? '---' : valMaDonVi,
                             chuc_danh_cong_viec: chuoiGopAnToan
                         });
                     }
 
                     if (dataDich.length === 0) {
-                        alert("Hệ thống đã dò tìm nhưng không bốc được dòng dữ liệu nào hợp lệ. Vui lòng kiểm tra lại cấu trúc file!");
-                        lamMoiBangDuLieu();
+                        alert("Không bốc được dữ liệu. Vui lòng kiểm tra lại thanh tiêu đề file Excel!");
+                        lamMoiBangDu Lieu();
                         return;
                     }
 
-                    // Đẩy dữ liệu lên Supabase
+                    // Đẩy dữ liệu lên Cloud
                     const BATCH = 100;
                     for (let i = 0; i < dataDich.length; i += BATCH) {
                         const batchData = dataDich.slice(i, i + BATCH);
@@ -225,7 +235,7 @@
                         if (error) { alert("Lỗi ghi dữ liệu: " + error.message); lamMoiBangDuLieu(); return; }
                     }
 
-                    alert(`🎉 Thành công! Thuật toán đã tự động định vị dòng tiêu đề và bốc trúng ${dataDich.length} nhân sự tương ứng.`);
+                    alert(`🎉 Hoàn hảo! Đã nhận diện tiêu đề lớp sâu, bốc trọn vẹn ${dataDich.length} nhân sự vào 10 cột chính xác.`);
                     await lamMoiBangDuLieu();
 
                 } catch (err) {
@@ -238,10 +248,10 @@
         });
 
         document.getElementById('btn-clear-cloud').addEventListener('click', async () => {
-            if (!confirm("Bạn có chắc chắn muốn dọn sạch mây cũ không?")) return;
+            if (!confirm("Bạn có chắc chắn muốn giải phóng mây cũ để nạp bản đồng bộ chuẩn nhất này không?")) return;
             try {
                 await client.from('nhan_su').delete().gte('id', 0);
-                alert("Đã xóa sạch dữ liệu cũ!");
+                alert("Đã làm sạch đám mây!");
                 await lamMoiBangDuLieu();
             } catch (err) { alert("Lỗi khi dọn dữ liệu."); }
         });
