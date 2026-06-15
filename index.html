@@ -118,9 +118,9 @@
                 <th style="text-align: center; width: 6%;">STT</th>
                 <th>Họ và Tên</th>
                 <th style="text-align: center; width: 12%;">Giới Tính</th>
-                <th style="text-align: center; width: 18%;">Ngày Sinh / Năm Sinh</th>
+                <th style="text-align: center; width: 18%;">Ngày Sinh Chi Tiết</th>
                 <th>Chức Danh Công Việc</th>
-                <th style="text-align: center; width: 18%; color: #f87171;">Năm Về Hưu Dự Kiến</th>
+                <th style="text-align: center; width: 18%; color: #f87171;">Năm Về Hưu</th>
             </tr>
         </thead>
         <tbody id="render-table-body">
@@ -139,7 +139,25 @@
 
     const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // Hàm đồng bộ và hiển thị dữ liệu trực tiếp từ Supabase
+    // Hàm định dạng ngày tháng hiển thị an toàn tuyệt đối, chống crash giao diện
+    function dinhDangNgaySinhSafe(valGoc, empData) {
+        if (!valGoc) return '-';
+        let s = String(valGoc).trim();
+        
+        // Sửa lỗi đảo lộn chéo cột của dòng 3 và dòng 4 (nếu năm sinh chỉ có 1 ký tự số hoặc mã đơn vị lọt vào)
+        if (s.length <= 4 && empData && String(empData.ma_don_vi).includes('-')) {
+            return String(empData.ma_don_vi).trim();
+        }
+        return s;
+    }
+
+    // Hàm định dạng năm về hưu an toàn
+    function dinhDangNamVeHuuSafe(valGoc) {
+        if (!valGoc) return '-';
+        return String(valGoc).trim();
+    }
+
+    // Hàm đồng bộ và hiển thị dữ liệu trực tiếp từ Supabase công khai
     async function lamMoiBangDuLieu() {
         const msgCell = document.getElementById('msg-cell');
         const totalCountSpan = document.getElementById('total-count');
@@ -164,19 +182,25 @@
             tbody.innerHTML = '';
             danhSach.forEach((emp, index) => {
                 const tr = document.createElement('tr');
+                
+                // Trích xuất dữ liệu thông qua bộ lọc an toàn
+                const ngaySinhHienThi = dinhDangNgaySinhSafe(emp.nam_sinh, emp);
+                const namVeHuuHienThi = dinhDangNamVeHuuSafe(emp.nam_ve_huu);
+
                 tr.innerHTML = `
                     <td style="text-align: center; color: #64748b;">${index + 1}</td>
                     <td><strong>${emp.ho_ten || 'Không rõ tên'}</strong></td>
                     <td style="text-align: center;">${emp.gioi_tinh || '-'}</td>
-                    <td style="text-align: center; color: #0284c7; font-weight: 500;">${emp.nam_sinh || ''}</td>
+                    <td style="text-align: center; color: #0284c7; font-weight: 500;">${ngaySinhHienThi}</td>
                     <td style="color: #334155;">${emp.chuc_danh_cong_viec || ''}</td>
-                    <td style="text-align: center; font-weight: bold; color: #dc2626;">${emp.nam_ve_huu || ''}</td>
+                    <td style="text-align: center; font-weight: bold; color: #dc2626;">${namVeHuuHienThi}</td>
                 `;
                 tbody.appendChild(tr);
             });
 
         } catch (err) {
-            console.error(err);
+            console.error("Lỗi crash render bảng:", err);
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: red;">Lỗi hiển thị dữ liệu bảng: ${err.message}</td></tr>`;
         }
     }
 
@@ -215,19 +239,27 @@
                             return cotTimThay ? row[cotTimThay] : null;
                         };
 
+                        let maDVRaw = layGiaTri(['madonvi', 'mãđơnvị', 'bộphận', 'phòngban', 'mãđv', 'đơnvị']);
+                        let ngaySinhRaw = layGiaTri(['namsinh', 'ngaysinh', 'ngàysinh', 'sinhngày', 'năm']);
+
+                        // Sửa lỗi chéo dòng trực tiếp ngay lúc đọc file đầu vào
+                        if (ngaySinhRaw && String(ngaySinhRaw).length <= 3 && maDVRaw && String(maDVRaw).includes('-')) {
+                            let temp = ngaySinhRaw; ngaySinhRaw = maDVRaw; maDVRaw = temp;
+                        }
+
                         return {
                             ho_ten: layGiaTri(['hoten', 'hovaten', 'tên', 'ten', 'họvàtên', 'ngườithựchiện']),
-                            nam_sinh: layGiaTri(['namsinh', 'ngaysinh', 'ngàysinh', 'sinhngày', 'năm']),
+                            nam_sinh: ngaySinhRaw,
                             nam_ve_huu: layGiaTri(['namvehuu', 'nămvềhưu', 'vềhưu', 'nghỉhưu', 'kếhoạch']),
                             gioi_tinh: layGiaTri(['gioitinh', 'giớitính', 'nam/nữ']),
-                            ma_don_vi: layGiaTri(['madonvi', 'mãđơnvị', 'bộphận', 'phòngban', 'mãđv', 'đơnvị']),
+                            ma_don_vi: maDVRaw,
                             chuc_danh_cong_viec: layGiaTri(['chucdanh', 'chứcdanh', 'chứcvụ', 'côngviệc', 'vịtrí']),
                             so_bhxh: layGiaTri(['sobhxh', 'bhxh', 'bảohiểm']),
                             so_cccd: layGiaTri(['socccd', 'cccd', 'cmnd', 'chứngminh'])
                         };
                     });
 
-                    // Tiến hành đẩy lên database theo từng đợt
+                    // Tiến hành đẩy lên database theo từng đợt công khai
                     const BATCH = 100;
                     for (let i = 0; i < dataDich.length; i += BATCH) {
                         const batchData = dataDich.slice(i, i + BATCH);
