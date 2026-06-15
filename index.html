@@ -1,55 +1,157 @@
-// Hàm tự động lấy dữ liệu từ Supabase và hiển thị lên giao diện web
-async function taiDuLieuNhanSu() {
-    try {
-        // 1. Gọi chính xác bảng nhan_su viết thường từ Supabase
-        const { data, error } = await supabase
-            .from('nhan_su')
-            .select('*');
-
-        if (error) {
-            console.error('Lỗi khi truy vấn Supabase:', error);
-            alert('Không thể kết nối lấy dữ liệu, vui lòng kiểm tra lại cấu hình!');
-            return;
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Danh Sách Nhân Sự Nghỉ Hưu</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f6f9;
+            margin: 0;
+            padding: 20px;
         }
-
-        console.log('Dữ liệu tải về thành công:', data);
-
-        // 2. Hiển thị tổng số lượng nhân sự lên thẻ đếm (Ví dụ: Thẻ có ID là total-employees)
-        const theTongSo = document.getElementById('total-employees') || document.getElementById('totalEmployees');
-        if (theTongSo) {
-            theTongSo.innerText = data.length;
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
-
-        // 3. Tìm thẻ tbody của bảng để đổ dữ liệu vào (Thay ID 'employee-table-body' bằng ID bảng của bạn nếu cần)
-        const tableBody = document.getElementById('employee-table-body') || document.querySelector('table tbody');
-        
-        if (!tableBody) {
-            console.error('Không tìm thấy thẻ tbody của bảng trên giao diện HTML!');
-            return;
+        h2 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 20px;
         }
+        .stats {
+            background: #ecf0f1;
+            padding: 15px;
+            border-radius: 6px;
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            display: inline-block;
+        }
+        #total-employees {
+            color: #e74c3c;
+            font-size: 22px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            border: 1px solid #bdc3c7;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #34495e;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        tr:hover {
+            background-color: #f1f2f6;
+        }
+        .loading {
+            text-align: center;
+            font-style: italic;
+            color: #7f8c8d;
+        }
+    </style>
+</head>
+<body>
 
-        // Xóa sạch hàng dữ liệu cũ (hoặc chữ Loading...) trước khi chèn dữ liệu mới
-        tableBody.innerHTML = ''; 
+<div class="container">
+    <h2>DANH SÁCH NHÂN SỰ NGHỈ HƯU</h2>
+    
+    <div class="stats">
+        Tổng số nhân sự: <span id="total-employees">Đang tải...</span>
+    </div>
 
-        // 4. Duyệt qua từng nhân sự để vẽ thành các hàng (row) trên bảng web
-        data.forEach((emp, index) => {
-            const rowHTML = `
-                <tr>
-                    <td style="text-align: center;">${index + 1}</td>
-                    <td><strong>${emp.ho_ten || ''}</strong></td>
-                    <td style="text-align: center;">${emp.gioi_tinh || ''}</td>
-                    <td style="text-align: center;">${emp.nam_sinh || ''}</td>
-                    <td>${emp.chuc_danh_cong_viec || ''}</td>
-                    <td style="text-align: center; color: #e74c3c; font-weight: bold;">${emp.nam_ve_huu || 'Chưa rõ'}</td>
-                </tr>
-            `;
-            tableBody.insertAdjacentHTML('beforeend', rowHTML);
-        });
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 5%; text-align: center;">STT</th>
+                <th style="width: 25%;">Họ và Tên</th>
+                <th style="width: 10%; text-align: center;">Giới Tính</th>
+                <th style="width: 12%; text-align: center;">Ngày Sinh</th>
+                <th style="width: 33%;">Chức Danh Công Việc</th>
+                <th style="width: 15%; text-align: center;">Năm Về Hưu</th>
+            </tr>
+        </thead>
+        <tbody id="employee-table-body">
+            <tr>
+                <td colspan="6" class="loading">Đang tải dữ liệu từ hệ thống...</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
 
-    } catch (err) {
-        console.error('Đã xảy ra lỗi hệ thống:', err);
+<script>
+    // 1. Cấu hình thông tin kết nối Supabase của bạn
+    const SUPABASE_URL = "https://wexwunscgqasandqgskm.supabase.co"; 
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndleHd1bnNjZ3Fhc2FuZHFnc2ttIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDAwNTI2NTMsImV4cCI6MjA1NTYyODY1M30.b3B0UDd5UWU4ZkRtMTRuTVIwaEw4S3J4VzFkLXRjZk5aX3N0WG5xUUhfbw";
+
+    // Khởi tạo client kết nối
+    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    // 2. Hàm lấy dữ liệu và hiển thị lên bảng web
+    async function taiDuLieuNhanSu() {
+        try {
+            // Gọi chính xác tên bảng 'nhan_su' viết thường
+            const { data, error } = await supabase
+                .from('nhan_su')
+                .select('*');
+
+            if (error) {
+                console.error("Lỗi kết nối Supabase:", error);
+                document.getElementById('total-employees').innerText = "Lỗi!";
+                document.getElementById('employee-table-body').innerHTML = `
+                    <tr><td colspan="6" style="color: red; text-align: center;">Lỗi tải dữ liệu. Hãy kiểm tra lại cấu hình.</td></tr>
+                `;
+                return;
+            }
+
+            // Hiển thị tổng số lượng nhân sự lên màn hình
+            document.getElementById('total-employees').innerText = data.length;
+
+            const tableBody = document.getElementById('employee-table-body');
+            tableBody.innerHTML = ''; // Xóa dòng chữ "Đang tải dữ liệu..."
+
+            if (data.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="6" style="text-align: center;">Không có dữ liệu nhân sự nào trong bảng.</td></tr>`;
+                return;
+            }
+
+            // Duyệt danh sách và điền chính xác theo tên cột mới trên Supabase (viết thường)
+            data.forEach((emp, index) => {
+                const rowHTML = `
+                    <tr>
+                        <td style="text-align: center;">${index + 1}</td>
+                        <td><strong>${emp.ho_ten || ''}</strong></td>
+                        <td style="text-align: center;">${emp.gioi_tinh || ''}</td>
+                        <td style="text-align: center;">${emp.nam_sinh || ''}</td>
+                        <td>${emp.chuc_danh_cong_viec || ''}</td>
+                        <td style="text-align: center; color: #e74c3c; font-weight: bold;">${emp.nam_ve_huu || 'Chưa rõ'}</td>
+                    </tr>
+                `;
+                tableBody.insertAdjacentHTML('beforeend', rowHTML);
+            });
+
+        } catch (err) {
+            console.error("Lỗi hệ thống bất ngờ:", err);
+        }
     }
-}
 
-// Kích hoạt hàm chạy ngay khi trang web tải xong giao diện
-document.addEventListener('DOMContentLoaded', taiDuLieuNhanSu);
+    // Chạy hàm ngay khi trang web sẵn sàng
+    document.addEventListener('DOMContentLoaded', taiDuLieuNhanSu);
+</script>
+
+</body>
+</html>
