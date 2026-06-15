@@ -109,7 +109,7 @@
     </div>
 
     <div class="status-badge">
-        TỔNG NHÂN SỰ CLOUD: <span id="total-count">Đang kết nối...</span>
+        TỔNG SỐ NHÂN SỰ TRÊN CLOUD: <span id="total-count">Đang kết nối...</span>
     </div>
 
     <table>
@@ -121,7 +121,7 @@
                 <th style="width: 10%;">Ngày sinh</th>
                 <th style="width: 10%; color: #f87171;">Năm về hưu</th>
                 <th style="width: 7%;">Giới tính</th>
-                <th style="width: 7%;">Mã Đơn Vị</th>
+                <th style="width: 7%;">Mã Đơn Viị</th>
                 <th style="text-align: left;">Chức danh công việc</th>
                 <th style="width: 11%;">Số BHXH</th>
                 <th style="width: 11%;">Số CCCD</th>
@@ -177,7 +177,7 @@
                 let hienThiBHXH = '---';
                 let hienThiCCCD = '---';
 
-                // Tách gói chuỗi chứa BHXH và CCCD nếu được mã hóa an toàn gộp vào trường chức danh
+                // Tách gói chuỗi chứa BHXH và CCCD từ trường chức danh công việc
                 if (chuoiChucDanh.includes("||")) {
                     const parts = chuoiChucDanh.split("||");
                     hienThiChucDanh = parts[0] ? parts[0].trim() : '---';
@@ -185,20 +185,29 @@
                     hienThiCCCD = parts[2] ? parts[2].trim() : '---';
                 }
 
-                // Cột Năm hiển thị đúng Năm sinh theo yêu cầu của bạn
-                const hienThiNam = emp.nam_sinh || '---';
+                // XỬ LÝ CHỈ HIỂN THỊ ĐÚNG NĂM SINH (LẤY 4 SỐ CUỐI CỦA NGÀY SINH)
+                let chuoiNgaySinh = emp.nam_sinh || '';
+                let hienThiNamSinhRutGon = '---';
+                if (chuoiNgaySinh && chuoiNgaySinh !== '---') {
+                    const matchNam = chuoiNgaySinh.match(/\d{4}$/); // Tìm 4 chữ số ở cuối chuỗi ngày tháng
+                    if (matchNam) {
+                        hienThiNamSinhRutGon = matchNam[0];
+                    } else {
+                        hienThiNamSinhRutGon = chuoiNgaySinh.substring(0, 4); // Fallback nếu chuỗi dạng YYYY-MM-DD
+                    }
+                }
 
                 tr.innerHTML = `
                     <td class="text-center" style="color: #64748b;">${index + 1}</td>
                     <td><strong>${emp.ho_ten || '---'}</strong></td>
-                    <td class="text-center">${hienThiNam}</td>
+                    <td class="text-center" style="font-weight: bold; color: #334155;">${hienThiNamSinhRutGon}</td>
                     <td class="text-center" style="color: #0284c7; font-weight: 500;">${emp.nam_sinh || '---'}</td>
                     <td class="text-center" style="font-weight: bold; color: #dc2626;">${emp.nam_ve_huu || '---'}</td>
                     <td class="text-center">${emp.gioi_tinh || '---'}</td>
                     <td class="text-center" style="font-weight: 500; color: #2563eb;">${emp.ma_don_vi || '---'}</td>
                     <td>${hienThiChucDanh}</td>
-                    <td class="text-center" style="color: #334155; font-weight: bold;">${hienThiBHXH}</td>
-                    <td class="text-center" style="color: #334155; font-weight: bold;">${hienThiCCCD}</td>
+                    <td class="text-center" style="color: #475569;">${hienThiBHXH}</td>
+                    <td class="text-center" style="color: #475569;">${hienThiCCCD}</td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -212,12 +221,12 @@
     document.addEventListener('DOMContentLoaded', () => {
         lamMoiBangDuLieu();
 
-        // THUẬT TOÁN ĐỌC MAPPING TỰ ĐỘNG DÒ CỘT TỪ FILE EXCEL
+        // THUẬT TOÁN ĐỌC MAPPING TỰ ĐỘNG DÒ CỘT TỪ FILE EXCEL (ĐÃ ĐƯỢC TỐI ƯU TỪ KHÓA)
         document.getElementById('excel-file-input').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
 
-            document.getElementById('render-table-body').innerHTML = `<tr><td colspan="10" class="text-center" style="color: #2563eb; font-weight: bold; padding: 20px;">⏳ Hệ thống đang bóc tách chính xác các trường thông tin... Vui lòng đợi!</td></tr>`;
+            document.getElementById('render-table-body').innerHTML = `<tr><td colspan="10" class="text-center" style="color: #2563eb; font-weight: bold; padding: 20px;">⏳ Hệ thống đang quét tìm tiêu đề cột và đồng bộ dữ liệu... Vui lòng chờ.</td></tr>`;
 
             const reader = new FileReader();
             reader.onload = async function(e) {
@@ -226,7 +235,6 @@
                     const wb = XLSX.read(arr, { type: 'array' });
                     const sheet = wb.Sheets[wb.SheetNames[0]];
                     
-                    // Chuyển sang JSON dạng mảng để định vị chính xác tên tiêu đề cột
                     const jsonRows = XLSX.utils.sheet_to_json(sheet);
                     if (jsonRows.length === 0) {
                         alert("File Excel trống!");
@@ -234,20 +242,36 @@
                         return;
                     }
 
-                    // Tự động quét lấy chính xác tiêu đề bất kể thứ tự sắp xếp cột
+                    // Tự động tìm kiếm tiêu đề một cách thông minh và toàn diện
                     const mauRow = jsonRows[0];
                     let keyHoTen = "", keyNamSinh = "", keyNamVeHuu = "", keyGioiTinh = "", keyMaDonVi = "", keyChucDanh = "", keyBHXH = "", keyCCCD = "";
 
                     Object.keys(mauRow).forEach(key => {
                         const k = key.toString().toLowerCase().trim();
-                        if (k.includes("họ và tên") || k.includes("ho ten") || k.includes("họ tên")) keyHoTen = key;
-                        else if (k.includes("ngày sinh") || k.includes("năm sinh") || k.includes("ngay sinh") || k === "năm sinh") keyNamSinh = key;
-                        else if (k.includes("về hưu") || k.includes("ve huu") || k.includes("nghỉ hưu")) keyNamVeHuu = key;
-                        else if (k.includes("giới tính") || k.includes("gioi tinh") || k === "giới tính") keyGioiTinh = key;
-                        else if (k.includes("mã đơn vị") || k.includes("ma don vi") || k.includes("đơn vị")) keyMaDonVi = key;
-                        else if (k.includes("chức danh") || k.includes("chuc danh") || k.includes("công việc") || k.includes("nndh") || k.includes("an toàn viên")) keyChucDanh = key;
-                        else if (k.includes("bhxh") || k.includes("bảo hiểm")) keyBHXH = key;
-                        else if (k.includes("cccd") || k.includes("chứng minh") || k.includes("số cccd")) keyCCCD = key;
+                        
+                        // Tìm cột Họ tên
+                        if (k.includes("họ và tên") || k.includes("ho ten") || k.includes("họ tên") || k === "tên") keyHoTen = key;
+                        
+                        // Tìm cột Ngày sinh / Năm sinh
+                        else if (k.includes("ngày sinh") || k.includes("năm sinh") || k.includes("ngay sinh") || k === "ns") keyNamSinh = key;
+                        
+                        // Tìm cột Năm nghỉ hưu / Năm về hưu
+                        else if (k.includes("về hưu") || k.includes("ve huu") || k.includes("nghỉ hưu") || k.includes("dự kiến")) keyNamVeHuu = key;
+                        
+                        // Tìm cột Giới tính (mở rộng thêm từ viết tắt)
+                        else if (k.includes("giới tính") || k.includes("gioi tinh") || k === "gt" || k === "phái") keyGioiTinh = key;
+                        
+                        // Tìm cột Mã Đơn Vị (mở rộng quét thêm từ viết tắt)
+                        else if (k.includes("mã đơn vị") || k.includes("ma don vi") || k.includes("đơn vị") || k === "mã đv" || k === "ma_dv" || k === "bộ phận" || k === "bo phan") keyMaDonVi = key;
+                        
+                        // Tìm cột Chức danh (quét vị trí công việc, NNDH, An toàn viên)
+                        else if (k.includes("chức danh") || k.includes("chuc danh") || k.includes("công việc") || k.includes("nndh") || k.includes("an toàn viên") || k.includes("chức vụ")) keyChucDanh = key;
+                        
+                        // Tìm cột BHXH
+                        else if (k.includes("bhxh") || k.includes("bảo hiểm") || k.includes("so bhxh")) keyBHXH = key;
+                        
+                        // Tìm cột CCCD
+                        else if (k.includes("cccd") || k.includes("chứng minh") || k.includes("số cccd") || k === "cmnd") keyCCCD = key;
                     });
 
                     const dataDich = [];
@@ -258,7 +282,7 @@
                         if (!tenRaw) return;
 
                         const hoTenStr = String(tenRaw).trim();
-                        if (hoTenStr.toLowerCase().includes("họ và tên")) return;
+                        if (hoTenStr.toLowerCase().includes("họ và tên") || hoTenStr === "") return;
 
                         // Trích xuất dữ liệu thô sạch từ file Excel
                         const valNamSinh = keyNamSinh ? String(row[keyNamSinh] || '').trim() : '---';
@@ -269,7 +293,7 @@
                         const valBHXH = keyBHXH ? String(row[keyBHXH] || '').trim() : '---';
                         const valCCCD = keyCCCD ? String(row[keyCCCD] || '').trim() : '---';
 
-                        // Đóng gói thông tin chức danh kèm BHXH và CCCD để không bị lệch Schema Supabase
+                        // Đóng gói thông tin chức danh kèm BHXH và CCCD để lưu trữ mượt mà xuống Supabase
                         const chuoiGopAnToan = `${valChucDanh} || ${valBHXH} || ${valCCCD}`;
 
                         dataDich.push({
@@ -277,8 +301,8 @@
                             ho_ten: hoTenStr,
                             nam_sinh: valNamSinh,
                             nam_ve_huu: valNamVeHuu,
-                            gioi_tinh: valGioiTinh,
-                            ma_don_vi: valMaDonVi,
+                            gioi_tinh: valGioiTinh === '' ? '---' : valGioiTinh,
+                            ma_don_vi: valMaDonVi === '' ? '---' : valMaDonVi,
                             chuc_danh_cong_viec: chuoiGopAnToan
                         });
                     });
@@ -295,7 +319,7 @@
                         }
                     }
 
-                    alert(`🎉 Hoàn tất thành công! Đã xử lý phân tách thông tin chuẩn xác cho ${dataDich.length} nhân sự.`);
+                    alert(`🎉 Hoàn tất thành công! Đã đồng bộ và phân bổ ${dataDich.length} nhân sự tương ứng vào 10 cột!`);
                     await lamMoiBangDuLieu();
 
                 } catch (err) {
@@ -307,9 +331,9 @@
             reader.readAsArrayBuffer(file);
         });
 
-        // Nút dọn sạch mây phục vụ việc up đè cấu trúc mới
+        // Nút dọn sạch mây phục vụ việc tải lại dữ liệu mới
         document.getElementById('btn-clear-cloud').addEventListener('click', async () => {
-            if (!confirm("Bạn có chắc chắn muốn dọn sạch mây cũ để nạp lại bản sửa lỗi chia cột chính xác này không?")) return;
+            if (!confirm("Bạn có chắc chắn muốn dọn sạch mây cũ để nạp phiên bản định dạng năm và bóc tách giới tính này không?")) return;
             try {
                 await client.from('nhan_su').delete().gte('id', 0);
                 alert("Đã làm sạch mây!");
