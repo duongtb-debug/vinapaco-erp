@@ -75,7 +75,6 @@
     
     const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // HÀM HIỂN THỊ DỮ LIỆU ĐỒNG BỘ TỪ CLOUD
     async function lamMoiBangDuLieu() {
         const totalCountSpan = document.getElementById('total-count');
         const tbody = document.getElementById('render-table-body');
@@ -104,7 +103,6 @@
                 let hienThiBHXH = '---';
                 let hienThiCCCD = '---';
 
-                // Giải nén thông tin đóng gói Chức danh, BHXH và CCCD từ cơ sở dữ liệu đám mây
                 if (hienThiChucDanh.includes("||")) {
                     const parts = hienThiChucDanh.split("||");
                     hienThiChucDanh = parts[0] ? parts[0].trim() : '---';
@@ -112,7 +110,6 @@
                     hienThiCCCD = parts[2] ? parts[2].trim() : '---';
                 }
 
-                // Xử lý rút gọn Năm sinh hiển thị (Lấy 4 số cuối từ chuỗi ngày sinh)
                 let chuoiNgaySinh = emp.nam_sinh || '';
                 let hienThiNamSinhRutGon = '---';
                 if (chuoiNgaySinh && chuoiNgaySinh !== '---') {
@@ -136,19 +133,18 @@
             });
         } catch (err) {
             console.error(err);
-            tbody.innerHTML = `<tr><td colspan="10" class="text-center" style="color:red; font-weight:bold;">❌ Lỗi hệ thống hiển thị dữ liệu.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="10" class="text-center" style="color:red; font-weight:bold;">❌ Lỗi hiển thị dữ liệu.</td></tr>`;
         }
     }
 
     document.addEventListener('DOMContentLoaded', () => {
         lamMoiBangDuLieu();
 
-        // THUẬT TOÁN QUÉT BÓC TÁCH FILE EXCEL
         document.getElementById('excel-file-input').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
 
-            document.getElementById('render-table-body').innerHTML = `<tr><td colspan="10" class="text-center" style="color: #2563eb; font-weight: bold; padding: 20px;">⏳ Hệ thống đang đồng bộ và phân bổ dữ liệu... Vui lòng chờ!</td></tr>`;
+            document.getElementById('render-table-body').innerHTML = `<tr><td colspan="10" class="text-center" style="color: #2563eb; font-weight: bold; padding: 20px;">⏳ Hệ thống đang tái cấu trúc và gán tọa độ cột chính xác... Vui lòng chờ!</td></tr>`;
 
             const reader = new FileReader();
             reader.onload = async function(e) {
@@ -160,89 +156,97 @@
                     const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
                     if (rawRows.length === 0) { alert("File Excel trống!"); lamMoiBangDuLieu(); return; }
 
-                    let headerRowIndex = 0;
-                    let chiSoHoTen = -1, chiSoNgaySinh = -1, chiSoNamVeHuu = -1, chiSoGioiTinh = -1, chiSoMaDonVi = -1, chiSoChucDanh = -1, chiSoBHXH = -1, chiSoCCCD = -1;
+                    let headerRowIndex = -1;
 
-                    // Duyệt sâu qua các hàng đầu tiên của file Excel để tìm thanh tiêu đề chính xác
+                    // Bước 1: Tìm hàng tiêu đề dựa vào từ khóa "Họ và tên"
                     for (let i = 0; i < Math.min(rawRows.length, 15); i++) {
                         const row = rawRows[i];
                         if (!row) continue;
-                        let foundName = false;
-                        
-                        row.forEach((cell, cellIdx) => {
-                            if (cell === null || cell === undefined) return;
-                            // Làm sạch chuỗi tiêu đề để đối sánh chính xác tuyệt đối
-                            const text = cell.toString().toLowerCase().replace(/\s+/g, ' ').trim();
-                            
-                            if (text.includes("họ và tên") || text.includes("ho ten") || text.includes("họ tên")) { chiSoHoTen = cellIdx; foundName = true; }
-                            if (text.includes("ngày sinh") || text.includes("năm sinh") || text.includes("ngay sinh") || text === "ns") chiSoNgaySinh = cellIdx;
-                            if (text.includes("về hưu") || text.includes("ve huu") || text.includes("nghỉ hưu") || text.includes("dự kiến")) chiSoNamVeHuu = cellIdx;
-                            
-                            // NÂNG CẤP XỬ LÝ QUÉT GIỚI TÍNH: Chấp nhận mọi biến thể viết tắt, dấu gạch chéo hoặc khoảng trắng ẩn
-                            if (text === "gt" || text === "phái" || text.includes("giới tính") || text.includes("gioi tinh") || text.includes("nam/nữ") || text.includes("nam/nu") || text.includes("g.tính")) chiSoGioiTinh = cellIdx;
-                            
-                            // QUÉT MÃ ĐƠN VỊ
-                            if (text === "mã đv" || text === "ma_dv" || text.includes("đơn vị") || text.includes("don vi") || text.includes("bộ phận") || text.includes("phòng") || text.includes("ban")) chiSoMaDonVi = cellIdx;
-                            
-                            if (text.includes("chức danh") || text.includes("công việc") || text.includes("nndh") || text.includes("an toàn viên") || text.includes("chức vụ")) chiSoChucDanh = cellIdx;
-                            if (text.includes("bhxh") || text.includes("bảo hiểm") || text.includes("số sổ")) chiSoBHXH = cellIdx;
-                            if (text.includes("cccd") || text.includes("chứng minh") || text === "cmnd" || text.includes("căn cước")) chiSoCCCD = cellIdx;
-                        });
-
-                        if (foundName && chiSoHoTen !== -1) {
+                        let lineStr = row.join(" ").toLowerCase();
+                        if (lineStr.includes("họ và tên") || lineStr.includes("ho ten") || lineStr.includes("họ tên")) {
                             headerRowIndex = i;
                             break;
                         }
                     }
 
+                    if (headerRowIndex === -1) {
+                        alert("Không tìm thấy tiêu đề 'Họ và tên' trong file Excel!");
+                        lamMoiBangDuLieu();
+                        return;
+                    }
+
+                    // Bước 2: Định nghĩa chính xác vị trí các cột dựa trên ảnh thực tế cấu trúc file Excel lỗi của bạn
+                    const rowTieuDe = rawRows[headerRowIndex];
+                    let chiSoHoTen = 1;     // Cột B (Họ và tên)
+                    let chiSoGioiTinh = -1; // Sẽ tự động dò tìm vị trí động
+                    let chiSoMaDonVi = -1;  // Sẽ tự động dò tìm vị trí động
+                    let chiSoChucDanh = -1; // Sẽ tự động dò tìm vị trí động
+                    let chiSoBHXH = 7;      // Cột H (Số sổ BHXH thực tế)
+                    let chiSoCCCD = 8;      // Cột I (Số CCCD thực tế)
+                    let chiSoNamVeHuu = 6;  // Cột G (Năm về hưu thực tế)
+                    let chiSoNgaySinh = 9;  // Cột J (Ngày tháng năm sinh thực tế)
+
+                    // Quét động vị trí cho các trường dễ tùy biến như Giới tính, Đơn vị, Chức danh để tránh sót dữ liệu
+                    rowTieuDe.forEach((cell, idx) => {
+                        if (!cell) return;
+                        const t = cell.toString().toLowerCase().replace(/\s+/g, '').trim();
+                        if (t === "gt" || t === "phái" || t.includes("giớitính") || t.includes("gioitinh") || t.includes("nam/nữ")) chiSoGioiTinh = idx;
+                        if (t.includes("đơnvị") || t.includes("donvi") || t === "mãđv" || t.includes("bộphận") || t.includes("phòng") || t.includes("ban")) chiSoMaDonVi = idx;
+                        if (t.includes("chứcdanh") || t.includes("côngviệc") || t.includes("chứcvụ")) chiSoChucDanh = idx;
+                    });
+
+                    // Thiết lập giá trị dự phòng nếu bộ quét động không nhận diện được tiêu đề lỗi của Excel
+                    if (chiSoGioiTinh === -1) chiSoGioiTinh = 4; // Cột E mặc định
+                    if (chiSoMaDonVi === -1) chiSoMaDonVi = 5;   // Cột F mặc định
+                    if (chiSoChucDanh === -1) chiSoChucDanh = 3; // Cột D mặc định
+
                     const dataDich = [];
                     let baseId = Date.now();
 
-                    // Bốc dữ liệu từ hàng kế tiếp hàng tiêu đề
+                    // Bước 3: Đọc dữ liệu và bóc tách chuẩn tọa độ
                     for (let i = headerRowIndex + 1; i < rawRows.length; i++) {
                         const row = rawRows[i];
                         if (!row || !row[chiSoHoTen]) continue; 
 
                         const hoTenStr = String(row[chiSoHoTen]).trim();
-                        // Loại bỏ các dòng tiêu đề phụ lặp lại hoặc dòng trống vô nghĩa
                         if (hoTenStr === "" || hoTenStr.toLowerCase().includes("họ và tên") || hoTenStr.toLowerCase().includes("cộng hòa")) continue;
 
-                        const valNamSinh = chiSoNgaySinh !== -1 && row[chiSoNgaySinh] !== undefined ? String(row[chiSoNgaySinh]).trim() : '---';
-                        const valNamVeHuu = chiSoNamVeHuu !== -1 && row[chiSoNamVeHuu] !== undefined ? String(row[chiSoNamVeHuu]).trim() : '---';
-                        const valGioiTinh = chiSoGioiTinh !== -1 && row[chiSoGioiTinh] !== undefined ? String(row[chiSoGioiTinh]).trim() : '---';
-                        const valMaDonVi = chiSoMaDonVi !== -1 && row[chiSoMaDonVi] !== undefined ? String(row[chiSoMaDonVi]).trim() : '---';
-                        const valChucDanh = chiSoChucDanh !== -1 && row[chiSoChucDanh] !== undefined ? String(row[chiSoChucDanh]).trim() : '---';
-                        const valBHXH = chiSoBHXH !== -1 && row[chiSoBHXH] !== undefined ? String(row[chiSoBHXH]).trim() : '---';
-                        const valCCCD = chiSoCCCD !== -1 && row[chiSoCCCD] !== undefined ? String(row[chiSoCCCD]).trim() : '---';
+                        const valNamSinh = row[chiSoNgaySinh] !== undefined ? String(row[chiSoNgaySinh]).trim() : '---';
+                        const valNamVeHuu = row[chiSoNamVeHuu] !== undefined ? String(row[chiSoNamVeHuu]).trim() : '---';
+                        const valGioiTinh = row[chiSoGioiTinh] !== undefined ? String(row[chiSoGioiTinh]).trim() : '---';
+                        const valMaDonVi = row[chiSoMaDonVi] !== undefined ? String(row[chiSoMaDonVi]).trim() : '---';
+                        const valChucDanh = row[chiSoChucDanh] !== undefined ? String(row[chiSoChucDanh]).trim() : '---';
+                        const valBHXH = row[chiSoBHXH] !== undefined ? String(row[chiSoBHXH]).trim() : '---';
+                        const valCCCD = row[row.length - 1] !== undefined ? String(row[row.length - 1]).trim() : (row[chiSoCCCD] !== undefined ? String(row[chiSoCCCD]).trim() : '---');
 
                         const chuoiGopAnToan = `${valChucDanh} || ${valBHXH} || ${valCCCD}`;
 
                         dataDich.push({
                             id: baseId + i,
                             ho_ten: hoTenStr,
-                            nam_sinh: valNamSinh === '' ? '---' : valNamSinh,
-                            nam_ve_huu: valNamVeHuu === '' ? '---' : valNamVeHuu,
-                            gioi_tinh: valGioiTinh === '' ? '---' : valGioiTinh,
-                            ma_don_vi: valMaDonVi === '' ? '---' : valMaDonVi,
+                            nam_sinh: valNamSinh === '' || valNamSinh === 'undefined' ? '---' : valNamSinh,
+                            nam_ve_huu: valNamVeHuu === '' || valNamVeHuu === 'undefined' ? '---' : valNamVeHuu,
+                            gioi_tinh: valGioiTinh === '' || valGioiTinh === 'undefined' ? '---' : valGioiTinh,
+                            ma_don_vi: valMaDonVi === '' || valMaDonVi === 'undefined' ? '---' : valMaDonVi,
                             chuc_danh_cong_viec: chuoiGopAnToan
                         });
                     }
 
                     if (dataDich.length === 0) {
-                        alert("Không tìm thấy dòng dữ liệu nào hợp lệ để bóc tách.");
+                        alert("Không tìm thấy dữ liệu hợp lệ.");
                         lamMoiBangDuLieu();
                         return;
                     }
 
-                    // Tải dữ liệu lên Cloud theo cấu trúc từng khối nhỏ (Batch) để đảm bảo tốc độ và an toàn hệ thống
+                    // Bước 4: Đẩy dữ liệu sạch lên Cloud theo khối
                     const BATCH = 100;
                     for (let i = 0; i < dataDich.length; i += BATCH) {
                         const batchData = dataDich.slice(i, i + BATCH);
                         const { error } = await client.from('nhan_su').insert(batchData);
-                        if (error) { alert("Lỗi tải lên cơ sở dữ liệu: " + error.message); lamMoiBangDuLieu(); return; }
+                        if (error) { alert("Lỗi tải lên: " + error.message); lamMoiBangDuLieu(); return; }
                     }
 
-                    alert(`🎉 Hoàn tất thành công! Đã đồng bộ và phân bổ toàn bộ dữ liệu tương ứng vào 10 cột.`);
+                    alert(`🎉 Thành công tốt đẹp! Đã căn chỉnh tọa độ cột chuẩn đét cho ${dataDich.length} nhân sự.`);
                     await lamMoiBangDuLieu();
 
                 } catch (err) {
@@ -255,12 +259,12 @@
         });
 
         document.getElementById('btn-clear-cloud').addEventListener('click', async () => {
-            if (!confirm("Bạn có chắc chắn muốn dọn sạch mây cũ để nạp lại bản đồng bộ mới nhất không?")) return;
+            if (!confirm("Bạn có chắc chắn muốn dọn sạch mây cũ để cập nhật phiên bản căn lề cột mới này không?")) return;
             try {
                 await client.from('nhan_su').delete().gte('id', 0);
-                alert("Đã xóa sạch mây dữ liệu cũ!");
+                alert("Đã xóa sạch mây!");
                 await lamMoiBangDuLieu();
-            } catch (err) { alert("Lỗi khi giải phóng dữ liệu."); }
+            } catch (err) { alert("Lỗi khi dọn dữ liệu."); }
         });
     });
 </script>
