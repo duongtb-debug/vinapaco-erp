@@ -32,41 +32,38 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
-        
-        /* Khung Tiện Ích Tải File Excel */
         .upload-section {
             background-color: #f0fdf4;
             border: 2px dashed #007f5f;
             border-radius: 6px;
-            padding: 15px;
+            padding: 20px;
             text-align: center;
             margin-bottom: 20px;
         }
         .upload-label {
             background-color: #007f5f;
             color: white;
-            padding: 10px 20px;
+            padding: 12px 24px;
             border-radius: 4px;
             font-weight: bold;
             cursor: pointer;
             display: inline-block;
             font-size: 14px;
+            margin-right: 10px;
         }
         .upload-label:hover { background-color: #00664c; }
         #excel-file-input { display: none; }
 
         .status-badge {
-            background-color: #f1f5f9;
-            color: #ef4444;
-            padding: 8px 15px;
+            background-color: #e0f2fe;
+            color: #0369a1;
+            padding: 10px 18px;
             border-radius: 6px;
             font-weight: bold;
             font-size: 14px;
             display: inline-block;
             margin-bottom: 20px;
         }
-        
-        /* Cấu trúc thiết kế Bảng Chuẩn của bạn */
         table {
             width: 100%;
             border-collapse: collapse;
@@ -90,12 +87,10 @@
             background-color: #dc2626;
             color: white;
             border: none;
-            padding: 10px 15px;
+            padding: 12px 20px;
             border-radius: 4px;
             font-weight: bold;
             cursor: pointer;
-            float: right;
-            margin-bottom: 20px;
         }
         .btn-clear:hover { background-color: #b91c1c; }
     </style>
@@ -110,12 +105,11 @@
             📥 BẤM VÀO ĐÂY ĐỂ CHỌN FILE EXCEL NẠP DỮ LIỆU (.XLSX)
         </label>
         <input type="file" id="excel-file-input" accept=".xlsx, .xls">
-        <button class="btn-clear" id="btn-clear-cloud">🗑️ XÓA DỮ LIỆU CŨ</button>
-        <div style="clear: both;"></div>
+        <button class="btn-clear" id="btn-clear-cloud">🗑️ XÓA DỮ LIỆU CŨ TỪ MÂY</button>
     </div>
 
     <div class="status-badge">
-        Tổng số nhân sự: <span id="total-count">Đang tải...</span>
+        Tổng số nhân sự trên Cloud: <span id="total-count">Đang tính toán...</span>
     </div>
 
     <table>
@@ -124,15 +118,15 @@
                 <th style="text-align: center; width: 6%;">STT</th>
                 <th>Họ và Tên</th>
                 <th style="text-align: center; width: 12%;">Giới Tính</th>
-                <th style="text-align: center; width: 15%;">Ngày Sinh</th>
+                <th style="text-align: center; width: 18%;">Ngày Sinh / Năm Sinh</th>
                 <th>Chức Danh Công Việc</th>
-                <th style="text-align: center; width: 18%; color: #f87171;">Năm Về Hưu</th>
+                <th style="text-align: center; width: 18%; color: #f87171;">Năm Về Hưu Dự Kiến</th>
             </tr>
         </thead>
         <tbody id="render-table-body">
             <tr>
                 <td colspan="6" style="text-align: center; color: #64748b; font-style: italic;" id="msg-cell">
-                    Đang tải dữ liệu từ hệ thống Cloud Supabase... Vui lòng đợi.
+                    Đang thiết lập kết nối đồng bộ đám mây...
                 </td>
             </tr>
         </tbody>
@@ -140,47 +134,41 @@
 </div>
 
 <script>
-    // Cấu hình định danh kết nối API Supabase của bạn
     const SUPABASE_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co"; 
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ";
 
     const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // --- HÀM 1: LẤY VÀ HIỂN THỊ DỮ LIỆU TỪ SUPABASE LÊN WEB ---
-    async function taiVaDoDuLieu() {
+    // Hàm đồng bộ và hiển thị dữ liệu trực tiếp từ Supabase
+    async function lamMoiBangDuLieu() {
         const msgCell = document.getElementById('msg-cell');
         const totalCountSpan = document.getElementById('total-count');
         const tbody = document.getElementById('render-table-body');
 
         try {
-            // Thực hiện truy vấn chính xác bảng nhan_su viết thường
             const { data, error } = await client.from('nhan_su').select('*');
 
             if (error) {
-                console.error("Lỗi đồng bộ mây:", error);
-                if (msgCell) msgCell.innerHTML = `<span style="color:red; font-weight:bold;">Lỗi hệ thống: ${error.message}</span>`;
+                if (msgCell) msgCell.innerHTML = `<span style="color:red;">Lỗi kết nối database: ${error.message}</span>`;
                 return;
             }
 
             const danhSach = data || [];
             totalCountSpan.innerText = danhSach.length + " người";
-            totalCountSpan.style.color = "#16a34a"; // Đổi màu xanh lá khi tải xong thành công
 
-            // Nếu mây trống
             if (danhSach.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #94a3b8;">Hệ thống chưa có dữ liệu. Vui lòng chọn file Excel ở trên để nạp!</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #94a3b8; padding: 30px;">Hệ thống chưa có dữ liệu. Vui lòng bấm nút xanh phía trên để nạp file Excel của bạn!</td></tr>`;
                 return;
             }
 
-            // Đổ dữ liệu vòng lặp vào đúng bảng HTML
             tbody.innerHTML = '';
             danhSach.forEach((emp, index) => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td style="text-align: center; color: #64748b;">${index + 1}</td>
-                    <td><strong>${emp.ho_ten || ''}</strong></td>
+                    <td><strong>${emp.ho_ten || 'Không rõ tên'}</strong></td>
                     <td style="text-align: center;">${emp.gioi_tinh || '-'}</td>
-                    <td style="text-align: center; color: #0284c7;">${emp.nam_sinh || ''}</td>
+                    <td style="text-align: center; color: #0284c7; font-weight: 500;">${emp.nam_sinh || ''}</td>
                     <td style="color: #334155;">${emp.chuc_danh_cong_viec || ''}</td>
                     <td style="text-align: center; font-weight: bold; color: #dc2626;">${emp.nam_ve_huu || ''}</td>
                 `;
@@ -192,15 +180,15 @@
         }
     }
 
-    // --- HÀM 2: LẮNG NGHE SỰ KIỆN NẠP FILE EXCEL ---
     document.addEventListener('DOMContentLoaded', () => {
-        taiVaDoDuLieu();
+        lamMoiBangDuLieu();
 
+        // Xử lý nạp file dữ liệu Excel thông minh
         document.getElementById('excel-file-input').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
 
-            document.getElementById('render-table-body').innerHTML = `<tr><td colspan="6" style="text-align: center; color: #2563eb; font-weight: bold;">⏳ Hệ thống đang tiến hành đẩy dữ liệu trực tiếp lên đám mây... Vui lòng không đóng tab!</td></tr>`;
+            document.getElementById('render-table-body').innerHTML = `<tr><td colspan="6" style="text-align: center; color: #2563eb; font-weight: bold; padding: 20px;">⏳ Hệ thống đang quét cấu hình và tải dữ liệu lên mây... Vui lòng đợi trong giây lát.</td></tr>`;
 
             const reader = new FileReader();
             reader.onload = async function(e) {
@@ -211,52 +199,67 @@
                     const json = XLSX.utils.sheet_to_json(sheet);
 
                     if (json.length === 0) {
-                        alert("File Excel trống rỗng!");
-                        taiVaDoDuLieu();
+                        alert("File Excel này không chứa dữ liệu dòng nào!");
+                        lamMoiBangDuLieu();
                         return;
                     }
 
-                    // Chuẩn hóa khớp trường dữ liệu tự động dữ dằn
+                    // Thuật toán nhận diện cột siêu rộng, chấp nhận mọi kiểu đặt tên của người dùng
                     const dataDich = json.map(row => {
-                        const tim = (keys) => {
-                            const k = Object.keys(row).find(x => keys.includes(x.toLowerCase().replace(/\s+/g,'').replace(/_/g,'')));
-                            return k ? row[k] : null;
+                        const keys = Object.keys(row);
+                        const layGiaTri = (cacTuKhoa) => {
+                            const cotTimThay = keys.find(k => {
+                                const kClean = k.toLowerCase().replace(/\s+/g, '').replace(/_/g, '').trim();
+                                return cacTuKhoa.some(tk => kClean.includes(tk));
+                            });
+                            return cotTimThay ? row[cotTimThay] : null;
                         };
+
                         return {
-                            ho_ten: tim(['hoten', 'hovaten', 'tên', 'ten', 'họvàtên']),
-                            nam_sinh: tim(['namsinh', 'ngaysinh', 'ngàysinh']),
-                            nam_ve_huu: tim(['namvehuu', 'nămvềhưu', 'vềhưu']),
-                            gioi_tinh: tim(['gioitinh', 'giớitính']),
-                            ma_don_vi: tim(['madonvi', 'mãđơnvị', 'bộphận', 'phòngban']),
-                            chuc_danh_cong_viec: tim(['chucdanhcongviec', 'chứcdanh', 'chứcvụ', 'côngviệc']),
-                            so_bhxh: tim(['sobhxh', 'bhxh']),
-                            so_cccd: tim(['socccd', 'cccd'])
+                            ho_ten: layGiaTri(['hoten', 'hovaten', 'tên', 'ten', 'họvàtên', 'ngườithựchiện']),
+                            nam_sinh: layGiaTri(['namsinh', 'ngaysinh', 'ngàysinh', 'sinhngày', 'năm']),
+                            nam_ve_huu: layGiaTri(['namvehuu', 'nămvềhưu', 'vềhưu', 'nghỉhưu', 'kếhoạch']),
+                            gioi_tinh: layGiaTri(['gioitinh', 'giớitính', 'nam/nữ']),
+                            ma_don_vi: layGiaTri(['madonvi', 'mãđơnvị', 'bộphận', 'phòngban', 'mãđv', 'đơnvị']),
+                            chuc_danh_cong_viec: layGiaTri(['chucdanh', 'chứcdanh', 'chứcvụ', 'côngviệc', 'vịtrí']),
+                            so_bhxh: layGiaTri(['sobhxh', 'bhxh', 'bảohiểm']),
+                            so_cccd: layGiaTri(['socccd', 'cccd', 'cmnd', 'chứngminh'])
                         };
                     });
 
-                    // Thực thi chia cụm 100 dòng ghi mây một lần
-                    const CUM = 100;
-                    for (let i = 0; i < dataDich.length; i += CUM) {
-                        await client.from('nhan_su').insert(dataDich.slice(i, i + CUM));
+                    // Tiến hành đẩy lên database theo từng đợt
+                    const BATCH = 100;
+                    for (let i = 0; i < dataDich.length; i += BATCH) {
+                        const batchData = dataDich.slice(i, i + BATCH);
+                        const { error } = await client.from('nhan_su').insert(batchData);
+                        if (error) {
+                            alert("Lỗi khi ghi lên đám mây: " + error.message);
+                            lamMoiBangDuLieu();
+                            return;
+                        }
                     }
 
-                    alert(`🎉 Hoàn tất! Đã đồng bộ thành công dữ liệu nhân sự lên Cloud Supabase!`);
-                    taiVaDoDuLieu();
+                    alert(`🎉 Thành công! Đã đồng bộ hoàn chỉnh ${dataDich.length} nhân sự lên hệ thống Cloud!`);
+                    lamMoiBangDuLieu();
 
                 } catch (err) {
-                    alert("Lỗi cấu trúc xử lý file!");
-                    taiVaDoDuLieu();
+                    alert("Định dạng file lỗi hoặc không đọc được cấu trúc Excel.");
+                    lamMoiBangDuLieu();
                 }
             };
             reader.readAsArrayBuffer(file);
         });
 
-        // Nút dọn dẹp sạch kho dữ liệu
+        // Sự kiện xóa sạch kho dữ liệu
         document.getElementById('btn-clear-cloud').addEventListener('click', async () => {
-            if (!confirm("Bạn có chắc chắn muốn xóa dọn dẹp toàn bộ dữ liệu hiện tại trên Cloud không?")) return;
-            await client.from('nhan_su').delete().gt('id', 0);
-            alert("Đã xóa sạch dữ liệu trên mây!");
-            taiVaDoDuLieu();
+            if (!confirm("Bạn có chắc chắn muốn xóa dọn dẹp toàn bộ dữ liệu nhân sự đang lưu trên Cloud không?")) return;
+            const { error } = await client.from('nhan_su').delete().gt('id', 0);
+            if (error) {
+                alert("Lỗi khi xóa dữ liệu: " + error.message);
+            } else {
+                alert("Đã làm sạch kho lưu trữ trên mây.");
+                lamMoiBangDuLieu();
+            }
         });
     });
 </script>
