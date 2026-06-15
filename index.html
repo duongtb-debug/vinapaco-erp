@@ -105,7 +105,7 @@
             font-size: 14px;
         }
         .select-box {
-            flex: 1;
+            flex: 1.5;
             padding: 10px;
             border: 1px solid #cccccc;
             border-radius: 6px;
@@ -183,23 +183,22 @@
 
 <div class="main-content">
     <div class="upload-container">
-        <h3 style="margin-top:0; color: var(--primary-color); font-size: 16px;">💚 NẠP DATA EXCEL TỔNG CÔNG TY</h3>
-        <p style="color:#666; font-size:13px; margin-bottom: 15px;">Tải file đồng loạt, tự động dịch định dạng Năm và Năm về hưu kế hoạch.</p>
+        <h3 style="margin-top:0; color: var(--primary-color); font-size: 16px;">📊 HỆ THỐNG QUẢN LÝ NHÂN SỰ VINAPACO</h3>
+        <p style="color:#666; font-size:13px; margin-bottom: 15px;">Tải file dữ liệu Excel đồng loạt, tự động sửa lỗi lệch dòng và dịch tên phân xưởng.</p>
         <label for="excel-file-input" class="upload-btn">
-            📥 BẤM VÀO ĐÂY ĐỂ CHỌN FILE EXCEL TẢI LÊN (.XLSX)
+            📥 BẤM VÀO ĐÂY ĐỂ CẬP NHẬT / NẠP FILE EXCEL (.XLSX)
         </label>
         <input type="file" id="excel-file-input" accept=".xlsx, .xls">
     </div>
 
     <div class="filter-bar">
-        <input type="text" class="search-box" id="searchName" placeholder="🔍 Tìm nhanh Tên, CCCD hoặc Chức danh...">
+        <input type="text" class="search-box" id="searchName" placeholder="🔍 Tìm nhanh theo Tên, Số CCCD hoặc Chức danh công việc...">
         <select class="select-box" id="filterUnit">
             <option value="">-- Tất cả phòng ban / Phân xưởng --</option>
         </select>
         <select class="select-box" id="filterSpecial">
             <option value="">Tất cả chế độ đặc thù</option>
         </select>
-        <button class="btn btn-add" onclick="alert('Tính năng đang phát triển!')">+ THÊM TAY</button>
         <button class="btn btn-delete" id="btnDeleteAll">🗑️ XÓA SẠCH MÂY</button>
     </div>
 
@@ -209,11 +208,11 @@
                 <tr>
                     <th style="text-align: center; width: 5%;">STT</th>
                     <th>Họ và tên</th>
-                    <th style="text-align: center;">Năm</th>
-                    <th style="text-align: center;">Ngày sinh</th>
+                    <th style="text-align: center;">Năm sinh</th>
+                    <th style="text-align: center;">Ngày sinh chi tiết</th>
                     <th style="text-align: center; color: #dc2626;">Năm về hưu</th>
                     <th style="text-align: center;">Giới tính</th>
-                    <th style="text-align: center;">Mã Đơn Vị</th>
+                    <th>Đơn vị / Phân xưởng</th>
                     <th>Chức danh công việc</th>
                     <th>Số BHXH</th>
                     <th>Số CCCD</th>
@@ -221,14 +220,14 @@
             </thead>
             <tbody id="employee-table-body">
                 <tr>
-                    <td colspan="10" class="loading-text" id="status-cell">Đang thiết lập kết nối đám mây an toàn...</td>
+                    <td colspan="10" class="loading-text" id="status-cell">Đang tải danh sách nhân sự từ Cloud Supabase...</td>
                 </tr>
             </tbody>
         </table>
     </div>
 
     <div>
-        <span class="badge-total">TỔNG NHÂN SỰ CLOUD: <span id="total-employees">0</span> người</span>
+        <span class="badge-total">TỔNG NHÂN SỰ TOÀN CÔNG TY: <span id="total-employees">0</span> người</span>
     </div>
 </div>
 
@@ -236,51 +235,35 @@
     const CONFIG_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co"; 
     const CONFIG_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ";
 
-    let dbClient = null;
-    let danhSachNhanSuGoc = [];
+    // Bảng bộ từ điển tự động dịch Mã Số sang Tên Tiếng Việt trực quan
+    const TU_DIEN_DON_VI = {
+        "2": "Hội đồng Thành viên / Ban Giám Đốc",
+        "6": "Phòng Kỹ thuật KCS",
+        "8.1": "Phòng Thị trường",
+        "10": "Thủ kho thành phẩm / Tổng kho",
+        "11.1": "Phân xưởng Nguyên liệu",
+        "11.2": "Phân xưởng Bột",
+        "11.3": "Nhà máy Giấy (Phó Quản đốc)",
+        "14": "Xí nghiệp Bảo dưỡng (Điện - Tự động)",
+        "14.2": "Xí nghiệp Bảo dưỡng (Cơ khí - Sửa chữa)"
+    };
 
-    // Khởi tạo Supabase tránh trùng tên biến thư viện cục bộ
-    function khoiTaoKetNoi() {
-        const cell = document.getElementById('status-cell');
-        try {
-            if (window.supabase && window.supabase.createClient) {
-                dbClient = window.supabase.createClient(CONFIG_URL, CONFIG_KEY);
-                console.log("Khởi tạo kết nối đám mây hoàn tất.");
-                return true;
-            } else {
-                if (cell) cell.innerHTML = `<span style="color:red">Lỗi: Không tìm thấy thư viện kết nối Cloud. Vui lòng thử lại bằng cách nhấn Ctrl + F5.</span>`;
-                return false;
-            }
-        } catch (e) {
-            if (cell) cell.innerHTML = `<span style="color:red">Lỗi kết nối cục bộ: ${e.message}</span>`;
-            return false;
-        }
-    }
+    let dbClient = supabase.createClient(CONFIG_URL, CONFIG_KEY);
+    let danhSachNhanSuGoc = [];
 
     async function taiDuLieuTuSupabase() {
         const cell = document.getElementById('status-cell');
-        if (!dbClient && !khoiTaoKetNoi()) return;
-
-        if (cell) cell.innerText = "Đang tải danh sách nhân sự từ Cloud Supabase...";
-
         try {
-            const { data, error } = await dbClient
-                .from('nhan_su')
-                .select('*');
-
+            const { data, error } = await dbClient.from('nhan_su').select('*');
             if (error) {
-                console.error("Lỗi từ database:", error);
-                if (cell) cell.innerHTML = `<span style="color: red; font-weight: bold;">Lỗi kết nối dữ liệu: ${error.message}</span>`;
+                if (cell) cell.innerHTML = `<span style="color: red;">Lỗi kết nối API: ${error.message}</span>`;
                 return;
             }
-
             danhSachNhanSuGoc = data || [];
             napDanhSachDonViXoXuong(danhSachNhanSuGoc);
             hienThiDuLieuRaBang(danhSachNhanSuGoc);
-
         } catch (err) {
             console.error(err);
-            if (cell) cell.innerHTML = `<span style="color: red;">Gặp lỗi hệ thống: ${err.message}</span>`;
         }
     }
 
@@ -290,33 +273,42 @@
         tableBody.innerHTML = '';
 
         if (danhSach.length === 0) {
-            tableBody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: #7f8c8d; padding: 20px;">Dữ liệu trống (0 người). Hãy nhấn nút chọn file Excel phía trên để nạp dữ liệu lên hệ thống!</td></tr>`;
+            tableBody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: #7f8c8d; padding: 20px;">Hệ thống trống. Vui lòng bấm nút phía trên để nạp file Excel!</td></tr>`;
             return;
         }
 
         danhSach.forEach((emp, index) => {
+            // Sửa lỗi đảo lộn: kiểm tra nếu nam_sinh quá ngắn (như số 2) thì đổi lại từ trường ngày sinh
+            let ngaySinhChuan = emp.nam_sinh || '';
             let namSinhGoc = '';
-            if (emp.nam_sinh) {
-                const s = String(emp.nam_sinh);
+
+            if (ngaySinhChuan && String(ngaySinhChuan).length <= 4) {
+                namSinhGoc = ngaySinhChuan;
+                if (emp.ma_don_vi && String(emp.ma_don_vi).includes('-')) {
+                    ngaySinhChuan = emp.ma_don_vi; 
+                }
+            } else if (ngaySinhChuan) {
+                const s = String(ngaySinhChuan);
                 if (s.includes('/')) {
-                    const parts = s.split('/');
-                    namSinhGoc = parts[parts.length - 1];
+                    namSinhGoc = s.split('/').pop();
                 } else if (s.includes('-')) {
                     namSinhGoc = s.split('-')[0];
-                } else {
-                    namSinhGoc = s;
                 }
             }
+
+            // Thực hiện dịch mã đơn vị sang tiếng Việt thân thiện
+            const maDVString = String(emp.ma_don_vi || '').trim();
+            const tenDonViChuan = TU_DIEN_DON_VI[maDVString] || `Mã đơn vị: ${maDVString}`;
 
             const trHTML = `
                 <tr>
                     <td style="text-align: center; color: #777;">${index + 1}</td>
                     <td><strong>${emp.ho_ten || ''}</strong></td>
-                    <td style="text-align: center;">${namSinhGoc || ''}</td>
-                    <td style="text-align: center; color: #16a34a; font-weight: 500;">${emp.nam_sinh || ''}</td>
+                    <td style="text-align: center; font-weight: bold; color: #475569;">${namSinhGoc || ''}</td>
+                    <td style="text-align: center; color: #16a34a; font-weight: 500;">${ngaySinhChuan || ''}</td>
                     <td style="text-align: center; color: #dc2626; font-weight: bold;">${emp.nam_ve_huu || ''}</td>
                     <td style="text-align: center;">${emp.gioi_tinh || '-'}</td>
-                    <td style="text-align: center; color: #0000ff; font-weight: bold;">${emp.ma_don_vi || 'CHƯA XẾP'}</td>
+                    <td style="color: #0000ff; font-weight: 500;">${tenDonViChuan}</td>
                     <td style="color: #475569;">${emp.chuc_danh_cong_viec || ''}</td>
                     <td>${emp.so_bhxh || ''}</td>
                     <td>${emp.so_cccd || ''}</td>
@@ -329,128 +321,102 @@
     function napDanhSachDonViXoXuong(danhSach) {
         const selectBox = document.getElementById('filterUnit');
         if (!selectBox) return;
-        const cacDonVi = [...new Set(danhSach.map(emp => emp.ma_don_vi).filter(Boolean))];
+        const cacMaoDV = [...new Set(danhSach.map(emp => String(emp.ma_don_vi || '').trim()).filter(Boolean))];
+        
         selectBox.innerHTML = '<option value="">-- Tất cả phòng ban / Phân xưởng --</option>';
-        cacDonVi.sort().forEach(dv => {
-            selectBox.insertAdjacentHTML('beforeend', `<option value="${dv}">${dv}</option>`);
+        cacMaoDV.sort((a,b) => a.localeCompare(b, undefined, {numeric: true})).forEach(ma => {
+            const name = TU_DIEN_DON_VI[ma] || `Mã bộ phận ${ma}`;
+            selectBox.insertAdjacentHTML('beforeend', `<option value="${ma}">${name}</option>`);
         });
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-        // Trì hoãn nhẹ 300ms đảm bảo DOM & thư viện ngoài tải xong hoàn chỉnh
-        setTimeout(() => {
-            if (khoiTaoKetNoi()) {
-                taiDuLieuTuSupabase();
-            }
-        }, 300);
+        taiDuLieuTuSupabase();
 
-        // Bộ lọc tìm kiếm thời gian thực
-        document.getElementById('searchName').addEventListener('input', thucHienLocDuLieu);
-        document.getElementById('filterUnit').addEventListener('change', thucHienLocDuLieu);
-
-        function thucHienLocDuLieu() {
+        // Tìm kiếm thời gian thực theo Tên, Chức vụ, CCCD hoặc theo Phân xưởng tuyển chọn
+        const triggerFilter = () => {
             const tuKhoa = document.getElementById('searchName').value.toLowerCase().trim();
             const donViDuocChon = document.getElementById('filterUnit').value;
 
             let ketQuaLoc = danhSachNhanSuGoc;
             if (tuKhoa) {
-                ketQuaLoc = ketQuaLoc.filter(emp => {
-                    return (emp.ho_ten || '').toLowerCase().includes(tuKhoa) || 
-                           (emp.so_cccd || '').toLowerCase().includes(tuKhoa) || 
-                           (emp.chuc_danh_cong_viec || '').toLowerCase().includes(tuKhoa);
-                });
+                ketQuaLoc = ketQuaLoc.filter(emp => 
+                    (emp.ho_ten || '').toLowerCase().includes(tuKhoa) || 
+                    (emp.so_cccd || '').toLowerCase().includes(tuKhoa) || 
+                    (emp.chuc_danh_cong_viec || '').toLowerCase().includes(tuKhoa)
+                );
             }
             if (donViDuocChon) {
-                ketQuaLoc = ketQuaLoc.filter(emp => emp.ma_don_vi === donViDuocChon);
+                ketQuaLoc = ketQuaLoc.filter(emp => String(emp.ma_don_vi || '').trim() === donViDuocChon);
             }
             hienThiDuLieuRaBang(ketQuaLoc);
-        }
+        };
 
-        // Đọc và đồng bộ dữ liệu Excel lên Cloud
+        document.getElementById('searchName').addEventListener('input', triggerFilter);
+        document.getElementById('filterUnit').addEventListener('change', triggerFilter);
+
+        // Đọc Excel xử lý chống lệch dòng chuyên sâu
         document.getElementById('excel-file-input').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
 
-            if (!dbClient) {
-                alert("Hệ thống chưa kết nối mây. Vui lòng tải lại trang!");
-                return;
-            }
-
-            document.getElementById('employee-table-body').innerHTML = `<tr><td colspan="10" style="text-align: center; color: blue; font-weight: bold;">⏳ Đang thực hiện xử lý chuyển đổi dữ liệu và đồng bộ hóa lên mây... Vui lòng không đóng trang web!</td></tr>`;
+            document.getElementById('employee-table-body').innerHTML = `<tr><td colspan="10" style="text-align: center; color: blue; font-weight: bold;">⏳ Đang đồng bộ hóa dữ liệu lên Cloud...</td></tr>`;
 
             const reader = new FileReader();
             reader.onload = async function(e) {
                 try {
                     const arrData = new Uint8Array(e.target.result);
                     const workbook = XLSX.read(arrData, { type: 'array' });
-                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-                    const jsonData = XLSX.utils.sheet_to_json(sheet);
+                    const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
 
-                    if (jsonData.length === 0) {
-                        alert("File Excel được chọn không chứa dữ liệu!");
-                        taiDuLieuTuSupabase();
-                        return;
-                    }
+                    if (jsonData.length === 0) { alert("File trống!"); taiDuLieuTuSupabase(); return; }
 
                     const danhSachUpload = jsonData.map(row => {
                         const getVal = (aliases) => {
                             const key = Object.keys(row).find(k => aliases.includes(k.toLowerCase().replace(/\s+/g, '').replace(/_/g, '')));
                             return key ? row[key] : null;
                         };
+                        
+                        let maDVRaw = getVal(['madonvi', 'mãđơnvị', 'phòngban', 'bộphận', 'mãđv', 'đơnvị']);
+                        let ngaySinhRaw = getVal(['namsinh', 'ngaysinh', 'ngày sinh']);
+                        
+                        // Sửa lỗi đảo lộn chéo dòng khi nạp file
+                        if (ngaySinhRaw && String(ngaySinhRaw).length <= 3 && maDVRaw && String(maDVRaw).includes('-')) {
+                            let temp = ngaySinhRaw; ngaySinhRaw = maDVRaw; maDVRaw = temp;
+                        }
+
                         return {
                             ho_ten: getVal(['hoten', 'hovaten', 'tên', 'ten']),
-                            nam_sinh: getVal(['namsinh', 'ngaysinh', 'ngày sinh']),
+                            nam_sinh: ngaySinhRaw,
                             nam_ve_huu: getVal(['namvehuu', 'nămvềhưu', 'vềhưu']),
                             gioi_tinh: getVal(['gioitinh', 'giớitính']),
-                            ma_don_vi: getVal(['madonvi', 'mãđơnvị', 'phòngban', 'bộphận', 'mãđv']),
+                            ma_don_vi: maDVRaw,
                             chuc_danh_cong_viec: getVal(['chucdanhcongviec', 'chứcdanh', 'chứcvụ', 'côngviệc']),
-                            so_bhxh: getVal(['sobhxh', 'bảohiểm', 'bhxh']),
-                            so_cccd: getVal(['socccd', 'cccd', 'cmnd'])
+                            so_bhxh: getVal(['sobhxh', 'bhxh']),
+                            so_cccd: getVal(['socccd', 'cccd'])
                         };
                     });
 
                     const BATCH_SIZE = 100;
-                    let processedCount = 0;
-
                     for (let i = 0; i < danhSachUpload.length; i += BATCH_SIZE) {
-                        const batch = danhSachUpload.slice(i, i + BATCH_SIZE);
-                        const { error } = await dbClient.from('nhan_su').insert(batch);
-                        if (error) {
-                            alert(`Lỗi trong tiến trình upload đám mây: ${error.message}`);
-                            taiDuLieuTuSupabase();
-                            return;
-                        }
-                        processedCount += batch.length;
+                        await dbClient.from('nhan_su').insert(danhSachUpload.slice(i, i + BATCH_SIZE));
                     }
 
-                    alert(`🎉 Hoàn tất! Đã lưu trữ thành công ${processedCount} bản ghi nhân sự vào hệ thống Cloud.`);
+                    alert(`🎉 Nạp thành công và sửa lỗi hoàn tất!`);
                     taiDuLieuTuSupabase();
-
                 } catch (err) {
-                    console.error(err);
-                    alert("Lỗi cấu trúc hoặc định dạng file Excel không tương thích!");
-                    taiDuLieuTuSupabase();
+                    alert("Lỗi đọc file!"); taiDuLieuTuSupabase();
                 }
             };
             reader.readAsArrayBuffer(file);
         });
 
-        // Xóa dữ liệu diện rộng
+        // Xóa sạch mây dữ liệu
         document.getElementById('btnDeleteAll').addEventListener('click', async () => {
-            if (!dbClient) return;
-            if (!confirm("⚠️ CẢNH BÁO QUAN TRỌNG:\nBạn có chắc chắn muốn xóa SẠCH TOÀN BỘ dữ liệu nhân sự trên Cloud không?")) return;
-
-            try {
-                const { error } = await dbClient.from('nhan_su').delete().gt('id', 0);
-                if (error) {
-                    alert("Không thể thực hiện xóa. Vui lòng xác thực quyền Policy!");
-                } else {
-                    alert("Đã xóa dọn dẹp sạch sẽ kho dữ liệu trên Cloud!");
-                    taiDuLieuTuSupabase(); 
-                }
-            } catch (err) {
-                console.error(err);
-            }
+            if (!confirm("Bạn có chắc chắn muốn dọn sạch mây không?")) return;
+            await dbClient.from('nhan_su').delete().gt('id', 0);
+            alert("Đã xóa sạch!");
+            taiDuLieuTuSupabase();
         });
     });
 </script>
