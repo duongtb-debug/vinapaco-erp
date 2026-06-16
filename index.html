@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hệ Thống Quản Lý Tổng Hợp - VINAPACO</title>
     
+    <!-- Thư viện bổ trợ chuyên dụng -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.8/dist/umd/supabase.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -83,7 +84,7 @@
                 width: 60mm; height: 40mm; 
                 padding: 4px; box-sizing: border-box;
                 text-align: center; background: white;
-                border: 1px dashed #000; /* Đường biên cắt nhãn */
+                border: 1px dashed #000;
             }
             .no-print { display: none !important; }
             #qrcode-canvas img { width: 95px !important; height: 95px !important; margin: 2px auto !important; }
@@ -99,6 +100,7 @@
 
 <div class="container">
     
+    <!-- ================= TAB 1: NHÂN SỰ ================= -->
     <div id="tab-nhansu" class="tab-content active">
         <h2>Danh Sách Nhân Sự Nghỉ Hưu Tổng Công Ty</h2>
         <div class="upload-section">
@@ -140,9 +142,11 @@
         </table>
     </div>
 
+    <!-- ================= TAB 2: THIẾT BỊ ================= -->
     <div id="tab-thietbi" class="tab-content">
         <h2>Hệ Thống Thiết Bị & Cấp Mã QR Tự Động</h2>
 
+        <!-- BỘ LỌC TÌM KIẾM THEO TRẠNG THÁI NÂNG CAO -->
         <div class="search-box-container">
             <span style="font-weight: bold; color: #1e3a8a;">🔍 BỘ LỌC THÔNG MINH:</span>
             <input type="text" id="smart-search-input" class="search-input" placeholder="Gõ từ khóa tìm máy siêu tốc (Tên máy, Mã máy, Mã đơn vị...)">
@@ -198,6 +202,7 @@
     </div>
 </div>
 
+<!-- POPUP XEM TRƯỚC VÀ IN TEM NHÃN MÃ QR -->
 <div class="modal" id="qr-modal">
     <div class="modal-content" id="print-area">
         <span class="close-modal no-print" id="btn-close-modal">&times;</span>
@@ -211,7 +216,7 @@
 </div>
 
 <script>
-    // KHÓA MỚI TOÀN DIỆN - KHÔNG SỢ LỖI API CACHE TREO 
+    // CẤU HÌNH KẾT NỐI SUPABASE CLOUD TRỰC TIẾP
     const SUPABASE_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co"; 
     const SUPABASE_KEY = "sb_publishable_F9qfNlAUikQ-9pYHV8jL8g_xrBa8s5w";
     const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -380,40 +385,46 @@
         await client.from('nhan_su').delete().gte('id', 0); lamMoiBangDuLieu();
     });
 
-    // ================= SỬA DỨT ĐIỂM LỖI PHẢN HỒI TREO API BẢNG THIẾT BỊ =================
+    // ================= KHU VỰC SỬA TẬN GỐC LỖI API BẢNG THIẾT BỊ =================
     async function taiDanhSachThietBi() {
         const tbody = document.getElementById('device-table-body');
         try {
+            // Thực hiện truy vấn đọc bảng thiet_bi từ Supabase
             const { data, error } = await client.from('thiet_bi').select('*').order('id', { ascending: false });
             
-            // Xử lý khi có lỗi kết nối mạng hoặc token sai thực sự
+            // 1. Nếu có lỗi cấu trúc thực sự (Sai tên trường, sai quyền RLS, tên bảng viết sai...)
             if (error) {
-                console.error("Lỗi API kết nối:", error);
+                console.error("Lỗi Supabase:", error);
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="6" class="text-center" style="color:#ef4444; font-weight:bold; padding: 25px;">
-                            ⚠️ Cổng kết nối API đang phản hồi chậm... <br>
+                        <td colspan="6" class="text-center" style="color:#ef4444; padding: 25px; background: #fef2f2; border: 1px solid #fee2e2;">
+                            <strong style="font-size: 15px;">⚠️ PHÁT HIỆN LỖI PHẢN HỒI TỪ CƠ SỞ DỮ LIỆU:</strong><br>
+                            <code style="background:#1e293b; color:#f1f5f9; padding:6px 12px; border-radius:4px; display:inline-block; margin: 10px 0; font-family: monospace; font-size: 13px;">
+                                ${JSON.stringify(error)}
+                            </code><br>
+                            <span style="font-size: 13px; color:#475569;">(Gợi ý: Kiểm tra xem tên bảng trên Supabase có phải là chữ thường viết liền <b style="color:#1e3a8a;">thiet_bi</b> không nhé)</span><br>
                             <button onclick="taiDanhSachThietBi()" style="margin-top:12px; background:#2563eb; color:white; border:none; padding:8px 20px; border-radius:4px; cursor:pointer; font-weight:bold;">
-                                🔄 THỬ TẢI LẠI TRANG BẢNG LẦN NỮA
+                                🔄 THỬ KẾT NỐI LẠI HỆ THỐNG
                             </button>
                         </td>
                     </tr>`;
                 return;
             }
             
-            // Khi kết nối thành công (Cho dù mảng data trống tinh)
+            // 2. Nếu kết nối thông suốt tốt đẹp
             mangThietBiGoc = data || [];
             xuatThietBiRaBang(mangThietBiGoc);
+            
         } catch (err) { 
-            console.error("Lỗi:", err);
-            tbody.innerHTML = `<tr><td colspan="6" class="text-center" style="color:#ef4444;">Lỗi kết nối cục bộ.</td></tr>`;
+            console.error("Crash mạng:", err);
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center" style="color:#ef4444; padding: 15px;">❌ Lỗi kết nối mạng: ${err.message}</td></tr>`;
         }
     }
 
     function xuatThietBiRaBang(danhSach) {
         const tbody = document.getElementById('device-table-body');
         if (danhSach.length === 0) { 
-            tbody.innerHTML = `<tr><td colspan="6" class="text-center" style="color:#475569; padding: 20px; font-style: italic;">🖥️ Phân xưởng chưa có máy móc nào. Hãy nhập thông tin ở form trên để cấp tem QR!</td></tr>`; 
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center" style="color:#475569; padding: 25px; font-style: italic;">🖥️ Hiện tại chưa có máy móc nào trong danh mục. Hãy nhập thông tin ở form để cấp tem QR!</td></tr>`; 
             return; 
         }
         tbody.innerHTML = '';
@@ -434,7 +445,7 @@
         });
     }
 
-    // TÍNH NĂNG 1: HÀM XÓA MÁY MÓC TRỰC TIẾP KHỎI CƠ SỞ DỮ LIỆU CLOUD
+    // TÍNH NĂNG XÓA MÁY MÓC KHỎI DATABASE CLOUD
     async function xoaThietBiKhoiCloud(idThietBi) {
         if (!confirm("Bạn có chắc chắn muốn xóa máy móc thiết bị này ra khỏi hệ thống?")) return;
         try {
@@ -446,7 +457,7 @@
         } catch (e) { console.error(e); }
     }
 
-    // TÍNH NĂNG 2: HÀM HỢP NHẤT BỘ LỌC TÌM KIẾM THEO TỪ KHÓA VÀ TRẠNG THÁI MÁY
+    // BỘ LỌC TÌM KIẾM THEO TỪ KHÓA VÀ TRẠNG THÁI MÁY
     function locDuLieuThietBiHopNhat() {
         const tuKhoa = document.getElementById('smart-search-input').value.toLowerCase().trim();
         const trangThai = document.getElementById('filter-status-select').value;
@@ -461,7 +472,7 @@
     }
     document.getElementById('smart-search-input').addEventListener('input', locDuLieuThietBiHopNhat);
 
-    // TÍNH NĂNG 3: IN TEM TỰ ĐỘNG CHUẨN KÍCH THƯỚC TEM NHIỆT KHỔ NHỎ
+    // HIỂN THỊ XEM TRƯỚC VÀ IN TEM
     function moXemTruocQR(code, name, dept, status) {
         document.getElementById('qr-modal-name').innerText = `Máy: ${name}`;
         document.getElementById('qr-modal-code').innerText = `MÃ: ${code}`;
@@ -470,7 +481,6 @@
         const canvas = document.getElementById('qrcode-canvas'); 
         canvas.innerHTML = '';
         
-        // Tạo mã QR nhỏ gọn để máy quét cầm tay quét cực nhạy
         new QRCode(canvas, { 
             text: `MÃ THIẾT BỊ: ${code}\nTÊN: ${name}\nĐV: ${dept}\nVINAPACO`, 
             width: 110, 
@@ -500,7 +510,7 @@
     document.getElementById('btn-close-modal').addEventListener('click', () => { document.getElementById('qr-modal').style.display = 'none'; });
     document.getElementById('btn-trigger-print').addEventListener('click', () => { window.print(); });
 
-    // Chạy kích hoạt dữ liệu ban đầu
+    // Khởi chạy hệ thống mặc định
     lamMoiBangDuLieu();
 </script>
 </body>
