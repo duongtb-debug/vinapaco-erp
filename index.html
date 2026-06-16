@@ -47,15 +47,19 @@
         .btn-qr:hover { background-color: #059669; }
         .btn-del { background-color: #ef4444; color: white; }
         .btn-del:hover { background-color: #dc2626; }
+        
+        /* Cấu hình hiển thị ô xem trước mã QR */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 9999; }
         .modal-content { background: white; padding: 25px; border-radius: 8px; text-align: center; max-width: 340px; width: 100%; position: relative; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
         .close-modal { position: absolute; top: 10px; right: 15px; font-size: 24px; cursor: pointer; font-weight: bold; color: #64748b; }
         .close-modal:hover { color: #1e293b; }
-        #qrcode-canvas { display: flex; justify-content: center; margin: 15px 0; }
+        #qrcode-canvas { display: flex; justify-content: center; align-items: center; margin: 15px 0; min-height: 110px; }
         .btn-print { background-color: #4f46e5; color: white; border: none; padding: 12px 20px; border-radius: 4px; font-weight: bold; cursor: pointer; width: 100%; font-size: 14px; }
         .btn-print:hover { background-color: #4338ca; }
+        
         .filter-section { background: #f8fafc; border: 1px solid #cbd5e1; padding: 15px; border-radius: 6px; margin-bottom: 20px; display: flex; gap: 15px; align-items: center; }
         .filter-control { flex: 1; padding: 10px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 14px; }
+        
         @media print {
             body * { display: none !important; }
             #print-area, #print-area * { display: block !important; }
@@ -123,9 +127,9 @@
             <div class="form-group">
                 <label>Trạng Thái Hiện Tại</label>
                 <select id="device-status">
-                    <option value="Hoạt động tốt">🟢 Hoạt động tốt</option>
-                    <option value="Đang bảo trì">🟡 Đang bảo trì</option>
-                    <option value="Sự cố - Chờ sửa">🔴 Sự cố - Chờ sửa</option>
+                    <option value="🟢 Hoạt động tốt">🟢 Hoạt động tốt</option>
+                    <option value="🟡 Đang bảo trì">🟡 Đang bảo trì</option>
+                    <option value="🔴 Sự cố - Chờ sửa">🔴 Sự cố - Chờ sửa</option>
                 </select>
             </div>
             <button class="btn-submit" id="btn-add-device">➕ LƯU THIẾT BỊ</button>
@@ -144,8 +148,7 @@
         <span class="close-modal no-print" id="btn-close-modal">&times;</span>
         <h3 style="margin:0; font-size:13px; color:#1e3a8a;">VINAPACO CORP</h3>
         <p style="margin:2px 0; font-size:10px; font-weight:bold;" id="qr-modal-dept">Đơn vị: ---</p>
-        <div id="qrcode-canvas"></div>
-        <strong style="font-size:11px;" id="qr-modal-name">Máy: ---</strong>
+        <div id="qrcode-canvas"></div> <strong style="font-size:11px;" id="qr-modal-name">Máy: ---</strong>
         <p style="margin:2px 0 2px 0; font-weight:bold; color:#2563eb; font-size:11px;" id="qr-modal-code">Mã: ---</p>
         <p style="margin:0 0 2px 0; color:#059669; font-size:10px; font-weight:bold;" id="qr-modal-user">QL: ---</p>
         <p style="margin:0 0 8px 0; font-size:10px; font-weight:bold;" id="qr-modal-status">TT: ---</p>
@@ -359,7 +362,6 @@
                 hienThiNguoiQL = bop[1].trim();
             }
 
-            // TỰ ĐỘNG KHỚP BIỂU TƯỢNG VÀ MÀU SẮC ĐỂ HIỂN THỊ TRÊN BẢNG SINH ĐỘNG
             let iconTrangThai = '🟢';
             let mauTrangThai = '#10b981';
             if (trangThaiThucTe.includes('bảo trì')) {
@@ -412,8 +414,12 @@
     }
     document.getElementById('smart-search-input').addEventListener('input', locDuLieuThietBiHopNhat);
 
+    // SỬA ĐỔI TOÀN DIỆN: Hàm khởi tạo mã QR làm sạch dữ liệu tuyệt đối
     function moXemTruocQR(code, name, dept, status, user) {
-        // Đồng bộ icon sinh động lên cả nhãn xem trước tem in ấn
+        // Làm sạch emoji khỏi text trước khi truyền cho thư viện QRCode để tránh lỗi vẽ canvas
+        const chuoiGocTrangThaiSạch = status.replace(/[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD00-\uDFFF]/g, "").trim();
+        const chuoiGocNguoiSạch = user.replace(/[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD00-\uDFFF]/g, "").trim();
+
         let iconTrangThai = '🟢';
         if (status.includes('bảo trì')) iconTrangThai = '🟡';
         if (status.includes('Sự cố')) iconTrangThai = '🔴';
@@ -422,14 +428,24 @@
         document.getElementById('qr-modal-code').innerText = `MÃ: ${code}`;
         document.getElementById('qr-modal-dept').innerText = `Đơn vị: ${dept}`;
         document.getElementById('qr-modal-user').innerText = `Người QL: ${user}`;
-        document.getElementById('qr-modal-status').innerText = `Trạng thái: ${iconTrangThai} ${status}`;
+        document.getElementById('qr-modal-status').innerText = `Trạng thái: ${iconTrangThai} ${chuoiGocTrangThaiSạch}`;
         
-        const canvas = document.getElementById('qrcode-canvas'); canvas.innerHTML = '';
-        new QRCode(canvas, { 
-            text: `MÃ THIẾT BỊ: ${code}\nTÊN MÁY: ${name}\nĐƠN VỊ: ${dept}\nNGƯỜI QL: ${user}\nTRẠNG THÁI: ${status}\nVINAPACO CORP`, 
-            width: 110, height: 110, 
-            correctLevel : QRCode.CorrectLevel.M 
-        });
+        // Làm rỗng khung chứa và dựng lại mã vuông mới
+        const canvas = document.getElementById('qrcode-canvas'); 
+        canvas.innerHTML = '';
+        
+        // Chuỗi văn bản thuần túy không chứa icon để nạp vào lõi quét QR an toàn tuyệt đối
+        const textNapVaoQR = `MA THIET BI: ${code}\nTEN MAY: ${name}\nDON VI: ${dept}\nQUAN LY: ${chuoiGocNguoiSạch}\nTRANG THAI: ${chuoiGocTrangThaiSạch}\nVINAPACO CORP`;
+
+        setTimeout(() => {
+            new QRCode(canvas, { 
+                text: textNapVaoQR, 
+                width: 110, 
+                height: 110, 
+                correctLevel : QRCode.CorrectLevel.M 
+            });
+        }, 50);
+
         document.getElementById('qr-modal').style.display = 'flex';
     }
 
