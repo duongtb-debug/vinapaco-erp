@@ -1,89 +1,240 @@
-<script>
-// ==========================================================================
-// ĐOẠN CODE HOÀN CHỈNH SỬA LỖI 404 KHÔNG ĐỌC ĐƯỢC FILE ĐỈNH KÈM
-// ==========================================================================
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VINAPACO - Quản Lý Chứng Từ Thanh Toán</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 30px; background-color: #f5f5f5; }
+        h2 { color: #0066b2; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; background: #fff; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background-color: #0066b2; color: white; }
+        button { cursor: pointer; padding: 6px 12px; border: none; border-radius: 4px; }
+        .btn-sua { background-color: #ff9800; color: white; }
+        .btn-luu { background-color: #4caf50; color: white; padding: 10px 20px; font-size: 16px; }
+        .btn-dong { background-color: #f44336; color: white; padding: 10px 20px; font-size: 16px; }
+        /* Style cho Khung Pop-up Sửa (Modal) */
+        .modal { display: none; position: fixed; z-index: 1; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.4); }
+        .modal-content { background-color: white; margin: 10% auto; padding: 25px; border-radius: 8px; width: 450px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+        .form-group input { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+    </style>
+</head>
+<body>
 
-// Hàm xử lý khi bấm nút "Lưu cập nhật" trên giao diện VINAPACO
-async function xuLyCapNhatHoSo(idHoSo, thongTinMoi, fileMinhChungMoi) {
-    try {
-        // Mặc định: giữ lại link file cũ nếu người dùng không chọn file mới
-        let linkMinhChungFinal = thongTinMoi.link_minh_chung_cu; 
+    <h2>HỆ THỐNG QUẢN LÝ CHỨNG TỪ THANH TOÁN - VINAPACO</h2>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>Mã Hồ Sơ</th>
+                <th>Tên Hồ Sơ Thanh Toán</th>
+                <th>Tổng Tiền</th>
+                <th>File Đính Kèm</th>
+                <th>Thao Tác</th>
+            </tr>
+        </thead>
+        <tbody id="body-bang-du-lieu">
+            </tbody>
+    </table>
 
-        // 1. NẾU NGƯỜI DÙNG CÓ CHỌN FILE MỚI -> TIẾN HÀNH TẢI LÊN
-        if (fileMinhChungMoi) {
+    <div id="modal-sua-ho-so" class="modal">
+        <div class="modal-content">
+            <h3>✏️ Chỉnh Sửa Hồ Sơ Chứng Từ</h3>
+            <hr><br>
             
-            // 1.1. Lấy đuôi file gốc (.pdf, .png, .jpg...) để tránh bị mất định dạng gây lỗi 404
-            const tenFileGoc = fileMinhChungMoi.name;
-            const viTriDauCham = tenFileGoc.lastIndexOf('.');
-            const duoiFile = viTriDauCham !== -1 ? tenFileGoc.slice(viTriDauCham) : '.pdf'; // Mặc định .pdf nếu lỗi
-            
-            // 1.2. Tạo tên file chuẩn chứa đầy đủ cả phần đuôi tệp
-            const maHoSo = thongTinMoi.ma_ho_so || 'HS-' + Date.now();
-            const tenFileStorage = `${maHoSo}${duoiFile}`;
+            <input type="hidden" id="input-id-an" />
 
-            // 1.3. Đẩy file lên Supabase Storage với cấu hình "upsert: true" để ghi đè file cũ
-            const { data: uploadData, error: uploadError } = await supabase.storage
-                .from('chung_tu_thanh_toan')
-                .upload(tenFileStorage, fileMinhChungMoi, { 
-                    upsert: true // CHỐNG LỖI 404: Cho phép lưu đè lên file cũ mà không bị chặn quyền
+            <div class="form-group">
+                <label>Tên hồ sơ thanh toán:</label>
+                <input type="text" id="input-ten-ho-so" />
+            </div>
+
+            <div class="form-group">
+                <label>Tổng số tiền (VNĐ):</label>
+                <input type="number" id="input-tong-tien" />
+            </div>
+
+            <div class="form-group">
+                <label>File đính kèm hiện tại:</label>
+                <div id="nhãn-file-cu" style="margin-bottom: 10px; font-size: 14px;"></div>
+                
+                <label style="color: #0066b2;">Chọn File mới để thay thế (Nếu có):</label>
+                <input type="file" id="input-file-moi" />
+            </div>
+            
+            <br>
+            <div style="text-align: right;">
+                <button type="button" class="btn-dong" onclick="dongFormSua()">Hủy</button>
+                <button type="button" id="btn-luu-cap-nhat" class="btn-luu">Lưu cập nhật</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 1. CẤU HÌNH KẾT NỐI SUPABASE CỦA BẠN
+        // (Bạn chỉ cần nhập đúng URL và Key dự án của bạn vào đây)
+        const SUPABASE_URL = "YOUR_SUPABASE_URL_HERE"; 
+        const SUPABASE_KEY = "YOUR_SUPABASE_KEY_HERE";
+        const supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // Biến môi trường lưu trữ hồ sơ đang chọn để chỉnh sửa
+        let duLieuHoSoDangChon = null;
+
+        // 2. HÀM TẢI VÀ HIỂN THỊ DANH SÁCH DỮ LIỆU LÊN BẢNG
+        async function loadDanhSachHoSo() {
+            try {
+                const tbody = document.getElementById('body-bang-du-lieu');
+                tbody.innerHTML = '<tr><td colspan="5">Đang tải dữ liệu...</td></tr>';
+
+                // Lấy dữ liệu từ bảng 'ho_so_thanh_toan' trong Database của bạn
+                const { data, error } = await supabase
+                    .from('ho_so_thanh_toan')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+
+                tbody.innerHTML = ''; // Làm sạch bảng
+                
+                if(data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Chưa có hồ sơ nào trên hệ thống.</td></tr>';
+                    return;
+                }
+
+                data.forEach(item => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td><b>${item.ma_ho_so || 'Chưa có mã'}</b></td>
+                        <td>${item.ten_ho_so || ''}</td>
+                        <td>${Number(item.tong_tien || 0).toLocaleString('vi-VN')} đ</td>
+                        <td>
+                            ${item.link_minh_chung 
+                                ? `<a href="${item.link_minh_chung}" target="_blank" style="color:#0066b2;font-weight:bold;">📄 Xem chứng từ</a>` 
+                                : `<span style="color:#f44336;">❌ Không có file</span>`
+                            }
+                        </td>
+                        <td>
+                            <button class="btn-sua" onclick='kichHoatFormSua(${JSON.stringify(item)})'>✏️ Sửa</button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
                 });
+            } catch (err) {
+                console.error("Lỗi tải danh sách:", err.message);
+            }
+        }
 
-            if (uploadError) {
-                throw new Error("Lỗi tải file lên Storage: " + uploadError.message);
+        // 3. HÀM ĐỔ DỮ LIỆU LÊN FORM KHI BẤM NÚT "SỬA"
+        function kichHoatFormSua(item) {
+            duLieuHoSoDangChon = item; // Lưu dữ liệu vào biến tạm
+
+            document.getElementById('input-id-an').value = item.id;
+            document.getElementById('input-ten-ho-so').value = item.ten_ho_so || '';
+            document.getElementById('input-tong-tien').value = item.tong_tien || 0;
+            document.getElementById('input-file-moi').value = ""; // Reset ô chọn file mới
+
+            const labelFileCu = document.getElementById('nhãn-file-cu');
+            if (item.link_minh_chung) {
+                labelFileCu.innerHTML = `<a href="${item.link_minh_chung}" target="_blank" style="color: green; text-decoration: underline;">Xem file minh chứng hiện tại</a>`;
+            } else {
+                labelFileCu.innerHTML = `<span style="color: gray; font-style: italic;">Chưa có file nào được tải lên trước đó.</span>`;
             }
 
-            // 1.4. Lấy lại đường link Public URL chuẩn mới sau khi đã lưu đè thành công
-            const { data: urlData } = supabase.storage
-                .from('chung_tu_thanh_toan')
-                .getPublicUrl(tenFileStorage);
-                
-            linkMinhChungFinal = urlData.publicUrl;
+            // Hiển thị khung Pop-up sửa lên màn hình
+            document.getElementById('modal-sua-ho-so').style.display = 'block';
         }
 
-        // 2. CẬP NHẬT ĐƯỜNG LINK FILE MỚI VÀO DATABASE
-        const { error: dbError } = await supabase
-            .from('ho_so_thanh_toan') // Hãy đảm bảo tên bảng này trùng với tên bảng Database của bạn
-            .update({
-                ten_ho_so: thongTinMoi.ten_ho_so,
-                tong_tien: thongTinMoi.tong_tien,
-                link_minh_chung: linkMinhChungFinal, // Lưu link chuẩn đầy đủ đuôi vào đây
-                ngay_cap_nhat: new Date().toISOString()
-            })
-            .eq('id', idHoSo); // Tìm đúng dòng hồ sơ đang sửa theo ID
-
-        if (dbError) {
-            throw new Error("Lỗi lưu Cơ sở dữ liệu: " + dbError.message);
+        // Hàm ẩn Pop-up sửa
+        function dongFormSua() {
+            document.getElementById('modal-sua-ho-so').style.display = 'none';
         }
 
-        // 3. THÔNG BÁO THÀNH CÔNG
-        alert("Hệ thống VINAPACO đã cập nhật hồ sơ chứng từ thành công!");
-        location.reload(); // Tải lại trang để bảng dữ liệu cập nhật mới luôn
+        // 4. HÀM XỬ LÝ LƯU CẬP NHẬT (SỬA TRIỆT ĐỂ LỖI 404 VÀ GHI ĐÈ FILE CHỨNG TỪ)
+        async function thựcHiệnLưuCậpNhật() {
+            if (!duLieuHoSoDangChon) return;
 
-    } catch (error) {
-        console.error("Quá trình sửa thất bại:", error);
-        alert("Đã xảy ra lỗi: " + error.message);
-    }
-}
+            const btnLuu = document.getElementById('btn-luu-cap-nhat');
+            const idBanGhi = document.getElementById('input-id-an').value;
+            const tenMoi = document.getElementById('input-ten-ho-so').value.trim();
+            const tienMoi = document.getElementById('input-tong-tien').value;
+            const fileInput = document.getElementById('input-file-moi');
+            const fileMoi = fileInput.files[0];
 
-// ==========================================================================
-// ĐOẠN KÍCH HOẠT SỰ KIỆN NÚT BẤM LƯU TRÊN FORM CỦA BẠN
-// ==========================================================================
-const nutLuuCapNhat = document.getElementById('ID_NUT_LUU'); // Thay 'ID_NUT_LUU' bằng ID nút của bạn nếu khác
-if (nutLuuCapNhat) {
-    nutLuuCapNhat.addEventListener('click', async () => {
-        // Lấy ID hồ sơ hiện tại và file mới chọn từ giao diện HTML của bạn
-        const idHoSo = document.getElementById('ID_INPUT_ID_HO_SO').value; 
-        const fileMoi = document.getElementById('ID_INPUT_FILE').files[0]; 
+            // Mặc định giữ lại link file cũ có sẵn nếu người dùng không chọn file thay thế
+            let linkFileSauCung = duLieuHoSoDangChon.link_minh_chung;
 
-        const thongTinMoi = {
-            ten_ho_so: document.getElementById('ID_INPUT_TEN').value,
-            tong_tien: document.getElementById('ID_INPUT_TIEN').value,
-            ma_ho_so: 'HS-1781591990029', // Mã hồ sơ hiện tại dùng làm tên file
-            link_minh_chung_cu: 'LINK_CU_LAY_TU_DATABASE_NEU_CO' 
-        };
+            try {
+                // Khóa tương tác nút bấm tránh gửi trùng lặp lệnh
+                btnLuu.disabled = true;
+                btnLuu.innerText = "Đang xử lý...";
 
-        // Chạy hàm cập nhật sửa lỗi
-        await xuLyCapNhatHoSo(idHoSo, thongTinMoi, fileMoi);
-    });
-}
-</script>
+                // NẾU NGƯỜI DÙNG CÓ CHỌN FILE MỚI ĐỂ THAY THẾ
+                if (fileMoi) {
+                    // Lấy phần mở rộng (đuôi file .pdf, .jpg, .png...) để bảo vệ định dạng file gốc
+                    const tenFileGoc = fileMoi.name;
+                    const viTriDauCham = tenFileGoc.lastIndexOf('.');
+                    const duoiFile = viTriDauCham !== -1 ? tenFileGoc.slice(viTriDauCham) : '.pdf';
+
+                    // Tạo tên file chuẩn bằng Mã Hồ Sơ kết hợp đuôi file
+                    const maHoSo = duLieuHoSoDangChon.ma_ho_so || `HS-${idBanGhi}`;
+                    const tenFileKhiLuuStorage = `${maHoSo}${duoiFile}`;
+
+                    // Đẩy dữ liệu lên Supabase Storage
+                    // ĐÃ THÊM CHỮ { upsert: true } ĐỂ SỬA LỖI 404 VÀ CHO PHÉP UPDATE FILE THÀNH CÔNG
+                    const { data: storageData, error: storageError } = await supabase.storage
+                        .from('chung_tu_thanh_toan')
+                        .upload(tenFileKhiLuuStorage, fileMoi, { upsert: true });
+
+                    if (storageError) {
+                        throw new Error("Lỗi kho lưu trữ file: " + storageError.message);
+                    }
+
+                    // Khởi tạo link Public URL mới cho tệp tin đính kèm này
+                    const { data: urlData } = supabase.storage
+                        .from('chung_tu_thanh_toan')
+                        .getPublicUrl(tenFileKhiLuuStorage);
+
+                    linkFileSauCung = urlData.publicUrl;
+                }
+
+                // CẬP NHẬT DỮ LIỆU MỚI VÀO DATABASE
+                const { error: dbError } = await supabase
+                    .from('ho_so_thanh_toan')
+                    .update({
+                        ten_ho_so: tenMoi,
+                        tong_tien: tienMoi,
+                        link_minh_chung: linkFileSauCung, // Cập nhật link mới chứa đuôi file chuẩn vào đây
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', idBanGhi);
+
+                if (dbError) {
+                    throw new Error("Lỗi lưu cơ sở dữ liệu: " + dbError.message);
+                }
+
+                // THÔNG BÁO THÀNH CÔNG
+                alert("Hệ thống VINAPACO đã cập nhật chứng từ thành công!");
+                dongFormSua();
+                await loadDanhSachHoSo(); // Tải lại danh sách dữ liệu mới trên bảng luôn
+
+            } catch (error) {
+                console.error("Lỗi:", error);
+                alert("Cập nhật thất bại: " + error.message);
+            } finally {
+                btnLuu.disabled = false;
+                btnLuu.innerText = "Lưu cập nhật";
+            }
+        }
+
+        // GÁN SỰ KIỆN CLICK CHO NÚT LƯU TRÊN FORM SỬA
+        document.getElementById('btn-luu-cap-nhat').addEventListener('click', thựcHiệnLưuCậpNhật);
+
+        // TỰ ĐỘNG CHẠY TẢI DANH SÁCH DỮ LIỆU KHI TRANG WEB VỪA MỞ LÊN
+        window.onload = loadDanhSachHoSo;
+    </script>
+</body>
+</html>
