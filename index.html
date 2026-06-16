@@ -48,13 +48,17 @@
         .btn-del { background-color: #ef4444; color: white; }
         .btn-del:hover { background-color: #dc2626; }
         
-        /* Cấu hình hiển thị ô xem trước mã QR */
+        /* Pop-up xem trước Tem */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 9999; }
-        .modal-content { background: white; padding: 25px; border-radius: 8px; text-align: center; max-width: 340px; width: 100%; position: relative; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
-        .close-modal { position: absolute; top: 10px; right: 15px; font-size: 24px; cursor: pointer; font-weight: bold; color: #64748b; }
+        .modal-content { background: white; padding: 20px; border-radius: 8px; text-align: center; max-width: 320px; width: 100%; position: relative; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        .close-modal { position: absolute; top: 5px; right: 12px; font-size: 24px; cursor: pointer; font-weight: bold; color: #64748b; }
         .close-modal:hover { color: #1e293b; }
-        #qrcode-canvas { display: flex; justify-content: center; align-items: center; margin: 15px 0; min-height: 110px; }
-        .btn-print { background-color: #4f46e5; color: white; border: none; padding: 12px 20px; border-radius: 4px; font-weight: bold; cursor: pointer; width: 100%; font-size: 14px; }
+        
+        /* Định dạng khu vực chứa QR luôn cân đối */
+        #qrcode-canvas { display: flex; justify-content: center; align-items: center; margin: 12px 0; min-height: 120px; }
+        #qrcode-canvas img, #qrcode-canvas canvas { display: block !important; margin: 0 auto !important; width: 120px !important; height: 120px !important; }
+        
+        .btn-print { background-color: #4f46e5; color: white; border: none; padding: 12px 20px; border-radius: 4px; font-weight: bold; cursor: pointer; width: 100%; font-size: 14px; margin-top: 10px; }
         .btn-print:hover { background-color: #4338ca; }
         
         .filter-section { background: #f8fafc; border: 1px solid #cbd5e1; padding: 15px; border-radius: 6px; margin-bottom: 20px; display: flex; gap: 15px; align-items: center; }
@@ -148,10 +152,11 @@
         <span class="close-modal no-print" id="btn-close-modal">&times;</span>
         <h3 style="margin:0; font-size:13px; color:#1e3a8a;">VINAPACO CORP</h3>
         <p style="margin:2px 0; font-size:10px; font-weight:bold;" id="qr-modal-dept">Đơn vị: ---</p>
+        
         <div id="qrcode-canvas"></div> <strong style="font-size:11px;" id="qr-modal-name">Máy: ---</strong>
         <p style="margin:2px 0 2px 0; font-weight:bold; color:#2563eb; font-size:11px;" id="qr-modal-code">Mã: ---</p>
         <p style="margin:0 0 2px 0; color:#059669; font-size:10px; font-weight:bold;" id="qr-modal-user">QL: ---</p>
-        <p style="margin:0 0 8px 0; font-size:10px; font-weight:bold;" id="qr-modal-status">TT: ---</p>
+        <p style="margin:0 0 4px 0; font-size:10px; font-weight:bold;" id="qr-modal-status">TT: ---</p>
         <button class="btn-print no-print" id="btn-trigger-print">🖨️ IN TEM NHIỆT KHỔ CẦM TAY</button>
     </div>
 </div>
@@ -414,39 +419,41 @@
     }
     document.getElementById('smart-search-input').addEventListener('input', locDuLieuThietBiHopNhat);
 
-    // SỬA ĐỔI TOÀN DIỆN: Hàm khởi tạo mã QR làm sạch dữ liệu tuyệt đối
+    // CHUẨN HÓA LẠI HÀM: Hiển thị Pop-up trước rồi mới vẽ QR Code
     function moXemTruocQR(code, name, dept, status, user) {
-        // Làm sạch emoji khỏi text trước khi truyền cho thư viện QRCode để tránh lỗi vẽ canvas
-        const chuoiGocTrangThaiSạch = status.replace(/[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD00-\uDFFF]/g, "").trim();
-        const chuoiGocNguoiSạch = user.replace(/[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD00-\uDFFF]/g, "").trim();
+        // Làm sạch emoji để chuỗi nạp vào QR thuần túy, quét nhanh không lỗi chữ
+        const statusSach = status.replace(/[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD00-\uDFFF]/g, "").trim();
+        const userSach = user.replace(/[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD00-\uDFFF]/g, "").trim();
 
         let iconTrangThai = '🟢';
         if (status.includes('bảo trì')) iconTrangThai = '🟡';
         if (status.includes('Sự cố')) iconTrangThai = '🔴';
 
+        // Gán text lên giao diện
         document.getElementById('qr-modal-name').innerText = `Máy: ${name}`;
         document.getElementById('qr-modal-code').innerText = `MÃ: ${code}`;
         document.getElementById('qr-modal-dept').innerText = `Đơn vị: ${dept}`;
         document.getElementById('qr-modal-user').innerText = `Người QL: ${user}`;
-        document.getElementById('qr-modal-status').innerText = `Trạng thái: ${iconTrangThai} ${chuoiGocTrangThaiSạch}`;
+        document.getElementById('qr-modal-status').innerText = `Trạng thái: ${iconTrangThai} ${statusSach}`;
         
-        // Làm rỗng khung chứa và dựng lại mã vuông mới
+        // Bước 1: Mở Pop-up lên màn hình trước để có kích thước thật
+        document.getElementById('qr-modal').style.display = 'flex';
+
+        // Bước 2: Dọn sạch ô QR cũ và kích hoạt thư viện tạo QR Code mới
         const canvas = document.getElementById('qrcode-canvas'); 
         canvas.innerHTML = '';
         
-        // Chuỗi văn bản thuần túy không chứa icon để nạp vào lõi quét QR an toàn tuyệt đối
-        const textNapVaoQR = `MA THIET BI: ${code}\nTEN MAY: ${name}\nDON VI: ${dept}\nQUAN LY: ${chuoiGocNguoiSạch}\nTRANG THAI: ${chuoiGocTrangThaiSạch}\nVINAPACO CORP`;
+        const textNapVaoQR = `MA THIET BI: ${code}\nTEN MAY: ${name}\nDON VI: ${dept}\nQUAN LY: ${userSach}\nTRANG THAI: ${statusSach}\nVINAPACO CORP`;
 
+        // Chờ 30ms cho trình duyệt render khung hình xong là vẽ QR ngay lập tức
         setTimeout(() => {
             new QRCode(canvas, { 
                 text: textNapVaoQR, 
-                width: 110, 
-                height: 110, 
+                width: 120, 
+                height: 120, 
                 correctLevel : QRCode.CorrectLevel.M 
             });
-        }, 50);
-
-        document.getElementById('qr-modal').style.display = 'flex';
+        }, 30);
     }
 
     document.getElementById('btn-add-device').addEventListener('click', async () => {
