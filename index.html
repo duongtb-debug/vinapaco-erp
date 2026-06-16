@@ -51,16 +51,16 @@
         .btn-qr:hover { background-color: #059669; }
         .btn-del { background-color: #ef4444; color: white; }
         
-        /* GIAO DIỆN MODAL POP-UP CHUẨN XEM TRƯỚC */
+        /* POP-UP XEM TRƯỚC VÀ IN */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 99999; }
         .modal-content { background: white; padding: 20px; border-radius: 8px; text-align: center; max-width: 300px; width: 100%; position: relative; box-shadow: 0 20px 40px rgba(0,0,0,0.3); }
         .close-modal { position: absolute; top: 5px; right: 12px; font-size: 26px; cursor: pointer; font-weight: bold; color: #64748b; }
         .close-modal:hover { color: #000; }
         
-        /* Khung bao viền cho tem in khổ 60x40mm thực tế */
+        /* Khung tem in khổ 60x40mm thực tế */
         .preview-badge-box { border: 1px dashed #94a3b8; padding: 12px; background: #ffffff; border-radius: 4px; margin-bottom: 10px; box-sizing: border-box; }
         
-        /* Vùng render QR Code - Đảm bảo căn giữa tuyệt đối */
+        /* Vùng chứa QR Code */
         #qrcode-canvas { display: flex !important; justify-content: center !important; align-items: center !important; margin: 10px auto !important; width: 130px !important; height: 130px !important; background: #ffffff; }
         #qrcode-canvas canvas { max-width: 130px !important; max-height: 130px !important; display: block !important; margin: 0 auto !important; }
         
@@ -69,7 +69,7 @@
         .filter-section { background: #f8fafc; border: 1px solid #cbd5e1; padding: 15px; border-radius: 6px; margin-bottom: 20px; display: flex; gap: 15px; align-items: center; }
         .filter-control { flex: 1; padding: 10px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 14px; }
         
-        /* CSS DÀNH RIÊNG KHI ẤN LỆNH IN RA MÁY IN TEM */
+        /* ĐỊNH DẠNG TRANG IN NHIỆT KHỔ TAY 60mm x 40mm */
         @media print {
             body * { display: none !important; }
             #print-area, #print-area * { display: block !important; }
@@ -376,12 +376,15 @@
                 hienThiNguoiQL = bop[1].trim();
             }
 
+            // SỬA LỖI BIỂU TƯỢNG KÉP: Loại bỏ icon cũ có sẵn trong chuỗi DB để chống trùng lặp
+            trangThaiThucTe = trangThaiThucTe.replace(/🟢|🟡|🔴/g, '').trim();
+
             let iconTrangThai = '🟢';
             let mauTrangThai = '#10b981';
-            if (trangThaiThucTe.includes('bảo trì')) {
+            if (trangThaiThucTe.toLowerCase().includes('bảo trì')) {
                 iconTrangThai = '🟡';
                 mauTrangThai = '#f59e0b';
-            } else if (trangThaiThucTe.includes('Sự cố')) {
+            } else if (trangThaiThucTe.toLowerCase().includes('sự cố') || trangThaiThucTe.toLowerCase().includes('chờ sửa')) {
                 iconTrangThai = '🔴';
                 mauTrangThai = '#ef4444';
             }
@@ -428,7 +431,7 @@
     }
     document.getElementById('smart-search-input').addEventListener('input', locDuLieuThietBiHopNhat);
 
-    // HÀM XỬ LÝ CHỐNG LỖI LỆCH ID DOM TUYỆT ĐỐI
+    // CẤU TRÚC MÃ HÓA KHÔNG GÓC CHẾT - ĐƯA QR VỀ ĐỊNH DẠNG HỒ SƠ QUỐC TẾ vCARD
     function moXemTruocQRTheoId(idThietBi) {
         const thietBi = mangThietBiGoc.find(x => x.id === idThietBi);
         if(!thietBi) { alert("Không tìm thấy dữ liệu máy móc này!"); return; }
@@ -446,37 +449,30 @@
             userThucTe = bop[1].trim();
         }
 
-        // Làm sạch emoji
-        const statusSach = statusThucTe.replace(/[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD00-\uDFFF]/g, "").trim();
-        const userSach = userThucTe.replace(/[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD00-\uDFFF]/g, "").trim();
+        // Dọn dẹp emoji cho phần text trong QR
+        let statusSach = statusThucTe.replace(/🟢|🟡|🔴/g, '').trim();
+        let userSach = userThucTe.replace(/👤/g, '').trim();
+        
         let iconTrangThai = '🟢';
-        if (statusThucTe.includes('bảo trì')) iconTrangThai = '🟡';
-        if (statusThucTe.includes('Sự cố')) iconTrangThai = '🔴';
+        if (statusThucTe.toLowerCase().includes('bảo trì')) iconTrangThai = '🟡';
+        if (statusThucTe.toLowerCase().includes('sự cố') || statusThucTe.toLowerCase().includes('chờ sửa')) iconTrangThai = '🔴';
 
-        // TỰ ĐỘNG KHÔI PHỤC VÀ ĐẢM BẢO HTML HIỂN THỊ NẾU PHÁT HIỆN THIẾU ELEMENT TRÊN TRANG VỚI ID CHUẨN TRẦN
-        let modal = document.getElementById('qr-modal');
-        if (!modal) {
-            alert("Hệ thống phát hiện cấu trúc file index.html bị thiếu khối Pop-up hiển thị! Đang tự động sửa và vá lỗi...");
-            location.reload();
-            return;
-        }
-
-        // Gán text an toàn, bọc lỗi bằng toán tử kiểm tra an toàn (?.) phòng khi bạn vô tình sửa mất thẻ trong html
+        // Đổ chữ ra khung xem trước HTML
         if(document.getElementById('qr-modal-name')) document.getElementById('qr-modal-name').innerText = `Máy: ${name}`;
         if(document.getElementById('qr-modal-code')) document.getElementById('qr-modal-code').innerText = `MÃ: ${code}`;
         if(document.getElementById('qr-modal-dept')) document.getElementById('qr-modal-dept').innerText = `Đơn vị: ${dept}`;
-        if(document.getElementById('qr-modal-user')) document.getElementById('qr-modal-user').innerText = `Người QL: ${userThucTe}`;
+        if(document.getElementById('qr-modal-user')) document.getElementById('qr-modal-user').innerText = `Người QL: ${userSach}`;
         if(document.getElementById('qr-modal-status')) document.getElementById('qr-modal-status').innerText = `Trạng thái: ${iconTrangThai} ${statusSach}`;
         
         const canvasContainer = document.getElementById('qrcode-canvas'); 
         if (canvasContainer) {
-            canvasContainer.innerHTML = ''; // Làm sạch
+            canvasContainer.innerHTML = ''; 
             
-            const chuoiDuLieuQR = `MA THIET BI: ${code}\nTEN MAY: ${name}\nDON VI: ${dept}\nQUAN LY: ${userSach}\nTRANG THAI: ${statusSach}\nVINAPACO CORP`;
+            // CHUYỂN ĐỔI SANG ĐỊNH DẠNG vCARD: Giúp Zalo hiện hết chữ và Camera điện thoại nhận diện là dạng Hồ sơ thông tin dạng Danh bạ
+            const chuoiVCardDanhBa = `BEGIN:VCARD\nVERSION:3.0\nFN:${name}\nORG:VINAPACO - ĐV: ${dept}\nNOTE:Mã TB: ${code} | QL: ${userSach} | Trạng thái: ${statusSach}\nEND:VCARD`;
             
-            // Chạy thư viện động sinh Canvas siêu tốc chống trễ luồng đồ họa
             const elQr = kjua({
-                text: chuoiDuLieuQR,
+                text: chuoiVCardDanhBa,
                 size: 130,
                 render: 'canvas',
                 crisp: true,
@@ -488,8 +484,8 @@
             canvasContainer.appendChild(elQr);
         }
 
-        // Bật Modal hiển thị
-        modal.style.display = 'flex';
+        let modal = document.getElementById('qr-modal');
+        if (modal) modal.style.display = 'flex';
     }
 
     document.getElementById('btn-add-device').addEventListener('click', async () => {
@@ -516,7 +512,7 @@
     document.getElementById('btn-close-modal').addEventListener('click', () => { document.getElementById('qr-modal').style.display = 'none'; });
     document.getElementById('btn-trigger-print').addEventListener('click', () => { window.print(); });
 
-    // Kích hoạt mặc định toàn hệ thống
+    // Khởi chạy mặc định
     lamMoiBangDuLieu();
 </script>
 </body>
