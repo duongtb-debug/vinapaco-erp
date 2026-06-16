@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hệ Thống Quản Lý Tổng Hợp - VINAPACO</title>
     
-    <!-- Thư viện bổ trợ chuyên dụng -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.8/dist/umd/supabase.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -100,7 +99,6 @@
 
 <div class="container">
     
-    <!-- ================= TAB 1: NHÂN SỰ ================= -->
     <div id="tab-nhansu" class="tab-content active">
         <h2>Danh Sách Nhân Sự Nghỉ Hưu Tổng Công Ty</h2>
         <div class="upload-section">
@@ -142,11 +140,9 @@
         </table>
     </div>
 
-    <!-- ================= TAB 2: THIẾT BỊ ================= -->
     <div id="tab-thietbi" class="tab-content">
         <h2>Hệ Thống Thiết Bị & Cấp Mã QR Tự Động</h2>
 
-        <!-- BỘ LỌC TÌM KIẾM THEO TRẠNG THÁI NÂNG CAO -->
         <div class="search-box-container">
             <span style="font-weight: bold; color: #1e3a8a;">🔍 BỘ LỌC THÔNG MINH:</span>
             <input type="text" id="smart-search-input" class="search-input" placeholder="Gõ từ khóa tìm máy siêu tốc (Tên máy, Mã máy, Mã đơn vị...)">
@@ -202,7 +198,6 @@
     </div>
 </div>
 
-<!-- POPUP XEM TRƯỚC VÀ IN TEM NHÃN MÃ QR -->
 <div class="modal" id="qr-modal">
     <div class="modal-content" id="print-area">
         <span class="close-modal no-print" id="btn-close-modal">&times;</span>
@@ -385,15 +380,21 @@
         await client.from('nhan_su').delete().gte('id', 0); lamMoiBangDuLieu();
     });
 
-    // ================= KHU VỰC SỬA TẬN GỐC LỖI API BẢNG THIẾT BỊ =================
+    // ================= KHU VỰC SỬA TẬN GỐC LỖI PGRST116 (MẢNG 0 HÀNG) =================
     async function taiDanhSachThietBi() {
         const tbody = document.getElementById('device-table-body');
         try {
-            // Thực hiện truy vấn đọc bảng thiet_bi từ Supabase
+            // Thực hiện gọi API lấy toàn bộ mảng thiet_bi
             const { data, error } = await client.from('thiet_bi').select('*').order('id', { ascending: false });
             
-            // 1. Nếu có lỗi cấu trúc thực sự (Sai tên trường, sai quyền RLS, tên bảng viết sai...)
             if (error) {
+                // ĐẶC BIỆT: Nếu là mã lỗi PGRST116 (0 hàng dữ liệu), bỏ qua thông báo đỏ và coi như mảng trống sạch sẽ
+                if (error.code === "PGRST116" || error.message.includes("0 rows")) {
+                    mangThietBiGoc = [];
+                    xuatThietBiRaBang(mangThietBiGoc);
+                    return;
+                }
+
                 console.error("Lỗi Supabase:", error);
                 tbody.innerHTML = `
                     <tr>
@@ -402,16 +403,15 @@
                             <code style="background:#1e293b; color:#f1f5f9; padding:6px 12px; border-radius:4px; display:inline-block; margin: 10px 0; font-family: monospace; font-size: 13px;">
                                 ${JSON.stringify(error)}
                             </code><br>
-                            <span style="font-size: 13px; color:#475569;">(Gợi ý: Kiểm tra xem tên bảng trên Supabase có phải là chữ thường viết liền <b style="color:#1e3a8a;">thiet_bi</b> không nhé)</span><br>
                             <button onclick="taiDanhSachThietBi()" style="margin-top:12px; background:#2563eb; color:white; border:none; padding:8px 20px; border-radius:4px; cursor:pointer; font-weight:bold;">
-                                🔄 THỬ KẾT NỐI LẠI HỆ THỐNG
+                                🔄 THỬ KẾT NỐI LẠI
                             </button>
                         </td>
                     </tr>`;
                 return;
             }
             
-            // 2. Nếu kết nối thông suốt tốt đẹp
+            // Nếu kết nối thông suốt không lỗi
             mangThietBiGoc = data || [];
             xuatThietBiRaBang(mangThietBiGoc);
             
@@ -423,7 +423,7 @@
 
     function xuatThietBiRaBang(danhSach) {
         const tbody = document.getElementById('device-table-body');
-        if (danhSach.length === 0) { 
+        if (!danhSach || danhSach.length === 0) { 
             tbody.innerHTML = `<tr><td colspan="6" class="text-center" style="color:#475569; padding: 25px; font-style: italic;">🖥️ Hiện tại chưa có máy móc nào trong danh mục. Hãy nhập thông tin ở form để cấp tem QR!</td></tr>`; 
             return; 
         }
