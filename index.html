@@ -11,13 +11,13 @@
     <style>
         body { font-family: Arial, sans-serif; background-color: #f4f6f9; margin: 0; padding: 20px; }
         .container { width: 100%; max-width: 1650px; margin: 0 auto; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        h2 { text-align: center; color: #1e3a8a; margin-bottom: 25px; text-transform: uppercase; }
+        h2 { text-align: center; color: #1e3a8a; margin-bottom: 25px; text-transform: uppercase; letter-spacing: 1px; }
         .upload-section { background-color: #f0fdf4; border: 2px dashed #007f5f; border-radius: 6px; padding: 25px; text-align: center; margin-bottom: 20px; }
         .upload-label { background-color: #007f5f; color: white; padding: 12px 30px; border-radius: 4px; font-weight: bold; cursor: pointer; display: inline-block; font-size: 14px; margin-right: 15px; }
         .upload-label:hover { background-color: #00664c; }
         #excel-file-input { display: none; }
         .status-badge { background-color: #e0f2fe; color: #0369a1; padding: 10px 18px; border-radius: 6px; font-weight: bold; font-size: 14px; display: inline-block; margin-bottom: 20px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
         th, td { padding: 12px 10px; border: 1px solid #cbd5e1; font-size: 13px; }
         th { background-color: #2c3e50; color: white; font-weight: bold; text-align: center; }
         tr:nth-child(even) { background-color: #f8fafc; }
@@ -34,10 +34,10 @@
 
     <div class="upload-section">
         <label for="excel-file-input" class="upload-label">
-            📥 BẤM VÀO ĐÂY ĐỂ CHỌN FILE EXCEL NẠP DỮ LIỆU (.XLSX)
+            📥 BẤM VÀO ĐÂY ĐỂ CHỌN FILE DATA EXCEL TỔNG CÔNG TY (.XLSX)
         </label>
         <input type="file" id="excel-file-input" accept=".xlsx, .xls">
-        <button class="btn-clear" id="btn-clear-cloud">🗑️ XÓA SẠCH MÂY ĐỂ UP MỚI</button>
+        <button class="btn-clear" id="btn-clear-cloud">🗑️ XÓA TRÊN CLOUD</button>
     </div>
 
     <div class="status-badge">
@@ -49,20 +49,20 @@
             <tr>
                 <th style="width: 4%;">STT</th>
                 <th style="width: 14%;">Họ và tên</th>
-                <th style="width: 6%;">Năm</th>
-                <th style="width: 10%;">Ngày sinh</th>
-                <th style="width: 10%; color: #f87171;">Ngày nghỉ hưu</th>
-                <th style="width: 7%;">Giới tính</th>
-                <th style="width: 8%;">Mã Đơn Vị</th>
+                <th style="width: 5%;">Năm</th>
+                <th style="width: 9%;">Ngày sinh</th>
+                <th style="width: 9%; color: #b45309;">Ngày nghỉ hưu</th>
+                <th style="width: 6%;">Giới tính</th>
+                <th style="width: 7%; color: #2563eb;">Mã Đơn Vị</th>
                 <th>Chức danh công việc</th>
-                <th style="width: 11%;">Số BHXH</th>
+                <th style="width: 10%;">Số BHXH</th>
                 <th style="width: 11%;">Số CCCD</th>
             </tr>
         </thead>
         <tbody id="render-table-body">
             <tr>
                 <td colspan="10" class="text-center" style="color: #64748b; font-style: italic;">
-                    Đang kết nối dữ liệu đám mây Supabase...
+                    Đang tải dữ liệu từ đám mây Supabase...
                 </td>
             </tr>
         </tbody>
@@ -92,42 +92,51 @@
             totalCountSpan.innerText = danhSach.length + " người";
 
             if (danhSach.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="10" class="text-center" style="color: #94a3b8; padding: 30px;">☁️ Đám mây trống. Vui lòng nhấn nút chọn file Excel để tải lên!</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="10" class="text-center" style="color: #94a3b8; padding: 30px;">☁️ Chưa có dữ liệu trên Cloud. Vui lòng nạp file Excel!</td></tr>`;
                 return;
             }
 
             tbody.innerHTML = '';
             danhSach.forEach((emp, index) => {
                 const tr = document.createElement('tr');
-                let hienThiChucDanh = emp.chuc_danh_cong_viec || '';
+                
+                // Giải nén thông tin Chức danh || BHXH || CCCD từ cột phức hợp
+                let textGoc = emp.chuc_danh_cong_viec || '';
+                let hienThiChucDanh = textGoc;
                 let hienThiBHXH = '---';
                 let hienThiCCCD = '---';
 
-                // Tách gói thông tin Chức danh || BHXH || CCCD an toàn
-                if (hienThiChucDanh.includes("||")) {
-                    const parts = hienThiChucDanh.split("||");
+                if (textGoc.includes("||")) {
+                    const parts = textGoc.split("||");
                     hienThiChucDanh = parts[0] ? parts[0].trim() : '---';
                     hienThiBHXH = parts[1] ? parts[1].trim() : '---';
                     hienThiCCCD = parts[2] ? parts[2].trim() : '---';
                 }
 
+                // Tách năm từ ngày nghỉ hưu để hiển thị ở cột "Năm" (Ví dụ: 01/09/2026 -> 2026)
+                let hienThiNam = "2026";
+                if (emp.nam_ve_huu && emp.nam_ve_huu.includes("/")) {
+                    const mangNgay = emp.nam_ve_huu.split("/");
+                    if (mangNgay.length === 3) hienThiNam = mangNgay[2].trim();
+                }
+
                 tr.innerHTML = `
                     <td class="text-center" style="color: #64748b;">${index + 1}</td>
                     <td><strong>${emp.ho_ten || '---'}</strong></td>
-                    <td class="text-center" style="font-weight: bold; color: #334155;">2026</td>
+                    <td class="text-center" style="color: #475569;">${hienThiNam}</td>
                     <td class="text-center" style="color: #0284c7; font-weight: 500;">${emp.nam_sinh || '---'}</td>
-                    <td class="text-center" style="color: #d97706; font-weight: bold;">${emp.nam_ve_huu || '---'}</td>
+                    <td class="text-center" style="color: #b45309; font-weight: bold;">${emp.nam_ve_huu || '---'}</td>
                     <td class="text-center" style="font-weight: bold; color: #db2777;">${emp.gioi_tinh || '---'}</td>
-                    <td class="text-center" style="color: #2563eb; font-weight: bold;">${emp.ma_don_vi || '---'}</td>
+                    <td class="text-center" style="color: #2563eb; font-weight: bold; font-size: 14px;">${emp.ma_don_vi || '---'}</td>
                     <td>${hienThiChucDanh}</td>
-                    <td class="text-center" style="color: #475569;">${hienThiBHXH}</td>
-                    <td class="text-center" style="color: #475569;">${hienThiCCCD}</td>
+                    <td class="text-center" style="color: #334155;">${hienThiBHXH}</td>
+                    <td class="text-center" style="color: #334155;">${hienThiCCCD}</td>
                 `;
                 tbody.appendChild(tr);
             });
         } catch (err) {
             console.error(err);
-            tbody.innerHTML = `<tr><td colspan="10" class="text-center" style="color:red; font-weight:bold;">❌ Lỗi hiển thị hệ thống.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="10" class="text-center" style="color:red; font-weight:bold;">❌ Lỗi kết xuất giao diện bảng.</td></tr>`;
         }
     }
 
@@ -138,7 +147,7 @@
             const file = e.target.files[0];
             if (!file) return;
 
-            document.getElementById('render-table-body').innerHTML = `<tr><td colspan="10" class="text-center" style="color: #2563eb; font-weight: bold; padding: 20px;">⏳ Đang đồng bộ hóa dữ liệu và bóc tách cấu trúc cột đơn vị... Vui lòng chờ!</td></tr>`;
+            document.getElementById('render-table-body').innerHTML = `<tr><td colspan="10" class="text-center" style="color: #007f5f; font-weight: bold; padding: 25px;">⏳ Đang bóc tách và khóa cố định tọa độ các cột Excel... Vui lòng đợi!</td></tr>`;
 
             const reader = new FileReader();
             reader.onload = async function(e) {
@@ -147,96 +156,93 @@
                     const wb = XLSX.read(arr, { type: 'array' });
                     const sheet = wb.Sheets[wb.SheetNames[0]];
                     
+                    // Đọc dạng ma trận mảng để lấy chính xác thứ tự cột bất chấp tiêu đề
                     const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-                    if (rawRows.length === 0) { alert("File Excel trống!"); lamMoiBangDuLieu(); return; }
+                    if (rawRows.length === 0) { alert("File Excel không có dữ liệu!"); lamMoiBangDuLieu(); return; }
 
                     let headerRowIndex = -1;
 
-                    // Định vị hàng tiêu đề chính
-                    for (let i = 0; i < Math.min(rawRows.length, 15); i++) {
+                    // Quét tìm dòng bắt đầu của bảng nhân sự dựa vào ô "Họ và tên"
+                    for (let i = 0; i < Math.min(rawRows.length, 20); i++) {
                         const row = rawRows[i];
                         if (!row) continue;
-                        let lineStr = row.join(" ").toLowerCase();
-                        if (lineStr.includes("họ và tên") || lineStr.includes("ho ten") || lineStr.includes("họ tên")) {
+                        let textDong = row.join(" ").toLowerCase();
+                        if (textDong.includes("họ và tên") || textDong.includes("ho ten") || textDong.includes("họ tên")) {
                             headerRowIndex = i;
                             break;
                         }
                     }
 
                     if (headerRowIndex === -1) {
-                        alert("Không tìm thấy hàng tiêu đề 'Họ và tên'!");
-                        lamMoiBangDuLieu();
-                        return;
+                        alert("Không tìm thấy tiêu đề bảng nhân sự. Hệ thống sẽ lấy dữ liệu từ dòng số 2.");
+                        headerRowIndex = 0; 
                     }
-
-                    // CẤU HÌNH TỌA ĐỘ ĐỌC KHỚP HOÀN HẢO THEO FILE EXCEL THỰC TẾ
-                    let chiSoHoTen = 1;     // Cột B: Họ và tên
-                    let chiSoChucDanh = 2;  // Cột C: Chức danh công việc công nhân
-                    let chiSoMaDonVi = 3;   // Cột D: Mã đơn vị dạng số thập phân (Ví dụ: 14.2, 11.1)
-                    let chiSoBHXH = 4;      // Cột E: Số sổ BHXH 10 chữ số
-                    let chiSoCCCD = 5;      // Cột F: Số căn cước công dân
-                    let chiSoNamVeHuu = 6;  // Cột G: Ngày nghỉ hưu dạng DD/MM/YYYY
-                    let chiSoNgaySinh = 7;  // Cột H: Ngày tháng năm sinh
 
                     const dataDich = [];
                     let baseId = Date.now();
 
+                    // ĐỌC CHUẨN XÁC THEO LỀ VÀ VỊ TRÍ CỘT CỦA FILE EXCEL GỐC
                     for (let i = headerRowIndex + 1; i < rawRows.length; i++) {
                         const row = rawRows[i];
-                        if (!row || !row[chiSoHoTen]) continue; 
+                        // Nếu dòng trống hoặc không có tên ở cột B (index 1) thì bỏ qua
+                        if (!row || !row[1]) continue; 
 
-                        const hoTenStr = String(row[chiSoHoTen]).trim();
+                        const hoTenStr = String(row[1]).trim();
                         if (hoTenStr === "" || hoTenStr.toLowerCase().includes("họ và tên") || hoTenStr.toLowerCase().includes("cộng hòa")) continue;
 
-                        const valChucDanh = row[chiSoChucDanh] !== undefined ? String(row[chiSoChucDanh]).trim() : '---';
-                        const valMaDonVi = row[chiSoMaDonVi] !== undefined ? String(row[chiSoMaDonVi]).trim() : '---';
-                        const valBHXH = row[chiSoBHXH] !== undefined ? String(row[chiSoBHXH]).trim() : '---';
-                        const valCCCD = row[chiSoCCCD] !== undefined ? String(row[chiSoCCCD]).trim() : '---';
-                        const valNamVeHuu = row[chiSoNamVeHuu] !== undefined ? String(row[chiSoNamVeHuu]).trim() : '---';
-                        const valNamSinh = row[chiSoNgaySinh] !== undefined ? String(row[chiSoNgaySinh]).trim() : '---';
+                        // Ép vị trí bốc dữ liệu theo chuẩn ảnh cấu trúc thực tế
+                        const valNamSinh  = row[2] !== undefined ? String(row[2]).trim() : '---'; // Cột C: Ngày sinh
+                        const valNamVeHuu = row[3] !== undefined ? String(row[3]).trim() : '---'; // Cột D: Ngày nghỉ hưu
+                        const valMaDonVi  = row[4] !== undefined ? String(row[4]).trim() : '---'; // Cột E: Mã đơn vị (Số thập phân)
+                        const valChucDanh = row[5] !== undefined ? String(row[5]).trim() : '---'; // Cột F: Chức danh công việc
+                        const valBHXH     = row[6] !== undefined ? String(row[6]).trim() : '---'; // Cột G: Số sổ BHXH
+                        const valCCCD     = row[7] !== undefined ? String(row[7]).trim() : '---'; // Cột H: Số CCCD
 
-                        // CHUẨN HÓA GIỚI TÍNH THÔNG MINH QUA TÊN ĐỆM (Giải quyết triệt để lỗi varchar)
+                        // Thuật toán gán Giới tính tự động bằng cách bóc tách chuỗi tên đệm cực kỳ thông minh
                         let gioiTinhChuan = 'Nam';
-                        const hoTenLow = hoTenStr.toLowerCase();
-                        if (hoTenLow.includes(' thị ') || hoTenLow.includes('thị ') || hoTenLow.endsWith(' thị')) {
+                        const hoTenThap = hoTenStr.toLowerCase();
+                        if (hoTenThap.includes(' thị ') || hoTenThap.includes('thị ') || hoTenThap.endsWith(' thị')) {
                             gioiTinhChuan = 'Nữ';
                         }
 
-                        // Đóng gói an toàn để đẩy lên cột chuc_danh_cong_viec trên Supabase
+                        // Đóng gói 3 trường dài/phụ vào cột chuc_danh_cong_viec để tránh lỗi cấu trúc database cũ
                         const chuoiGopAnToan = `${valChucDanh} || ${valBHXH} || ${valCCCD}`;
 
-                        // CHỈ THÊM CÁC TRƯỜNG CÓ TRONG DATABASE (Không thêm trường 'nam' gây lỗi hệ thống)
                         dataDich.push({
                             id: baseId + i,
                             ho_ten: hoTenStr,
-                            nam_sinh: valNamSinh === '' ? '---' : valNamSinh,
-                            nam_ve_huu: valNamVeHuu === '' ? '---' : valNamVeHuu,
+                            nam_sinh: valNamSinh,
+                            nam_ve_huu: valNamVeHuu,
                             gioi_tinh: gioiTinhChuan,
-                            ma_don_vi: valMaDonVi === '' ? '---' : valMaDonVi,
+                            ma_don_vi: valMaDonVi, 
                             chuc_danh_cong_viec: chuoiGopAnToan
                         });
                     }
 
                     if (dataDich.length === 0) {
-                        alert("Không tìm thấy dòng dữ liệu nào hợp lệ.");
+                        alert("Không tìm thấy dòng thông tin nhân sự nào hợp lệ để nhập.");
                         lamMoiBangDuLieu();
                         return;
                     }
 
-                    // Tải dữ liệu lên Cloud theo cấu trúc từng khối nhỏ (Batch)
+                    // Thực hiện nạp đẩy dữ liệu an toàn lên Cloud
                     const BATCH = 100;
                     for (let i = 0; i < dataDich.length; i += BATCH) {
                         const batchData = dataDich.slice(i, i + BATCH);
                         const { error } = await client.from('nhan_su').insert(batchData);
-                        if (error) { alert("Lỗi tải lên cơ sở dữ liệu: " + error.message); lamMoiBangDuLieu(); return; }
+                        if (error) { 
+                            alert("Lỗi đồng bộ Cloud: " + error.message); 
+                            lamMoiBangDuLieu(); 
+                            return; 
+                        }
                     }
 
-                    alert(`🎉 Xuất sắc! Đã sửa toàn bộ lỗi, nạp thành công ${dataDich.length} nhân sự lên hệ thống.`);
+                    alert(`🎉 Hoàn tất thành công! Đã đồng bộ chuẩn xác ${dataDich.length} nhân sự tương ứng vào 10 cột!`);
                     await lamMoiBangDuLieu();
 
                 } catch (err) {
                     console.error(err);
-                    alert("Có lỗi xảy ra khi bóc tách dữ liệu Excel.");
+                    alert("Gặp sự cố khi đọc dữ liệu từ file Excel.");
                     lamMoiBangDuLieu();
                 }
             };
@@ -244,12 +250,12 @@
         });
 
         document.getElementById('btn-clear-cloud').addEventListener('click', async () => {
-            if (!confirm("Bạn có chắc chắn muốn dọn sạch mây cũ để cập nhật cấu trúc cột Đơn vị mới này không?")) return;
+            if (!confirm("Bạn có chắc chắn muốn dọn sạch dữ liệu cũ để đồng bộ lại theo cấu trúc cột chuẩn không?")) return;
             try {
                 await client.from('nhan_su').delete().gte('id', 0);
-                alert("Đã giải phóng bộ nhớ mây thành công!");
+                alert("Đã xóa sạch mây dữ liệu cũ thành công!");
                 await lamMoiBangDuLieu();
-            } catch (err) { alert("Lỗi khi giải phóng dữ liệu."); }
+            } catch (err) { alert("Lỗi khi thực hiện xóa dữ liệu."); }
         });
     });
 </script>
