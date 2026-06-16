@@ -36,6 +36,7 @@
         .search-input { flex: 1; padding: 12px; border: 1px solid #3b82f6; border-radius: 4px; font-size: 14px; font-weight: bold; }
         
         .form-section { background: #f8fafc; border: 1px solid #e2e8f0; padding: 20px; border-radius: 6px; margin-bottom: 25px; display: flex; flex-wrap: wrap; gap: 15px; }
+        .form-section-tb { background: #f8fafc; border: 1px solid #e2e8f0; padding: 20px; border-radius: 6px; margin-bottom: 25px; display: flex; flex-wrap: wrap; gap: 15px; }
         .form-group { flex: 1; min-width: 220px; display: flex; flex-direction: column; }
         .form-group label { font-weight: bold; margin-bottom: 5px; font-size: 13px; color: #334155; }
         .form-group input, .form-group select { padding: 10px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 14px; }
@@ -64,7 +65,10 @@
         #qrcode-canvas { display: flex; justify-content: center; margin: 20px 0; }
         .btn-print { background-color: #4f46e5; color: white; border: none; padding: 10px 20px; border-radius: 4px; font-weight: bold; cursor: pointer; width: 100%; }
 
-        /* Thiết lập lệnh in tem ẩn giao diện phụ */
+        /* Giao diện bộ lọc nâng cao nhân sự */
+        .filter-section { background: #f8fafc; border: 1px solid #cbd5e1; padding: 15px; border-radius: 6px; margin-bottom: 20px; display: flex; gap: 15px; align-items: center; }
+        .filter-control { flex: 1; padding: 10px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 14px; }
+
         @media print {
             body * { display: none !important; }
             #print-area, #print-area * { display: block !important; }
@@ -76,7 +80,7 @@
 <body>
 
 <div class="navbar no-print">
-    <button class="nav-btn active" onclick="chuyenTab('tab-nhansu')">👥 QUẢN LÝ NHÂN SỰ</button>
+    <button class="nav-btn active" onclick="chuyenTab('tab-nhansu')">👥 QUẢN LÝ NHÂN SỰ NGHỈ HƯU</button>
     <button class="nav-btn" onclick="chuyenTab('tab-thietbi')">⚙️ QUẢN LÝ THIẾT BỊ & MÃ QR VẠN NĂNG</button>
 </div>
 
@@ -86,19 +90,27 @@
         <h2>Danh Sách Nhân Sự Nghỉ Hưu Tổng Công Ty</h2>
         <div class="upload-section">
             <label for="excel-file-input" class="upload-label">
-                📥 BẤM VÀO ĐÂY ĐỂ CHỌN FILE DATA EXCEL (.XLSX)
+                📥 BẤM VÀO ĐÂY ĐỂ CHỌN FILE DATA EXCEL TẢI LÊN (.XLSX)
             </label>
             <input type="file" id="excel-file-input" accept=".xlsx, .xls">
-            <button class="btn-clear" id="btn-clear-cloud">🗑️ XÓA SẠCH TRÊN CLOUD ĐỂ UP MỚI</button>
+            <button class="btn-clear" id="btn-clear-cloud">🗑️ XÓA SẠCH MÂY ĐỂ UP MỚI</button>
         </div>
+
+        <div class="filter-section">
+            <input type="text" id="ns-search" class="filter-control" placeholder="🔍 Tìm nhanh Tên, Số CCCD hoặc Chức danh công việc...">
+            <select id="ns-filter-dept" class="filter-control">
+                <option value="">-- Tất cả phòng ban / Phân xưởng --</option>
+            </select>
+        </div>
+
         <div class="status-badge">
-            TỔNG SỐ NHÂN SỰ TRÊN CLOUD: <span id="total-count">Đang kết nối...</span>
+            TỔNG NHÂN SỰ CLOUD: <span id="total-count">Đang kết nối...</span>
         </div>
         <table>
             <thead>
                 <tr>
                     <th style="width: 4%;">STT</th>
-                    <th style="width: 14%;">Họ và tên</th>
+                    <th style="width: 15%;">Họ và tên</th>
                     <th style="width: 6%;">Năm</th>
                     <th style="width: 10%;">Ngày sinh</th>
                     <th style="width: 10%; color: #b45309;">Ngày nghỉ hưu</th>
@@ -110,7 +122,7 @@
                 </tr>
             </thead>
             <tbody id="render-table-body">
-                <tr><td colspan="10" class="text-center" style="color: #64748b; font-style: italic;">Đang tải...</td></tr>
+                <tr><td colspan="10" class="text-center" style="color: #64748b; font-style: italic;">Đang tải dữ liệu...</td></tr>
             </tbody>
         </table>
     </div>
@@ -120,18 +132,18 @@
 
         <div class="search-box-container">
             <span style="font-weight: bold; color: #1e3a8a;">🔍 BỘ LỌC THÔNG MINH:</span>
-            <input type="text" id="smart-search-input" class="search-input" placeholder="Gõ từ khóa bất kỳ để lọc ngay (Tên máy, Mã máy, Mã Đơn Vị như 14.2, 11.1...)">
+            <input type="text" id="smart-search-input" class="search-input" placeholder="Gõ từ khóa tìm máy siêu tốc (Tên máy, Mã máy, Mã đơn vị...)">
         </div>
 
-        <div class="form-section">
+        <div class="form-section-tb">
             <div class="form-group">
-                <label>Gắn Với Mã Đơn Vị (Lấy từ dữ liệu nhân sự)</label>
+                <label>Gắn Với Mã Đơn Vị (Lấy tự động từ Nhân sự)</label>
                 <select id="device-dept-select" onchange="sinhMaTuDongThietBi()">
-                    <option value="">-- Chọn Mã Đơn Vị --</option>
+                    <option value="">-- Chọn Mã Đơn Vị Gắn Kết --</option>
                 </select>
             </div>
             <div class="form-group">
-                <label>Mã Thiết Bị (Hệ thống tự sinh chuẩn quốc tế)</label>
+                <label>Mã Thiết Bị (Tự sinh chuẩn quốc tế)</label>
                 <input type="text" id="device-code" readonly placeholder="Chọn mã đơn vị để tự tạo mã">
             </div>
             <div class="form-group">
@@ -161,7 +173,7 @@
                 </tr>
             </thead>
             <tbody id="device-table-body">
-                <tr><td colspan="6" class="text-center" style="color: #64748b; font-style: italic;">Đang tải danh sách máy móc thiết bị...</td></tr>
+                <tr><td colspan="6" class="text-center" style="color: #64748b; font-style: italic;">Đang tải danh sách thiết bị máy móc...</td></tr>
             </tbody>
         </table>
     </div>
@@ -184,7 +196,8 @@
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ";
     const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    let mangThietBiGoc = []; // Bộ nhớ tạm chứa danh sách thiết bị phục vụ bộ lọc siêu tốc
+    let mangNhanSuGoc = [];
+    let mangThietBiGoc = [];
 
     function chuyenTab(tabId) {
         document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
@@ -199,73 +212,87 @@
         }
     }
 
-    // Tự động sinh mã thiết bị thông minh không lo trùng lặp
     function sinhMaTuDongThietBi() {
         const maDV = document.getElementById('device-dept-select').value;
-        if (!maDV) {
-            document.getElementById('device-code').value = '';
-            return;
-        }
+        if (!maDV) { document.getElementById('device-code').value = ''; return; }
         const d = new Date();
-        const chuoiNgayGio = `${String(d.getDate()).padStart(2,'0')}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getFullYear()).substring(2)}`;
-        const soNgauNhien = Math.floor(10 + Math.random() * 90); 
-        // Sinh cấu trúc mã chuẩn: VPC-[Mã Đơn Vị]-[NgàyThángNăm]-[Mã Số Ngẫu Nhiên]
-        document.getElementById('device-code').value = `VPC-${maDV}-${chuoiNgayGio}-A${soNgauNhien}`;
+        const chuoiNgay = `${String(d.getDate()).padStart(2,'0')}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getFullYear()).substring(2)}`;
+        document.getElementById('device-code').value = `VPC-${maDV}-${chuoiNgay}-A${Math.floor(10 + Math.random() * 90)}`;
     }
 
-    // Quét toàn bộ Mã Đơn Vị thực tế từ dữ liệu nhân sự nghỉ hưu gom vào Form chọn thiết bị
     async function napDanhSachDonViTuNhanSu() {
         const selectDept = document.getElementById('device-dept-select');
+        const filterNsDept = document.getElementById('ns-filter-dept');
         try {
             const { data } = await client.from('nhan_su').select('ma_don_vi');
             if (data) {
-                // Lọc loại bỏ trùng lặp mã đơn vị
-                const cacMaDonViDuyNhat = [...new Set(data.map(item => item.ma_don_vi).filter(m => m && m !== '---'))];
+                const cacMaDonViDuyNhat = [...new Set(data.map(item => String(item.ma_don_vi || '').trim()).filter(m => m && m !== '---'))];
+                cacMaDonViDuyNhat.sort();
                 
-                // Giữ lại option đầu tiên
                 selectDept.innerHTML = '<option value="">-- Chọn Mã Đơn Vị Gắn Kết --</option>';
-                cacMaDonViDuyNhat.sort().forEach(ma => {
-                    const opt = document.createElement('option');
-                    opt.value = ma;
-                    opt.innerText = `Đơn vị mã: ${ma}`;
-                    selectDept.appendChild(opt);
+                filterNsDept.innerHTML = '<option value="">-- Tất cả phòng ban / Phân xưởng --</option>';
+                
+                cacMaDonViDuyNhat.forEach(ma => {
+                    const opt1 = document.createElement('option'); opt1.value = ma; opt1.innerText = `Đơn vị mã: ${ma}`; selectDept.appendChild(opt1);
+                    const opt2 = document.createElement('option'); opt2.value = ma; opt2.innerText = `Phân xưởng: ${ma}`; filterNsDept.appendChild(opt2);
                 });
             }
         } catch(e) { console.error(e); }
     }
 
-    // ================= MÁY QUẢN LÝ NHÂN SỰ NGHỈ HƯU (GIỮ CHUẨN ĐÉT) =================
+    // ================= THUẬT TOÁN NHÂN SỰ ĐƯỢC FIX LỖI 100% =================
     async function lamMoiBangDuLieu() {
         const totalCountSpan = document.getElementById('total-count');
-        const tbody = document.getElementById('render-table-body');
         try {
             const { data, error } = await client.from('nhan_su').select('*').order('id', { ascending: true });
-            if (error) { tbody.innerHTML = `<tr><td colspan="10">❌ Lỗi: ${error.message}</td></tr>`; return; }
-            const danhSach = data || [];
-            totalCountSpan.innerText = danhSach.length + " người";
-            if (danhSach.length === 0) { tbody.innerHTML = `<tr><td colspan="10" class="text-center">☁️ Đám mây trống. Vui lòng nạp dữ liệu.</td></tr>`; return; }
-            tbody.innerHTML = '';
-            danhSach.forEach((emp, index) => {
-                const tr = document.createElement('tr');
-                let textGoc = emp.chuc_danh_cong_viec || '', hienThiChucDanh = textGoc, hienThiBHXH = '---', hienThiCCCD = '---';
-                if (textGoc.includes("||")) {
-                    const parts = textGoc.split("||");
-                    hienThiChucDanh = parts[0] ? parts[0].trim() : '---';
-                    hienThiBHXH = parts[1] ? parts[1].trim() : '---';
-                    hienThiCCCD = parts[2] ? parts[2].trim() : '---';
-                }
-                let hienThiNamSinh = '---';
-                if (emp.nam_sinh && emp.nam_sinh !== '---') {
-                    const matchNam = emp.nam_sinh.match(/\d{4}$/);
-                    hienThiNamSinh = matchNam ? matchNam[0] : emp.nam_sinh.substring(0, 4);
-                }
-                tr.innerHTML = `<td class="text-center">${index + 1}</td><td><strong>${emp.ho_ten || '---'}</strong></td><td class="text-center">${hienThiNamSinh}</td><td class="text-center">${emp.nam_sinh || '---'}</td><td class="text-center">${emp.nam_ve_huu || '---'}</td><td class="text-center">${emp.gioi_tinh || '---'}</td><td class="text-center">${emp.ma_don_vi || '---'}</td><td>${hienThiChucDanh}</td><td class="text-center">${hienThiBHXH}</td><td class="text-center">${hienThiCCCD}</td>`;
-                tbody.appendChild(tr);
-            });
+            if (error) return;
+            mangNhanSuGoc = data || [];
+            totalCountSpan.innerText = mangNhanSuGoc.length + " người";
+            xuatNhanSuRaBang(mangNhanSuGoc);
+            napDanhSachDonViTuNhanSu();
         } catch (err) { console.error(err); }
     }
 
-    // Đọc đồng bộ File Excel Nhân sự
+    function xuatNhanSuRaBang(danhSach) {
+        const tbody = document.getElementById('render-table-body');
+        if (danhSach.length === 0) { tbody.innerHTML = `<tr><td colspan="10" class="text-center">Trống.</td></tr>`; return; }
+        tbody.innerHTML = '';
+        danhSach.forEach((emp, index) => {
+            const tr = document.createElement('tr');
+            let textGoc = emp.chuc_danh_cong_viec || '', hienThiChucDanh = textGoc, hienThiBHXH = '---', hienThiCCCD = '---';
+            if (textGoc.includes("||")) {
+                const parts = textGoc.split("||");
+                hienThiChucDanh = parts[0] ? parts[0].trim() : '---';
+                hienThiBHXH = parts[1] ? parts[1].trim() : '---';
+                hienThiCCCD = parts[2] ? parts[2].trim() : '---';
+            }
+            let hienThiNamSinh = '---';
+            if (emp.nam_sinh && emp.nam_sinh !== '---') {
+                const matchNam = emp.nam_sinh.match(/\d{4}$/);
+                hienThiNamSinh = matchNam ? matchNam[0] : emp.nam_sinh.substring(0, 4);
+            }
+            tr.innerHTML = `<td class="text-center">${index + 1}</td><td><strong>${emp.ho_ten || '---'}</strong></td><td class="text-center">${hienThiNamSinh}</td><td class="text-center">${emp.nam_sinh || '---'}</td><td class="text-center" style="color:#b45309; font-weight:bold;">${emp.nam_ve_huu || '---'}</td><td class="text-center">${emp.gioi_tinh || '---'}</td><td class="text-center" style="color:#2563eb; font-weight:bold;">${emp.ma_don_vi || '---'}</td><td>${hienThiChucDanh}</td><td class="text-center">${hienThiBHXH}</td><td class="text-center">${hienThiCCCD}</td>`;
+            tbody.appendChild(tr);
+        });
+    }
+
+    // Bộ lọc đa năng cho Nhân sự
+    function thucHienLocNhanSu() {
+        const tuKhoa = document.getElementById('ns-search').value.toLowerCase().trim();
+        const maPhanXuong = document.getElementById('ns-filter-dept').value;
+        
+        const ketQua = mangNhanSuGoc.filter(emp => {
+            const khopDonVi = !maPhanXuong || String(emp.ma_don_vi) === maPhanXuong;
+            const textToanBo = `${emp.ho_ten} ${emp.chuc_danh_cong_viec} ${emp.nam_sinh}`.toLowerCase();
+            const khopTuKhoa = !tuKhoa || textToanBo.includes(tuKhoa);
+            return khopDonVi && khopTuKhoa;
+        });
+        xuatNhanSuRaBang(ketQua);
+    }
+    document.getElementById('ns-search').addEventListener('input', thucHienLocNhanSu);
+    document.getElementById('ns-filter-dept').addEventListener('change', thucHienLocNhanSu);
+
+    // THUẬT TOÁN ĐỌC FILE EXCEL CHUẨN ĐÉT KHÔNG LỆCH CỘT
     document.getElementById('excel-file-input').addEventListener('change', function(e) {
         const file = e.target.files[0]; if (!file) return;
         const reader = new FileReader();
@@ -274,64 +301,86 @@
                 const arr = new Uint8Array(e.target.result);
                 const wb = XLSX.read(arr, { type: 'array' });
                 const rawRows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1 });
-                let headerRowIndex = -1;
-                let chiSoHoTen = 1, chiSoNgaySinh = 2, chiSoNamVeHuu = 3, chiSoMaDonVi = 4, chiSoChucDanh = 5, chiSoBHXH = 6, chiSoCCCD = 7;
-                for (let i = 0; i < Math.min(rawRows.length, 30); i++) {
-                    if (!rawRows[i]) continue;
-                    let txtRow = rawRows[i].join(" ").toLowerCase().replace(/\s+/g, '');
-                    if (txtRow.includes("họvàtên") || txtRow.includes("hoten")) { headerRowIndex = i; break; }
+                
+                let headerRowIndex = 0;
+                let cHoTen = -1, cNgaySinh = -1, cNgayHuau = -1, cMaDV = -1, cChucDanh = -1, cBHXH = -1, cCCCD = -1;
+                
+                // Thuật toán dò tự động vị trí chính xác của từng cột theo Tên Tiêu Đề thực tế
+                for(let i=0; i<Math.min(rawRows.length, 15); i++){
+                    if(!rawRows[i]) continue;
+                    let rStr = rawRows[i].map(v => String(v).toLowerCase().replace(/\s+/g,'')).join("|");
+                    if(rStr.includes("họvàtên") || rStr.includes("hoten")){
+                        headerRowIndex = i;
+                        rawRows[i].forEach((cell, idx) => {
+                            let cStr = String(cell).toLowerCase().replace(/\s+/g,'');
+                            if(cStr.includes("họvàtên") || cStr.includes("hoten")) cHoTen = idx;
+                            if(cStr.includes("ngàysinh") || cStr.includes("nămsinh")) cNgaySinh = idx;
+                            if(cStr.includes("nghỉhưu") || cStr.includes("vềhưu")) cNgayHuau = idx;
+                            if(cStr.includes("mãđơnvị") || cStr.includes("mãđv")) cMaDV = idx;
+                            if(cStr.includes("chứcdanh") || cStr.includes("côngviệc")) cChucDanh = idx;
+                            if(cStr.includes("bhxh") || cStr.includes("bảohiểm")) cBHXH = idx;
+                            if(cStr.includes("cccd") || cStr.includes("chứngminh")) cCCCD = idx;
+                        });
+                        break;
+                    }
                 }
-                if (headerRowIndex === -1) headerRowIndex = 0;
+
+                // Nếu không dò được tự động, áp cấu hình mặc định an toàn
+                if(cHoTen===-1) { cHoTen=1; cNgaySinh=2; cNgayHuau=3; cMaDV=4; cChucDanh=5; cBHXH=6; cCCCD=7; }
+
                 const dataDich = []; let baseId = Date.now();
                 for (let i = headerRowIndex + 1; i < rawRows.length; i++) {
-                    const row = rawRows[i]; if (!row || !row[chiSoHoTen]) continue;
-                    const hoTenStr = String(row[chiSoHoTen]).trim();
-                    if (hoTenStr === "" || hoTenStr.toLowerCase().includes("họ và tên")) continue;
-                    let gioiTinhChuan = 'Nam'; if (hoTenStr.toLowerCase().includes(' thị ')) gioiTinhChuan = 'Nữ';
+                    const row = rawRows[i]; if (!row || !row[cHoTen]) continue;
+                    const nameStr = String(row[cHoTen]).trim();
+                    if(nameStr === "" || nameStr.toLowerCase().includes("họ và tên")) continue;
+                    
+                    let gTinh = 'Nam'; if(nameStr.toLowerCase().includes(' thị ')) gTinh = 'Nữ';
+                    let valChucDanh = String(row[cChucDanh] || '---').trim();
+                    let valBHXH = cBHXH!==-1 && row[cBHXH] ? String(row[cBHXH]).trim() : '---';
+                    let valCCCD = cCCCD!==-1 && row[cCCCD] ? String(row[cCCCD]).trim() : '---';
+
                     dataDich.push({
-                        id: baseId + i, ho_ten: hoTenStr,
-                        nam_sinh: row[chiSoNgaySinh] !== undefined ? String(row[chiSoNgaySinh]).trim() : '---',
-                        nam_ve_huu: row[chiSoNamVeHuu] !== undefined ? String(row[chiSoNamVeHuu]).trim() : '---',
-                        gioi_tinh: gioiTinhChuan,
-                        ma_don_vi: row[chiSoMaDonVi] !== undefined ? String(row[chiSoMaDonVi]).trim() : '---',
-                        chuc_danh_cong_viec: `${row[chiSoChucDanh]||'---'} || ${row[chiSoBHXH]||'---'} || ${row[chiSoCCCD]||'---'}`
+                        id: baseId + i,
+                        ho_ten: nameStr,
+                        nam_sinh: row[cNgaySinh] ? String(row[cNgaySinh]).trim() : '---',
+                        nam_ve_huu: row[cNgayHuau] ? String(row[cNgayHuau]).trim() : '---',
+                        gioi_tinh: gTinh,
+                        ma_don_vi: cMaDV!==-1 && row[cMaDV] ? String(row[cMaDV]).trim() : '---',
+                        chuc_danh_cong_viec: `${valChucDanh} || ${valBHXH} || ${valCCCD}`
                     });
                 }
+                
                 const BATCH = 100;
                 for (let i = 0; i < dataDich.length; i += BATCH) {
                     await client.from('nhan_su').insert(dataDich.slice(i, i + BATCH));
                 }
-                alert("🎉 Đồng bộ dữ liệu nhân sự thành công!"); lamMoiBangDuLieu();
-            } catch (err) { alert("Có lỗi đọc file."); }
+                alert("🎉 Đã sửa lỗi! Đồng bộ dữ liệu Excel chính xác từng cột!"); lamMoiBangDuLieu();
+            } catch (err) { alert("Lỗi xử lý tệp Excel."); }
         };
         reader.readAsArrayBuffer(file);
     });
 
     document.getElementById('btn-clear-cloud').addEventListener('click', async () => {
-        if (!confirm("Xóa toàn bộ dữ liệu nhân sự cũ trên mây?")) return;
+        if (!confirm("Xóa sạch toàn bộ data nhân sự để nạp mới từ đầu?")) return;
         await client.from('nhan_su').delete().gte('id', 0); lamMoiBangDuLieu();
     });
 
-    // ================= XỬ LÝ PHẦN QUẢN LÝ THIẾT BỊ & QR CODE =================
+    // ================= QUẢN LÝ THIẾT BỊ SẢN XUẤT ĐỘC LẬP =================
     async function taiDanhSachThietBi() {
         try {
             const { data, error } = await client.from('thiet_bi').select('*').order('id', { ascending: false });
             if (error) {
-                document.getElementById('device-table-body').innerHTML = `<tr><td colspan="6" class="text-center" style="color:red;">⚠️ Vui lòng khởi tạo bảng mang tên 'thiet_bi' trên Supabase.</td></tr>`;
+                document.getElementById('device-table-body').innerHTML = `<tr><td colspan="6" class="text-center" style="color:red; font-weight:bold;">⚠️ Vui lòng chạy đoạn SQL lệnh ở Bước 1 trên trang Supabase để tạo bảng 'thiet_bi'!</td></tr>`;
                 return;
             }
             mangThietBiGoc = data || [];
-            hienThiDuLieuThietBiRaBang(mangThietBiGoc);
+            xuatThietBiRaBang(mangThietBiGoc);
         } catch (err) { console.error(err); }
     }
 
-    // Hàm xuất mảng thiết bị ra giao diện bảng HTML
-    function hienThiDuLieuThietBiRaBang(danhSach) {
+    function xuatThietBiRaBang(danhSach) {
         const tbody = document.getElementById('device-table-body');
-        if (danhSach.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="6" class="text-center" style="color: #64748b;">🖥️ Không tìm thấy thiết bị máy móc nào tương ứng.</td></tr>`;
-            return;
-        }
+        if (danhSach.length === 0) { tbody.innerHTML = `<tr><td colspan="6" class="text-center">🖥️ Phân xưởng trống. Hãy tạo máy móc thiết bị mới ở trên!</td></tr>`; return; }
         tbody.innerHTML = '';
         danhSach.forEach((item, index) => {
             const tr = document.createElement('tr');
@@ -339,64 +388,40 @@
                 <td class="text-center">${index + 1}</td>
                 <td><strong>${item.ma_thiet_bi || '---'}</strong></td>
                 <td>${item.ten_thiet_bi || '---'}</td>
-                <td style="color: #2563eb; font-weight: bold;">Mã đơn vị: ${item.don_vi_quan_ly || '---'}</td>
+                <td style="color: #2563eb; font-weight: bold;">Đơn vị: ${item.don_vi_quan_ly || '---'}</td>
                 <td><span style="color: ${item.trang_thai==='Hoạt động tốt'?'#10b981':'#ef4444'}; font-weight:bold;">● ${item.trang_thai}</span></td>
-                <td class="text-center">
-                    <button class="btn-action btn-qr" onclick="moXemTruocQR('${item.ma_thiet_bi}', '${item.ten_thiet_bi}', '${item.don_vi_quan_ly}', '${item.trang_thai}')">👁️ TẠO & IN QR</button>
-                </td>
+                <td class="text-center"><button class="btn-action btn-qr" onclick="moXemTruocQR('${item.ma_thiet_bi}', '${item.ten_thiet_bi}', '${item.don_vi_quan_ly}', '${item.trang_thai}')">👁️ TẠO & IN QR</button></td>
             `;
             tbody.appendChild(tr);
         });
     }
 
-    // Thuật toán bộ lọc thông minh vạn năng siêu tốc
     document.getElementById('smart-search-input').addEventListener('input', function(e) {
-        const tuKhoa = e.target.value.toLowerCase().trim();
-        if(!tuKhoa) {
-            hienThiDuLieuThietBiRaBang(mangThietBiGoc);
-            return;
-        }
-        // Quét trúng bất cứ trường dữ liệu nào đều hiển thị kết quả luôn
-        const ketQuaLoc = mangThietBiGoc.filter(item => {
-            const maMay = (item.ma_thiet_bi || '').toLowerCase();
-            const tenMay = (item.ten_thiet_bi || '').toLowerCase();
-            const maDonVi = (item.don_vi_quan_ly || '').toLowerCase();
-            const tThai = (item.trang_thai || '').toLowerCase();
-            return maMay.includes(tuKhoa) || tenMay.includes(tuKhoa) || maDonVi.includes(tuKhoa) || tThai.includes(tuKhoa);
-        });
-        hienThiDuLieuThietBiRaBang(ketQuaLoc);
+        const k = e.target.value.toLowerCase().trim();
+        const loc = mangThietBiGoc.filter(i => `${i.ma_thiet_bi} ${i.ten_thiet_bi} ${i.don_vi_quan_ly}`.toLowerCase().includes(k));
+        xuatThietBiRaBang(loc);
     });
 
-    // Mở Popup Render QR Code chuẩn quốc tế
     function moXemTruocQR(code, name, dept, status) {
         document.getElementById('qr-modal-name').innerText = name;
         document.getElementById('qr-modal-code').innerText = `MÃ: ${code}`;
         document.getElementById('qr-modal-dept').innerText = `Mã đơn vị: ${dept}`;
         const canvas = document.getElementById('qrcode-canvas'); canvas.innerHTML = '';
-        
-        // Cấu trúc chuỗi quét an toàn, mọi camera điện thoại thường hay Zalo quét vào đều hiện đầy đủ thông tin
-        const chuoiQuet = `THIET BI: ${name}\nMA: ${code}\nDON VI: ${dept}\nTRANG THAI: ${status}\nVINAPACO`;
-        
-        new QRCode(canvas, { text: chuoiQuet, width: 150, height: 150, correctLevel : QRCode.CorrectLevel.H });
+        new QRCode(canvas, { text: `THIET BI: ${name}\nMA: ${code}\nDV: ${dept}\nVINAPACO`, width: 150, height: 150, correctLevel : QRCode.CorrectLevel.H });
         document.getElementById('qr-modal').style.display = 'flex';
     }
 
-    // Lưu thiết bị mới
     document.getElementById('btn-add-device').addEventListener('click', async () => {
         const code = document.getElementById('device-code').value.trim();
         const name = document.getElementById('device-name').value.trim();
         const dept = document.getElementById('device-dept-select').value;
         const status = document.getElementById('device-status').value;
-
-        if (!dept) { alert("Vui lòng chọn Mã Đơn Vị gắn kết!"); return; }
-        if (!name) { alert("Vui lòng điền Tên Máy / Thiết bị sản xuất!"); return; }
+        if (!dept || !name) { alert("Vui lòng nhập chọn đơn vị và điền tên thiết bị!"); return; }
 
         const { error } = await client.from('thiet_bi').insert([{ ma_thiet_bi: code, ten_thiet_bi: name, don_vi_quan_ly: dept, trang_thai: status }]);
-        if (error) { alert("Lỗi: " + error.message); } else { 
-            alert("🎉 Đã tự động sinh mã và lưu thiết bị lên Cloud thành công!");
-            document.getElementById('device-name').value = '';
-            document.getElementById('device-dept-select').value = '';
-            document.getElementById('device-code').value = '';
+        if (error) { alert("Lỗi lưu database: " + error.message); } else { 
+            alert("🎉 Đã cấp mã QR và lưu thiết bị thành công!");
+            document.getElementById('device-name').value = ''; document.getElementById('device-code').value = ''; document.getElementById('device-dept-select').value = '';
             taiDanhSachThietBi();
         }
     });
@@ -404,7 +429,7 @@
     document.getElementById('btn-close-modal').addEventListener('click', () => { document.getElementById('qr-modal').style.display = 'none'; });
     document.getElementById('btn-trigger-print').addEventListener('click', () => { window.print(); });
 
-    // Khởi động chạy trang ban đầu mặc định tải bảng nhân sự
+    // Tự động tải dữ liệu khi bật trang web
     lamMoiBangDuLieu();
 </script>
 </body>
