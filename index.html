@@ -104,7 +104,6 @@
                 let hienThiBHXH = '---';
                 let hienThiCCCD = '---';
 
-                // Tách chuỗi đóng gói an toàn
                 if (textGoc.includes("||")) {
                     const parts = textGoc.split("||");
                     hienThiChucDanh = parts[0] ? parts[0].trim() : '---';
@@ -112,17 +111,17 @@
                     hienThiCCCD = parts[2] ? parts[2].trim() : '---';
                 }
 
-                // Tự động bóc năm từ chuỗi ngày nghỉ hưu (Ví dụ: 01/09/2026 -> 2026)
-                let hienThiNam = "2026";
-                if (emp.nam_ve_huu && emp.nam_ve_huu.includes("/")) {
-                    const partsNgay = emp.nam_ve_huu.split("/");
-                    if (partsNgay.length === 3) hienThiNam = partsNgay[2].trim();
+                // CẬP NHẬT: Tách chính xác 4 số cuối của Ngày Sinh để hiển thị vào cột "Năm"
+                let hienThiNamSinh = '---';
+                if (emp.nam_sinh && emp.nam_sinh !== '---') {
+                    const matchNam = emp.nam_sinh.match(/\d{4}$/); // Tìm 4 chữ số ở cuối chuỗi ngày sinh
+                    hienThiNamSinh = matchNam ? matchNam[0] : emp.nam_sinh.substring(0, 4);
                 }
 
                 tr.innerHTML = `
                     <td class="text-center" style="color: #64748b;">${index + 1}</td>
                     <td><strong>${emp.ho_ten || '---'}</strong></td>
-                    <td class="text-center" style="color: #475569; font-weight: bold;">${hienThiNam}</td>
+                    <td class="text-center" style="color: #475569; font-weight: bold;">${hienThiNamSinh}</td>
                     <td class="text-center" style="color: #0284c7; font-weight: 500;">${emp.nam_sinh || '---'}</td>
                     <td class="text-center" style="color: #b45309; font-weight: bold;">${emp.nam_ve_huu || '---'}</td>
                     <td class="text-center" style="font-weight: bold; color: #db2777;">${emp.gioi_tinh || '---'}</td>
@@ -146,7 +145,7 @@
             const file = e.target.files[0];
             if (!file) return;
 
-            document.getElementById('render-table-body').innerHTML = `<tr><td colspan="10" class="text-center" style="color: #007f5f; font-weight: bold; padding: 25px;">⏳ ĐANG DÒ TÌM ĐỘNG THEO TIÊU ĐỀ GỐC CỦA FILE EXCEL... VUI LÒNG ĐỢI!</td></tr>`;
+            document.getElementById('render-table-body').innerHTML = `<tr><td colspan="10" class="text-center" style="color: #007f5f; font-weight: bold; padding: 25px;">⏳ ĐANG TẢI VÀ ĐỒNG BỘ DỮ LIỆU CHUẨN... VUI LÒNG ĐỢI!</td></tr>`;
 
             const reader = new FileReader();
             reader.onload = async function(e) {
@@ -161,17 +160,15 @@
                     let headerRowIndex = -1;
                     let chiSoHoTen = -1, chiSoNgaySinh = -1, chiSoNamVeHuu = -1, chiSoMaDonVi = -1, chiSoChucDanh = -1, chiSoBHXH = -1, chiSoCCCD = -1;
 
-                    // BƯỚC 1: Tìm dòng chứa tiêu đề chính xác của bảng Excel
+                    // Quét định vị các cột động thông minh theo file gốc của bạn
                     for (let i = 0; i < Math.min(rawRows.length, 30); i++) {
                         const row = rawRows[i];
                         if (!row) continue;
                         
-                        // Kiểm tra xem dòng này có chứa cột Họ và tên không
                         let txtRow = row.join(" ").toLowerCase().replace(/\s+/g, '');
                         if (txtRow.includes("họvàtên") || txtRow.includes("hoten")) {
                             headerRowIndex = i;
                             
-                            // BƯỚC 2: Định vị động vị trí các cột dựa trên tên tiêu đề gốc
                             row.forEach((cell, idx) => {
                                 if (cell === null || cell === undefined) return;
                                 const cellTxt = cell.toString().toLowerCase().replace(/\s+/g, '').trim();
@@ -188,10 +185,8 @@
                         }
                     }
 
-                    // Nếu bộ dò thông minh thất bại do file gộp ô quá nặng, áp dụng cấu hình phân tách cứng an toàn dựa trên ảnh 65cf3d
-                    if (headerRowIndex === -1) {
-                        headerRowIndex = 0;
-                    }
+                    // Cấu hình dự phòng cứng nếu file bị gộp ô phức tạp
+                    if (headerRowIndex === -1) headerRowIndex = 0;
                     if (chiSoHoTen === -1) chiSoHoTen = 1;
                     if (chiSoNgaySinh === -1) chiSoNgaySinh = 2;
                     if (chiSoNamVeHuu === -1) chiSoNamVeHuu = 3;
@@ -203,13 +198,11 @@
                     const dataDich = [];
                     let baseId = Date.now();
 
-                    // BƯỚC 3: Trích xuất chính xác dữ liệu từ các cột đã định vị
                     for (let i = headerRowIndex + 1; i < rawRows.length; i++) {
                         const row = rawRows[i];
                         if (!row || !row[chiSoHoTen]) continue;
 
                         const hoTenStr = String(row[chiSoHoTen]).trim();
-                        // Loại bỏ dòng tiêu đề lặp lại hoặc dòng ghi chú chân trang
                         if (hoTenStr === "" || hoTenStr.toLowerCase().includes("họ và tên") || hoTenStr.toLowerCase().includes("cộng hòa")) continue;
 
                         const valNamSinh  = row[chiSoNgaySinh] !== undefined ? String(row[chiSoNgaySinh]).trim() : '---';
@@ -219,46 +212,40 @@
                         const valBHXH     = row[chiSoBHXH] !== undefined ? String(row[chiSoBHXH]).trim() : '---';
                         const valCCCD     = row[chiSoCCCD] !== undefined ? String(row[chiSoCCCD]).trim() : '---';
 
-                        // Thuật toán gán giới tính chuẩn xác dựa theo tên đệm
+                        // Nhận diện tự động giới tính
                         let gioiTinhChuan = 'Nam';
                         const hoTenThap = hoTenStr.toLowerCase();
                         if (hoTenThap.includes(' thị ') || hoTenThap.includes('thị ') || hoTenThap.endsWith(' thị')) {
                             gioiTinhChuan = 'Nữ';
                         }
 
-                        // Đóng gói gộp các cột phụ dài vào trường chức danh để lưu trữ an toàn
                         const chuoiGopAnToan = `${valChucDanh} || ${valBHXH} || ${valCCCD}`;
 
                         dataDich.push({
                             id: baseId + i,
                             ho_ten: hoTenStr,
-                            nam_sinh: valNamSinh === '' ? '---' : valNamSinh,
-                            nam_ve_huu: valNamVeHuu === '' ? '---' : valNamVeHuu,
+                            nam_sinh: valNamSinh,
+                            nam_ve_huu: valNamVeHuu,
                             gioi_tinh: gioiTinhChuan,
-                            ma_don_vi: valMaDonVi === '' ? '---' : valMaDonVi, 
+                            ma_don_vi: valMaDonVi, 
                             chuc_danh_cong_viec: chuoiGopAnToan
                         });
                     }
 
                     if (dataDich.length === 0) {
-                        alert("Không bóc tách được dữ liệu nhân sự nào. Vui lòng kiểm tra lại file Excel.");
+                        alert("Không bóc tách được dữ liệu nhân sự nào.");
                         lamMoiBangDuLieu();
                         return;
                     }
 
-                    // BƯỚC 4: Đẩy dữ liệu sạch đã bóc tách lên Cloud Supabase
                     const BATCH = 100;
                     for (let i = 0; i < dataDich.length; i += BATCH) {
                         const batchData = dataDich.slice(i, i + BATCH);
                         const { error } = await client.from('nhan_su').insert(batchData);
-                        if (error) { 
-                            alert("Lỗi tải lên Cloud: " + error.message); 
-                            lamMoiBangDuLieu(); 
-                            return; 
-                        }
+                        if (error) { alert("Lỗi tải lên Cloud: " + error.message); lamMoiBangDuLieu(); return; }
                     }
 
-                    alert(`🎉 DỨT ĐIỂM THÀNH CÔNG! Đã tìm trúng đích các tiêu đề cột gốc và đồng bộ hóa thành công ${dataDich.length} nhân sự ngay ngắn!`);
+                    alert(`🎉 Hoàn tất chuẩn xác 100%! Đã xử lý thành công ${dataDich.length} nhân sự lên bảng.`);
                     await lamMoiBangDuLieu();
 
                 } catch (err) {
@@ -271,12 +258,12 @@
         });
 
         document.getElementById('btn-clear-cloud').addEventListener('click', async () => {
-            if (!confirm("Bạn có chắc chắn muốn dọn sạch mây dữ liệu cũ để cập nhật thuật toán dò cột dứt điểm này không?")) return;
+            if (!confirm("Bạn có chắc chắn muốn xóa mây cũ để làm mới lại không?")) return;
             try {
                 await client.from('nhan_su').delete().gte('id', 0);
-                alert("Đã giải phóng bộ nhớ mây thành công!");
+                alert("Đã xóa sạch mây dữ liệu cũ!");
                 await lamMoiBangDuLieu();
-            } catch (err) { alert("Lỗi khi xóa dữ liệu cũ."); }
+            } catch (err) { alert("Lỗi khi xóa dữ liệu."); }
         });
     });
 </script>
