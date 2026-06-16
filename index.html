@@ -376,7 +376,7 @@
                 hienThiNguoiQL = bop[1].trim();
             }
 
-            // SỬA LỖI BIỂU TƯỢNG KÉP: Loại bỏ hoàn toàn emoji cũ trong Database để đồng bộ
+            // FIX KHÔNG CÒN BIỂU TƯỢNG KÉP: Xử lý chuỗi text thô loại bỏ emoji trùng lặp trong database
             trangThaiThucTe = trangThaiThucTe.replace(/🟢|🟡|🔴/g, '').trim();
 
             let iconTrangThai = '🟢';
@@ -431,7 +431,7 @@
     }
     document.getElementById('smart-search-input').addEventListener('input', locDuLieuThietBiHopNhat);
 
-    // CÔNG NGHỆ DATA URI SMART QR: Tự động tạo giao diện động trực tiếp vào QR Link
+    // PHƯƠNG PHÁP TEXT CẤU TRÚC GỌN: Đảm bảo Zalo ăn 100% chữ và Camera đọc trực tiếp không lỗi
     function moXemTruocQRTheoId(idThietBi) {
         const thietBi = mangThietBiGoc.find(x => x.id === idThietBi);
         if(!thietBi) { alert("Không tìm thấy dữ liệu máy móc này!"); return; }
@@ -453,11 +453,10 @@
         let userSach = userThucTe.replace(/👤/g, '').trim();
         
         let iconTrangThai = '🟢';
-        let colorTrangThai = '#10b981';
-        if (statusThucTe.toLowerCase().includes('bảo trì')) { iconTrangThai = '🟡'; colorTrangThai = '#f59e0b'; }
-        if (statusThucTe.toLowerCase().includes('sự cố') || statusThucTe.toLowerCase().includes('chờ sửa')) { iconTrangThai = '🔴'; colorTrangThai = '#ef4444'; }
+        if (statusThucTe.toLowerCase().includes('bảo trì')) iconTrangThai = '🟡';
+        if (statusThucTe.toLowerCase().includes('sự cố') || statusThucTe.toLowerCase().includes('chờ sửa')) iconTrangThai = '🔴';
 
-        // Đổ chữ ra khung xem trước tem in trên phần mềm
+        // Ghi dữ liệu trực quan lên khung tem in của phần mềm
         if(document.getElementById('qr-modal-name')) document.getElementById('qr-modal-name').innerText = `Máy: ${name}`;
         if(document.getElementById('qr-modal-code')) document.getElementById('qr-modal-code').innerText = `MÃ: ${code}`;
         if(document.getElementById('qr-modal-dept')) document.getElementById('qr-modal-dept').innerText = `Đơn vị: ${dept}`;
@@ -468,41 +467,12 @@
         if (canvasContainer) {
             canvasContainer.innerHTML = ''; 
             
-            // TẠO GIAO DIỆN WEB ĐỘNG NÉN TRONG ĐƯỜNG LINK DATA:URL
-            const htmlGiaoDien = `data:text/html;charset=utf-8,${encodeURIComponent(`
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <meta charset="utf-8">
-                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                    <title>Thông Tin Thiết Bị VINAPACO</title>
-                    <style>
-                        body { font-family: sans-serif; background: #f0f4f8; margin: 0; padding: 15px; display: flex; justify-content: center; align-items: center; min-height: 90vh; }
-                        .card { background: white; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 400px; padding: 25px; border-top: 8px solid #1e3a8a; }
-                        h2 { color: #1e3a8a; margin: 0 0 15px 0; font-size: 20px; text-transform: uppercase; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
-                        .info-group { margin-bottom: 12px; font-size: 15px; }
-                        .label { font-weight: bold; color: #475569; display: block; margin-bottom: 3px; }
-                        .val { color: #0f172a; font-weight: 500; font-size: 16px; }
-                        .badge { display: inline-block; padding: 6px 12px; border-radius: 20px; font-weight: bold; color: white; background: ${colorTrangThai}; }
-                        .footer { margin-top: 25px; text-align: center; font-size: 12px; color: #94a3b8; font-weight: bold; text-transform: uppercase; }
-                    </style>
-                </head>
-                <body>
-                    <div class="card">
-                        <h2>⚙️ HỒ SƠ THIẾT BỊ</h2>
-                        <div class="info-group"><span class="label">Tên Máy / Thiết Bị:</span><span class="val" style="color:#1e3a8a; font-weight:bold;">${name}</span></div>
-                        <div class="info-group"><span class="label">Mã Số Định Danh (ID):</span><span class="val" style="color:#2563eb; font-weight:bold;">${code}</span></div>
-                        <div class="info-group"><span class="label">Phân Xưởng / Đơn Vị:</span><span class="val">${dept}</span></div>
-                        <div class="info-group"><span class="label">Cán Bộ Chịu Trách Nhiệm:</span><span class="val" style="color:#059669;">👤 ${userSach}</span></div>
-                        <div class="info-group" style="margin-top: 15px;"><span class="label">Trạng Thái Vận Hành:</span><div class="badge">${iconTrangThai} ${statusSach}</div></div>
-                        <div class="footer">TỔNG CÔNG TY GIẤY VIỆT NAM - VINAPACO</div>
-                    </div>
-                </body>
-                </html>
-            `)}`
+            // CHUỖI DỮ LIỆU ĐƯỢC THIẾT KẾ ĐẶC BIỆT GỌN GÀNG, KHÔNG XUỐNG DÒNG PHỨC TẠP
+            // Định dạng này giúp mọi máy ảnh nhận diện là Text thông tin, hiển thị ô xem nhanh trên màn hình mà không đẩy lên Google
+            const chuoiDuLieuQRSach = `[VINAPACO] - MA THIET BI: ${code} | TEN MAY: ${name} | PHAN XUONG: ${dept} | NGUOI QUAN LY: ${userSach} | TRANG THAI: ${statusSach}`;
             
             const elQr = kjua({
-                text: htmlGiaoDien,
+                text: chuoiDuLieuQRSach,
                 size: 130,
                 render: 'canvas',
                 crisp: true,
@@ -543,7 +513,7 @@
     document.getElementById('btn-trigger-print').addEventListener('click', () => { window.print(); });
 
     // Khởi chạy mặc định
-    lamMoiBangDu Lieu();
+    lamMoiBangDuLieu();
 </script>
 </body>
 </html>
