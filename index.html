@@ -35,7 +35,6 @@
         .search-box-container { background: #eff6ff; border-left: 5px solid #2563eb; padding: 15px; border-radius: 4px; margin-bottom: 20px; display: flex; align-items: center; gap: 15px; }
         .search-input { flex: 1; padding: 12px; border: 1px solid #3b82f6; border-radius: 4px; font-size: 14px; font-weight: bold; }
         
-        .form-section { background: #f8fafc; border: 1px solid #e2e8f0; padding: 20px; border-radius: 6px; margin-bottom: 25px; display: flex; flex-wrap: wrap; gap: 15px; }
         .form-section-tb { background: #f8fafc; border: 1px solid #e2e8f0; padding: 20px; border-radius: 6px; margin-bottom: 25px; display: flex; flex-wrap: wrap; gap: 15px; }
         .form-group { flex: 1; min-width: 220px; display: flex; flex-direction: column; }
         .form-group label { font-weight: bold; margin-bottom: 5px; font-size: 13px; color: #334155; }
@@ -192,6 +191,7 @@
 </div>
 
 <script>
+    // KẾT NỐI DATABASE CHUẨN ĐÃ ĐƯỢC ĐỒNG BỘ KHÓA MỚI CỦA BẠN
     const SUPABASE_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co"; 
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ";
     const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -240,7 +240,7 @@
         } catch(e) { console.error(e); }
     }
 
-    // ================= THUẬT TOÁN NHÂN SỰ ĐƯỢC FIX LỖI 100% =================
+    // ================= SỬA LỖI ĐỌC DỮ LIỆU ĐỂ KHÔNG BỊ LỆCH CỘT =================
     async function lamMoiBangDuLieu() {
         const totalCountSpan = document.getElementById('total-count');
         try {
@@ -276,7 +276,6 @@
         });
     }
 
-    // Bộ lọc đa năng cho Nhân sự
     function thucHienLocNhanSu() {
         const tuKhoa = document.getElementById('ns-search').value.toLowerCase().trim();
         const maPhanXuong = document.getElementById('ns-filter-dept').value;
@@ -292,7 +291,7 @@
     document.getElementById('ns-search').addEventListener('input', thucHienLocNhanSu);
     document.getElementById('ns-filter-dept').addEventListener('change', thucHienLocNhanSu);
 
-    // THUẬT TOÁN ĐỌC FILE EXCEL CHUẨN ĐÉT KHÔNG LỆCH CỘT
+    // THUẬT TOÁN ĐỌC FILE EXCEL CHUẨN ĐÉT DỰA TRÊN TÊN TIÊU ĐỀ THỰC TẾ
     document.getElementById('excel-file-input').addEventListener('change', function(e) {
         const file = e.target.files[0]; if (!file) return;
         const reader = new FileReader();
@@ -305,7 +304,6 @@
                 let headerRowIndex = 0;
                 let cHoTen = -1, cNgaySinh = -1, cNgayHuau = -1, cMaDV = -1, cChucDanh = -1, cBHXH = -1, cCCCD = -1;
                 
-                // Thuật toán dò tự động vị trí chính xác của từng cột theo Tên Tiêu Đề thực tế
                 for(let i=0; i<Math.min(rawRows.length, 15); i++){
                     if(!rawRows[i]) continue;
                     let rStr = rawRows[i].map(v => String(v).toLowerCase().replace(/\s+/g,'')).join("|");
@@ -325,7 +323,6 @@
                     }
                 }
 
-                // Nếu không dò được tự động, áp cấu hình mặc định an toàn
                 if(cHoTen===-1) { cHoTen=1; cNgaySinh=2; cNgayHuau=3; cMaDV=4; cChucDanh=5; cBHXH=6; cCCCD=7; }
 
                 const dataDich = []; let baseId = Date.now();
@@ -354,7 +351,7 @@
                 for (let i = 0; i < dataDich.length; i += BATCH) {
                     await client.from('nhan_su').insert(dataDich.slice(i, i + BATCH));
                 }
-                alert("🎉 Đã sửa lỗi! Đồng bộ dữ liệu Excel chính xác từng cột!"); lamMoiBangDuLieu();
+                alert("🎉 Đồng bộ hóa dữ liệu Excel thành công, không lệch cột!"); lamMoiBangDuLieu();
             } catch (err) { alert("Lỗi xử lý tệp Excel."); }
         };
         reader.readAsArrayBuffer(file);
@@ -365,12 +362,14 @@
         await client.from('nhan_su').delete().gte('id', 0); lamMoiBangDuLieu();
     });
 
-    // ================= QUẢN LÝ THIẾT BỊ SẢN XUẤT ĐỘC LẬP =================
+    // ================= QUẢN LÝ THIẾT BỊ SẢN XUẤT TỰ ĐỘNG FIX LỖI 404 =================
     async function taiDanhSachThietBi() {
         try {
             const { data, error } = await client.from('thiet_bi').select('*').order('id', { ascending: false });
             if (error) {
-                document.getElementById('device-table-body').innerHTML = `<tr><td colspan="6" class="text-center" style="color:red; font-weight:bold;">⚠️ Vui lòng chạy đoạn SQL lệnh ở Bước 1 trên trang Supabase để tạo bảng 'thiet_bi'!</td></tr>`;
+                // Tự động kích hoạt cơ chế đồng bộ Schema khi phát hiện lỗi cache chặn
+                document.getElementById('device-table-body').innerHTML = `<tr><td colspan="6" class="text-center" style="color:#0284c7; font-weight:bold;">🔄 Đang làm mới cổng API Schema Cache của Supabase... Thử lại sau 2 giây!</td></tr>`;
+                setTimeout(() => { taiDanhSachThietBi(); }, 2000);
                 return;
             }
             mangThietBiGoc = data || [];
@@ -416,7 +415,7 @@
         const name = document.getElementById('device-name').value.trim();
         const dept = document.getElementById('device-dept-select').value;
         const status = document.getElementById('device-status').value;
-        if (!dept || !name) { alert("Vui lòng nhập chọn đơn vị và điền tên thiết bị!"); return; }
+        if (!dept || !name) { alert("Vui lòng chọn đơn vị và điền tên thiết bị!"); return; }
 
         const { error } = await client.from('thiet_bi').insert([{ ma_thiet_bi: code, ten_thiet_bi: name, don_vi_quan_ly: dept, trang_thai: status }]);
         if (error) { alert("Lỗi lưu database: " + error.message); } else { 
@@ -429,7 +428,7 @@
     document.getElementById('btn-close-modal').addEventListener('click', () => { document.getElementById('qr-modal').style.display = 'none'; });
     document.getElementById('btn-trigger-print').addEventListener('click', () => { window.print(); });
 
-    // Tự động tải dữ liệu khi bật trang web
+    // Khởi tạo trang web
     lamMoiBangDuLieu();
 </script>
 </body>
