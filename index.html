@@ -99,7 +99,7 @@
         <h2>Hệ Thống Thiết Bị & Cấp Mã QR Tự Động</h2>
         <div class="search-box-container">
             <span style="font-weight: bold; color: #1e3a8a;">🔍 BỘ LỌC THÔNG MINH:</span>
-            <input type="text" id="smart-search-input" class="search-input" placeholder="Gõ từ khóa tìm máy siêu tốc...">
+            <input type="text" id="smart-search-input" class="search-input" placeholder="Gõ từ khóa tìm máy hoặc người quản lý...">
             <select id="filter-status-select" class="filter-select-status" onchange="locDuLieuThietBiHopNhat()">
                 <option value="">-- Lọc theo Trạng thái --</option>
                 <option value="Hoạt động tốt">🟢 Hoạt động tốt</option>
@@ -109,13 +109,19 @@
         </div>
         <div class="form-section-tb">
             <div class="form-group">
-                <label>Gắn Với Mã Đơn Vị</label>
-                <select id="device-dept-select" onchange="sinhMaTuDongThietBi()"><option value="">-- Chọn Mã Đơn Vị --</option></select>
+                <label>Gắn Với Mã Đơn Vi</label>
+                <select id="device-dept-select" onchange="xuLyThayDoiDonVi()"><option value="">-- Chọn Mã Đơn Vị --</option></select>
+            </div>
+            <div class="form-group">
+                <label>Người Chịu Trách Nhiệm</label>
+                <select id="device-user-select">
+                    <option value="Chưa phân công">-- Chọn người quản lý --</option>
+                </select>
             </div>
             <div class="form-group"><label>Mã Thiết Bị</label><input type="text" id="device-code" readonly></div>
             <div class="form-group"><label>Tên Thiết Bị / Máy Móc</label><input type="text" id="device-name" placeholder="Ví dụ: Máy Nghiền Bột Giấy"></div>
             <div class="form-group">
-                <label>Trạng Tái</label>
+                <label>Trạng Thái</label>
                 <select id="device-status">
                     <option value="Hoạt động tốt">Hoạt động tốt</option>
                     <option value="Đang bảo trì">Đang bảo trì</option>
@@ -126,7 +132,7 @@
         </div>
         <table>
             <thead>
-                <tr><th>STT</th><th>Mã Thiết Bị (QR)</th><th>Tên Thiết Bị / Máy Móc</th><th>Mã Đơn Vị Gắn Kết</th><th>Trạng Thái</th><th class="text-center">Tác Vụ</th></tr>
+                <tr><th>STT</th><th>Mã Thiết Bị (QR)</th><th>Tên Thiết Bị / Máy Móc</th><th>Đơn Vị & Người Quản Lý</th><th>Trạng Thái</th><th class="text-center">Tác Vụ</th></tr>
             </thead>
             <tbody id="device-table-body"><tr><td colspan="6" class="text-center">Đang tải...</td></tr></tbody>
         </table>
@@ -140,7 +146,8 @@
         <p style="margin:2px 0; font-size:10px; font-weight:bold;" id="qr-modal-dept">Đơn vị: ---</p>
         <div id="qrcode-canvas"></div>
         <strong style="font-size:11px;" id="qr-modal-name">Máy: ---</strong>
-        <p style="margin:2px 0 8px 0; font-weight:bold; color:#2563eb; font-size:11px;" id="qr-modal-code">Mã: ---</p>
+        <p style="margin:2px 0 2px 0; font-weight:bold; color:#2563eb; font-size:11px;" id="qr-modal-code">Mã: ---</p>
+        <p style="margin:0 0 8px 0; color:#059669; font-size:10px; font-weight:bold;" id="qr-modal-user">QL: ---</p>
         <button class="btn-print no-print" id="btn-trigger-print">🖨️ IN TEM NHIỆT KHỔ CẦM TAY</button>
     </div>
 </div>
@@ -159,7 +166,12 @@
         document.getElementById(tabId).classList.add('active');
         event.currentTarget.classList.add('active');
         if(tabId === 'tab-nhansu') lamMoiBangDuLieu();
-        if(tabId === 'tab-thietbi') { napDanhSachDonViTuNhanSu(); taiDanhSachThietBi(); }
+        if(tabId === 'tab-thietbi') { napDanhSachDonViVaNhanSu(); taiDanhSachThietBi(); }
+    }
+
+    function xuLyThayDoiDonVi() {
+        sinhMaTuDongThietBi();
+        capNhatDanhSachNguoiTheoDonVi();
     }
 
     function sinhMaTuDongThietBi() {
@@ -170,15 +182,19 @@
         document.getElementById('device-code').value = `VPC-${maDV}-${chuoiNgay}-A${Math.floor(10 + Math.random() * 90)}`;
     }
 
-    async function napDanhSachDonViTuNhanSu() {
+    // CẢI TIẾN: Đồng bộ tải cả mã đơn vị lẫn danh sách tên nhân sự tương ứng
+    async function napDanhSachDonViVaNhanSu() {
         const selectDept = document.getElementById('device-dept-select');
         const filterNsDept = document.getElementById('ns-filter-dept');
         try {
-            const { data } = await client.from('nhan_su').select('ma_don_vi');
+            const { data } = await client.from('nhan_su').select('ma_don_vi, ho_ten');
             if (data) {
+                mangNhanSuGoc = data || [];
                 const uniques = [...new Set(data.map(item => String(item.ma_don_vi || '').trim()).filter(m => m && m !== '---'))].sort();
+                
                 selectDept.innerHTML = '<option value="">-- Chọn Mã Đơn Vị --</option>';
                 filterNsDept.innerHTML = '<option value="">-- Tất cả phòng ban --</option>';
+                
                 uniques.forEach(ma => {
                     const opt1 = document.createElement('option'); opt1.value = ma; opt1.innerText = `Đơn vị mã: ${ma}`; selectDept.appendChild(opt1);
                     const opt2 = document.createElement('option'); opt2.value = ma; opt2.innerText = `Phân xưởng: ${ma}`; filterNsDept.appendChild(opt2);
@@ -187,13 +203,30 @@
         } catch(e) { console.error(e); }
     }
 
+    // CẢI TIẾN: Tự động đổi danh sách tên người khi chọn mã đơn vị
+    function capNhatDanhSachNguoiTheoDonVi() {
+        const maDV = document.getElementById('device-dept-select').value;
+        const selectUser = document.getElementById('device-user-select');
+        selectUser.innerHTML = '<option value="Chưa phân công">-- Chọn người quản lý --</option>';
+        
+        if (!maDV) return;
+
+        const nguoiThuocDonVi = mangNhanSuGoc.filter(item => String(item.ma_don_vi).trim() === maDV);
+        nguoiThuocDonVi.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.ho_ten;
+            opt.innerText = p.ho_ten;
+            selectUser.appendChild(opt);
+        });
+    }
+
     async function lamMoiBangDuLieu() {
         try {
             const { data } = await client.from('nhan_su').select('*').order('id', { ascending: true });
             mangNhanSuGoc = data || [];
             document.getElementById('total-count').innerText = mangNhanSuGoc.length + " người";
             xuatNhanSuRaBang(mangNhanSuGoc);
-            napDanhSachDonViTuNhanSu();
+            napDanhSachDonViVaNhanSu();
         } catch (err) { console.error(err); }
     }
 
@@ -292,7 +325,6 @@
         await client.from('nhan_su').delete().gte('id', 0); lamMoiBangDuLieu();
     });
 
-    // SỬA DỨT ĐIỂM: Hàm tải danh sách chấp nhận mảng trống khi chưa có thiết bị nào
     async function taiDanhSachThietBi() {
         const tbody = document.getElementById('device-table-body');
         try {
@@ -317,14 +349,29 @@
         tbody.innerHTML = '';
         danhSach.forEach((item, index) => {
             const tr = document.createElement('tr');
+            
+            // CẢI TIẾN: Đọc tên người quản lý được lưu trong cột trạng thái phụ (nếu có tách chuỗi) hoặc mặc định độc lập
+            let hienThiNguoiQL = "Chưa rõ";
+            let textGocTrangThai = item.trang_thai || 'Hoạt động tốt';
+            let trangThaiThucTe = textGocTrangThai;
+            
+            if (textGocTrangThai.includes("||")) {
+                const bop = textGocTrangThai.split("||");
+                trangThaiThucTe = bop[0].trim();
+                hienThiNguoiQL = bop[1].trim();
+            }
+
             tr.innerHTML = `
                 <td class="text-center">${index + 1}</td>
                 <td><strong>${item.ma_thiet_bi || '---'}</strong></td>
                 <td>${item.ten_thiet_bi || '---'}</td>
-                <td style="color: #2563eb; font-weight: bold;">Đơn vị: ${item.don_vi_quan_ly || '---'}</td>
-                <td><span style="color: ${item.trang_thai==='Hoạt động tốt'?'#10b981':item.trang_thai==='Đang bảo trì'?'#f59e0b':'#ef4444'}; font-weight:bold;">● ${item.trang_thai}</span></td>
+                <td>
+                    <div style="color: #2563eb; font-weight: bold;">Đơn vị: ${item.don_vi_quan_ly || '---'}</div>
+                    <div style="color: #059669; font-size: 12px; font-weight: bold;">👤 QL: ${hienThiNguoiQL}</div>
+                </td>
+                <td><span style="color: ${trangThaiThucTe==='Hoạt động tốt'?'#10b981':trangThaiThucTe==='Đang bảo trì'?'#f59e0b':'#ef4444'}; font-weight:bold;">● ${trangThaiThucTe}</span></td>
                 <td class="text-center">
-                    <button class="btn-action btn-qr" onclick="moXemTruocQR('${item.ma_thiet_bi}', '${item.ten_thiet_bi}', '${item.don_vi_quan_ly}', '${item.trang_thai}')">👁️ TEM IN QR</button>
+                    <button class="btn-action btn-qr" onclick="moXemTruocQR('${item.ma_thiet_bi}', '${item.ten_thiet_bi}', '${item.don_vi_quan_ly}', '${trangThaiThucTe}', '${hienThiNguoiQL}')">👁️ TEM IN QR</button>
                     <button class="btn-action btn-del" onclick="xoaThietBiKhoiCloud(${item.id})">🗑️ XÓA</button>
                 </td>
             `;
@@ -344,20 +391,27 @@
         const tuKhoa = document.getElementById('smart-search-input').value.toLowerCase().trim();
         const trangThai = document.getElementById('filter-status-select').value;
         const mangSauLoc = mangThietBiGoc.filter(item => {
-            const khopTrangThai = !trangThai || item.trang_thai === trangThai;
-            const chuoiTongHop = `${item.ma_thiet_bi} ${item.ten_thiet_bi} ${item.don_vi_quan_ly}`.toLowerCase();
+            const khopTrangThai = !trangThai || item.trang_thai.includes(trangThai);
+            const chuoiTongHop = `${item.ma_thiet_bi} ${item.ten_thiet_bi} ${item.don_vi_quan_ly} ${item.trang_thai}`.toLowerCase();
             return khopTrangThai && (!tuKhoa || chuoiTongHop.includes(tuKhoa));
         });
         xuatThietBiRaBang(mangSauLoc);
     }
     document.getElementById('smart-search-input').addEventListener('input', locDuLieuThietBiHopNhat);
 
-    function moXemTruocQR(code, name, dept, status) {
+    // CẢI TIẾN: Hiện cả thông tin người chịu trách nhiệm lên Tem và QR Code
+    function moXemTruocQR(code, name, dept, status, user) {
         document.getElementById('qr-modal-name').innerText = `Máy: ${name}`;
         document.getElementById('qr-modal-code').innerText = `MÃ: ${code}`;
         document.getElementById('qr-modal-dept').innerText = `Đơn vị: ${dept}`;
+        document.getElementById('qr-modal-user').innerText = `Người QL: ${user}`;
+        
         const canvas = document.getElementById('qrcode-canvas'); canvas.innerHTML = '';
-        new QRCode(canvas, { text: `MÃ THIẾT BỊ: ${code}\nTÊN: ${name}\nĐV: ${dept}\nVINAPACO`, width: 110, height: 110, correctLevel : QRCode.CorrectLevel.M });
+        new QRCode(canvas, { 
+            text: `MÃ THIẾT BỊ: ${code}\nTÊN MÁY: ${name}\nĐƠN VỊ: ${dept}\nNGƯỜI QL: ${user}\nVINAPACO CORP`, 
+            width: 110, height: 110, 
+            correctLevel : QRCode.CorrectLevel.M 
+        });
         document.getElementById('qr-modal').style.display = 'flex';
     }
 
@@ -366,12 +420,20 @@
         const name = document.getElementById('device-name').value.trim();
         const dept = document.getElementById('device-dept-select').value;
         const status = document.getElementById('device-status').value;
+        const user = document.getElementById('device-user-select').value;
+        
         if (!dept || !name) { alert("Vui lòng chọn đơn vị và điền tên thiết bị!"); return; }
 
-        const { error } = await client.from('thiet_bi').insert([{ ma_thiet_bi: code, ten_thiet_bi: name, don_vi_quan_ly: dept, trang_thai: status }]);
+        // Giải pháp ghép chuỗi trạng thái và người quản lý để lưu vào cột trang_thai sẵn có mà không phải sửa DB
+        const chuoiTrangThaiGộp = `${status} || ${user}`;
+
+        const { error } = await client.from('thiet_bi').insert([{ ma_thiet_bi: code, ten_thiet_bi: name, don_vi_quan_ly: dept, trang_thai: chuoiTrangThaiGộp }]);
         if (error) { alert("Lỗi lưu database: " + error.message); } else { 
-            alert("🎉 Đã lưu thiết bị và cấp mã QR thành công!");
-            document.getElementById('device-name').value = ''; document.getElementById('device-code').value = ''; document.getElementById('device-dept-select').value = '';
+            alert("🎉 Đã lưu thiết bị và gắn trách nhiệm nhân sự thành công!");
+            document.getElementById('device-name').value = ''; 
+            document.getElementById('device-code').value = ''; 
+            document.getElementById('device-dept-select').value = '';
+            document.getElementById('device-user-select').value = 'Chưa phân công';
             taiDanhSachThietBi();
         }
     });
@@ -379,7 +441,7 @@
     document.getElementById('btn-close-modal').addEventListener('click', () => { document.getElementById('qr-modal').style.display = 'none'; });
     document.getElementById('btn-trigger-print').addEventListener('click', () => { window.print(); });
 
-    // Chạy mặc định khi mở trang
+    // Khởi chạy mặc định
     lamMoiBangDuLieu();
 </script>
 </body>
