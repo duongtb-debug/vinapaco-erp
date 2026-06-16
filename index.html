@@ -3,385 +3,256 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VINAPACO ERP v6.9 - FIXED INDEX ROUTING</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <title>Danh Sách Nhân Sự Nghỉ Hưu - VINAPACO</title>
     
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.8/dist/umd/supabase.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f6f9; margin: 0; padding: 20px; }
+        .container { width: 100%; max-width: 1650px; margin: 0 auto; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        h2 { text-align: center; color: #1e3a8a; margin-bottom: 25px; text-transform: uppercase; }
+        .upload-section { background-color: #f0fdf4; border: 2px dashed #007f5f; border-radius: 6px; padding: 25px; text-align: center; margin-bottom: 20px; }
+        .upload-label { background-color: #007f5f; color: white; padding: 12px 30px; border-radius: 4px; font-weight: bold; cursor: pointer; display: inline-block; font-size: 14px; margin-right: 15px; }
+        .upload-label:hover { background-color: #00664c; }
+        #excel-file-input { display: none; }
+        .status-badge { background-color: #e0f2fe; color: #0369a1; padding: 10px 18px; border-radius: 6px; font-weight: bold; font-size: 14px; display: inline-block; margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 12px 10px; border: 1px solid #cbd5e1; font-size: 13px; }
+        th { background-color: #2c3e50; color: white; font-weight: bold; text-align: center; }
+        tr:nth-child(even) { background-color: #f8fafc; }
+        tr:hover { background-color: #f1f5f9; }
+        .btn-clear { background-color: #dc2626; color: white; border: none; padding: 12px 24px; border-radius: 4px; font-weight: bold; cursor: pointer; }
+        .btn-clear:hover { background-color: #b91c1c; }
+        .text-center { text-align: center; }
+    </style>
 </head>
-<body class="bg-gradient-to-br from-slate-100 to-zinc-200 text-gray-900 font-sans antialiased h-screen flex flex-col" onload="khoiDongHeThongKenhCloud()">
+<body>
 
-    <header class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-950 text-white px-8 py-4 flex justify-between items-center shadow-md shrink-0 border-b-4 border-emerald-500 z-10">
-        <div>
-            <h1 class="text-2xl font-black tracking-widest uppercase flex items-center gap-3 text-emerald-400">
-                <i class="fa-solid fa-cloud text-xl text-cyan-400"></i> VINAPACO ERP <span class="text-white font-light">|</span> SYSTEM v6.9
-            </h1>
-            <p class="text-xs text-slate-400 font-bold mt-1 flex items-center gap-1">
-                <i class="fa-solid fa-wand-magic-sparkles text-amber-400"></i> Fixed Index Routing: Tách biệt hoàn toàn luồng nhận diện cột Họ Tên và cột Mã Đơn Vị Phân Xưởng.
-            </p>
-        </div>
-        <div id="cloud-status-badge" class="shadow-inner bg-slate-950 px-5 py-2.5 rounded-2xl border-2 border-emerald-500 font-mono text-xs font-black text-emerald-400 flex items-center gap-2 tracking-wider">
-            <i class="fa-solid fa-cloud-bolt text-emerald-400 animate-pulse"></i> LIVE SINGAPORE DB
-        </div>
-    </header>
+<div class="container">
+    <h2>Danh Sách Nhân Sự Nghỉ Hưu Tổng Công Ty</h2>
 
-    <div class="flex-1 flex overflow-hidden">
-        
-        <aside class="w-76 bg-white border-r border-gray-200 p-4 flex flex-col justify-between shrink-0 shadow-sm">
-            <div class="space-y-3">
-                <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2 mb-1 flex items-center gap-1">
-                    <i class="fa-solid fa-layer-group"></i> DANH MỤC PHÂN HỆ
-                </div>
-                
-                <button class="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl text-sm font-black text-left transition-all duration-300 transform shadow-md bg-gradient-to-r from-emerald-600 to-teal-700 text-white">
-                    <span class="flex items-center gap-3"><i class="fa-solid fa-users-gear text-lg"></i> 1. Quản Lý Nhân Sự</span>
-                    <i class="fa-solid fa-chevron-right text-xs opacity-70"></i>
-                </button>
-            </div>
-            
-            <div class="bg-gradient-to-b from-slate-900 to-indigo-950 p-4 rounded-2xl text-xs font-bold text-slate-200 border border-slate-700 shadow-xl">
-                <div class="font-black uppercase flex items-center gap-1.5 text-emerald-400 text-[11px] mb-1"><i class="fa-solid fa-microchip"></i> SMART ROUTER v6.9</div>
-                <p class="leading-relaxed text-[11px] text-slate-300">Tự động cô lập cột Họ Tên trước khi dò Mã Đơn vị, loại bỏ triệt để hiện tượng nhận diện nhầm lẫn chéo giữa các cột dữ liệu.</p>
-            </div>
-        </aside>
-
-        <main id="view-phan-he-nhansu" class="flex-1 p-6 overflow-hidden flex flex-col gap-5 bg-slate-50">
-            <div class="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex flex-col gap-3 shrink-0">
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 items-center bg-gradient-to-r from-emerald-50 via-teal-50 to-cyan-50 p-4 rounded-2xl border border-emerald-100">
-                    <div>
-                        <h3 class="text-sm font-black text-emerald-950 flex items-center gap-2"><i class="fa-solid fa-file-excel text-emerald-600"></i> NẠP FILE EXCEL TỔNG CÔNG TY</h3>
-                        <p class="text-[11px] text-slate-600 font-bold mt-0.5">Bản v6.9 định tuyến dữ liệu chính xác, tách biệt luồng thông tin Phân Xưởng.</p>
-                    </div>
-                    <label class="lg:col-span-2 flex flex-col items-center justify-center border-2 border-dashed border-emerald-300 bg-white hover:bg-emerald-50 py-3 px-4 rounded-xl cursor-pointer transition-all shadow-sm">
-                        <div class="flex items-center gap-3">
-                            <i class="fa-solid fa-file-circle-plus text-xl text-emerald-600 animate-bounce"></i>
-                            <span class="text-xs font-black text-slate-800 tracking-wide">CHỌN FILE DATA EXCEL TỔNG CÔNG TY (.XLSX)</span>
-                        </div>
-                        <input type="file" id="excel-file-input" accept=".xlsx, .xls" onchange="xuLyNhapFileExcelAI_v6_9(event)" class="hidden">
-                    </label>
-                </div>
-
-                <div class="flex flex-wrap items-center gap-3 border-t pt-3 border-slate-100">
-                    <div class="flex items-center gap-2 bg-slate-50 border border-slate-300 px-3 py-2 rounded-xl text-xs w-72">
-                        <i class="fa-solid fa-magnifying-glass text-slate-400"></i>
-                        <input type="text" id="ns-search-box" oninput="locDuLieuNhanSuTongHop()" placeholder="Tìm nhanh Tên, CCCD hoặc Chức danh..." class="focus:outline-none w-full font-black text-slate-800 bg-transparent">
-                    </div>
-                    <select id="ns-select-donvi" onchange="locDuLieuNhanSuTongHop()" class="bg-white border border-slate-300 px-3 py-2 rounded-xl text-xs font-black text-emerald-950 shadow-sm focus:outline-none">
-                        <option value="ALL">-- Tất cả phòng ban / Phân xưởng --</option>
-                    </select>
-                    <div class="ml-auto flex gap-2">
-                        <button onclick="themNhanSuThuCong()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs px-4 py-2.5 rounded-xl shadow-sm flex items-center gap-1.5 transition-all cursor-pointer"><i class="fa-solid fa-plus"></i> THÊM TAY</button>
-                        <button onclick="xoaSachToanBoNhanSu()" class="bg-red-600 hover:bg-red-700 text-white font-black text-xs px-4 py-2.5 rounded-xl shadow-sm flex items-center gap-1.5 transition-all cursor-pointer"><i class="fa-solid fa-trash-can"></i> XÓA TRÊN CLOUD</button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="flex-1 bg-white rounded-2xl border border-gray-200 shadow-md overflow-hidden flex flex-col">
-                <div class="flex-1 overflow-auto">
-                    <table class="w-full border-collapse text-left text-xs table-fixed min-w-[1750px]">
-                        <thead class="sticky top-0 bg-slate-100 border-b-2 border-slate-200 z-10 font-black text-slate-700">
-                            <tr>
-                                <th class="p-3.5 border-r border-slate-200 text-center w-14 bg-slate-100">STT</th>
-                                <th class="p-3.5 border-r border-slate-200 w-60 bg-slate-100 text-sm">Họ và tên</th>
-                                <th class="p-3.5 border-r border-slate-200 w-20 text-center bg-slate-100">Năm</th>
-                                <th class="p-3.5 border-r border-slate-200 w-28 text-center bg-slate-100">Ngày sinh</th>
-                                <th class="p-3.5 border-r border-slate-200 w-28 text-center bg-slate-100 text-amber-800">Ngày nghỉ hưu</th>
-                                <th class="p-3.5 border-r border-slate-200 w-20 text-center bg-slate-100">Giới tính</th>
-                                <th class="p-3.5 border-r border-slate-200 w-24 text-center bg-slate-100 text-blue-900">Mã Đơn Vị</th>
-                                <th class="p-3.5 border-r border-slate-200 w-96 bg-slate-100">Chức danh công việc</th>
-                                <th class="p-3.5 border-r border-slate-200 w-32 bg-slate-100 font-mono">Số BHXH</th>
-                                <th class="p-3.5 border-r border-slate-200 w-36 bg-slate-100 font-mono">Số CCCD</th>
-                                <th class="p-3.5 border-r border-slate-200 text-center w-24 bg-slate-100 text-emerald-700">ATV</th>
-                                <th class="p-3.5 border-r border-slate-200 text-center w-24 bg-slate-100 text-rose-700">Độc hại</th>
-                                <th class="p-3.5 text-center w-36 bg-slate-100 font-black">Thao tác</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tbody-nhansu" class="text-slate-900 font-bold divide-y divide-slate-200 bg-white">
-                            <tr><td colspan="13" class="p-6 text-center text-slate-400 italic font-bold">Đang tải dữ liệu từ Cloud đám mây...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            <footer class="flex justify-between items-center text-xs font-black text-slate-500 shrink-0">
-                <div id="text-bo-dem-footer" class="bg-white border border-emerald-500/30 px-4 py-2 rounded-xl text-emerald-700 font-mono">TỔNG NHÂN SỰ CLOUD: 0 người</div>
-            </footer>
-        </main>
+    <div class="upload-section">
+        <label for="excel-file-input" class="upload-label">
+            📥 BẤM VÀO ĐÂY ĐỂ CHỌN FILE EXCEL NẠP DỮ LIỆU (.XLSX)
+        </label>
+        <input type="file" id="excel-file-input" accept=".xlsx, .xls">
+        <button class="btn-clear" id="btn-clear-cloud">🗑️ XÓA SẠCH MÂY ĐỂ UP MỚI</button>
     </div>
 
-    <script>
-        const firebaseConfig = {
-            databaseURL: "https://qltbvinapaco-default-rtdb.asia-southeast1.firebasedatabase.app/"
-        };
+    <div class="status-badge">
+        TỔNG SỐ NHÂN SỰ TRÊN CLOUD: <span id="total-count">Đang kết nối...</span>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 4%;">STT</th>
+                <th style="width: 14%;">Họ và tên</th>
+                <th style="width: 6%;">Năm</th>
+                <th style="width: 10%;">Ngày sinh</th>
+                <th style="width: 10%; color: #f87171;">Ngày nghỉ hưu</th>
+                <th style="width: 7%;">Giới tính</th>
+                <th style="width: 8%;">Mã Đơn Vị</th>
+                <th>Chức danh công việc</th>
+                <th style="width: 11%;">Số BHXH</th>
+                <th style="width: 11%;">Số CCCD</th>
+            </tr>
+        </thead>
+        <tbody id="render-table-body">
+            <tr>
+                <td colspan="10" class="text-center" style="color: #64748b; font-style: italic;">
+                    Đang kết nối dữ liệu đám mây Supabase...
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<script>
+    const SUPABASE_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co"; 
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ";
+    
+    const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    async function lamMoiBangDuLieu() {
+        const totalCountSpan = document.getElementById('total-count');
+        const tbody = document.getElementById('render-table-body');
         
-        let firebaseDB;
-        let mangNhanSuCucBo = [];
-
-        function khoiDongHeThongKenhCloud() {
-            try {
-                if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-                firebaseDB = firebase.database();
-                langNgheDuLieuTuCloud();
-            } catch (err) {
-                alert("Lỗi kết nối Firebase Database!");
+        try {
+            const { data, error } = await client.from('nhan_su').select('*').order('id', { ascending: true });
+            
+            if (error) {
+                tbody.innerHTML = `<tr><td colspan="10" class="text-center" style="color:red; font-weight:bold;">❌ Lỗi kết nối database: ${error.message}</td></tr>`;
+                totalCountSpan.innerText = "Lỗi";
+                return;
             }
-        }
 
-        function langNgheDuLieuTuCloud() {
-            firebaseDB.ref("nhansu").on("value", snapshot => {
-                let data = snapshot.val();
-                mangNhanSuCucBo = [];
-                if (data) {
-                    Object.keys(data).forEach(id => { mangNhanSuCucBo.push({ idFirebase: id, ...data[id] }); });
+            const danhSach = data || [];
+            totalCountSpan.innerText = danhSach.length + " người";
+
+            if (danhSach.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="10" class="text-center" style="color: #94a3b8; padding: 30px;">☁️ Đám mây trống. Vui lòng nhấn nút chọn file Excel để tải lên!</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = '';
+            danhSach.forEach((emp, index) => {
+                const tr = document.createElement('tr');
+                let hienThiChucDanh = emp.chuc_danh_cong_viec || '';
+                let hienThiBHXH = '---';
+                let hienThiCCCD = '---';
+
+                // Tách gói thông tin Chức danh || BHXH || CCCD an toàn
+                if (hienThiChucDanh.includes("||")) {
+                    const parts = hienThiChucDanh.split("||");
+                    hienThiChucDanh = parts[0] ? parts[0].trim() : '---';
+                    hienThiBHXH = parts[1] ? parts[1].trim() : '---';
+                    hienThiCCCD = parts[2] ? parts[2].trim() : '---';
                 }
-                let countFooter = document.getElementById("text-bo-dem-footer");
-                if(countFooter) countFooter.innerText = `TỔNG NHÂN SỰ CLOUD: ${mangNhanSuCucBo.length} người`;
-                lamMoiBoLocDonViNhanSu();
-                locDuLieuNhanSuTongHop();
+
+                tr.innerHTML = `
+                    <td class="text-center" style="color: #64748b;">${index + 1}</td>
+                    <td><strong>${emp.ho_ten || '---'}</strong></td>
+                    <td class="text-center" style="font-weight: bold; color: #334155;">2026</td>
+                    <td class="text-center" style="color: #0284c7; font-weight: 500;">${emp.nam_sinh || '---'}</td>
+                    <td class="text-center" style="color: #d97706; font-weight: bold;">${emp.nam_ve_huu || '---'}</td>
+                    <td class="text-center" style="font-weight: bold; color: #db2777;">${emp.gioi_tinh || '---'}</td>
+                    <td class="text-center" style="color: #2563eb; font-weight: bold;">${emp.ma_don_vi || '---'}</td>
+                    <td>${hienThiChucDanh}</td>
+                    <td class="text-center" style="color: #475569;">${hienThiBHXH}</td>
+                    <td class="text-center" style="color: #475569;">${hienThiCCCD}</td>
+                `;
+                tbody.appendChild(tr);
             });
+        } catch (err) {
+            console.error(err);
+            tbody.innerHTML = `<tr><td colspan="10" class="text-center" style="color:red; font-weight:bold;">❌ Lỗi hiển thị hệ thống.</td></tr>`;
         }
+    }
 
-        function lamMoiBoLocDonViNhanSu() {
-            let selectElement = document.getElementById("ns-select-donvi");
-            if (!selectElement) return;
-            let giaTriDangChon = selectElement.value || "ALL";
-            let setDv = new Set(); 
-            mangNhanSuCucBo.forEach(p => { if(p.MaDonVi) setDv.add(p.MaDonVi.toString().trim()); });
-            let arr = Array.from(setDv).sort();
-            let html = `<option value="ALL">-- Tất cả phòng ban / Phân xưởng (${mangNhanSuCucBo.length} người) --</option>`;
-            arr.forEach(dv => { html += `<option value="${dv}">${dv}</option>`; });
-            selectElement.innerHTML = html;
-            if(Array.from(selectElement.options).some(opt => opt.value === giaTriDangChon)) selectElement.value = giaTriDangChon;
-        }
+    document.addEventListener('DOMContentLoaded', () => {
+        lamMoiBangDuLieu();
 
-        function locDuLieuNhanSuTongHop() {
-            let searchBox = document.getElementById("ns-search-box");
-            let selectDonVi = document.getElementById("ns-select-donvi");
-            let txt = searchBox ? searchBox.value.trim().toLowerCase() : "";
-            let dv = selectDonVi ? selectDonVi.value : "ALL";
-            
-            let kq = [...mangNhanSuCucBo];
-            if(dv && dv !== "ALL") kq = kq.filter(p => p.MaDonVi && p.MaDonVi.toString() === dv);
-            if(txt) kq = kq.filter(p => p.HoTen.toLowerCase().includes(txt) || (p.CCCD && p.CCCD.includes(txt)) || (p.ChucDanh && p.ChucDanh.toLowerCase().includes(txt)));
-            
-            hienThiDuLieuRaBangNhanSu(kq);
-        }
+        document.getElementById('excel-file-input').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
 
-        function hienThiDuLieuRaBangNhanSu(mang) {
-            let tbody = document.getElementById("tbody-nhansu"); if(!tbody) return;
-            if(!mang || mang.length === 0) { 
-                tbody.innerHTML = `<tr><td colspan="13" class="p-6 text-center text-slate-400 italic font-bold">Không tìm thấy dữ liệu nhân sự phù hợp.</td></tr>`; 
-                return; 
-            }
-            tbody.innerHTML = mang.map((row, idx) => `
-                <tr class="hover:bg-slate-50 border-b border-slate-200 transition-colors">
-                    <td class="p-3 text-center text-slate-400 font-mono">${idx+1}</td>
-                    <td class="p-3 text-slate-950 font-black text-sm uppercase">${row.HoTen}</td>
-                    <td class="p-3 text-center text-slate-700 bg-slate-50/40">${row.Nam || "-"}</td>
-                    <td class="p-3 text-center font-mono text-emerald-900">${row.NamSinh || "-"}</td>
-                    <td class="p-3 text-center font-mono text-amber-600 font-black bg-amber-50/20">${row.NamNghiHuu || "-"}</td>
-                    <td class="p-3 text-center ${row.GioiTinh === 'Nữ' ? 'text-pink-600 font-black' : 'text-slate-600'}">${row.GioiTinh || "-"}</td>
-                    <td class="p-3 text-center text-blue-700 font-black bg-blue-50/40">${row.MaDonVi || "-"}</td>
-                    <td class="p-3 text-slate-700 truncate">${row.ChucDanh || "-"}</td>
-                    <td class="p-3 font-mono text-slate-600">${row.BHXH || "-"}</td>
-                    <td class="p-3 font-mono text-slate-600">${row.CCCD || "-"}</td>
-                    <td class="p-3 text-center bg-emerald-50/30">${row.ATV === '1' ? '<span class="bg-emerald-600 text-white font-black rounded-full px-2 py-0.5 text-[10px]">✓ ATV</span>' : '-'}</td>
-                    <td class="p-3 text-center bg-rose-50/30">${row.NNDH === '1' ? '<span class="bg-rose-600 text-white font-black rounded-full px-2 py-0.5 text-[10px]">✓ Độc hại</span>' : '-'}</td>
-                    <td class="p-3 text-center">
-                        <button onclick="xoaNhanSuCloud('${row.idFirebase}')" class="text-rose-600 hover:text-rose-900 font-bold px-2 py-1 text-xs cursor-pointer"><i class="fa-solid fa-trash"></i></button>
-                    </td>
-                </tr>
-            `).join('');
-        }
+            document.getElementById('render-table-body').innerHTML = `<tr><td colspan="10" class="text-center" style="color: #2563eb; font-weight: bold; padding: 20px;">⏳ Đang đồng bộ hóa dữ liệu và bóc tách cấu trúc cột đơn vị... Vui lòng chờ!</td></tr>`;
 
-        function xoaNhanSuCloud(idFirebase) { if(confirm("Xóa nhân sự này khỏi hệ thống Cloud?")) firebaseDB.ref(`nhansu/${idFirebase}`).remove(); }
-        function xoaSachToanBoNhanSu() { if(confirm("Cảnh báo: Hành động này sẽ xóa toàn bộ dữ liệu trên đám mây!")) firebaseDB.ref("nhansu").remove(); }
-        
-        function themNhanSuThuCong() {
-            let t = prompt("Nhập Họ tên:"); let d = prompt("Nhập Mã đơn vị:");
-            if(t && d) {
-                let gt = t.trim().toUpperCase().includes("THỊ") ? "Nữ" : "Nam";
-                firebaseDB.ref("nhansu").push({ HoTen: t.trim().toUpperCase(), Nam: "2026", NamSinh: "-", NamNghiHuu: "-", GioiTinh: gt, MaDonVi: d.trim().toUpperCase(), ChucDanh: "-", BHXH: "-", CCCD: "-", ATV: "-", NNDH: "-" });
-            }
-        }
-
-        function dinhDangNgayThangChuanExcel(giaTri) {
-            if (!giaTri) return "-";
-            let chuoi = giaTri.toString().trim();
-            if (chuoi === "" || chuoi === "-") return "-";
-            if (chuoi.includes("/")) return chuoi;
-
-            if (/^\d+$/.test(chuoi)) {
-                let soNgay = parseInt(chuoi, 10);
-                if (soNgay > 1900 && soNgay < 2100) return "01/01/" + soNgay.toString(); 
-                let dateGoc = new Date((soNgay - 25569) * 86400 * 1000);
-                if (!isNaN(dateGoc.getTime())) {
-                    let d = dateGoc.getDate().toString().padStart(2, '0');
-                    let m = (dateGoc.getMonth() + 1).toString().padStart(2, '0');
-                    let y = dateGoc.getFullYear();
-                    return `${d}/${m}/${y}`;
-                }
-            }
-            return chuoi;
-        }
-
-        // =========================================================================
-        // THUẬT TOÁN AUTOMATION v6.9 - FIXED INDEX ROUTING
-        // =========================================================================
-        function xuLyNhapFileExcelAI_v6_9(event) {
-            let file = event.target.files[0]; if(!file) return;
-            let reader = new FileReader();
-            reader.onload = function(e) {
+            const reader = new FileReader();
+            reader.onload = async function(e) {
                 try {
-                    let dataArray = new Uint8Array(e.target.result);
-                    let workbook = XLSX.read(dataArray, {type: 'array'});
-                    let sheetRows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {header: 1, defval: ""});
+                    const arr = new Uint8Array(e.target.result);
+                    const wb = XLSX.read(arr, { type: 'array' });
+                    const sheet = wb.Sheets[wb.SheetNames[0]];
                     
-                    if (sheetRows.length === 0) { alert("Tệp Excel trống dữ liệu!"); return; }
+                    const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                    if (rawRows.length === 0) { alert("File Excel trống!"); lamMoiBangDuLieu(); return; }
 
-                    // BƯỚC 1: Định vị dòng dữ liệu thực tế bằng dấu hiệu chuỗi Họ Tên viết hoa
-                    let dongBatDauData = -1;
-                    for (let i = 0; i < sheetRows.length; i++) {
-                        let row = sheetRows[i];
-                        if (!row || row.length < 2) continue;
-                        let containsName = row.some(c => c && c.toString().trim().length > 4 && /^[A-ZÀ-ỸĐ\s]+$/.test(c.toString().trim().toUpperCase()) && !c.toString().includes("DANH SÁCH") && !c.toString().includes("CÔNG TY"));
-                        if (containsName) {
-                            dongBatDauData = i;
+                    let headerRowIndex = -1;
+
+                    // Định vị hàng tiêu đề chính
+                    for (let i = 0; i < Math.min(rawRows.length, 15); i++) {
+                        const row = rawRows[i];
+                        if (!row) continue;
+                        let lineStr = row.join(" ").toLowerCase();
+                        if (lineStr.includes("họ và tên") || lineStr.includes("ho ten") || lineStr.includes("họ tên")) {
+                            headerRowIndex = i;
                             break;
                         }
                     }
 
-                    if (dongBatDauData === -1) {
-                        alert("Hệ thống không thể nhận diện dải hàng dữ liệu trong file!");
+                    if (headerRowIndex === -1) {
+                        alert("Không tìm thấy hàng tiêu đề 'Họ và tên'!");
+                        lamMoiBangDuLieu();
                         return;
                     }
 
-                    // BƯỚC 2: Định cấu trúc cột (Cô lập hoàn toàn cột Họ Tên trước)
-                    let mapIndices = { hoTen: -1, bhxh: -1, cccd: -1, ngayThangCot: [], maDonVi: -1, chucDanh: -1, atv: -1, docHai: -1 };
-                    let mauRows = sheetRows.slice(dongBatDauData, dongBatDauData + 20);
-                    let maxCols = Math.max(...mauRows.map(r => r.length));
+                    // CẤU HÌNH TỌA ĐỘ ĐỌC KHỚP HOÀN HẢO THEO FILE EXCEL THỰC TẾ
+                    let chiSoHoTen = 1;     // Cột B: Họ và tên
+                    let chiSoChucDanh = 2;  // Cột C: Chức danh công việc công nhân
+                    let chiSoMaDonVi = 3;   // Cột D: Mã đơn vị dạng số thập phân (Ví dụ: 14.2, 11.1)
+                    let chiSoBHXH = 4;      // Cột E: Số sổ BHXH 10 chữ số
+                    let chiSoCCCD = 5;      // Cột F: Số căn cước công dân
+                    let chiSoNamVeHuu = 6;  // Cột G: Ngày nghỉ hưu dạng DD/MM/YYYY
+                    let chiSoNgaySinh = 7;  // Cột H: Ngày tháng năm sinh
 
-                    // 1. Khóa cứng cột Họ Tên (Cột đầu tiên chứa text dài viết hoa có khoảng trắng)
-                    for (let colIdx = 0; colIdx < maxCols; colIdx++) {
-                        let colVals = mauRows.map(r => r[colIdx] ? r[colIdx].toString().trim() : "");
-                        if (colVals.some(v => v.length > 5 && v.includes(" ") && /^[A-ZÀ-ỸĐ\s]+$/.test(v.toUpperCase()))) {
-                            mapIndices.hoTen = colIdx;
-                            break;
-                        }
-                    }
-                    if(mapIndices.hoTen === -1) mapIndices.hoTen = 1; // Fallback chỉ định mặc định
+                    const dataDich = [];
+                    let baseId = Date.now();
 
-                    // 2. Định tuyến các cột phụ trợ (Tuyệt đối bỏ qua cột Họ Tên vừa chọn)
-                    for (let colIdx = 0; colIdx < maxCols; colIdx++) {
-                        if (colIdx === mapIndices.hoTen) continue;
-                        
-                        let colVals = mauRows.map(r => r[colIdx] ? r[colIdx].toString().trim() : "");
-                        let rawStringAll = colVals.join("");
+                    for (let i = headerRowIndex + 1; i < rawRows.length; i++) {
+                        const row = rawRows[i];
+                        if (!row || !row[chiSoHoTen]) continue; 
 
-                        // Nhận diện cột Ngày Tháng
-                        if (colVals.some(v => v.includes("/") || (parseInt(v) > 1000 && parseInt(v) < 60000))) {
-                            if (!mapIndices.ngayThangCot.includes(colIdx)) mapIndices.ngayThangCot.push(colIdx);
-                            continue;
-                        }
+                        const hoTenStr = String(row[chiSoHoTen]).trim();
+                        if (hoTenStr === "" || hoTenStr.toLowerCase().includes("họ và tên") || hoTenStr.toLowerCase().includes("cộng hòa")) continue;
 
-                        // Nhận diện BHXH & CCCD
-                        let clearNumbers = colVals.map(v => v.replace(/\s/g, ""));
-                        if (clearNumbers.some(v => v.length === 10 && /^\d+$/.test(v))) { mapIndices.bhxh = colIdx; continue; }
-                        if (clearNumbers.some(v => v.length === 12 && /^\d+$/.test(v))) { mapIndices.cccd = colIdx; continue; }
+                        const valChucDanh = row[chiSoChucDanh] !== undefined ? String(row[chiSoChucDanh]).trim() : '---';
+                        const valMaDonVi = row[chiSoMaDonVi] !== undefined ? String(row[chiSoMaDonVi]).trim() : '---';
+                        const valBHXH = row[chiSoBHXH] !== undefined ? String(row[chiSoBHXH]).trim() : '---';
+                        const valCCCD = row[chiSoCCCD] !== undefined ? String(row[chiSoCCCD]).trim() : '---';
+                        const valNamVeHuu = row[chiSoNamVeHuu] !== undefined ? String(row[chiSoNamVeHuu]).trim() : '---';
+                        const valNamSinh = row[chiSoNgaySinh] !== undefined ? String(row[chiSoNgaySinh]).trim() : '---';
 
-                        // NHẬN DIỆN MÃ ĐƠN VỊ CHUẨN XƯỞNG (Dựa trên số thập phân hoặc số ngắn nằm ngoài cột Họ Tên)
-                        if (mapIndices.maDonVi === -1) {
-                            if (colVals.some(v => /^\d+(\.\d+)?$/.test(v) && parseFloat(v) > 0 && parseFloat(v) < 150)) {
-                                let checkSTT = colVals.filter(v => v !== "").slice(0,3).join(",");
-                                if (checkSTT !== "1,2,3" && checkSTT !== "1,1,1") { // Không ăn nhầm cột STT bên trái
-                                    mapIndices.maDonVi = colIdx;
-                                    continue;
-                                }
-                            }
+                        // CHUẨN HÓA GIỚI TÍNH THÔNG MINH QUA TÊN ĐỆM (Giải quyết triệt để lỗi varchar)
+                        let gioiTinhChuan = 'Nam';
+                        const hoTenLow = hoTenStr.toLowerCase();
+                        if (hoTenLow.includes(' thị ') || hoTenLow.includes('thị ') || hoTenLow.endsWith(' thị')) {
+                            gioiTinhChuan = 'Nữ';
                         }
 
-                        // Nhận diện Chức danh
-                        if (colVals.some(v => v.length > 8 && !/^\d+$/.test(v))) {
-                            if (mapIndices.chucDanh === -1) { mapIndices.chucDanh = colIdx; continue; }
-                        }
+                        // Đóng gói an toàn để đẩy lên cột chuc_danh_cong_viec trên Supabase
+                        const chuoiGopAnToan = `${valChucDanh} || ${valBHXH} || ${valCCCD}`;
 
-                        // Nhận diện ATV & Độc hại
-                        if (/[\u2705\u2713\u2714\u2611\uF0FE\uF0A3☒☑🗹xX✓1]/.test(rawStringAll)) {
-                            if (mapIndices.atv === -1) mapIndices.atv = colIdx;
-                            else if (mapIndices.docHai === -1) mapIndices.docHai = colIdx;
-                        }
-                    }
-
-                    // ==========================================
-                    // 🌟 HÀNG SỬA LỖI ĐẶC BIỆT (FALLBACK HARDCODE)
-                    // Nếu sau khi chạy tự động mà file của anh vẫn bị lệch,
-                    // anh chỉ cần sửa các số dưới đây thành đúng số thứ tự cột trong file Excel (bắt đầu từ cột 0, 1, 2, 3...)
-                    // ==========================================
-                    // mapIndices.hoTen = 1;      // Bỏ dấu // ở đầu nếu muốn ép cột Họ Tên là cột số 1
-                    // mapIndices.maDonVi = 6;    // Bỏ dấu // ở đầu nếu muốn ép cột Mã Đơn Vị là cột số 6
-                    // mapIndices.chucDanh = 7;   // Bỏ dấu // ở đầu nếu muốn ép cột Chức Danh là cột số 7
-
-                    if (mapIndices.maDonVi === -1) mapIndices.maDonVi = mapIndices.hoTen + 1;
-                    if (mapIndices.chucDanh === -1) mapIndices.chucDanh = mapIndices.maDonVi + 1;
-
-                    // BƯỚC 3: Tạo gói data và gửi lên Cloud Firebase
-                    let goiDuLieuDauRa = {}; 
-                    let count = 0;
-
-                    for (let i = dongBatDauData; i < sheetRows.length; i++) {
-                        let r = sheetRows[i];
-                        if (!r || r.length === 0) continue;
-
-                        let tenNhanSu = r[mapIndices.hoTen];
-                        if (!tenNhanSu || tenNhanSu.toString().trim() === "" || tenNhanSu.toString().includes("CỘNG") || tenNhanSu.toString().includes("Tổng")) continue;
-
-                        let getRawVal = (idx) => (idx !== -1 && r[idx] !== undefined) ? r[idx].toString().trim() : "-";
-
-                        let HoTen = tenNhanSu.toString().trim().toUpperCase();
-                        let MaDonVi = getRawVal(mapIndices.maDonVi);
-                        let ChucDanh = getRawVal(mapIndices.chucDanh);
-                        let BHXH = mapIndices.bhxh !== -1 ? getRawVal(mapIndices.bhxh) : "-";
-                        let CCCD = mapIndices.cccd !== -1 ? getRawVal(mapIndices.cccd) : "-";
-                        let GioiTinh = HoTen.includes("THỊ ") ? "Nữ" : "Nam";
-
-                        let NgayA = mapIndices.ngayThangCot.length > 0 ? dinhDangNgayThangChuanExcel(getRawVal(mapIndices.ngayThangCot[0])) : "-";
-                        let NgayB = mapIndices.ngayThangCot.length > 1 ? dinhDangNgayThangChuanExcel(getRawVal(mapIndices.ngayThangCot[1])) : "-";
-                        let NamSinh = NgayA; let NamNghiHuu = NgayB;
-                        if (NgayA !== "-" && NgayB !== "-") {
-                            let namA = parseInt(NgayA.split("/").pop(), 10);
-                            let namB = parseInt(NgayB.split("/").pop(), 10);
-                            if (!isNaN(namA) && !isNaN(namB)) {
-                                if (namA > namB) { NamSinh = NgayB; NamNghiHuu = NgayA; } 
-                                else { NamSinh = NgayA; NamNghiHuu = NgayB; }
-                            }
-                        }
-
-                        let rawATV = mapIndices.atv !== -1 ? getRawVal(mapIndices.atv).toLowerCase() : "-";
-                        let rawDH = mapIndices.docHai !== -1 ? getRawVal(mapIndices.docHai).toLowerCase() : "-";
-                        let checkRegex = /[\u2705\u2713\u2714\u2611\uF0FE\uF0A3☑🗹xX✓1]/;
-                        let ATV = (checkRegex.test(rawATV) || rawATV.includes("có") || rawATV.includes("atv")) ? "1" : "-";
-                        let NNDH = (checkRegex.test(rawDH) || rawDH.includes("có") || rawDH.includes("độc") || rawDH.includes("nndh")) ? "1" : "-";
-
-                        let item = { HoTen, Nam: "2026", NamSinh, NamNghiHuu, GioiTinh, MaDonVi, ChucDanh, BHXH, CCCD, ATV, NNDH };
-                        let keyAuto = firebaseDB.ref().child('nhansu').push().key;
-                        goiDuLieuDauRa[keyAuto] = item; 
-                        count++;
-                    }
-
-                    if (count > 0) {
-                        firebaseDB.ref("nhansu").set(goiDuLieuDauRa, (err) => {
-                            if (!err) alert(`Đồng bộ v6.9 thành công! Mã đơn vị và Họ tên đã được tách biệt chuẩn xác cho ${count} nhân sự.`);
+                        // CHỈ THÊM CÁC TRƯỜNG CÓ TRONG DATABASE (Không thêm trường 'nam' gây lỗi hệ thống)
+                        dataDich.push({
+                            id: baseId + i,
+                            ho_ten: hoTenStr,
+                            nam_sinh: valNamSinh === '' ? '---' : valNamSinh,
+                            nam_ve_huu: valNamVeHuu === '' ? '---' : valNamVeHuu,
+                            gioi_tinh: gioiTinhChuan,
+                            ma_don_vi: valMaDonVi === '' ? '---' : valMaDonVi,
+                            chuc_danh_cong_viec: chuoiGopAnToan
                         });
-                    } else {
-                        alert("Không tìm thấy dữ liệu nhân sự hợp lệ!");
                     }
 
-                } catch(err) { alert("Lỗi xử lý v6.9: " + err.message); }
+                    if (dataDich.length === 0) {
+                        alert("Không tìm thấy dòng dữ liệu nào hợp lệ.");
+                        lamMoiBangDuLieu();
+                        return;
+                    }
+
+                    // Tải dữ liệu lên Cloud theo cấu trúc từng khối nhỏ (Batch)
+                    const BATCH = 100;
+                    for (let i = 0; i < dataDich.length; i += BATCH) {
+                        const batchData = dataDich.slice(i, i + BATCH);
+                        const { error } = await client.from('nhan_su').insert(batchData);
+                        if (error) { alert("Lỗi tải lên cơ sở dữ liệu: " + error.message); lamMoiBangDuLieu(); return; }
+                    }
+
+                    alert(`🎉 Xuất sắc! Đã sửa toàn bộ lỗi, nạp thành công ${dataDich.length} nhân sự lên hệ thống.`);
+                    await lamMoiBangDuLieu();
+
+                } catch (err) {
+                    console.error(err);
+                    alert("Có lỗi xảy ra khi bóc tách dữ liệu Excel.");
+                    lamMoiBangDuLieu();
+                }
             };
             reader.readAsArrayBuffer(file);
-        }
-    </script>
+        });
+
+        document.getElementById('btn-clear-cloud').addEventListener('click', async () => {
+            if (!confirm("Bạn có chắc chắn muốn dọn sạch mây cũ để cập nhật cấu trúc cột Đơn vị mới này không?")) return;
+            try {
+                await client.from('nhan_su').delete().gte('id', 0);
+                alert("Đã giải phóng bộ nhớ mây thành công!");
+                await lamMoiBangDuLieu();
+            } catch (err) { alert("Lỗi khi giải phóng dữ liệu."); }
+        });
+    });
+</script>
+
 </body>
 </html>
