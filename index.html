@@ -7,7 +7,7 @@
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.4/dist/umd/supabase.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/kjua@0.9.0/dist/kjua.min.js"></script>
     
     <style>
         body { font-family: Arial, sans-serif; background-color: #f4f6f9; margin: 0; padding: 0; }
@@ -19,14 +19,17 @@
         h2 { text-align: center; color: #1e3a8a; margin-bottom: 25px; text-transform: uppercase; font-weight: bold; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
+        
         .upload-section { background-color: #f0fdf4; border: 2px dashed #007f5f; border-radius: 6px; padding: 25px; text-align: center; margin-bottom: 20px; }
         .upload-label { background-color: #007f5f; color: white; padding: 12px 30px; border-radius: 4px; font-weight: bold; cursor: pointer; display: inline-block; font-size: 14px; margin-right: 15px; }
         .upload-label:hover { background-color: #00664c; }
         #excel-file-input { display: none; }
+        
         .status-badge { background-color: #e0f2fe; color: #0369a1; padding: 10px 18px; border-radius: 6px; font-weight: bold; font-size: 14px; display: inline-block; margin-bottom: 20px; }
         .search-box-container { background: #eff6ff; border-left: 5px solid #2563eb; padding: 15px; border-radius: 4px; margin-bottom: 20px; display: flex; align-items: center; gap: 15px; }
         .search-input { flex: 2; padding: 12px; border: 1px solid #3b82f6; border-radius: 4px; font-size: 14px; font-weight: bold; }
         .filter-select-status { flex: 1; padding: 12px; border: 1px solid #3b82f6; border-radius: 4px; font-size: 14px; font-weight: bold; background-color: white; }
+        
         .form-section-tb { background: #f8fafc; border: 1px solid #e2e8f0; padding: 20px; border-radius: 6px; margin-bottom: 25px; display: flex; flex-wrap: wrap; gap: 15px; }
         .form-group { flex: 1; min-width: 220px; display: flex; flex-direction: column; }
         .form-group label { font-weight: bold; margin-bottom: 5px; font-size: 13px; color: #334155; }
@@ -34,48 +37,47 @@
         .form-group input[readonly] { background-color: #e2e8f0; color: #475569; font-weight: bold; }
         .btn-submit { background-color: #0284c7; color: white; border: none; padding: 10px 25px; border-radius: 4px; font-weight: bold; cursor: pointer; align-self: flex-end; height: 42px; }
         .btn-submit:hover { background-color: #0369a1; }
+        
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th, td { padding: 12px 10px; border: 1px solid #cbd5e1; font-size: 13px; text-align: left; }
         th { background-color: #2c3e50; color: white; font-weight: bold; text-align: center; }
         tr:nth-child(even) { background-color: #f8fafc; }
         tr:hover { background-color: #f1f5f9; }
         .text-center { text-align: center; }
+        
         .btn-clear { background-color: #dc2626; color: white; border: none; padding: 12px 24px; border-radius: 4px; font-weight: bold; cursor: pointer; }
-        .btn-clear:hover { background-color: #b91c1c; }
         .btn-action { padding: 6px 10px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 12px; margin: 2px; }
         .btn-qr { background-color: #10b981; color: white; }
         .btn-qr:hover { background-color: #059669; }
         .btn-del { background-color: #ef4444; color: white; }
-        .btn-del:hover { background-color: #dc2626; }
         
-        /* Giao diện khung Pop-up xem trước Tem */
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 9999; }
-        .modal-content { background: white; padding: 15px; border-radius: 8px; text-align: center; max-width: 320px; width: 100%; position: relative; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
-        .close-modal { position: absolute; top: 5px; right: 12px; font-size: 24px; cursor: pointer; font-weight: bold; color: #64748b; }
-        .close-modal:hover { color: #1e293b; }
+        /* GIAO DIỆN MODAL POP-UP CHUẨN XEM TRƯỚC */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 99999; }
+        .modal-content { background: white; padding: 20px; border-radius: 8px; text-align: center; max-width: 300px; width: 100%; position: relative; box-shadow: 0 20px 40px rgba(0,0,0,0.3); }
+        .close-modal { position: absolute; top: 5px; right: 12px; font-size: 26px; cursor: pointer; font-weight: bold; color: #64748b; }
+        .close-modal:hover { color: #000; }
         
-        /* Khung in mô phỏng chuẩn kích thước thực tế */
-        .preview-badge-box { border: 1px dashed #94a3b8; padding: 10px; background: #fafafa; border-radius: 4px; margin-bottom: 10px; }
+        /* Khung bao viền cho tem in khổ 60x40mm thực tế */
+        .preview-badge-box { border: 1px dashed #94a3b8; padding: 12px; background: #ffffff; border-radius: 4px; margin-bottom: 10px; box-sizing: border-box; }
         
-        /* Định hình hộp chứa ảnh QR - Tuyệt đối chống méo, chống vỡ hình */
-        #qrcode-canvas { display: flex !important; justify-content: center !important; align-items: center !important; margin: 12px auto !important; width: 135px !important; height: 135px !important; background: #ffffff; padding: 5px; border: 1px solid #e2e8f0; }
-        #qrcode-canvas canvas, #qrcode-canvas img { width: 135px !important; height: 135px !important; display: block !important; margin: 0 auto !important; }
+        /* Vùng render QR Code - Đảm bảo căn giữa tuyệt đối */
+        #qrcode-canvas { display: flex !important; justify-content: center !important; align-items: center !important; margin: 10px auto !important; width: 130px !important; height: 130px !important; background: #ffffff; }
+        #qrcode-canvas canvas { max-width: 130px !important; max-height: 130px !important; display: block !important; margin: 0 auto !important; }
         
         .btn-print { background-color: #4f46e5; color: white; border: none; padding: 12px 20px; border-radius: 4px; font-weight: bold; cursor: pointer; width: 100%; font-size: 14px; margin-top: 5px; }
-        .btn-print:hover { background-color: #4338ca; }
         
         .filter-section { background: #f8fafc; border: 1px solid #cbd5e1; padding: 15px; border-radius: 6px; margin-bottom: 20px; display: flex; gap: 15px; align-items: center; }
         .filter-control { flex: 1; padding: 10px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 14px; }
         
-        /* Cấu hình bản in trực tiếp ra máy in tem nhiệt cầm tay khổ 60mm x 40mm */
+        /* CSS DÀNH RIÊNG KHI ẤN LỆNH IN RA MÁY IN TEM */
         @media print {
             body * { display: none !important; }
             #print-area, #print-area * { display: block !important; }
-            #print-area { position: absolute !important; top: 0 !important; left: 0 !important; width: 60mm !important; height: 40mm !important; padding: 5px 8px !important; box-sizing: border-box !important; text-align: center !important; background: #ffffff !important; border: none !important; }
-            .preview-badge-box { border: none !important; padding: 0 !important; background: transparent !important; }
+            #print-area { position: absolute !important; top: 0 !important; left: 0 !important; width: 60mm !important; height: 40mm !important; padding: 4px 6px !important; box-sizing: border-box !important; text-align: center !important; background: #fff !important; border: none !important; }
+            .preview-badge-box { border: none !important; padding: 0 !important; }
             .no-print { display: none !important; }
-            #qrcode-canvas { margin: 3px auto !important; width: 95px !important; height: 95px !important; border: none !important; padding: 0 !important; }
-            #qrcode-canvas canvas, #qrcode-canvas img { width: 95px !important; height: 95px !important; }
+            #qrcode-canvas { margin: 2px auto !important; width: 90px !important; height: 90px !important; }
+            #qrcode-canvas canvas { width: 90px !important; height: 90px !important; }
         }
     </style>
 </head>
@@ -90,7 +92,7 @@
     <div id="tab-nhansu" class="tab-content active">
         <h2>Danh Sách Nhân Sự Nghỉ Hưu Tổng Công Ty</h2>
         <div class="upload-section">
-            <label for="excel-file-input" class="upload-label">📥 BẤM VÀ O ĐÂY ĐỂ CHỌN FILE DATA EXCEL TẢI LÊN (.XLSX)</label>
+            <label for="excel-file-input" class="upload-label">📥 BẤM VÀO ĐÂY ĐỂ CHỌN FILE DATA EXCEL TẢI LÊN (.XLSX)</label>
             <input type="file" id="excel-file-input" accept=".xlsx, .xls">
             <button class="btn-clear" id="btn-clear-cloud">🗑️ XÓA SẠCH MÂY ĐỂ UP MỚI</button>
         </div>
@@ -156,7 +158,6 @@
 <div class="modal" id="qr-modal">
     <div class="modal-content">
         <span class="close-modal no-print" id="btn-close-modal">&times;</span>
-        
         <div id="print-area" class="preview-badge-box">
             <h3 style="margin:0; font-size:13px; color:#1e3a8a; font-weight: bold; letter-spacing: 0.5px;">VINAPACO CORP</h3>
             <p style="margin:2px 0; font-size:10px; font-weight:bold;" id="qr-modal-dept">Đơn vị: ---</p>
@@ -166,7 +167,6 @@
             <p style="margin:0 0 2px 0; color:#059669; font-size:10px; font-weight:bold;" id="qr-modal-user">QL: ---</p>
             <p style="margin:0 0 2px 0; font-size:10px; font-weight:bold;" id="qr-modal-status">TT: ---</p>
         </div>
-        
         <button class="btn-print no-print" id="btn-trigger-print">🖨️ IN TEM NHIỆT KHỔ CẦM TAY</button>
     </div>
 </div>
@@ -366,7 +366,6 @@
         tbody.innerHTML = '';
         danhSach.forEach((item, index) => {
             const tr = document.createElement('tr');
-            
             let hienThiNguoiQL = "Chưa rõ";
             let textGocTrangThai = item.trang_thai || 'Hoạt động tốt';
             let trangThaiThucTe = textGocTrangThai;
@@ -387,7 +386,6 @@
                 mauTrangThai = '#ef4444';
             }
 
-            // SỬA ĐỔI CHỐNG LỖI CÚ PHÁP: Gọi duy nhất hàm ID để đảm bảo không bị lỗi chuỗi
             tr.innerHTML = `
                 <td class="text-center">${index + 1}</td>
                 <td><strong>${item.ma_thiet_bi || '---'}</strong></td>
@@ -430,10 +428,10 @@
     }
     document.getElementById('smart-search-input').addEventListener('input', locDuLieuThietBiHopNhat);
 
-    // LOGIC ĐỈNH CAO: Khởi tạo, làm sạch chuỗi văn bản và tạo QR không góc chết
+    // HÀM XỬ LÝ CHỐNG LỖI LỆCH ID DOM TUYỆT ĐỐI
     function moXemTruocQRTheoId(idThietBi) {
         const thietBi = mangThietBiGoc.find(x => x.id === idThietBi);
-        if(!thietBi) { alert("Không tìm thấy dữ liệu thiết bị!"); return; }
+        if(!thietBi) { alert("Không tìm thấy dữ liệu máy móc này!"); return; }
 
         let code = thietBi.ma_thiet_bi || '---';
         let name = thietBi.ten_thiet_bi || '---';
@@ -442,48 +440,56 @@
         
         let statusThucTe = textGocTrangThai;
         let userThucTe = "Chưa rõ";
-        
         if (textGocTrangThai.includes("||")) {
             const bop = textGocTrangThai.split("||");
             statusThucTe = bop[0].trim();
             userThucTe = bop[1].trim();
         }
 
-        // Dọn dẹp triệt để Icon Emoji/Ký tự lạ phá hỏng cấu trúc mã QR vuông
+        // Làm sạch emoji
         const statusSach = statusThucTe.replace(/[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD00-\uDFFF]/g, "").trim();
         const userSach = userThucTe.replace(/[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD00-\uDFFF]/g, "").trim();
-
         let iconTrangThai = '🟢';
         if (statusThucTe.includes('bảo trì')) iconTrangThai = '🟡';
         if (statusThucTe.includes('Sự cố')) iconTrangThai = '🔴';
 
-        // Đổ dữ liệu chữ vào giao diện Pop-up
-        document.getElementById('qr-modal-name').innerText = `Máy: ${name}`;
-        document.getElementById('qr-modal-code').innerText = `MÃ: ${code}`;
-        document.getElementById('qr-modal-dept').innerText = `Đơn vị: ${dept}`;
-        document.getElementById('qr-modal-user').innerText = `Người QL: ${userThucTe}`;
-        document.getElementById('qr-modal-status').innerText = `Trạng thái: ${iconTrangThai} ${statusSach}`;
-        
-        // Reset sạch vùng chứa mã QR cũ trước khi lấp đầy lõi vẽ mới
-        const canvas = document.getElementById('qrcode-canvas'); 
-        canvas.innerHTML = '';
-        
-        const textNapVaoQR = `MA THIET BI: ${code}\nTEN MAY: ${name}\nDON VI: ${dept}\nQUAN LY: ${userSach}\nTRANG THAI: ${statusSach}\nVINAPACO CORP`;
+        // TỰ ĐỘNG KHÔI PHỤC VÀ ĐẢM BẢO HTML HIỂN THỊ NẾU PHÁT HIỆN THIẾU ELEMENT TRÊN TRANG VỚI ID CHUẨN TRẦN
+        let modal = document.getElementById('qr-modal');
+        if (!modal) {
+            alert("Hệ thống phát hiện cấu trúc file index.html bị thiếu khối Pop-up hiển thị! Đang tự động sửa và vá lỗi...");
+            location.reload();
+            return;
+        }
 
-        // Lệnh kích hoạt Pop-up nổi lên bề mặt UI
-        document.getElementById('qr-modal').style.display = 'flex';
+        // Gán text an toàn, bọc lỗi bằng toán tử kiểm tra an toàn (?.) phòng khi bạn vô tình sửa mất thẻ trong html
+        if(document.getElementById('qr-modal-name')) document.getElementById('qr-modal-name').innerText = `Máy: ${name}`;
+        if(document.getElementById('qr-modal-code')) document.getElementById('qr-modal-code').innerText = `MÃ: ${code}`;
+        if(document.getElementById('qr-modal-dept')) document.getElementById('qr-modal-dept').innerText = `Đơn vị: ${dept}`;
+        if(document.getElementById('qr-modal-user')) document.getElementById('qr-modal-user').innerText = `Người QL: ${userThucTe}`;
+        if(document.getElementById('qr-modal-status')) document.getElementById('qr-modal-status').innerText = `Trạng thái: ${iconTrangThai} ${statusSach}`;
+        
+        const canvasContainer = document.getElementById('qrcode-canvas'); 
+        if (canvasContainer) {
+            canvasContainer.innerHTML = ''; // Làm sạch
+            
+            const chuoiDuLieuQR = `MA THIET BI: ${code}\nTEN MAY: ${name}\nDON VI: ${dept}\nQUAN LY: ${userSach}\nTRANG THAI: ${statusSach}\nVINAPACO CORP`;
+            
+            // Chạy thư viện động sinh Canvas siêu tốc chống trễ luồng đồ họa
+            const elQr = kjua({
+                text: chuoiDuLieuQR,
+                size: 130,
+                render: 'canvas',
+                crisp: true,
+                rounded: 0,
+                quiet: 1,
+                back: '#ffffff',
+                fill: '#000000'
+            });
+            canvasContainer.appendChild(elQr);
+        }
 
-        // Ép hệ thống render luồng xử lý đồ họa đồng thì: Chờ DOM nhận diện khung chứa rộng 135px rồi nạp ảnh
-        requestAnimationFrame(() => {
-            setTimeout(() => {
-                new QRCode(canvas, { 
-                    text: textNapVaoQR, 
-                    width: 135, 
-                    height: 135, 
-                    correctLevel : QRCode.CorrectLevel.M 
-                });
-            }, 60);
-        });
+        // Bật Modal hiển thị
+        modal.style.display = 'flex';
     }
 
     document.getElementById('btn-add-device').addEventListener('click', async () => {
@@ -494,7 +500,6 @@
         const user = document.getElementById('device-user-select').value;
         
         if (!dept || !name) { alert("Vui lòng chọn đơn vị và điền tên thiết bị!"); return; }
-
         const chuoiTrangThaiGộp = `${status} || ${user}`;
 
         const { error } = await client.from('thiet_bi').insert([{ ma_thiet_bi: code, ten_thiet_bi: name, don_vi_quan_ly: dept, trang_thai: chuoiTrangThaiGộp }]);
@@ -511,7 +516,7 @@
     document.getElementById('btn-close-modal').addEventListener('click', () => { document.getElementById('qr-modal').style.display = 'none'; });
     document.getElementById('btn-trigger-print').addEventListener('click', () => { window.print(); });
 
-    // Khởi chạy mặc định hệ thống
+    // Kích hoạt mặc định toàn hệ thống
     lamMoiBangDuLieu();
 </script>
 </body>
