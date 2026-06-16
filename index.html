@@ -3,245 +3,287 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VINAPACO - Quản Lý Chứng Từ Thanh Toán</title>
+    <title>VINAPACO-ERP System</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 30px; background-color: #f4f6f9; color: #333; }
-        .container { max-width: 1100px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        h2 { color: #0056b3; border-bottom: 2px solid #0056b3; padding-bottom: 10px; margin-top: 0; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #dee2e6; padding: 12px; text-align: left; }
-        th { background-color: #0056b3; color: white; }
-        tr:nth-child(even) { background-color: #f8f9fa; }
-        button { cursor: pointer; padding: 8px 14px; border: none; border-radius: 4px; font-weight: 500; }
-        .btn-sua { background-color: #ffc107; color: #212529; }
-        .btn-sua:hover { background-color: #e0a800; }
-        .btn-luu { background-color: #28a745; color: white; padding: 10px 20px; font-size: 15px; }
-        .btn-luu:hover { background-color: #218838; }
-        .btn-dong { background-color: #dc3545; color: white; padding: 10px 20px; font-size: 15px; margin-right: 10px; }
-        .btn-dong:hover { background-color: #c82333; }
+        :root { --primary-color: #0056b3; --success-color: #28a745; --warning-color: #ffc107; --danger-color: #dc3545; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; background-color: #f4f6f9; color: #333; display: flex; }
         
-        /* Cấu trúc thiết kế Form cửa sổ chỉnh sửa Popup (Modal) */
-        .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); }
-        .modal-content { background-color: white; margin: 12% auto; padding: 30px; border-radius: 8px; width: 460px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
-        .form-group { margin-bottom: 18px; }
-        .form-group label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 14px; }
-        .form-group input { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px; }
-        .form-group input:focus { border-color: #80bdff; outline: 0; box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25); }
+        /* THANH ĐIỀU HƯỚNG GIAO DIỆN (SIDEBAR) GỒM NHÂN SỰ VÀ CHỨNG TỪ */
+        .sidebar { width: 240px; background-color: #1e293b; color: white; height: 100vh; position: fixed; padding-top: 20px; }
+        .sidebar-brand { padding: 0 20px 20px 20px; font-size: 18px; font-weight: bold; border-bottom: 1px solid #334155; color: #38bdf8; }
+        .sidebar-menu { list-style: none; padding: 0; margin: 20px 0; }
+        .sidebar-item { padding: 12px 20px; cursor: pointer; display: flex; align-items: center; transition: 0.3s; color: #cbd5e1; }
+        .sidebar-item:hover, .sidebar-item.active { background-color: #334155; color: white; border-left: 4px solid #38bdf8; }
+        
+        /* KHU VỰC NỘI DUNG CHÍNH */
+        .main-content { margin-left: 240px; padding: 30px; width: calc(100% - 240px); box-sizing: border-box; }
+        .page-panel { display: none; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .page-panel.active { display: block; }
+        
+        h2 { margin-top: 0; color: #0f172a; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        th, td { border: 1px solid #e2e8f0; padding: 12px; text-align: left; font-size: 14px; }
+        th { background-color: #f8fafc; color: #475569; font-weight: 600; }
+        tr:hover { background-color: #f8fafc; }
+        
+        /* TRẠNG THÁI VÀ NÚT BẤM */
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500; }
+        .badge-success { background-color: #d1fae5; color: #065f46; }
+        .badge-warning { background-color: #fef3c7; color: #92400e; }
+        button { cursor: pointer; padding: 8px 14px; border: none; border-radius: 4px; font-size: 13px; font-weight: 500; }
+        .btn-edit { background-color: #ffc107; color: #212529; }
+        .btn-edit:hover { background-color: #e0a800; }
+        .btn-submit { background-color: #28a745; color: white; padding: 10px 20px; font-size: 14px; }
+        .btn-close { background-color: #dc3545; color: white; padding: 10px 20px; font-size: 14px; margin-right: 10px; }
+
+        /* CỬA SỔ POPUP MODAL SỬA */
+        .modal { display: none; position: fixed; z-index: 999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); }
+        .modal-content { background-color: white; margin: 10% auto; padding: 30px; border-radius: 8px; width: 480px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 14px; color: #334155; }
+        .form-group input, .form-group textarea { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 14px; }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <h2>HỆ THỐNG QUẢN LÝ CHỨNG TỪ THANH TOÁN - VINAPACO</h2>
+    <div class="sidebar">
+        <div class="sidebar-brand">VINAPACO - ERP v2.0</div>
+        <ul class="sidebar-menu">
+            <li class="sidebar-item" onclick="switchTab('tab-nhan-su', this)">👥 Quản lý Nhân sự</li>
+            <li class="sidebar-item active" onclick="switchTab('tab-chung-tu', this)">📄 Chứng từ Thanh toán</li>
+        </ul>
+    </div>
+
+    <div class="main-content">
         
-        <table>
-            <thead>
-                <tr>
-                    <th>ID Bản Ghi</th>
-                    <th>Tên Hồ Sơ Chứng Từ</th>
-                    <th>Số Tiền Đề Nghị</th>
-                    <th>Tệp File Minh Chứng</th>
-                    <th>Hành Động</th>
-                </tr>
-            </thead>
-            <tbody id="du-lieu-bang">
-                <tr>
-                    <td colspan="5" style="text-align: center; color: #666;">Đang kết nối hệ thống dữ liệu...</td>
-                </tr>
-            </tbody>
-        </table>
+        <div id="tab-nhan-su" class="page-panel">
+            <h2>👥 DANH SÁCH NHÂN SỰ - PHÒNG BAN VINAPACO</h2>
+            <p style="color: #64748b;">Hệ thống thông tin, hồ sơ, và sơ đồ tổ chức cán bộ ổn định.</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Mã NV</th>
+                        <th>Họ và Tên</th>
+                        <th>Chức Vụ</th>
+                        <th>Phòng Ban</th>
+                        <th>Trạng Thái</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>NV-0142</td><td>Nguyễn Văn A</td><td>Trưởng Phòng</td><td>Phòng Tài chính - Kế toán</td><td><span class="badge badge-success">Đang hoạt động</span></td></tr>
+                    <tr><td>NV-0255</td><td>Trần Thị B</td><td>Chuyên viên</td><td>Phòng Kế hoạch vật tư</td><td><span class="badge badge-success">Đang hoạt động</span></td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div id="tab-chung-tu" class="page-panel active">
+            <h2>📄 QUẢN LÝ CHỨNG TỪ THANH TOÁN</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Mã hồ sơ</th>
+                        <th>Tên hồ sơ thanh toán</th>
+                        <th>Số tiền</th>
+                        <th>Ghi chú</th>
+                        <th>Ngày tạo</th>
+                        <th>Trạng thái</th>
+                        <th>File chứng từ</th>
+                        <th>Hành động</th>
+                    </tr>
+                </thead>
+                <tbody id="du-lieu-bang">
+                    <tr><td colspan="8" style="text-align: center; color: #64748b;">Đang tải kết nối dữ liệu Supabase...</td></tr>
+                </tbody>
+            </table>
+        </div>
     </div>
 
     <div id="modal-edit" class="modal">
         <div class="modal-content">
-            <h3 style="margin-top:0; color: #0056b3;">✏️ Cập Nhật Thông Tin Chứng Từ</h3>
-            <hr style="border: 0; border-top: 1px solid #eee; margin-bottom: 20px;">
+            <h3 style="margin-top:0; color: #1e293b;">✏️ Cập Nhật Hồ Sơ Chứng Từ</h3>
+            <hr style="border:0; border-top:1px solid #e2e8f0; margin-bottom:20px;">
             
-            <input type="hidden" id="edit-id-hidden" />
+            <input type="hidden" id="edit-id" />
 
             <div class="form-group">
-                <label for="edit-ten">Tên hồ sơ / Nội dung thanh toán:</label>
-                <input type="text" id="edit-ten" placeholder="Nhập tên hồ sơ mới..." />
+                <label>Tên hồ sơ thanh toán:</label>
+                <input type="text" id="edit-ten" />
             </div>
 
             <div class="form-group">
-                <label for="edit-tien">Số tiền thanh toán (VNĐ):</label>
-                <input type="number" id="edit-tien" placeholder="Nhập số tiền..." />
+                <label>Số tiền (VNĐ):</label>
+                <input type="number" id="edit-tien" />
             </div>
 
             <div class="form-group">
-                <label>Trạng thái chứng từ đính kèm hiện tại:</label>
-                <div id="file-cu-status" style="padding: 8px; background: #e9ecef; border-radius: 4px; font-size: 13px; margin-bottom: 12px;"></div>
+                <label>Ghi chú:</label>
+                <textarea id="edit-ghichu" rows="2" style="width:100%; border:1px solid #cbd5e1; border-radius:4px; padding:10px; font-family:inherit; box-sizing:border-box;"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Trạng thái File chứng từ hiện tại:</label>
+                <div id="file-status-cu" style="padding:10px; background:#f1f5f9; border-radius:4px; font-size:13px; margin-bottom:12px; color:#475569;"></div>
                 
-                <label for="edit-file" style="color: #0056b3;">Chọn tải lên File đính kèm mới (Nếu muốn thay thế):</label>
+                <label style="color:#0056b3;">Chọn File mới để cập nhật thay thế:</label>
                 <input type="file" id="edit-file" accept=".pdf,.png,.jpg,.jpeg" />
             </div>
-            
-            <div style="text-align: right; margin-top: 25px;">
-                <button type="button" class="btn-dong" onclick="dongCuaSoSua()">Đóng lại</button>
-                <button type="button" id="btn-submit-update" class="btn-luu">Lưu cập nhật</button>
+
+            <div style="text-align: right; margin-top:25px;">
+                <button type="button" class="btn-close" onclick="dongCuaSoSua()">Hủy bỏ</button>
+                <button type="button" id="btn-submit-save" class="btn-submit">Lưu cập nhật</button>
             </div>
         </div>
     </div>
 
     <script>
-        // Tự động gán thông tin cấu hình dự án Supabase bạn đã cung cấp
-        const SUPABASE_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co"; 
+        // Cấu hình tài khoản Supabase thực tế bạn đã cung cấp
+        const SUPABASE_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co";
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ";
         
         const supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-        let hoSoGocDuocChon = null;
+        let duLieuHoSoHienTai = null;
 
-        // 1. TẢI TOÀN BỘ DANH SÁCH LÊN GIAO DIỆN KHI MỞ TRANG
+        // Hàm chuyển đổi tab mượt mà giữ nguyên giao diện ổn định
+        function switchTab(tabId, element) {
+            document.querySelectorAll('.page-panel').forEach(panel => panel.classList.remove('active'));
+            document.querySelectorAll('.sidebar-item').forEach(item => item.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            element.classList.add('active');
+        }
+
+        // 1. TẢI TOÀN BỘ CÁC MỤC DỮ LIỆU ĐỦ CỘT LÊN BẢNG CHỨNG TỪ
         async function fetchDanhSachChungTu() {
             try {
                 const tbody = document.getElementById('du-lieu-bang');
-                
-                // Truy vấn dữ liệu từ bảng 'CHUNG_TU_THANH_TOAN' (Tên bảng từ các hình ảnh cũ của bạn)
-                const { data, error } = await supabase
-                    .from('CHUNG_TU_THANH_TOAN')
-                    .select('*');
-
+                const { data, error } = await supabase.from('CHUNG_TU_THANH_TOAN').select('*');
                 if (error) throw error;
 
                 tbody.innerHTML = '';
-
                 if (!data || data.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #999;">Cơ sở dữ liệu trống. Hãy tạo hồ sơ mới!</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">Chưa có dữ liệu hồ sơ chứng từ.</td></tr>';
                     return;
                 }
 
                 data.forEach(item => {
+                    const formatNgay = item.created_at ? new Date(item.created_at).toLocaleDateString('vi-VN') : '---';
                     const row = document.createElement('tr');
                     row.innerHTML = `
-                        <td>#${item.id}</td>
-                        <td>${item.ten_ho_so || 'Chưa đặt tên'}</td>
-                        <td>${item.tong_tien ? Number(item.tong_tien).toLocaleString('vi-VN') + ' đ' : '0 đ'}</td>
+                        <td><b>${item.ma_ho_so || ('HS-' + item.id)}</b></td>
+                        <td>${item.ten_ho_so || ''}</td>
+                        <td>${Number(item.tong_tien || 0).toLocaleString('vi-VN')} đ</td>
+                        <td>${item.ghi_chu || ''}</td>
+                        <td>${formatNgay}</td>
+                        <td><span class="badge badge-warning">${item.trang_thai || 'Chờ duyệt'}</span></td>
                         <td>
                             ${item.link_minh_chung 
-                                ? `<a href="${item.link_minh_chung}" target="_blank" style="color: #0056b3; font-weight: bold; text-decoration: none;">📄 Xem file đính kèm</a>` 
-                                : `<span style="color: #dc3545;">⚠️ Chưa có file</span>`
+                                ? `<a href="${item.link_minh_chung}" target="_blank" style="color:#0056b3;font-weight:bold;text-decoration:none;">📄 Xem chứng từ</a>` 
+                                : `<span style="color:#dc3545;">❌ Không có file</span>`
                             }
                         </td>
                         <td>
-                            <button class="btn-sua" onclick='moPopupChỉnhSửa(${JSON.stringify(item)})'>✏️ Sửa</button>
+                            <button class="btn-edit" onclick='moPopupSua(${JSON.stringify(item)})'>✏️ Sửa</button>
                         </td>
                     `;
                     tbody.appendChild(row);
                 });
-
             } catch (err) {
-                console.error("Lỗi lấy danh sách DB:", err.message);
-                document.getElementById('du-lieu-bang').innerHTML = `<tr><td colspan="5" style="color:red; text-align:center;">Lỗi kết nối: ${err.message}</td></tr>`;
+                console.error("Lỗi:", err.message);
+                document.getElementById('du-lieu-bang').innerHTML = `<tr><td colspan="8" style="color:red;text-align:center;">Lỗi tải bảng dữ liệu.</td></tr>`;
             }
         }
 
-        // 2. ĐỔ DỮ LIỆU CŨ LÊN POPUP FORM KHI BẤM NÚT SỬA
-        function moPopupChỉnhSửa(item) {
-            hoSoGocDuocChon = item; // Giữ lại bản ghi gốc để lấy thông tin file cũ
-
-            document.getElementById('edit-id-hidden').value = item.id;
+        // 2. ĐỔ DỮ LIỆU CŨ LÊN FORM POPUP KHI BẤM SỬA
+        function moPopupSua(item) {
+            duLieuHoSoHienTai = item;
+            document.getElementById('edit-id').value = item.id;
             document.getElementById('edit-ten').value = item.ten_ho_so || '';
             document.getElementById('edit-tien').value = item.tong_tien || 0;
-            document.getElementById('edit-file').value = ''; // Reset khung chọn file mới về trống
+            document.getElementById('edit-ghichu').value = item.ghi_chu || '';
+            document.getElementById('edit-file').value = '';
 
-            const statusFileCu = document.getElementById('file-cu-status');
+            const divFileCu = document.getElementById('file-status-cu');
             if (item.link_minh_chung) {
-                statusFileCu.innerHTML = `✅ Đã có file lưu trữ. <a href="${item.link_minh_chung}" target="_blank" style="color: #0056b3; font-weight:600;">Nhấp vào đây để xem lại file gốc</a>`;
+                divFileCu.innerHTML = `📄 <a href="${item.link_minh_chung}" target="_blank" style="color:#0056b3; font-weight:600;">Xem lại tệp chứng từ hiện tại</a>`;
             } else {
-                statusFileCu.innerHTML = `❌ Hồ sơ này hiện chưa đính kèm file nào.`;
+                divFileCu.innerHTML = `⚠️ Hồ sơ chưa có file đính kèm trước đó.`;
             }
-
             document.getElementById('modal-edit').style.display = 'block';
         }
 
-        // Đóng Popup form sửa
         function dongCuaSoSua() {
             document.getElementById('modal-edit').style.display = 'none';
         }
 
-        // 3. XỬ LÝ LƯU THAY ĐỔI LÊN SUPABASE (SỬA TRIỆT ĐỂ LỖI 404 VÀ THỪA POLICY)
-        async function luuThongTinCapNhat() {
-            if (!hoSoGocDuocChon) return;
+        // 3. CODE HOÀN CHỈNH SỬA TRIỆT ĐỂ LỖI 404 VÀ LƯU FILE UPLOAD ĐÈ THÀNH CÔNG
+        async function luuCapNhatHoSo() {
+            if (!duLieuHoSoHienTai) return;
 
-            const btn = document.getElementById('btn-submit-update');
-            const idForm = document.getElementById('edit-id-hidden').value;
-            const tenForm = document.getElementById('edit-ten').value.trim();
-            const tienForm = document.getElementById('edit-tien').value;
+            const btn = document.getElementById('btn-submit-save');
+            const id = document.getElementById('edit-id').value;
+            const ten = document.getElementById('edit-ten').value.trim();
+            const tien = document.getElementById('edit-tien').value;
+            const ghichu = document.getElementById('edit-ghichu').value.trim();
             const fileCtrl = document.getElementById('edit-file');
             const fileMoi = fileCtrl.files ? fileCtrl.files[0] : null;
 
-            // Mặc định: Giữ nguyên link file cũ từ Database nếu người dùng không chọn file mới
-            let linkFileSauCung = hoSoGocDuocChon.link_minh_chung;
+            let linkMinhChungFinal = duLieuHoSoHienTai.link_minh_chung;
 
             try {
-                // Khóa tạm nút bấm tránh việc người dùng nhấn liên tục tạo nhiều luồng dữ liệu lỗi
                 btn.disabled = true;
-                btn.innerText = "Đang cập nhật...";
+                btn.innerText = "Đang xử lý...";
 
-                // TRƯỜNG HỢP: NGƯỜI DÙNG CHỌN TẢI FILE MỚI ĐỂ THAY THẾ
                 if (fileMoi) {
-                    // Tách lấy đuôi định dạng gốc của file tệp tin (.pdf, .png, .jpg...) tránh mất định dạng gây lỗi 404
-                    const nameGoc = fileMoi.name;
-                    const indexDot = nameGoc.lastIndexOf('.');
-                    const extension = indexDot !== -1 ? nameGoc.slice(indexDot) : '.pdf';
+                    // Trích xuất lấy đúng phần mở rộng (.pdf, .png...) để chống lỗi mất đuôi file gây lỗi 404
+                    const tenFileGoc = fileMoi.name;
+                    const viTriDauCham = tenFileGoc.lastIndexOf('.');
+                    const duoiFile = viTriDauCham !== -1 ? tenFileGoc.slice(viTriDauCham) : '.pdf';
+                    
+                    const maHoSo = duLieuHoSoHienTai.ma_ho_so || `HS-${id}`;
+                    const fileNameStorage = `${maHoSo}${duoiFile}`;
 
-                    // Tạo tên file chuẩn hóa: Sử dụng ID bản ghi hoặc mã định danh kết hợp với phần đuôi file
-                    const tenFileChuanStorage = `HS-${idForm}${extension}`;
-
-                    // Thực hiện Upload lên kho 'chung_tu_thanh_toan' 
-                    // THÊM THAM SỐ QUAN TRỌNG NHẤT { upsert: true } ĐỂ SUPABASE CHO PHÉP GHI ĐÈ FILE CŨ THÀNH CÔNG VÀ SỬA LỖI 404
+                    // ĐẨY FILE LÊN SUPABASE VÀ SỬA LỖI 404 BẰNG CẤU HÌNH GHI ĐÈ { upsert: true }
                     const { data: uploadData, error: uploadError } = await supabase.storage
                         .from('chung_tu_thanh_toan')
-                        .upload(tenFileChuanStorage, fileMoi, { upsert: true });
+                        .upload(fileNameStorage, fileMoi, { upsert: true });
 
-                    if (uploadError) {
-                        throw new Error("Lỗi tải file lên hệ thống kho chứa (Storage): " + uploadError.message);
-                    }
+                    if (uploadError) throw new Error("Lỗi kho lưu trữ: " + uploadError.message);
 
-                    // Thực hiện lấy đường dẫn Public URL hợp lệ và lưu lại vào biến linkFileSauCung
                     const { data: urlData } = supabase.storage
                         .from('chung_tu_thanh_toan')
-                        .getPublicUrl(tenFileChuanStorage);
-
-                    linkFileSauCung = urlData.publicUrl;
+                        .getPublicUrl(fileNameStorage);
+                        
+                    linkMinhChungFinal = urlData.publicUrl;
                 }
 
-                // CẬP NHẬT LẠI THÔNG TIN VÀ ĐƯỜNG LINK FILE MỚI VÀO DATABASE BẢNG 'CHUNG_TU_THANH_TOAN'
+                // CẬP NHẬT GHI ĐÈ LÊN DATABASE
                 const { error: dbError } = await supabase
                     .from('CHUNG_TU_THANH_TOAN')
                     .update({
-                        ten_ho_so: tenForm,
-                        tong_tien: tienForm,
-                        link_minh_chung: linkFileSauCung, // Cập nhật link mới chứa đầy đủ đuôi file hợp lệ
+                        ten_ho_so: ten,
+                        tong_tien: tien,
+                        ghi_chu: ghichu,
+                        link_minh_chung: linkMinhChungFinal,
                         updated_at: new Date().toISOString()
                     })
-                    .eq('id', idForm);
+                    .eq('id', id);
 
-                if (dbError) {
-                    throw new Error("Lỗi lưu thông tin vào Cơ sở dữ liệu (Database): " + dbError.message);
-                }
+                if (dbError) throw new Error("Lỗi cơ sở dữ liệu: " + dbError.message);
 
-                // THÔNG BÁO HOÀN THÀNH XỬ LÝ THÀNH CÔNG
-                alert("Hệ thống VINAPACO đã cập nhật dữ liệu và file đính kèm thành công!");
+                alert("VINAPACO-ERP: Cập nhật dữ liệu chứng từ thành công!");
                 dongCuaSoSua();
-                await fetchDanhSachChungTu(); // Gọi hàm làm mới lại bảng hiển thị ngay lập tức
+                await fetchDanhSachChungTu();
 
             } catch (error) {
-                console.error("Lỗi cập nhật phát sinh:", error);
-                alert("Quá trình sửa thất bại: " + error.message);
+                console.error(error);
+                alert("Cập nhật thất bại: " + error.message);
             } finally {
-                // Mở khóa lại nút bấm
                 btn.disabled = false;
                 btn.innerText = "Lưu cập nhật";
             }
         }
 
-        // ĐĂNG KÝ SỰ KIỆN KHI CLICK VÀO NÚT "LƯU CẬP NHẬT"
-        document.getElementById('btn-submit-update').addEventListener('click', luuThongTinCapNhat);
-
-        // TỰ ĐỘNG CHẠY HÀM LẤY DỮ LIỆU NGAY KHI TRANG WEB KHỞI ĐỘNG XONG
+        document.getElementById('btn-submit-save').addEventListener('click', luuCapNhatHoSo);
         window.onload = fetchDanhSachChungTu;
     </script>
 </body>
