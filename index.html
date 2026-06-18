@@ -46,12 +46,10 @@
         
         .status-box { padding: 12px; border-radius: 6px; margin-top: 12px; font-size: 0.9rem; display: none; line-height: 1.5; border: 1px solid #f59e0b; }
         
-        /* Bộ lọc tìm kiếm thông minh */
-        .search-box { display: flex; gap: 15px; margin-bottom: 15px; background: #f1f5f9; padding: 15px; border-radius: 6px; border: 1px solid var(--border); }
-        .search-input { flex: 1; padding: 10px 15px; border: 1px solid var(--border); border-radius: 4px; font-size: 1rem; outline: none; }
+        /* Giao diện thanh tìm kiếm đa năng gọn gàng */
+        .search-box { margin-bottom: 15px; background: #f1f5f9; padding: 15px; border-radius: 6px; border: 1px solid var(--border); }
+        .search-input { width: 100%; padding: 12px 15px; border: 1px solid var(--border); border-radius: 4px; font-size: 1rem; outline: none; }
         .search-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15); }
-        .filter-select { width: 220px; padding: 10px; border: 1px solid var(--border); border-radius: 4px; font-size: 1rem; background-color: white; cursor: pointer; outline: none; }
-        .filter-select:focus { border-color: var(--accent); }
 
         .table-container { overflow-x: auto; background: white; border-radius: 6px; border: 1px solid var(--border); }
         table { width: 100%; border-collapse: collapse; font-size: 1rem; min-width: 1650px; }
@@ -70,7 +68,7 @@
 <div class="container">
     <header>
         <h1>HỆ THỐNG QUẢN LÝ CƠ SỞ DỮ LIỆU NHÂN SỰ TOÀN DIỆN</h1>
-        <p>Tích hợp bộ tìm kiếm đa năng và phân nhóm lọc mã đơn vị chính xác</p>
+        <p>Tìm kiếm thông minh: Tìm theo Tên, CCCD, BHXH hoặc gõ trực tiếp Mã đơn vị (Ví dụ: 1.1)</p>
     </header>
 
     <div class="layout">
@@ -96,12 +94,9 @@
 
         <div class="content">
             <div class="card">
-                <h2>🔍 Bộ Lọc Tìm Kiếm Thông Minh</h2>
+                <h2>🔍 Ô Tìm Kiếm Nhân Sự / Mã Đơn Vị</h2>
                 <div class="search-box">
-                    <input type="text" id="search-keyword" class="search-input" placeholder="🔍 Nhập Tên, Số sổ BHXH, Số CCCD hoặc Chức danh để tìm nhanh...">
-                    <select id="filter-ma-don-vi" class="filter-select">
-                        <option value="">-- Tất cả Đơn Vị --</option>
-                    </select>
+                    <input type="text" id="search-keyword" class="search-input" placeholder="🔍 Gõ vào đây để tìm nhanh (Ví dụ: gõ '1.1' để lọc mã đơn vị, hoặc gõ tên nhân viên, số sổ BHXH, số CCCD...)">
                 </div>
 
                 <h2>📋 Danh sách chi tiết thông tin cán bộ công nhân viên</h2>
@@ -141,7 +136,7 @@
     
     const globalSupabase = supabase.createClient(DB_URL, DB_KEY);
     
-    // Mảng lưu trữ dữ liệu gốc tải về từ Cloud phục vụ việc tìm kiếm nhanh tại chỗ
+    // Lưu bộ nhớ đệm dữ liệu gốc tải về phục vụ lọc siêu nhanh không lag
     let globalCachedData = [];
 
     function clearAccentsAndSpaces(str) {
@@ -182,36 +177,10 @@
         return (str.toUpperCase() === "NULL" || str === "---") ? "" : str;
     }
 
-    // Hàm cập nhật danh sách các Mã đơn vị vào Dropdown tự động
-    function updateMaDonViDropdown(data) {
-        const select = document.getElementById('filter-ma-don-vi');
-        // Lưu giá trị đang chọn hiện tại để không bị mất khi reload
-        const currentSelected = select.value;
-        
-        // Trích xuất danh sách mã đơn vị không trùng lặp
-        const maDonViList = [...new Set(data.map(item => cleanTextField(item.ma_don_vi)).filter(Boolean))];
-        // Sắp xếp thứ tự
-        maDonViList.sort();
-
-        select.innerHTML = '<option value="">-- Tất cả Đơn Vị --</option>';
-        maDonViList.forEach(ma => {
-            const option = document.createElement('option');
-            option.value = ma;
-            option.innerText = `Mã đơn vị: ${ma}`;
-            select.appendChild(option);
-        });
-
-        // Chọn lại mã cũ nếu có
-        if (maDonViList.includes(currentSelected)) {
-            select.value = currentSelected;
-        }
-    }
-
-    // Hàm render vẽ bảng từ mảng dữ liệu được truyền vào
     function hiểnThịDữLiệuRaBảng(data) {
         const tbody = document.getElementById('table-body');
         if (!data || data.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="12" style="text-align: center; color: #94a3b8; padding: 40px;">🔍 Không tìm thấy kết quả nhân sự phù hợp!</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="12" style="text-align: center; color: #94a3b8; padding: 40px;">🔍 Không tìm thấy kết quả phù hợp!</td></tr>`;
             return;
         }
 
@@ -225,7 +194,7 @@
                 <td style="text-align: center; font-weight: 600; color: #2563eb;">${cleanTextField(item.ten) || '---'}</td> 
                 <td style="text-align: center;">${cleanTextField(item.nam_sinh) || '---'}</td>
                 <td style="text-align: center;">${cleanTextField(item.nam_nghi_huu) || '---'}</td>
-                <td style="text-align: center; font-weight: 600;">${cleanTextField(item.ma_don_vi) || '---'}</td>
+                <td style="text-align: center; font-weight: 600; color: #ea580c;">${cleanTextField(item.ma_don_vi) || '---'}</td>
                 <td>${cleanTextField(item.so_so_bhxh) || '---'}</td>
                 <td>${cleanTextField(item.so_cccd) || '---'}</td>
                 <td class="col-highlight">${cleanTextField(item.an_toan_vien) || '---'}</td>
@@ -236,28 +205,30 @@
         });
     }
 
-    // HÀM LỌC TÌM KIẾM ĐA NĂNG THÔNG MINH KẾT HỢP
+    // CƠ CHẾ LỌC THÔNG MINH - ĐÃ SỬA LỖI KHÔNG KHỚP MÃ ĐƠN VỊ VÍ DỤ 1.1
     function thựcHiệnBộLọcTìmKiếm() {
         const keyword = clearAccentsAndSpaces(document.getElementById('search-keyword').value);
-        const selectedMaDonVi = document.getElementById('filter-ma-don-vi').value;
+
+        if (keyword === "") {
+            hiểnThịDữLiệuRaBảng(globalCachedData);
+            return;
+        }
 
         const filtered = globalCachedData.filter(item => {
-            // 1. Kiểm tra điều kiện Mã đơn vị chính xác tuyệt đối
-            if (selectedMaDonVi !== "" && cleanTextField(item.ma_don_vi) !== selectedMaDonVi) {
-                return false;
-            }
+            const maDonViSạch = clearAccentsAndSpaces(item.ma_don_vi);
+            const hoTenSạch = clearAccentsAndSpaces(item.ho_ten);
+            const bhxhSạch = clearAccentsAndSpaces(item.so_so_bhxh);
+            const cccdSạch = clearAccentsAndSpaces(item.so_cccd);
+            const chucDanhSạch = clearAccentsAndSpaces(item.chuc_danh_cong_viec);
 
-            // 2. Kiểm tra từ khóa đa năng (Tên, bhxh, cccd, chức danh)
-            if (keyword !== "") {
-                const matchHoTen = clearAccentsAndSpaces(item.ho_ten).includes(keyword);
-                const matchBhxh = clearAccentsAndSpaces(item.so_so_bhxh).includes(keyword);
-                const matchCccd = clearAccentsAndSpaces(item.so_cccd).includes(keyword);
-                const matchChucDanh = clearAccentsAndSpaces(item.chuc_danh_cong_viec).includes(keyword);
-                
-                return matchHoTen || matchBhxh || matchCccd || matchChucDanh;
-            }
+            // Nếu người dùng gõ vào trùng khớp hoàn toàn hoặc chứa mã đơn vị (Ví dụ gõ '1.1' hoặc '14.2')
+            const matchMaDonVi = maDonViSạch === keyword || maDonViSạch.includes(keyword);
+            const matchHoTen = hoTenSạch.includes(keyword);
+            const matchBhxh = bhxhSạch.includes(keyword);
+            const matchCccd = cccdSạch.includes(keyword);
+            const matchChucDanh = chucDanhSạch.includes(keyword);
 
-            return true;
+            return matchMaDonVi || matchHoTen || matchBhxh || matchCccd || matchChucDanh;
         });
 
         hiểnThịDữLiệuRaBảng(filtered);
@@ -278,8 +249,6 @@
                 return;
             }
 
-            // Cập nhật các danh mục nhóm Mã đơn vị vào Dropdown và đẩy ra bảng
-            updateMaDonViDropdown(globalCachedData);
             thựcHiệnBộLọcTìmKiếm();
 
         } catch (e) {
@@ -287,9 +256,8 @@
         }
     }
 
-    // Sự kiện lắng nghe bộ lọc khi gõ phím hoặc đổi nhóm đơn vị
+    // Lắng nghe sự kiện gõ phím vào ô tìm kiếm để lọc thời gian thực
     document.getElementById('search-keyword').addEventListener('input', thựcHiệnBộLọcTìmKiếm);
-    document.getElementById('filter-ma-don-vi').addEventListener('change', thựcHiệnBộLọcTìmKiếm);
 
     document.getElementById('excel-file-input').addEventListener('change', function(e) {
         const file = e.target.files[0];
@@ -351,7 +319,10 @@
                         ten: targetNgaySinhGoc && row[targetNgaySinhGoc] ? formatExcelDate(row[targetNgaySinhGoc], 'year_only') : "",
                         nam_sinh: targetNamSinhCol && row[targetNamSinhCol] ? formatExcelDate(row[targetNamSinhCol], 'full') : "",
                         nam_nghi_huu: targetNamNghiHuuCol && row[targetNamNghiHuuCol] ? formatExcelDate(row[targetNamNghiHuuCol], 'full') : "",
-                        ma_don_vi: targetMaDonViCol && row[targetMaDonViCol] ? cleanTextField(row[targetMaDonViCol]) : "",
+                        
+                        // Đảm bảo mã đơn vị lưu dưới dạng chuỗi chữ chuẩn xác không mất dấu chấm
+                        ma_don_vi: targetMaDonViCol && row[targetMaDonViCol] !== undefined ? String(row[targetMaDonViCol]).trim() : "",
+                        
                         so_so_bhxh: targetBhxhCol && row[targetBhxhCol] ? cleanTextField(row[targetBhxhCol]) : "",
                         so_cccd: targetCccdCol && row[targetCccdCol] ? cleanTextField(row[targetCccdCol]) : "",
                         an_toan_vien: targetAtvCol && row[targetAtvCol] !== undefined ? String(row[targetAtvCol]).trim() : "",
@@ -388,7 +359,6 @@
             await globalSupabase.from('nhan_su').delete().gt('id', 0);
             alert("🗑 Đã làm sạch toàn bộ dữ liệu cũ!");
             document.getElementById('search-keyword').value = "";
-            document.getElementById('filter-ma-don-vi').innerHTML = '<option value="">-- Tất cả Đơn Vị --</option>';
             lamMoiBangDuLieu();
         } catch (e) { alert(e.message); }
     });
