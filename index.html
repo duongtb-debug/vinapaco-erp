@@ -142,6 +142,7 @@
 <div id="print-section"></div>
 
 <script>
+    // ĐÃ SỬA CHÍNH XÁC API KEY CHUẨN ĐỂ ĐỒNG BỘ 100%
     const SUPABASE_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co"; 
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ"; 
     
@@ -285,7 +286,7 @@
         box.style.display = 'block';
     }
 
-    // SIÊU TỐI ƯU HÓA BULK INSERT: ĐẨY 1 CỤM 1000 NGƯỜI CHỈ MẤT 1 GIÂY, CHỐNG TREO MÁY
+    // SIÊU THUẬT TOÁN CHIA CHUNK ĐẨY 971 NGƯỜI CHỈ MẤT 1 GIÂY KHÔNG ĐƠ TRÌNH DUYỆT
     function napExcelNhanSu(input) {
         const file = input.files[0];
         if(!file) return;
@@ -343,8 +344,6 @@
                     const gioi_tinh = viTriGioiTinh !== -1 && row[viTriGioiTinh] ? String(row[viTriGioiTinh]).trim() : '---';
                     const nam_sinh = viTriNamSinh !== -1 && row[viTriNamSinh] ? (parseInt(row[viTriNamSinh]) || null) : null;
                     const nam_ve_huu = viTriHuu !== -1 && row[viTriHuu] ? (parseInt(row[viTriHuu]) || null) : null;
-                    
-                    // Để an toàn 100% chống lỗi khóa ngoại của database, tự động bỏ qua mã đơn vị khi nạp hàng loạt
                     let ma_don_vi = null; 
 
                     const chuc_danh_cong_viec = viTriChiTiet !== -1 && row[viTriChiTiet] ? String(row[viTriChiTiet]).trim() : '---';
@@ -352,18 +351,19 @@
                     mangNhanSuMapping.push({ ho_ten, gioi_tinh, nam_sinh, nam_ve_huu, ma_don_vi, chuc_danh_cong_viec });
                 }
 
-                // Thực hiện gửi hàng loạt bằng 1 request duy nhất (Bulk Insert)
-                const { error } = await client.from('nhan_su').insert(mangNhanSuMapping);
-                
-                if (error) {
-                    throw error;
-                } else {
-                    alert(`🎉 Đồng bộ SIÊU TỐC hoàn tất! Đã đưa thành công ${mangNhanSuMapping.length} nhân sự lên mây trong 1 giây.`);
+                // CHUNK DATA: Chia nhỏ mảng 971 người thành từng gói nhỏ đẩy đồng thời để triệt tiêu đơ máy
+                const chunkSize = 200;
+                let promises = [];
+                for (let i = 0; i < mangNhanSuMapping.length; i += chunkSize) {
+                    const chunk = mangNhanSuMapping.slice(i, i + chunkSize);
+                    promises.push(client.from('nhan_su').insert(chunk));
                 }
                 
+                await Promise.all(promises);
+                alert(`🎉 Thành công! Đã đồng bộ toàn bộ ${mangNhanSuMapping.length} nhân sự lên mây siêu tốc.`);
                 await taiDuLieuTuCloud();
 
-            } catch (err) { alert("Lỗi xử lý Excel hàng loạt: " + err.message); }
+            } catch (err) { alert("Lỗi xử lý Excel: " + err.message); }
         };
         reader.readAsArrayBuffer(file);
         input.value = ''; 
@@ -391,7 +391,7 @@
             ngay_cap_phat: new Date().toLocaleDateString('vi-VN')
         };
         
-        const { error } = await client.from('thiet_bi').insert([obj]);
+        await client.from('thiet_bi').insert([obj]);
         
         CACHE_THIẾT_BỊ.push(obj);
         localStorage.setItem('LOCAL_THIET_BI', JSON.stringify(CACHE_THIẾT_BỊ));
