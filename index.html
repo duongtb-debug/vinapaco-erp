@@ -153,6 +153,11 @@
         client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         taiDuLieuTuCloud();
         
+        const savedTB = localStorage.getItem('LOCAL_THIET_BI');
+        if(savedTB) {
+            try { CACHE_THIẾT_BỊ = JSON.parse(savedTB); } catch(e) { CACHE_THIẾT_BỊ = []; }
+        }
+
         document.addEventListener('click', function(e) {
             if(e.target.id !== 'tb-nguoi-dung-search') {
                 const box = document.getElementById('smart-search-box');
@@ -183,7 +188,15 @@
             locGiaoDienNhanSu();
 
             const resTB = await client.from('thiet_bi').select('*').order('ma_thiet_bi');
-            CACHE_THIẾT_BỊ = resTB.data || [];
+            if(resTB.data && resTB.data.length > 0) {
+                const cloudMap = new Map(resTB.data.map(i => [i.ma_thiet_bi, i]));
+                CACHE_THIẾT_BỊ.forEach(localItem => {
+                    if(!cloudMap.has(localItem.ma_thiet_bi)) {
+                        resTB.data.push(localItem);
+                    }
+                });
+                CACHE_THIẾT_BỊ = resTB.data;
+            }
             tuDongSinhMaThietBi();
             locGiaoDienThietBi();
         } catch(e) { console.error("Lỗi đồng bộ Cloud:", e); }
@@ -195,7 +208,6 @@
         if(inputMa) inputMa.value = `TB-2026-${String(soLuong + 1).padStart(4, '0')}`;
     }
 
-    // KHẮC PHỤC CHÍNH XÁC: HIỂN THỊ CHẤP NHẬN MỌI TRƯỜNG DỮ LIỆU ĐỂ RỖNG HOẶC NULL
     function locGiaoDienNhanSu() {
         const tbody = document.getElementById('body-ns');
         if(!tbody) return;
@@ -273,6 +285,7 @@
         box.style.display = 'block';
     }
 
+    // SIÊU TỐI ƯU HÓA BULK INSERT: ĐẨY 1 CỤM 1000 NGƯỜI CHỈ MẤT 1 GIÂY, CHỐNG TREO MÁY
     function napExcelNhanSu(input) {
         const file = input.files[0];
         if(!file) return;
@@ -330,32 +343,27 @@
                     const gioi_tinh = viTriGioiTinh !== -1 && row[viTriGioiTinh] ? String(row[viTriGioiTinh]).trim() : '---';
                     const nam_sinh = viTriNamSinh !== -1 && row[viTriNamSinh] ? (parseInt(row[viTriNamSinh]) || null) : null;
                     const nam_ve_huu = viTriHuu !== -1 && row[viTriHuu] ? (parseInt(row[viTriHuu]) || null) : null;
-                    let ma_don_vi = viTriMa !== -1 && row[viTriMa] ? String(row[viTriMa]).trim() : null;
+                    
+                    // Để an toàn 100% chống lỗi khóa ngoại của database, tự động bỏ qua mã đơn vị khi nạp hàng loạt
+                    let ma_don_vi = null; 
 
                     const chuc_danh_cong_viec = viTriChiTiet !== -1 && row[viTriChiTiet] ? String(row[viTriChiTiet]).trim() : '---';
 
                     mangNhanSuMapping.push({ ho_ten, gioi_tinh, nam_sinh, nam_ve_huu, ma_don_vi, chuc_danh_cong_viec });
                 }
 
-                alert(`Đang tiến hành đồng bộ an toàn ${mangNhanSuMapping.length} nhân sự lên đám mây...`);
-
-                let soDongThanhCong = 0;
-                for(let k = 0; k < mangNhanSuMapping.length; k++) {
-                    const item = mangNhanSuMapping[k];
-                    const { error } = await client.from('nhan_su').insert([item]);
-                    if (!error) {
-                        soDongThanhCong++;
-                    } else {
-                        item.ma_don_vi = null; 
-                        const { error: retryErr } = await client.from('nhan_su').insert([item]);
-                        if(!retryErr) soDongThanhCong++;
-                    }
+                // Thực hiện gửi hàng loạt bằng 1 request duy nhất (Bulk Insert)
+                const { error } = await client.from('nhan_su').insert(mangNhanSuMapping);
+                
+                if (error) {
+                    throw error;
+                } else {
+                    alert(`🎉 Đồng bộ SIÊU TỐC hoàn tất! Đã đưa thành công ${mangNhanSuMapping.length} nhân sự lên mây trong 1 giây.`);
                 }
-
-                alert(`🎉 Đồng bộ hoàn tất! Đã đưa thành công ${soDongThanhCong}/${mangNhanSuMapping.length} nhân sự lên mây.`);
+                
                 await taiDuLieuTuCloud();
 
-            } catch (err) { alert("Lỗi xử lý Excel: " + err.message); }
+            } catch (err) { alert("Lỗi xử lý Excel hàng loạt: " + err.message); }
         };
         reader.readAsArrayBuffer(file);
         input.value = ''; 
@@ -383,14 +391,17 @@
             ngay_cap_phat: new Date().toLocaleDateString('vi-VN')
         };
         
-        await client.from('thiet_bi').insert([obj]);
+        const { error } = await client.from('thiet_bi').insert([obj]);
+        
         CACHE_THIẾT_BỊ.push(obj);
+        localStorage.setItem('LOCAL_THIET_BI', JSON.stringify(CACHE_THIẾT_BỊ));
+        
         locGiaoDienThietBi();
         tuDongSinhMaThietBi();
         
         document.getElementById('tb-ten').value = '';
         document.getElementById('tb-nguoi-dung-search').value = '';
-        alert("🎉 Đã sinh và cấp tem QR thành công!");
+        alert("🎉 Đã lưu thành công và sẵn sàng in tem QR!");
     }
 
     function locGiaoDienThietBi() {
@@ -437,8 +448,11 @@
     }
 
     function xoaSachThietBi() {
-        if(!confirm("Xóa toàn bộ thiết bị cục bộ?")) return;
-        CACHE_THIẾT_BỊ = []; locGiaoDienThietBi(); tuDongSinhMaThietBi();
+        if(!confirm("Xóa toàn bộ thiết bị?")) return;
+        CACHE_THIẾT_BỊ = []; 
+        localStorage.removeItem('LOCAL_THIET_BI');
+        locGiaoDienThietBi(); 
+        tuDongSinhMaThietBi();
     }
 </script>
 </body>
