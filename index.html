@@ -10,7 +10,7 @@ function napExcelNhanSu(input) {
             const firstSheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[firstSheetName];
             
-            // ĐỌC THÔ TOÀN BỘ FILE THEO DẠNG MẢNG (Bao gồm cả dòng trống, gộp ô)
+            // ĐỌC THÔ TOÀN BỘ FILE THEO DẠNG MẢNG
             const rawRows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
             
             if (!rawRows || rawRows.length === 0) {
@@ -23,6 +23,9 @@ function napExcelNhanSu(input) {
             let viTriTen = -1, viTriMa = -1, viTriGioiTinh = -1, viTriNamSinh = -1, viTriHuu = -1, viTriChiTiet = -1;
 
             for (let i = 0; i < rawRows.length; i++) {
+                // SỬA LỖI TẠI ĐÂY: Kiểm tra nếu dòng không có dữ liệu (undefined) thì bỏ qua
+                if (!rawRows[i] || !Array.isArray(rawRows[i])) continue; 
+
                 const row = rawRows[i].map(cell => cell ? String(cell).toLowerCase().trim() : '');
                 
                 // Dò xem dòng này có chứa từ khóa của cột Họ Tên không
@@ -52,7 +55,8 @@ function napExcelNhanSu(input) {
             const mangNhanSuMapping = [];
             for (let i = headerIndex + 1; i < rawRows.length; i++) {
                 const row = rawRows[i];
-                if (!row || !row[viTriTen]) continue; // Bỏ qua nếu dòng rỗng hoặc không có tên
+                // Kiểm tra dòng dữ liệu hợp lệ
+                if (!row || !Array.isArray(row) || !row[viTriTen]) continue; 
 
                 const ho_ten = String(row[viTriTen]).trim();
                 const gioi_tinh = viTriGioiTinh !== -1 && row[viTriGioiTinh] ? String(row[viTriGioiTinh]).trim() : '';
@@ -84,7 +88,5 @@ function napExcelNhanSu(input) {
         }
     };
     reader.readAsArrayBuffer(file);
-    
-    // ĐÂY LÀ ĐIỂM QUAN TRỌNG: Xóa trắng giá trị ô nhập file để nạp lại chính file đó không bị trơ
     input.value = ''; 
 }
