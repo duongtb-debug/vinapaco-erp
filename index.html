@@ -6,7 +6,6 @@
     <title>Hệ Thống Quản Lý Nhân Sự & Cấp Phát Thiết Bị QR</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     
     <style>
         :root {
@@ -82,6 +81,7 @@
             position: relative; box-sizing: border-box;
         }
         .qr-code-zone { width: 35%; display: flex; align-items: center; justify-content: center; }
+        .qr-code-zone img { width: 85px; height: 85px; object-fit: contain; }
         .qr-info-zone { width: 65%; padding-left: 10px; display: flex; flex-direction: column; justify-content: center; font-size: 0.75rem; line-height: 1.4; color: #000; }
         .qr-title { font-weight: bold; font-size: 0.85rem; border-bottom: 1px solid #333; padding-bottom: 2px; margin-bottom: 4px; }
         
@@ -183,7 +183,7 @@
     let dataNhanSu = [];
     let dataThietBi = [];
 
-    // TỰ ĐỘNG CHUYỂN ĐỔI TAB VÀ LÀM MỚI DỮ LIỆU ĐỒNG BỘ MƯỢT MÀ
+    // CHUYỂN TAB THÔNG SUỐT
     function switchTab(tabName) {
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -194,13 +194,11 @@
         } else {
             document.querySelectorAll('.tab-btn')[1].classList.add('active');
             document.getElementById('tab-thiet-bi').classList.add('active');
-            // Đảm bảo cập nhật dữ liệu nhân sự vào danh sách cấp phát thiết bị ngay lập tức
             capNhatDanhSachNguoiDung();
             lamMoiBangThietBi();
         }
     }
 
-    // Đổ dữ liệu nhân sự hiện tại vào thẻ Select để chọn lựa
     function capNhatDanhSachNguoiDung() {
         const cb = document.getElementById('tb-nguoi-dung');
         cb.innerHTML = '<option value="">-- Chọn nhân sự nhận máy --</option>';
@@ -209,7 +207,7 @@
         });
     }
 
-    // TẢI DỮ LIỆU NHÂN SỰ
+    // TẢI NHÂN SỰ
     async function lamMoiBangNhanSu() {
         try {
             const res = await client.from('nhan_su').select('*').order('ho_ten');
@@ -228,21 +226,16 @@
         });
     }
 
-    // ==========================================
-    // PHÂN HỆ: THIẾT BỊ VÀ QR CODE CHUẨN QUỐC TẾ
-    // ==========================================
+    // TẢI THIẾT BỊ
     async function lamMoiBangThietBi() {
         try {
             const res = await client.from('thiet_bi').select('*').order('ma_thiet_bi');
-            if (res.error) throw res.error;
             dataThietBi = res.data || [];
-        } catch(e) { 
-            console.log("Sử dụng mảng dữ liệu tạm thời (Local Offline Memory).");
-        }
+        } catch(e) { console.log("Offline mode."); }
         locThietBi();
     }
 
-    // LƯU THIẾT BỊ MỚI - BẤM PHÁT SINH MÃ QR NGAY LẬP TỰC
+    // THÊM THIẾT BỊ MỚI
     async function themThietBiMoi(e) {
         e.preventDefault();
         const obj = {
@@ -253,25 +246,21 @@
             ngay_cap_phat: new Date().toLocaleDateString('vi-VN')
         };
 
-        // Luôn luôn thêm vào bộ nhớ tạm trước để giao diện hiển thị ngay không có độ trễ
-        const trungMa = dataThietBi.findIndex(x => x.ma_thiet_bi === obj.ma_thiet_bi);
-        if (trungMa >= 0) dataThietBi[trungMa] = obj;
+        const idx = dataThietBi.findIndex(x => x.ma_thiet_bi === obj.ma_thiet_bi);
+        if (idx >= 0) dataThietBi[idx] = obj;
         else dataThietBi.push(obj);
 
-        locThietBi(); // Làm mới vùng xem trước mã QR
+        locThietBi();
 
         try {
-            // Đồng bộ song song lên cloud
             await client.from('thiet_bi').insert([obj]);
-        } catch(err) {
-            console.log("Đã lưu cục bộ thành công.");
-        }
+        } catch(err) {}
 
         document.getElementById('form-thietbi').reset();
         alert("🎉 Đã sinh mã QR thiết bị thành công!");
     }
 
-    // VẼ TOÀN BỘ MÃ QR LÊN KHU VỰC XEM TRƯỚC
+    // HIỂN THỊ TEM QR VỚI API GOOGLE SIÊU TỐC KHÔNG LO ĐƠ MÁY
     function locThietBi() {
         const k = document.getElementById('search-tb').value.toLowerCase();
         const zone = document.getElementById('qr-zone-preview');
@@ -280,7 +269,7 @@
         const mangLoc = dataThietBi.filter(x => !k || x.ma_thiet_bi.toLowerCase().includes(k) || x.ten_thiet_bi.toLowerCase().includes(k) || x.nguoi_su_dung.toLowerCase().includes(k));
 
         if(mangLoc.length === 0) {
-            zone.innerHTML = '<p style="color:#7f8c8d; padding:20px;">Chưa có thiết bị nào. Hãy nhập thông tin bên trái rồi nhấn Lưu!</p>';
+            zone.innerHTML = '<p style="color:#7f8c8d; padding:20px;">Chưa có thiết bị nào. Hãy điền form bên trái rồi bấm Lưu nhé!</p>';
             return;
         }
 
@@ -290,7 +279,15 @@
 
             const qrZone = document.createElement('div');
             qrZone.className = 'qr-code-zone';
-            qrZone.id = `qr-code-render-${i}`;
+            
+            // Mã hóa nội dung QR an toàn để đưa vào link ảnh quốc tế công khai
+            const noiDungGoc = `Ma: ${tb.ma_thiet_bi} | Ten: ${tb.ten_thiet_bi} | NguoiDung: ${tb.nguoi_su_dung} | TrangThai: ${tb.trang_thai}`;
+            const noiDungMaHoa = encodeURIComponent(noiDungGoc);
+            
+            // Sử dụng link sinh QR của hệ thống API quốc tế thông minh trực tiếp qua thẻ img
+            const linkAnhQR = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${noiDungMaHoa}&ecc=H`;
+
+            qrZone.innerHTML = `<img src="${linkAnhQR}" alt="QR Asset">`;
 
             const infoZone = document.createElement('div');
             infoZone.className = 'qr-info-zone';
@@ -311,18 +308,6 @@
             ticket.appendChild(infoZone);
             ticket.appendChild(btnPrintSingle);
             zone.appendChild(ticket);
-
-            // Tạo chuỗi nội dung nén cho mã QR quét di động hoặc máy chuyên dụng
-            const chuoiQuetQR = `Mã: ${tb.ma_thiet_bi}\nTên: ${tb.ten_thiet_bi}\nNgười dùng: ${tb.nguoi_su_dung}\nTrạng thái: ${tb.trang_thai}`;
-            
-            new QRCode(document.getElementById(`qr-code-render-${i}`), {
-                text: chuoiQuetQR,
-                width: 90,
-                height: 90,
-                colorDark: "#000000",
-                colorLight: "#ffffff",
-                correctLevel: QRCode.CorrectLevel.H
-            });
         });
     }
 
