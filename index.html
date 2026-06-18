@@ -195,12 +195,10 @@
         if(inputMa) inputMa.value = `TB-2026-${String(soLuong + 1).padStart(4, '0')}`;
     }
 
-    // NÂNG CẤP: AN TOÀN TUYỆT ĐỐI CHO BẢNG HIỂN THỊ CHỐNG SẬP (FAIL-SAFE)
     function locGiaoDienNhanSu() {
         const tbody = document.getElementById('body-ns');
         if(!tbody) return;
         tbody.innerHTML = '';
-
         const sEl = document.getElementById('search-ns');
         const k = sEl ? sEl.value.toLowerCase().trim() : '';
 
@@ -211,13 +209,12 @@
             const x = CACHE_NHAN_SU[i];
             if (!x) continue;
 
-            // Dùng toán tử OR bảo vệ tất cả các trường dữ liệu khỏi lỗi null/undefined
-            let ho_ten = String(x.ho_ten || x['Họ & Tên'] || '').trim();
-            let gioi_tinh = String(x.gioi_tinh || x['Giới Tính'] || '---').trim();
-            let nam_sinh = x.nam_sinh || x['Năm Sinh'] || '---';
-            let nam_ve_huu = x.nam_ve_huu || x['Năm Nghỉ Hưu'] || '---';
-            let ma_don_vi = String(x.ma_don_vi || x['Mã ĐV'] || '---').trim();
-            let chuc_danh = String(x.chuc_danh_cong_viec || x['Chi Tiết'] || '---').trim();
+            let ho_ten = String(x.ho_ten || '').trim();
+            let gioi_tinh = String(x.gioi_tinh || '---').trim();
+            let nam_sinh = x.nam_sinh || '---';
+            let nam_ve_huu = x.nam_ve_huu || '---';
+            let ma_don_vi = String(x.ma_don_vi || '---').trim();
+            let chuc_danh = String(x.chuc_danh_cong_viec || '---').trim();
 
             if (k !== '') {
                 let matchTen = ho_ten.toLowerCase().includes(k);
@@ -236,7 +233,6 @@
                 <td>${chuc_danh}</td>
             </tr>`;
         }
-
         if (count === 0) {
             tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:#aaa; padding: 20px;">Không có dữ liệu nhân sự phù hợp</td></tr>`;
         }
@@ -282,7 +278,7 @@
         box.style.display = 'block';
     }
 
-    // NÂNG CẤP: CƠ CHẾ QUÉT MẢNG THÔ MA TRẬN KHÔNG DÙNG MAP - CHỐNG CRASH FILE EXCEL
+    // CHUYÊN GIA XỬ LÝ: TỰ ĐỘNG BẮT LỖI RÀNG BUỘC NGOẠI KHÓA (FOREIGN KEY FALLBACK)
     function napExcelNhanSu(input) {
         const file = input.files[0];
         if(!file) return;
@@ -304,7 +300,6 @@
                 let headerIndex = -1;
                 let viTriTen = -1, viTriMa = -1, viTriGioiTinh = -1, viTriNamSinh = -1, viTriHuu = -1, viTriChiTiet = -1;
 
-                // Sử dụng For-loop nguyên bản tìm kiếm tiêu đề
                 for (let i = 0; i < rawRows.length; i++) {
                     const currentRow = rawRows[i];
                     if (!currentRow || !Array.isArray(currentRow)) continue;
@@ -313,7 +308,7 @@
                         if (currentRow[j] === undefined || currentRow[j] === null) continue;
                         let valStr = String(currentRow[j]).toLowerCase().trim().replace(/\s+/g, '');
 
-                        if (valStr.includes('họtên') || valStr.includes('hoten') || valStr.includes('họvàtên') || valStr === 'tên' || valStr === 'name') {
+                        if (valStr.includes('họtên') || valStr.includes('hoten') || valStr.includes('họvàtên') || valStr === 'tên') {
                             headerIndex = i;
                             viTriTen = j;
                         }
@@ -336,7 +331,6 @@
                     }
                 }
 
-                // Dự phòng nếu không tìm thấy dòng header chuẩn
                 if (headerIndex === -1 || viTriTen === -1) {
                     headerIndex = 0; viTriTen = 0; viTriMa = 1;
                 }
@@ -352,7 +346,11 @@
                     const gioi_tinh = viTriGioiTinh !== -1 && row[viTriGioiTinh] ? String(row[viTriGioiTinh]).trim() : '---';
                     const nam_sinh = viTriNamSinh !== -1 && row[viTriNamSinh] ? (parseInt(row[viTriNamSinh]) || null) : null;
                     const nam_ve_huu = viTriHuu !== -1 && row[viTriHuu] ? (parseInt(row[viTriHuu]) || null) : null;
-                    const ma_don_vi = viTriMa !== -1 && row[viTriMa] ? String(row[viTriMa]).trim() : '---';
+                    
+                    // Xử lý mã đơn vị trống
+                    let ma_don_vi = viTriMa !== -1 && row[viTriMa] ? String(row[viTriMa]).trim() : '';
+                    if (ma_don_vi === '') { ma_don_vi = null; } // Đặt null để bỏ qua hoặc nhận diện trống an toàn
+
                     const chuc_danh_cong_viec = viTriChiTiet !== -1 && row[viTriChiTiet] ? String(row[viTriChiTiet]).trim() : '---';
 
                     mangNhanSuMapping.push({
@@ -361,17 +359,61 @@
                 }
 
                 if(mangNhanSuMapping.length === 0) {
-                    alert("❌ Không bóc tách được dòng nhân sự nào hợp lệ. Vui lòng kiểm tra lại cấu trúc hàng cột!");
+                    alert("❌ Không tìm thấy dữ liệu hợp lệ!");
                     return;
                 }
 
-                alert(`Đang đẩy dữ liệu an toàn ${mangNhanSuMapping.length} nhân sự lên Cloud...`);
+                alert(`Đang bóc tách và nạp ${mangNhanSuMapping.length} nhân sự lên Cloud...`);
                 
-                const { error } = await client.from('nhan_su').insert(mangNhanSuMapping);
-                if(error) throw error;
+                // THỬ NGHIỆM ĐỢT 1: Nạp hàng loạt
+                const { error: batchError } = await client.from('nhan_su').insert(mangNhanSuMapping);
+                
+                if(!batchError) {
+                    alert("🎉 Tuyệt vời! Đồng bộ thành công toàn bộ danh sách lên Cloud!");
+                    taiDuLieuTuCloud();
+                    return;
+                }
 
-                alert("🎉 Nạp dữ liệu Excel lên Cloud thành công 100%!");
+                // NẾU BỊ CHẶN NGOẠI KHÓA (FOREIGN KEY): Kích hoạt thuật toán xử lý từng bản ghi một (Row-by-Row Fallback)
+                console.warn("Phát hiện lỗi ràng buộc mã đơn vị. Đang kích hoạt chế độ nạp an toàn từng dòng...");
+                alert("⚠️ Phát hiện một số dòng có Mã đơn vị lạ (chưa tồn tại trong danh mục hệ thống). Hệ thống đang chuyển sang chế độ tự sửa lỗi và nạp an toàn...");
+
+                let soDongThanhCong = 0;
+                let dongLoiChiTiet = [];
+
+                for(let k = 0; k < mangNhanSuMapping.length; k++) {
+                    const singleRow = mangNhanSuMapping[k];
+                    
+                    // Thử đẩy dòng này lên mạng
+                    const { error: singleError } = await client.from('nhan_su').insert([singleRow]);
+                    
+                    if (!singleError) {
+                        soDongThanhCong++;
+                    } else {
+                        // Nếu lỗi do mã đơn vị (Foreign Key), thử xóa bỏ mã đơn vị lỗi và nạp lại vào nhóm mặc định (hoặc để trống)
+                        if (singleError.code === "23503") { 
+                            const backupMa = singleRow.ma_don_vi;
+                            singleRow.ma_don_vi = null; // Gỡ mã lỗi ra để cứu bản ghi nhân sự
+                            
+                            const { error: retryError } = await client.from('nhan_su').insert([singleRow]);
+                            if (!retryError) {
+                                soDongThanhCong++;
+                                dongLoiChiTiet.push(`- Nhân viên [${singleRow.ho_ten}]: Mã ĐV cũ '${backupMa}' không hợp lệ, đã đưa về mặc định.`);
+                            } else {
+                                dongLoiChiTiet.push(`- Dòng [${singleRow.ho_ten}]: Lỗi lưu trữ (${singleError.message})`);
+                            }
+                        } else {
+                            dongLoiChiTiet.push(`- Dòng [${singleRow.ho_ten}]: ${singleError.message}`);
+                        }
+                    }
+                }
+
+                alert(`🎉 Đã xử lý xong! Nạp thành công ${soDongThanhCong}/${mangNhanSuMapping.length} nhân sự.`);
+                if (dongLoiChiTiet.length > 0) {
+                    console.log("Chi tiết nhật ký điều chỉnh mã ĐV lỗi:\n" + dongLoiChiTiet.join("\n"));
+                }
                 taiDuLieuTuCloud();
+
             } catch (err) {
                 alert("Lỗi xử lý Excel: " + err.message);
                 console.error(err);
@@ -382,7 +424,7 @@
     }
 
     async function xoaSachCloudNhanSu() {
-        if(!confirm("Bạn có chắc chắn muốn xóa SẠCH dữ liệu trên Cloud? Thao tác này không thể hoàn tác.")) return;
+        if(!confirm("Bạn có chắc chắn muốn xóa SẠCH dữ liệu trên Cloud?")) return;
         try {
             const { error } = await client.from('nhan_su').delete().neq('ho_ten', '');
             if(error) throw error;
