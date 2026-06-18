@@ -10,48 +10,64 @@ function napExcelNhanSu(input) {
             const firstSheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[firstSheetName];
             
-            // Chuyển đổi thành mảng JSON dữ liệu thô
-            const jsonRows = XLSX.utils.sheet_to_json(worksheet);
+            // ĐỌC THÔ TOÀN BỘ FILE THEO DẠNG MẢNG (Bao gồm cả dòng trống, gộp ô)
+            const rawRows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
             
-            if (!jsonRows || jsonRows.length === 0) {
-                alert("File Excel này trống rỗng, không có dữ liệu dòng nào!");
+            if (!rawRows || rawRows.length === 0) {
+                alert("File Excel này hoàn toàn trống rỗng!");
                 return;
             }
 
-            // Tiến hành quét tìm và ánh xạ động (Tránh lỗi lệch ký tự tiêu đề)
-            const mangNhanSuMapping = jsonRows.map(row => {
-                // Tạo một bản sao chữ thường của toàn bộ key để dò cho dễ
-                const lowerRow = {};
-                for (let key in row) {
-                    lowerRow[key.toString().toLowerCase().trim()] = row[key];
+            // BƯỚC 1: Đi tìm dòng chứa Tiêu Đề (Header) thực sự của file
+            let headerIndex = -1;
+            let viTriTen = -1, viTriMa = -1, viTriGioiTinh = -1, viTriNamSinh = -1, viTriHuu = -1, viTriChiTiet = -1;
+
+            for (let i = 0; i < rawRows.length; i++) {
+                const row = rawRows[i].map(cell => cell ? String(cell).toLowerCase().trim() : '');
+                
+                // Dò xem dòng này có chứa từ khóa của cột Họ Tên không
+                const indexTen = row.findIndex(c => c.includes('họ') && (c.includes('tên') || c.includes('ten')));
+                const indexMa = row.findIndex(c => c.includes('mã') || c.includes('ma đv') || c.includes('đơn vị'));
+
+                if (indexTen !== -1) {
+                    headerIndex = i; // Đã tìm thấy dòng tiêu đề gốc!
+                    viTriTen = indexTen;
+                    viTriMa = indexMa;
+                    
+                    // Dò tiếp các vị trí cột còn lại trên chính dòng này
+                    viTriGioiTinh = row.findIndex(c => c.includes('giới tính') || c.includes('gioi'));
+                    viTriNamSinh = row.findIndex(c => c.includes('năm sinh') || c.includes('nam sinh'));
+                    viTriHuu = row.findIndex(c => c.includes('hưu') || c.includes('về hưu'));
+                    viTriChiTiet = row.findIndex(c => c.includes('chi tiết') || c.includes('chức danh') || c.includes('việc'));
+                    break;
                 }
+            }
 
-                // Dò tìm cột Họ Tên
-                const ho_ten = row['Họ & Tên'] || row['ho_ten'] || row['Họ và Tên'] || row['Họ Tên'] || 
-                               lowerRow['ho_ten'] || lowerRow['ho và ten'] || lowerRow['ho ten'] || lowerRow['name'] || '';
+            if (headerIndex === -1 || viTriTen === -1) {
+                alert("❌ Không thể tìm thấy cột dữ liệu 'Họ & Tên' trong file Excel này. Vui lòng kiểm tra lại file!");
+                return;
+            }
 
-                // Dò tìm cột Giới Tính
-                const gioi_tinh = row['Giới Tính'] || row['gioi_tinh'] || lowerRow['gioi tinh'] || lowerRow['gioitinh'] || '';
+            // BƯỚC 2: Hốt sạch dữ liệu từ các dòng nằm DƯỚI dòng tiêu đề
+            const mangNhanSuMapping = [];
+            for (let i = headerIndex + 1; i < rawRows.length; i++) {
+                const row = rawRows[i];
+                if (!row || !row[viTriTen]) continue; // Bỏ qua nếu dòng rỗng hoặc không có tên
 
-                // Dò tìm cột Năm Sinh
-                const nam_sinh = parseInt(row['Năm Sinh'] || row['nam_sinh'] || lowerRow['nam sinh'] || lowerRow['namsinh']) || null;
+                const ho_ten = String(row[viTriTen]).trim();
+                const gioi_tinh = viTriGioiTinh !== -1 && row[viTriGioiTinh] ? String(row[viTriGioiTinh]).trim() : '';
+                const nam_sinh = viTriNamSinh !== -1 && row[viTriNamSinh] ? parseInt(row[viTriNamSinh]) || null : null;
+                const nam_ve_huu = viTriHuu !== -1 && row[viTriHuu] ? parseInt(row[viTriHuu]) || null : null;
+                const ma_don_vi = viTriMa !== -1 && row[viTriMa] ? String(row[viTriMa]).trim() : '';
+                const chuc_danh_cong_viec = viTriChiTiet !== -1 && row[viTriChiTiet] ? String(row[viTriChiTiet]).trim() : '';
 
-                // Dò tìm cột Năm Nghỉ Hưu
-                const nam_ve_huu = parseInt(row['Năm Nghỉ Hưu'] || row['nam_ve_huu'] || lowerRow['nam nghi huu'] || lowerRow['namvehuu']) || null;
-
-                // Dò tìm cột Mã Đơn Vị
-                const ma_don_vi = String(row['Mã ĐV'] || row['ma_don_vi'] || row['Mã Đơn Vị'] || 
-                                         lowerRow['ma dv'] || lowerRow['ma don vi'] || lowerRow['madv'] || '').trim();
-
-                // Dò tìm cột Chi Tiết / Chức Danh
-                const chuc_danh_cong_viec = row['Chi Tiết'] || row['chuc_danh_cong_viec'] || row['Chức Danh'] || 
-                                            lowerRow['chi tiet'] || lowerRow['chuc danh'] || '';
-
-                return { ho_ten, gioi_tinh, nam_sinh, nam_ve_huu, ma_don_vi, chuc_danh_cong_viec };
-            }).filter(x => x.ho_ten !== ''); // Giữ lại những dòng có Tên hợp lệ
+                mangNhanSuMapping.push({
+                    ho_ten, gioi_tinh, nam_sinh, nam_ve_huu, ma_don_vi, chuc_danh_cong_viec
+                });
+            }
 
             if(mangNhanSuMapping.length === 0) {
-                alert("Hệ thống không tìm thấy cột nào chứa dữ liệu 'Họ & Tên' hoặc 'Mã ĐV' trong file Excel này. Vui lòng kiểm tra lại dòng tiêu đề đầu tiên!");
+                alert("❌ Không trích xuất được nhân sự nào hợp lệ dưới dòng tiêu đề!");
                 return;
             }
 
@@ -63,10 +79,12 @@ function napExcelNhanSu(input) {
             alert("🎉 Nạp dữ liệu Excel lên Cloud thành công 100%!");
             taiDuLieuTuCloud();
         } catch (err) {
-            alert("Lỗi kết nối hoặc cấu trúc file: " + err.message);
+            alert("Lỗi xử lý file Excel: " + err.message);
             console.error(err);
         }
     };
     reader.readAsArrayBuffer(file);
-    input.value = ''; // Xóa trạng thái input để lần sau nạp lại file cũ vẫn ăn
+    
+    // ĐÂY LÀ ĐIỂM QUAN TRỌNG: Xóa trắng giá trị ô nhập file để nạp lại chính file đó không bị trơ
+    input.value = ''; 
 }
