@@ -4,69 +4,166 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quản Lý Nhân Sự - Vinapaco ERP</title>
+    
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f6f9; }
-        h2 { color: #333; }
-        .container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f6f9; color: #333; }
+        .container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 1200px; margin: 0 auto; }
+        h2 { border-bottom: 2px solid #007bff; padding-bottom: 10px; color: #007bff; }
+        .upload-section { background: #e9ecef; padding: 15px; border-radius: 6px; margin-bottom: 20px; border: 1px dashed #6c757d; }
+        input[type="file"] { margin-right: 10px; }
+        button { background-color: #28a745; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        button:hover { background-color: #218838; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #fff; }
         th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
         th { background-color: #007bff; color: white; }
         tr:nth-child(even) { background-color: #f9f9f9; }
-        .error { color: red; font-weight: bold; margin-top: 10px; }
+        .error { color: #dc3545; font-weight: bold; margin-top: 10px; background: #f8d7da; padding: 10px; border-radius: 4px; }
         .loading { color: #666; font-style: italic; }
+        .success { color: #28a745; font-weight: bold; background: #d4edda; padding: 10px; border-radius: 4px; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>Danh Sách Nhân Sự Đã Nạp</h2>
-    <div id="status-message" class="loading">Đang tải dữ liệu từ Supabase...</div>
+    <h2>Hệ Thống Quản Lý Nhân Sự - Vinapaco ERP</h2>
     
-    <table id="data-table" style="display: none;">
-        <thead>
-            <tr id="table-header">
-                </tr>
-        </thead>
-        <tbody id="table-body">
-            </tbody>
-    </table>
+    <div class="upload-section">
+        <h3>Bước 1: Nạp file Excel nhân sự lên đám mây</h3>
+        <p style="font-size: 13px; color: #555;">💡 Lưu ý: Các cột trong file Excel nên đặt tên tiêu đề là: <b>ho_ten</b>, <b>ten</b>, <b>so_so_bhxh</b>, <b>so_cccd</b>, <b>an_toan_vien</b> để hệ thống nhận diện chính xác.</p>
+        <input type="file" id="excel-file" accept=".xlsx, .xls" />
+        <button onclick="handleUpload()">Tiến Hành Nạp Lên Supabase</button>
+    </div>
+
+    <div>
+        <h3>Bước 2: Danh sách nhân sự hiện tại trên hệ thống</h3>
+        <div id="status-message" class="loading">Đang tải dữ liệu từ Supabase...</div>
+        
+        <table id="data-table" style="display: none;">
+            <thead>
+                <tr id="table-header">
+                    </tr>
+            </thead>
+            <tbody id="table-body">
+                </tbody>
+        </table>
+    </div>
 </div>
 
 <script>
-    // Cấu hình Supabase bằng thông tin dự án của bạn
+    // Cấu hình Supabase của bạn
     const SUPABASE_URL = 'https://mtfpxsfxjsnghtalamdd.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ';
 
-    // ĐÃ SỬA LỖI: Đặt tên biến là 'supabaseClient' để tránh trùng với thư viện gốc của Supabase
+    // Khởi tạo Supabase Client (đã sửa lỗi trùng tên)
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // HÀM LẤY DỮ LIỆU VÀ HIỂN THỊ THÀNH BẢNG
+    // ========================================================
+    // 1. HÀM XỬ LÝ ĐỌC FILE EXCEL VÀ NẠP DỮ LIỆU LÊN SUPABASE
+    // ========================================================
+    function handleUpload() {
+        const fileInput = document.getElementById('excel-file');
+        if (!fileInput.files || fileInput.files.length === 0) {
+            alert("Vui lòng chọn một file Excel trước khi bấm nạp!");
+            return;
+        }
+
+        const file = fileInput.files[0];
+        const reader = new FileReader();
+
+        reader.onload = async function (e) {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                
+                // Lấy sheet đầu tiên trong file Excel
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                
+                // Chuyển dữ liệu sheet thành mảng JSON JSON
+                const rawJsonData = XLSX.utils.sheet_to_json(worksheet);
+
+                if (rawJsonData.length === 0) {
+                    alert("File Excel này trống rỗng, không có dữ liệu!");
+                    return;
+                }
+
+                // Chuẩn hóa dữ liệu: Ép tên cột về chữ thường, bỏ khoảng trắng dư thừa
+                const formattedData = rawJsonData.map(row => {
+                    const newRow = {};
+                    Object.keys(row).forEach(key => {
+                        // Chuyển tiêu đề cột "Họ Tên" -> "ho_ten", "Số CCCD" -> "so_cccd"...
+                        const cleanKey = key.trim().toLowerCase()
+                                            .replace(/ /g, '_')
+                                            .replace(/số_cccd/g, 'so_cccd')
+                                            .replace(/họ_tên/g, 'ho_ten')
+                                            .replace(/số_sổ_bhxh/g, 'so_so_bhxh')
+                                            .replace(/an_toàn_viên/g, 'an_toan_vien');
+                        newRow[cleanKey] = row[key];
+                    });
+                    return newRow;
+                });
+
+                alert(`Đang chuẩn bị đẩy ${formattedData.length} dòng dữ liệu lên Supabase...`);
+
+                // Thực hiện đẩy lên bảng 'nhan_su' trên Supabase
+                const { error } = await supabaseClient
+                    .from('nhan_su')
+                    .insert(formattedData);
+
+                if (error) throw error;
+
+                // Thông báo dứt điểm thành công giống giao diện cũ của bạn
+                alert(`🎯 DỨT ĐIỂM THÀNH CÔNG! Đã bóc tách và nạp đúng [${formattedData.length}] nhân sự lên đám mây.`);
+                
+                // Tải lại bảng hiển thị ngay lập tức
+                fetchData();
+
+            } catch (err) {
+                console.error("Lỗi chi tiết:", err);
+                alert(`❌ Nạp dữ liệu lên đám mây THẤT BẠI!\nLý do: ${err.message || 'Sai cấu trúc cột trên Supabase.'}`);
+            }
+        };
+
+        reader.readAsArrayBuffer(file);
+    }
+
+    // ========================================================
+    // 2. HÀM LẤY DỮ LIỆU TỪ SUPABASE VÀ ĐỔ VÀO BẢNG
+    // ========================================================
     async function fetchData() {
         const statusDiv = document.getElementById('status-message');
         const table = document.getElementById('data-table');
         const headerRow = document.getElementById('table-header');
         const tbody = document.getElementById('table-body');
 
+        // Reset lại bảng cũ trước khi tải mới
+        headerRow.innerHTML = "";
+        tbody.innerHTML = "";
+        statusDiv.style.display = 'block';
+        statusDiv.className = "loading";
+        statusDiv.innerHTML = "Đang tải dữ liệu từ Supabase...";
+        table.style.display = 'none';
+
         try {
-            // ⚠️ LƯU Ý: Thay 'nhan_su' thành tên bảng chính xác của bạn trên Supabase nếu bạn đặt tên khác
             const { data, error } = await supabaseClient
-                .from('nhan_su') 
+                .from('nhan_su')
                 .select('*');
 
             if (error) throw error;
 
             if (!data || data.length === 0) {
                 statusDiv.className = "error";
-                statusDiv.innerHTML = "⚡ Kết nối thành công nhưng không có dữ liệu hiển thị! (Bạn hãy kiểm tra xem tên bảng đã đúng chưa, hoặc đã TẮT tính năng RLS trên Supabase Dashboard chưa nhé).";
+                statusDiv.innerHTML = "⚡ Kết nối thành công nhưng bảng 'nhan_su' hiện tại đang trống rỗng (Chưa có dữ liệu hoặc RLS chưa được tắt).";
                 return;
             }
 
-            // Ẩn dòng chữ đang tải và hiện bảng lên
             statusDiv.style.display = 'none';
             table.style.display = 'table';
 
-            // Tự động tạo tiêu đề các cột dựa trên cấu trúc bảng dữ liệu của bạn
+            // Tạo tiêu đề cột động từ các trường trong database
             const columns = Object.keys(data[0]);
             columns.forEach(col => {
                 const th = document.createElement('th');
@@ -74,7 +171,7 @@
                 headerRow.appendChild(th);
             });
 
-            // Đổ toàn bộ dữ liệu nhân sự vào bảng dòng dữ liệu
+            // Đổ dữ liệu từng nhân sự vào dòng bảng
             data.forEach(row => {
                 const tr = document.createElement('tr');
                 columns.forEach(col => {
@@ -88,11 +185,11 @@
         } catch (error) {
             console.error('Lỗi lấy dữ liệu:', error);
             statusDiv.className = "error";
-            statusDiv.innerHTML = `❌ Lỗi: ${error.message || 'Không thể lấy dữ liệu từ Supabase'}`;
+            statusDiv.innerHTML = `❌ Lỗi: ${error.message || 'Không thể đồng bộ dữ liệu từ Supabase'}`;
         }
     }
 
-    // Tự động chạy hàm khi trang được tải xong
+    // Tự động tải danh sách khi mở trang web
     window.onload = fetchData;
 </script>
 
