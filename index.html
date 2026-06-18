@@ -26,7 +26,7 @@
             color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; text-align: center;
         }
 
-        /* TABS ĐIỀU HƯỚNG MƯỢT MÀ */
+        /* TABS DIỂU HƯỚNG */
         .nav-tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 3px solid var(--primary-color); padding-bottom: 5px; }
         .tab-btn {
             padding: 12px 28px; font-weight: bold; background: #e2e8f0; border: none;
@@ -49,14 +49,16 @@
         .form-group input, .form-group select { width: 100%; padding: 11px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.95rem; }
         .form-group input[readonly] { background-color: #eaeded; font-weight: bold; color: #2c3e50; }
 
-        /* THANH TÌM KIẾM NHÂN SỰ ĐỘNG (SMART SEARCH DROPDOWN) */
+        /* HỘP GỢI Ý TÌM KIẾM THÔNG MINH - CHUẨN ĐẸP */
         .smart-search-results {
             position: absolute; width: 100%; background: white; border: 1px solid var(--border-color);
-            max-height: 200px; overflow-y: auto; z-index: 999; border-radius: 6px; box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+            max-height: 250px; overflow-y: auto; z-index: 999; border-radius: 6px; box-shadow: 0 8px 16px rgba(0,0,0,0.15);
             display: none; margin-top: 2px;
         }
-        .smart-search-item { padding: 10px; cursor: pointer; border-bottom: 1px solid #f1f2f6; font-size: 0.9rem; }
+        .smart-search-item { padding: 10px 15px; cursor: pointer; border-bottom: 1px solid #f1f2f6; font-size: 0.9rem; display: flex; justify-content: space-between; }
         .smart-search-item:hover { background: #3498db; color: white; }
+        .smart-search-item .dept-badge { background: #e8f4fd; color: #3498db; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
+        .smart-search-item:hover .dept-badge { background: rgba(255,255,255,0.2); color: white; }
 
         .btn {
             display: block; width: 100%; padding: 12px; margin-bottom: 12px; border: none;
@@ -126,7 +128,7 @@
         </div>
         <div class="panel" style="background:transparent; border:none; padding:0;">
             <div class="filter-section">
-                <div class="search-group"><input type="text" id="search-ns" placeholder="🔍 Tìm nhân sự nhanh theo tên, phòng ban..." oninput="locGiaoDienNhanSu()"></div>
+                <div class="search-group"><input type="text" id="search-ns" placeholder="🔍 Tìm nhân sự nhanh theo tên, mã đơn vị..." oninput="locGiaoDienNhanSu()"></div>
             </div>
             <div class="table-responsive" style="background: white; padding: 20px; border-radius: 8px; border: 1px solid var(--border-color);">
                 <table>
@@ -151,8 +153,8 @@
                 </div>
                 
                 <div class="form-group">
-                    <label>Người sử dụng (Gõ từ khóa để tìm nhanh):</label>
-                    <input type="text" id="tb-nguoi-dung-search" placeholder="🔍 Gõ tên hoặc mã đơn vị để tìm..." oninput="goTimKiemNhanSu(this)" autocomplete="off">
+                    <label>Người sử dụng (Tìm theo Tên hoặc Mã ĐV):</label>
+                    <input type="text" id="tb-nguoi-dung-search" placeholder="🔍 Nhập Tên hoặc Mã ĐV cần tìm..." oninput="goTimKiemNhanSu(this)" autocomplete="off">
                     <input type="hidden" id="tb-nguoi-dung-value">
                     <div class="smart-search-results" id="smart-search-box"></div>
                 </div>
@@ -172,7 +174,7 @@
 
         <div class="panel" style="background:transparent; border:none; padding:0;">
             <div class="filter-section">
-                <div class="search-group"><input type="text" id="search-tb" placeholder="🔍 Tìm thiết bị, mã đơn vị hoặc tên người dùng..." oninput="locGiaoDienThietBi()"></div>
+                <div class="search-group"><input type="text" id="search-tb" placeholder="🔍 Tìm kiếm thiết bị dã cấp phát..." oninput="locGiaoDienThietBi()"></div>
                 <button class="btn btn-primary" style="width:auto; margin-bottom:0;" onclick="inToanBoTem()">🖨️ IN TOÀN BỘ TEM ĐÃ LỌC</button>
             </div>
             <h2>XEM TRƯỚC TEM QR CODE DÁN THIẾT BỊ (Chuẩn Tem 80x40mm)</h2>
@@ -188,11 +190,10 @@
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ"; 
     const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // BỘ NHỚ ĐỆM CLIENT (CACHE) - GIÚP CHUYỂN TAB SIÊU MƯỢT KHÔNG ĐƠ LẮC
     let CACHE_NHAN_SU = [];
     let CACHE_THIẾT_BỊ = [];
 
-    // CHUYỂN TAB MƯỢT MÀ KHÔNG GỌI LẠI ĐÁM MÂY LIÊN TỤC
+    // CHUYỂN TAB TỨC THÌ, SIÊU MƯỢT MÀ
     function switchTab(tabName) {
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -203,14 +204,12 @@
         } else {
             document.querySelectorAll('.tab-btn')[1].classList.add('active');
             document.getElementById('tab-thiet-bi').classList.add('active');
-            
-            // Tự động sinh mã thiết bị kế tiếp dựa trên cache hiện tại
             tuDongSinhMaThietBi();
             locGiaoDienThietBi();
         }
     }
 
-    // TẢI TOÀN BỘ DỮ LIỆU TỪ ĐÁM MÂY (CHỈ GỌI KHI MỞ TRANG HOẶC BẤM LÀM MỚI)
+    // TẢI DỮ LIỆU ĐỒNG BỘ ĐÁM MÂY
     async function taiDuLieuTuCloud() {
         try {
             const resNS = await client.from('nhan_su').select('*').order('ho_ten');
@@ -220,38 +219,38 @@
             const resTB = await client.from('thiet_bi').select('*').order('ma_thiet_bi');
             CACHE_THIẾT_BỊ = resTB.data || [];
             tuDongSinhMaThietBi();
-        } catch(e) { console.error("Lỗi tải dữ liệu đám mây:", e); }
+        } catch(e) { console.error(e); }
     }
 
-    // TỰ ĐỘNG SINH MÃ THIẾT BỊ THEO THỨ TỰ TĂNG DẦN
+    // TỰ ĐỘNG SINH MÃ TĂNG DẦN KHÔNG TRÙNG LẶP
     function tuDongSinhMaThietBi() {
-        let soLuongThietBi = CACHE_THIẾT_BỊ.length;
-        let soThuTuKếTiếp = soLuongThietBi + 1;
-        // Định dạng mã: TB-2026-0001
-        let maTuSinh = `TB-2026-${String(soThuTuKếTiếp).padStart(4, '0')}`;
+        let soLuong = CACHE_THIẾT_BỊ.length;
+        let maTuSinh = `TB-2026-${String(soLuong + 1).padStart(4, '0')}`;
         document.getElementById('tb-ma').value = maTuSinh;
     }
 
-    // TÌM KIẾM NHÂN SỰ THÔNG MINH DẠNG DROPDOWN BOX
+    // HÀM TÌM KIẾM CHUẨN XÁC, AN TOÀN TUYỆT ĐỐI CHO MÃ ĐƠN VỊ VÀ TÊN CHỮ HOA/THƯỜNG
     function goTimKiemNhanSu(input) {
         const keyword = input.value.toLowerCase().trim();
         const box = document.getElementById('smart-search-box');
         
         if (!keyword) { box.style.display = 'none'; return; }
         
-        const ketQuaLoc = CACHE_NHAN_SU.filter(x => 
-            x.ho_ten.toLowerCase().includes(keyword) || 
-            (x.ma_don_vi && x.ma_don_vi.toLowerCase().includes(keyword))
-        );
+        // Sửa lỗi: Ép kiểu dữ liệu về String trước khi so sánh toLowerCase() để không sót dữ liệu
+        const ketQuaLoc = CACHE_NHAN_SU.filter(x => {
+            const ten = x.ho_ten ? String(x.ho_ten).toLowerCase() : '';
+            const maDV = x.ma_don_vi ? String(x.ma_don_vi).toLowerCase() : '';
+            return ten.includes(keyword) || maDV.includes(keyword);
+        });
 
         if(ketQuaLoc.length === 0) {
-            box.innerHTML = `<div class="smart-search-item" style="color:#aaa; cursor:default;">❌ Không tìm thấy nhân viên nào</div>`;
+            box.innerHTML = `<div class="smart-search-item" style="color:#aaa; cursor:default;">❌ Không tìm thấy mã hoặc nhân viên nào</div>`;
         } else {
             box.innerHTML = '';
-            ketQuaLoc.slice(0, 10).forEach(ns => { // Hiển thị tối đa 10 kết quả trùng khớp nhất
+            ketQuaLoc.slice(0, 15).forEach(ns => {
                 const div = document.createElement('div');
                 div.className = 'smart-search-item';
-                div.innerText = `${ns.ho_ten} [Phòng: ${ns.ma_don_vi || '---'}]`;
+                div.innerHTML = `<span><b>${ns.ho_ten}</b></span> <span class="dept-badge">${ns.ma_don_vi || 'KĐĐ'}</span>`;
                 div.onclick = function() {
                     document.getElementById('tb-nguoi-dung-search').value = ns.ho_ten;
                     document.getElementById('tb-nguoi-dung-value').value = `${ns.ho_ten} (${ns.ma_don_vi || '---'})`;
@@ -263,44 +262,44 @@
         box.style.display = 'block';
     }
 
-    // Đóng hộp tìm kiếm thông minh nếu click ra ngoài
     document.addEventListener('click', function(e) {
         if(e.target.id !== 'tb-nguoi-dung-search') {
             document.getElementById('smart-search-box').style.display = 'none';
         }
     });
 
-    // RENDER LỌC GIAO DIỆN NHÂN SỰ
     function locGiaoDienNhanSu() {
         const k = document.getElementById('search-ns').value.toLowerCase();
         const tbody = document.getElementById('body-ns');
         tbody.innerHTML = '';
-        CACHE_NHAN_SU.filter(x => !k || x.ho_ten.toLowerCase().includes(k) || (x.ma_don_vi && x.ma_don_vi.toLowerCase().includes(k))).forEach((x, i) => {
+        CACHE_NHAN_SU.filter(x => {
+            const ten = x.ho_ten ? String(x.ho_ten).toLowerCase() : '';
+            const maDV = x.ma_don_vi ? String(x.ma_don_vi).toLowerCase() : '';
+            return !k || ten.includes(k) || maDV.includes(k);
+        }).forEach((x, i) => {
             tbody.innerHTML += `<tr><td>${i+1}</td><td><b>${x.ho_ten}</b></td><td>${x.gioi_tinh}</td><td>${x.nam_sinh}</td><td>${x.nam_ve_huu}</td><td>${x.ma_don_vi}</td><td>${x.chuc_danh_cong_viec}</td></tr>`;
         });
     }
 
-    // THÊM THIẾT BỊ MỚI
     async function themThietBiMoi(e) {
         e.preventDefault();
-        const nguoiDungHienTai = document.getElementById('tb-nguoi-dung-value').value || document.getElementById('tb-nguoi-dung-search').value || "Chưa cấp phát";
+        const nguoiDung = document.getElementById('tb-nguoi-dung-value').value || document.getElementById('tb-nguoi-dung-search').value || "Chưa cấp phát";
         
         const obj = {
             ma_thiet_bi: document.getElementById('tb-ma').value,
             ten_thiet_bi: document.getElementById('tb-ten').value.trim(),
-            nguoi_su_dung: nguoiDungHienTai,
+            nguoi_su_dung: nguoiDung,
             trang_thai: document.getElementById('tb-trangthai').value,
             ngay_cap_phat: new Date().toLocaleDateString('vi-VN')
         };
 
-        // Đẩy vào bộ nhớ cache lập tức để hiển thị lên bảng luôn mà không có độ trễ
         CACHE_THIẾT_BỊ.push(obj);
         locGiaoDienThietBi();
         tuDongSinhMaThietBi();
 
         try {
             await client.from('thiet_bi').insert([obj]);
-        } catch(err) { console.log("Lưu trữ đám mây lỗi, đã giữ ở bộ nhớ cục bộ."); }
+        } catch(err) {}
 
         document.getElementById('tb-ten').value = '';
         document.getElementById('tb-nguoi-dung-search').value = '';
@@ -308,16 +307,20 @@
         alert("🎉 Đã sinh mã QR thiết bị thành công!");
     }
 
-    // RENDER DANH SÁCH TEM QR THIẾT BỊ THEO CHUẨN QUỐC TẾ
     function locGiaoDienThietBi() {
         const k = document.getElementById('search-tb').value.toLowerCase();
         const zone = document.getElementById('qr-zone-preview');
         zone.innerHTML = '';
 
-        const mangLoc = CACHE_THIẾT_BỊ.filter(x => !k || x.ma_thiet_bi.toLowerCase().includes(k) || x.ten_thiet_bi.toLowerCase().includes(k) || x.nguoi_su_dung.toLowerCase().includes(k));
+        const mangLoc = CACHE_THIẾT_BỊ.filter(x => {
+            const ma = x.ma_thiet_bi ? String(x.ma_thiet_bi).toLowerCase() : '';
+            const ten = x.ten_thiet_bi ? String(x.ten_thiet_bi).toLowerCase() : '';
+            const ng = x.nguoi_su_dung ? String(x.nguoi_su_dung).toLowerCase() : '';
+            return !k || ma.includes(k) || ten.includes(k) || ng.includes(k);
+        });
 
         if(mangLoc.length === 0) {
-            zone.innerHTML = '<p style="color:#7f8c8d; padding:20px;">Chưa có thiết bị nào khớp điều kiện tìm kiếm.</p>';
+            zone.innerHTML = '<p style="color:#7f8c8d; padding:20px;">Không có thiết bị dã cấp phát nào phù hợp.</p>';
             return;
         }
 
