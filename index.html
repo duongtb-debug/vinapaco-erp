@@ -1,31 +1,216 @@
-// ==========================================================================
-    // CẤU HÌNH KẾT NỐI SUPABASE (HÃY ĐẢM BẢO URL NÀY ĐÚNG VỚI PROJECT HIỆN TẠI)
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ Thống Quản Lý Nhân Sự & Nghỉ Hưu</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --accent-color: #e74c3c;
+            --bg-color: #f4f6f7;
+            --panel-bg: #ffffff;
+            --border-color: #bdc3c7;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: #333;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .main-layout {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 20px;
+        }
+
+        .control-panel {
+            background: var(--panel-bg);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border: 1px solid var(--border-color);
+            height: fit-content;
+        }
+
+        .data-panel {
+            background: var(--panel-bg);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border: 1px solid var(--border-color);
+        }
+
+        h2 {
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+            color: var(--primary-color);
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 5px;
+        }
+
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 12px;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .btn-primary { background-color: #3498db; color: white; }
+        .btn-primary:hover { background-color: #2980b9; }
+        .btn-danger { background-color: var(--accent-color); color: white; }
+        .btn-danger:hover { background-color: #c0392b; }
+        .btn-success { background-color: #2ecc71; color: white; }
+        .btn-success:hover { background-color: #27ae60; }
+
+        .file-input-wrapper {
+            position: relative;
+            margin-bottom: 12px;
+        }
+
+        .file-input-wrapper input[type="file"] { display: none; }
+
+        .file-label {
+            display: block;
+            background-color: #95a5a6;
+            color: white;
+            padding: 12px;
+            border-radius: 6px;
+            text-align: center;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .file-label:hover { background-color: #7f8c8d; }
+
+        .table-responsive { overflow-x: auto; margin-top: 15px; }
+        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.95rem; }
+        th, td { padding: 12px 15px; border-bottom: 1px solid var(--border-color); }
+        th { background-color: var(--primary-color); color: white; font-weight: 600; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        tr:hover { background-color: #f1f2f6; }
+        .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; background-color: #d4edda; color: #155724; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>HỆ THỐNG QUẢN LÝ DỮ LIỆU NHÂN SỰ TỔNG CÔNG TY</h1>
+        <p>Hệ thống đồng bộ dữ liệu đám mây Supabase & Phân tích lộ trình nghỉ hưu</p>
+    </header>
+
+    <div class="main-layout">
+        <div class="control-panel">
+            <h2>HỆ THỐNG ĐÁM MÂY</h2>
+            <button class="btn btn-primary" id="btn-fetch-cloud">🔄 LÀM MỚI TỪ ĐÁM MÂY</button>
+            <button class="btn btn-danger" id="btn-clear-cloud">🗑️ XÓA SẠCH MÂY ĐỂ UP MỚI</button>
+            
+            <h2 style="margin-top: 25px;">NẠP FILE DỮ LIỆU</h2>
+            <div class="file-input-wrapper">
+                <label for="excel-file-input" class="file-label">📥 CHỌN FILE DATA EXCEL TẢI LÊN</label>
+                <input type="file" id="excel-file-input" accept=".xlsx, .xls">
+            </div>
+
+            <h2 style="margin-top: 25px;">XUẤT BÁO CÁO</h2>
+            <button class="btn btn-success" id="btn-export-excel"> Excel Xuất Danh Sách</button>
+        </div>
+
+        <div class="data-panel">
+            <h2>DANH SÁCH NHÂN SỰ TOÀN CÔNG TY</h2>
+            <div class="table-responsive">
+                <table id="data-table">
+                    <thead>
+                        <tr>
+                            <th>STT</th>
+                            <th>Họ và Tên</th>
+                            <th>Giới Tính</th>
+                            <th>Năm Sinh</th>
+                            <th>Năm Nghỉ Hưu</th>
+                            <th>Mã Đơn Vị</th>
+                            <th>Thông Tin Chi Tiết (Chức Danh || BHXH || CCCD)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body">
+                        <tr>
+                            <td colspan="7" style="text-align: center; color: #7f8c8d; padding: 30px;">
+                                Chưa có dữ liệu. Vui lòng bấm "Làm mới từ đám mây" hoặc tải lên file Excel mới.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ==========================================================================
+    // ⚠️ HÃY THAY ĐỔI 2 DÒNG NÀY BẰNG THÔNG TIN MỚI NHẤT TRÊN SUPABASE CỦA BẠN
     // ==========================================================================
     const SUPABASE_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co"; 
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ"; 
     
     const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // Thay thế toàn bộ bằng tên bảng VIẾT THƯỜNG 'nhan_su'
+    // Tự động kiểm tra viết hoa / viết thường linh hoạt cho tên bảng
+    let TEN_BANG_NHAN_SU = "nhan_su";
+
     async function lamMoiBangDuLieu() {
         const tbody = document.getElementById('table-body');
         tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 30px;">⏳ Đang tải dữ liệu từ Cloud...</td></tr>`;
 
         try {
-            const { data, error } = await client
-                .from('nhan_su') // Đổi thành viết thường
-                .select('*')
-                .order('ho_ten', { ascending: true });
+            // Thử nghiệm gọi bảng viết thường trước
+            let res = await client.from(TEN_BANG_NHAN_SU).select('*').order('ho_ten', { ascending: true });
+            
+            // Nếu lỗi 404, tự động chuyển đổi sang bảng viết hoa danh định
+            if (res.error && res.error.status === 404 && TEN_BANG_NHAN_SU === "nhan_su") {
+                TEN_BANG_NHAN_SU = "Nhan_su";
+                res = await client.from(TEN_BANG_NHAN_SU).select('*').order('ho_ten', { ascending: true });
+            }
 
-            if (error) throw error;
+            if (res.error) throw res.error;
 
-            if (!data || data.length === 0) {
+            if (!res.data || res.data.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #7f8c8d; padding: 30px;">Cơ sở dữ liệu đám mây hiện đang trống!</td></tr>`;
                 return;
             }
 
             tbody.innerHTML = "";
-            data.forEach((item, index) => {
+            res.data.forEach((item, index) => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td>${index + 1}</td>
@@ -33,42 +218,29 @@
                     <td>${item.gioi_tinh || '---'}</td>
                     <td>${item.nam_sinh || '---'}</td>
                     <td>${item.nam_ve_huu || '---'}</td>
-                    <td><span class="status-badge status-active">${item.ma_don_vi || '---'}</span></td>
+                    <td><span class="status-badge">${item.ma_don_vi || '---'}</span></td>
                     <td style="font-size: 0.9rem; color: #555;">${item.chuc_danh_cong_viec || '---'}</td>
                 `;
                 tbody.appendChild(tr);
             });
 
         } catch (e) {
-            tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--accent-color); padding: 30px;">❌ Lỗi kết nối mây: ${e.message}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--accent-color); padding: 30px;">❌ Lỗi kết nối mây: [Mã ${e.status || e.code}] ${e.message}</td></tr>`;
         }
     }
 
     document.getElementById('btn-fetch-cloud').addEventListener('click', lamMoiBangDuLieu);
 
     document.getElementById('btn-clear-cloud').addEventListener('click', async () => {
-        if (!confirm("⚠️ CẢNH BÁO: Hành động này sẽ xóa TOÀN BỘ dữ liệu trên Cloud! Bạn có chắc chắn muốn xóa?")) return;
-        
+        if (!confirm("⚠️ Bạn có chắc chắn muốn xóa toàn bộ dữ liệu bảng nhân sự trên Cloud?")) return;
         try {
             document.getElementById('btn-clear-cloud').innerText = "⏳ ĐANG XÓA...";
-            document.getElementById('btn-clear-cloud').disabled = true;
-
-            const { error } = await client
-                .from('nhan_su') // Đổi thành viết thường
-                .delete()
-                .neq('ho_ten', 'XOA_TOAN_BO_BANG_DU_LIEU_SUPABASE_BATCH_2026');
-            
+            const { error } = await client.from(TEN_BANG_NHAN_SU).delete().neq('ho_ten', 'XOA_ALL_BATCH_2026');
             if (error) throw error;
-
-            alert("🎉 Đã xóa sạch dữ liệu trên đám mây thành công!");
+            alert("🎉 Đã xóa sạch dữ liệu!");
             lamMoiBangDuLieu();
-        } catch (e) {
-            alert("Lỗi thực thi khi xóa: " + e.message);
-            console.error(e);
-        } finally {
-            document.getElementById('btn-clear-cloud').innerText = "🗑️ XÓA SẠCH MÂY ĐỂ UP MỚI";
-            document.getElementById('btn-clear-cloud').disabled = false;
-        }
+        } catch (e) { alert("Lỗi xóa: " + e.message); }
+        finally { document.getElementById('btn-clear-cloud').innerText = "🗑️ XÓA SẠCH MÂY ĐỂ UP MỚI"; }
     });
 
     document.getElementById('excel-file-input').addEventListener('change', function(e) {
@@ -77,7 +249,6 @@
 
         const reader = new FileReader();
         const label = document.querySelector('.file-label');
-        
         label.innerText = "⏳ ĐANG NẠP DỮ LIỆU...";
         label.style.backgroundColor = "#e67e22";
 
@@ -87,47 +258,29 @@
                 const workbook = XLSX.read(data, { type: 'binary' });
                 
                 let danhSachExcel = [];
-                for (let i = 0; i < workbook.SheetNames.length; i++) {
-                    const sheetName = workbook.SheetNames[i];
-                    const worksheet = workbook.Sheets[sheetName];
-                    const rows = XLSX.utils.sheet_to_json(worksheet);
-                    if (rows && rows.length > 0) {
-                        danhSachExcel = rows;
-                        break;
-                    }
+                for (let sheetName of workbook.SheetNames) {
+                    const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+                    if (rows && rows.length > 0) { danhSachExcel = rows; break; }
                 }
                 
-                if (danhSachExcel.length === 0) {
-                    alert("❌ Lỗi: Không thể tìm thấy hàng dữ liệu nào hợp lệ trong file Excel!");
-                    resetNutFile();
-                    return;
-                }
+                if (danhSachExcel.length === 0) throw new Error("File Excel trống!");
 
                 const findValueByKeys = (row, keysArray) => {
                     for (let key of Object.keys(row)) {
                         let cleanKey = key.trim().toLowerCase().replace(/\s+/g, '');
                         for (let k of keysArray) {
-                            if (cleanKey.includes(k.toLowerCase().replace(/\s+/g, ''))) {
-                                return row[key];
-                            }
+                            if (cleanKey.includes(k.toLowerCase().replace(/\s+/g, ''))) return row[key];
                         }
                     }
                     return null;
                 };
-
-                // Đổi bảng danh mục đơn vị thành viết thường 'don_vi'
-                const { data: listDonViCloud, error: errFetchDV } = await client.from('don_vi').select('ma_don_vi');
-                let danhSachMaDVHopLe = [];
-                if (!errFetchDV && listDonViCloud) {
-                    danhSachMaDVHopLe = listDonViCloud.map(dv => String(dv.ma_don_vi).trim());
-                }
 
                 const danhSachTenDaQuet = new Set();
                 const mangUpload = [];
 
                 danhSachExcel.forEach(row => {
                     let hoTen = (findValueByKeys(row, ["họvàtên", "họtên", "hoten", "name"]) || "").trim();
-                    if (!hoTen || hoTen === "") hoTen = "Ẩn danh " + Math.floor(Math.random() * 1000);
+                    if (!hoTen) return;
 
                     if (danhSachTenDaQuet.has(hoTen)) return; 
                     danhSachTenDaQuet.add(hoTen);
@@ -135,13 +288,8 @@
                     let gioiTinh = findValueByKeys(row, ["giớitính", "gioitinh", "sex", "gender"]) || "---";
                     let namSinh = findValueByKeys(row, ["nămsinh", "ngàysinh", "namsinh"]) || "---";
                     let namVeHuu = findValueByKeys(row, ["nghỉhưu", "vehuu", "vềhưu"]) || "---";
+                    let maDonViGoc = String(findValueByKeys(row, ["mãđv", "mãđơnvị", "madv", "madonvi"]) || "---").trim();
                     
-                    let maDonViGoc = String(findValueByKeys(row, ["mãđv", "mãđơnvị", "madv", "madonvi"]) || "").trim();
-                    
-                    if (danhSachMaDVHopLe.length > 0 && !danhSachMaDVHopLe.includes(maDonViGoc)) {
-                        maDonViGoc = danhSachMaDVHopLe[0]; 
-                    }
-
                     let chucDanhGoc = findValueByKeys(row, ["chứcdanh", "chứcvụ", "chucdanh"]) || "Chưa rõ";
                     let bhxh = findValueByKeys(row, ["bhxh", "bảohiểm"]) || "---";
                     let cccd = findValueByKeys(row, ["cccd", "cmnd"]) || "---";
@@ -157,55 +305,34 @@
                     });
                 });
 
-                const { error } = await client.from('nhan_su').insert(mangUpload); // Đổi thành viết thường
+                const { error } = await client.from(TEN_BANG_NHAN_SU).insert(mangUpload);
                 if (error) throw error;
 
-                alert(`🚀 Tải lên thành công! Đã nạp dữ liệu nhân sự lên Cloud.`);
+                alert(`🚀 Tải lên thành công ${mangUpload.length} nhân sự lên Cloud.`);
                 lamMoiBangDuLieu();
 
-            } catch (err) {
-                alert("Lỗi nạp dữ liệu Excel: " + err.message);
-                console.error(err);
-            } finally {
-                resetNutFile();
+            } catch (err) { alert("Lỗi nạp dữ liệu Excel: " + err.message); }
+            finally {
+                label.innerText = "📥 CHỌN FILE DATA EXCEL TẢI LÊN";
+                label.style.backgroundColor = "#95a5a6";
+                document.getElementById('excel-file-input').value = "";
             }
         };
         reader.readAsBinaryString(file);
     });
 
-    function resetNutFile() {
-        const label = document.querySelector('.file-label');
-        label.innerText = "📥 CHỌN FILE DATA EXCEL TẢI LÊN";
-        label.style.backgroundColor = "#95a5a6";
-        document.getElementById('excel-file-input').value = "";
-    }
-
     document.getElementById('btn-export-excel').addEventListener('click', async () => {
         try {
-            const { data, error } = await client.from('nhan_su').select('*'); // Đổi thành viết thường
-            if (error) throw error;
-            if (!data || data.length === 0) {
-                alert("Không có dữ liệu để xuất!");
-                return;
-            }
-
-            const dataToExport = data.map((item, index) => ({
-                "STT": index + 1,
-                "Họ và Tên": item.ho_ten,
-                "Giới Tính": item.gioi_tinh,
-                "Năm Sinh": item.nam_sinh,
-                "Năm Nghỉ Hưu": item.nam_ve_huu,
-                "Mã Đơn Vị": item.ma_don_vi,
-                "Chi Tiết": item.chuc_danh_cong_viec
-            }));
-
-            const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+            const { data, error } = await client.from(TEN_BANG_NHAN_SU).select('*');
+            if (error || !data) return alert("Không có dữ liệu!");
+            const worksheet = XLSX.utils.json_to_sheet(data);
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, "NhanSu");
             XLSX.writeFile(workbook, "Danh_Sach_Nhan_Su.xlsx");
-        } catch (e) {
-            alert("Lỗi: " + e.message);
-        }
+        } catch (e) { alert("Lỗi xuất: " + e.message); }
     });
 
     window.onload = lamMoiBangDuLieu;
+</script>
+</body>
+</html>
