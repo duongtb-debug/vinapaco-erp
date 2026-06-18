@@ -142,7 +142,6 @@
 <div id="print-section"></div>
 
 <script>
-    // ĐÃ SỬA CHÍNH XÁC API KEY CHUẨN ĐỂ ĐỒNG BỘ 100%
     const SUPABASE_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co"; 
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ"; 
     
@@ -286,7 +285,11 @@
         box.style.display = 'block';
     }
 
-    // SIÊU THUẬT TOÁN CHIA CHUNK ĐẨY 971 NGƯỜI CHỈ MẤT 1 GIÂY KHÔNG ĐƠ TRÌNH DUYỆT
+    // ĐÃ SỬA: THUẬT TOÁN ĐỌC FILE BẤT CHẤP KHÔNG CẦN QUAN TÂM ĐÚNG TIÊU ĐỀ CHỮ
+    function loaiBoDauTiengViet(str) {
+        return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, '');
+    }
+
     function napExcelNhanSu(input) {
         const file = input.files[0];
         if(!file) return;
@@ -305,13 +308,15 @@
                 let headerIndex = -1;
                 let viTriTen = -1, viTriMa = -1, viTriGioiTinh = -1, viTriNamSinh = -1, viTriHuu = -1, viTriChiTiet = -1;
 
-                for (let i = 0; i < rawRows.length; i++) {
+                // Vòng quét 1: Tìm kiếm cột dựa trên từ khóa thông minh đã được chuẩn hóa xóa dấu
+                for (let i = 0; i < Math.min(rawRows.length, 10); i++) {
                     const currentRow = rawRows[i];
                     if (!currentRow || !Array.isArray(currentRow)) continue;
                     for (let j = 0; j < currentRow.length; j++) {
                         if (currentRow[j] === undefined || currentRow[j] === null) continue;
-                        let valStr = String(currentRow[j]).toLowerCase().trim().replace(/\s+/g, '');
-                        if (valStr.includes('họtên') || valStr.includes('hoten') || valStr.includes('họvàtên') || valStr === 'tên') {
+                        let valStr = loaiBoDauTiengViet(String(currentRow[j]));
+                        
+                        if (valStr.includes('hoten') || valStr.includes('hovaten') || valStr === 'ten' || valStr.includes('fullname')) {
                             headerIndex = i; viTriTen = j;
                         }
                     }
@@ -319,19 +324,24 @@
                         const currentRowHeader = rawRows[headerIndex];
                         for (let j = 0; j < currentRowHeader.length; j++) {
                             if (currentRowHeader[j] === undefined || currentRowHeader[j] === null) continue;
-                            let valStr = String(currentRowHeader[j]).toLowerCase().trim().replace(/\s+/g, '');
+                            let valStr = loaiBoDauTiengViet(String(currentRowHeader[j]));
                             if (j === viTriTen) continue;
-                            if (valStr.includes('mã') || valStr.includes('madv') || valStr.includes('đơnvị')) viTriMa = j;
-                            if (valStr.includes('giới') || valStr.includes('gioi') || valStr.includes('nam/nữ')) viTriGioiTinh = j;
-                            if (valStr.includes('nămsinh') || valStr.includes('namsinh')) viTriNamSinh = j;
-                            if (valStr.includes('hưu') || valStr.includes('vềhưu')) viTriHuu = j;
-                            if (valStr.includes('chitiet') || valStr.includes('chứcdanh') || valStr.includes('việc') || valStr.includes('môtả')) viTriChiTiet = j;
+                            if (valStr.includes('ma') || valStr.includes('madv') || valStr.includes('donvi')) viTriMa = j;
+                            if (valStr.includes('gioi') || valStr.includes('namnu')) viTriGioiTinh = j;
+                            if (valStr.includes('namsinh')) viTriNamSinh = j;
+                            if (valStr.includes('huu') || valStr.includes('vehuu')) viTriHuu = j;
+                            if (valStr.includes('chitiet') || valStr.includes('chucdanh') || valStr.includes('viec')) viTriChiTiet = j;
                         }
                         break;
                     }
                 }
 
-                if (headerIndex === -1 || viTriTen === -1) { headerIndex = 0; viTriTen = 0; viTriMa = 1; }
+                // Vòng quét 2 (Dự phòng khẩn cấp): Nếu không quét ra chữ nào khớp, ép lấy mặc định Cột A làm tên, Cột B làm mã đơn vị
+                if (headerIndex === -1 || viTriTen === -1) { 
+                    headerIndex = 0; 
+                    viTriTen = 0; 
+                    viTriMa = 1; 
+                }
 
                 const mangNhanSuMapping = [];
                 for (let i = headerIndex + 1; i < rawRows.length; i++) {
@@ -339,7 +349,7 @@
                     if (!row || !Array.isArray(row) || row[viTriTen] === undefined || row[viTriTen] === null) continue;
 
                     const ho_ten = String(row[viTriTen]).trim();
-                    if (ho_ten === "" || ho_ten.toLowerCase().includes('họ tên')) continue;
+                    if (ho_ten === "" || loaiBoDauTiengViet(ho_ten).includes('hoten')) continue;
 
                     const gioi_tinh = viTriGioiTinh !== -1 && row[viTriGioiTinh] ? String(row[viTriGioiTinh]).trim() : '---';
                     const nam_sinh = viTriNamSinh !== -1 && row[viTriNamSinh] ? (parseInt(row[viTriNamSinh]) || null) : null;
@@ -351,7 +361,11 @@
                     mangNhanSuMapping.push({ ho_ten, gioi_tinh, nam_sinh, nam_ve_huu, ma_don_vi, chuc_danh_cong_viec });
                 }
 
-                // CHUNK DATA: Chia nhỏ mảng 971 người thành từng gói nhỏ đẩy đồng thời để triệt tiêu đơ máy
+                if (mangNhanSuMapping.length === 0) {
+                    return alert("Cảnh báo: Không trích xuất được người nào từ file Excel. Vui lòng kiểm tra xem cột Họ Tên có bị trống dữ liệu hay không.");
+                }
+
+                // Tiến hành chia nhỏ gói gửi (Chunking) để tải lên siêu tốc
                 const chunkSize = 200;
                 let promises = [];
                 for (let i = 0; i < mangNhanSuMapping.length; i += chunkSize) {
@@ -360,10 +374,10 @@
                 }
                 
                 await Promise.all(promises);
-                alert(`🎉 Thành công! Đã đồng bộ toàn bộ ${mangNhanSuMapping.length} nhân sự lên mây siêu tốc.`);
+                alert(`🎉 Đồng bộ thành công! Hệ thống đã đọc và nạp chính xác ${mangNhanSuMapping.length} nhân sự lên Cloud đám mây.`);
                 await taiDuLieuTuCloud();
 
-            } catch (err) { alert("Lỗi xử lý Excel: " + err.message); }
+            } catch (err) { alert("Lỗi xử lý file dữ liệu Excel: " + err.message); }
         };
         reader.readAsArrayBuffer(file);
         input.value = ''; 
