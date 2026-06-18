@@ -46,7 +46,6 @@
         
         .status-box { padding: 12px; border-radius: 6px; margin-top: 12px; font-size: 0.9rem; display: none; line-height: 1.5; border: 1px solid #f59e0b; }
         
-        /* Giao diện thanh tìm kiếm đa năng gọn gàng */
         .search-box { margin-bottom: 15px; background: #f1f5f9; padding: 15px; border-radius: 6px; border: 1px solid var(--border); }
         .search-input { width: 100%; padding: 12px 15px; border: 1px solid var(--border); border-radius: 4px; font-size: 1rem; outline: none; }
         .search-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15); }
@@ -68,7 +67,7 @@
 <div class="container">
     <header>
         <h1>HỆ THỐNG QUẢN LÝ CƠ SỞ DỮ LIỆU NHÂN SỰ TOÀN DIỆN</h1>
-        <p>Tìm kiếm thông minh: Tìm theo Tên, CCCD, BHXH hoặc gõ trực tiếp Mã đơn vị (Ví dụ: 1.1)</p>
+        <p>Bộ lọc thông minh sửa lỗi: Nhập mã đơn vị nào (Ví dụ: 1.1) chỉ hiển thị chính xác mã đó</p>
     </header>
 
     <div class="layout">
@@ -94,9 +93,9 @@
 
         <div class="content">
             <div class="card">
-                <h2>🔍 Ô Tìm Kiếm Nhân Sự / Mã Đơn Vị</h2>
+                <h2>🔍 Tìm Kiếm Nhân Viên / Mã Đơn Vị</h2>
                 <div class="search-box">
-                    <input type="text" id="search-keyword" class="search-input" placeholder="🔍 Gõ vào đây để tìm nhanh (Ví dụ: gõ '1.1' để lọc mã đơn vị, hoặc gõ tên nhân viên, số sổ BHXH, số CCCD...)">
+                    <input type="text" id="search-keyword" class="search-input" placeholder="🔍 Nhập mã đơn vị chính xác (Ví dụ: 1.1) hoặc tìm theo Tên, Số sổ BHXH, CCCD...">
                 </div>
 
                 <h2>📋 Danh sách chi tiết thông tin cán bộ công nhân viên</h2>
@@ -135,8 +134,6 @@
     const DB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ"; 
     
     const globalSupabase = supabase.createClient(DB_URL, DB_KEY);
-    
-    // Lưu bộ nhớ đệm dữ liệu gốc tải về phục vụ lọc siêu nhanh không lag
     let globalCachedData = [];
 
     function clearAccentsAndSpaces(str) {
@@ -194,7 +191,7 @@
                 <td style="text-align: center; font-weight: 600; color: #2563eb;">${cleanTextField(item.ten) || '---'}</td> 
                 <td style="text-align: center;">${cleanTextField(item.nam_sinh) || '---'}</td>
                 <td style="text-align: center;">${cleanTextField(item.nam_nghi_huu) || '---'}</td>
-                <td style="text-align: center; font-weight: 600; color: #ea580c;">${cleanTextField(item.ma_don_vi) || '---'}</td>
+                <td style="text-align: center; font-weight: 700; color: #ea580c; background-color: #fff7ed;">${cleanTextField(item.ma_don_vi) || '---'}</td>
                 <td>${cleanTextField(item.so_so_bhxh) || '---'}</td>
                 <td>${cleanTextField(item.so_cccd) || '---'}</td>
                 <td class="col-highlight">${cleanTextField(item.an_toan_vien) || '---'}</td>
@@ -205,30 +202,39 @@
         });
     }
 
-    // CƠ CHẾ LỌC THÔNG MINH - ĐÃ SỬA LỖI KHÔNG KHỚP MÃ ĐƠN VỊ VÍ DỤ 1.1
+    // THUẬT TOÁN LỌC MỚI: TỰ ĐỘNG PHÂN TÁCH MÃ ĐƠN VỊ ĐỂ KHỚP CHÍNH XÁC TUYỆT ĐỐI
     function thựcHiệnBộLọcTìmKiếm() {
-        const keyword = clearAccentsAndSpaces(document.getElementById('search-keyword').value);
+        const rawInput = document.getElementById('search-keyword').value.trim();
+        const keywordSạch = clearAccentsAndSpaces(rawInput);
 
-        if (keyword === "") {
+        if (keywordSạch === "") {
             hiểnThịDữLiệuRaBảng(globalCachedData);
             return;
         }
 
+        // Kiểm tra xem người dùng có đang gõ định dạng Mã đơn vị hay không (Ví dụ: 1.1, 11.1, hoặc số đơn thuần ngắn dưới 4 ký tự)
+        const laDinhDangMaDonVi = /^[\d\.]+$/.test(rawInput) && rawInput.length <= 4;
+
         const filtered = globalCachedData.filter(item => {
-            const maDonViSạch = clearAccentsAndSpaces(item.ma_don_vi);
+            const maDonViGốc = cleanTextField(item.ma_don_vi).trim();
+            
+            // 1. Nếu nhập mã đơn vị ngắn -> So khớp chính xác tuyệt đối từng ký tự 100%
+            if (laDinhDangMaDonVi) {
+                return maDonViGốc === rawInput;
+            }
+
+            // 2. Nếu gõ tên tiếng Việt hoặc chuỗi dài -> Tìm kiếm đa năng theo từ khóa chứa bên trong
             const hoTenSạch = clearAccentsAndSpaces(item.ho_ten);
             const bhxhSạch = clearAccentsAndSpaces(item.so_so_bhxh);
             const cccdSạch = clearAccentsAndSpaces(item.so_cccd);
             const chucDanhSạch = clearAccentsAndSpaces(item.chuc_danh_cong_viec);
+            const maDonViSạch = clearAccentsAndSpaces(item.ma_don_vi);
 
-            // Nếu người dùng gõ vào trùng khớp hoàn toàn hoặc chứa mã đơn vị (Ví dụ gõ '1.1' hoặc '14.2')
-            const matchMaDonVi = maDonViSạch === keyword || maDonViSạch.includes(keyword);
-            const matchHoTen = hoTenSạch.includes(keyword);
-            const matchBhxh = bhxhSạch.includes(keyword);
-            const matchCccd = cccdSạch.includes(keyword);
-            const matchChucDanh = chucDanhSạch.includes(keyword);
-
-            return matchMaDonVi || matchHoTen || matchBhxh || matchCccd || matchChucDanh;
+            return hoTenSạch.includes(keywordSạch) || 
+                   bhxhSạch.includes(keywordSạch) || 
+                   cccdSạch.includes(keywordSạch) || 
+                   chucDanhSạch.includes(keywordSạch) ||
+                   maDonViSạch === keywordSạch;
         });
 
         hiểnThịDữLiệuRaBảng(filtered);
@@ -243,20 +249,17 @@
             if (error) throw error;
 
             globalCachedData = data || [];
-
             if (globalCachedData.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="12" style="text-align: center; color: #94a3b8; padding: 40px;">📭 Chưa có dữ liệu. Vui lòng nạp file bằng nút màu cam!</td></tr>`;
                 return;
             }
 
             thựcHiệnBộLọcTìmKiếm();
-
         } catch (e) {
             tbody.innerHTML = `<tr><td colspan="12" style="text-align: center; color: var(--danger); padding: 40px;">❌ Lỗi kết nối: ${e.message}</td></tr>`;
         }
     }
 
-    // Lắng nghe sự kiện gõ phím vào ô tìm kiếm để lọc thời gian thực
     document.getElementById('search-keyword').addEventListener('input', thựcHiệnBộLọcTìmKiếm);
 
     document.getElementById('excel-file-input').addEventListener('change', function(e) {
@@ -285,22 +288,17 @@
 
                 const targetHoTenCol = excelHeaders.find(h => clearAccentsAndSpaces(h) === 'hovaten');
                 const targetGioiTinhCol = excelHeaders.find(h => clearAccentsAndSpaces(h) === 'gioitinh' || clearAccentsAndSpaces(h) === 'nux');
-                
                 const targetNgaySinhGoc = excelHeaders.find(h => clearAccentsAndSpaces(h) === 'ngaysinh');
                 const targetNamSinhCol = excelHeaders.find(h => clearAccentsAndSpaces(h) === 'namsinh');
                 const targetNamNghiHuuCol = excelHeaders.find(h => clearAccentsAndSpaces(h) === 'namvehuu');
-                
                 const targetMaDonViCol = excelHeaders.find(h => clearAccentsAndSpaces(h) === 'madonvi');
                 const targetBhxhCol = excelHeaders.find(h => clearAccentsAndSpaces(h) === 'sobhxh');
                 const targetCccdCol = excelHeaders.find(h => clearAccentsAndSpaces(h) === 'socccd');
-                
                 const targetAtvCol = excelHeaders.find(h => String(h).trim() === 'an_toan_vien');
                 const targetDocHaiCol = excelHeaders.find(h => String(h).trim() === 'nndh');
-                
                 const targetChucDanhCol = excelHeaders.find(h => clearAccentsAndSpaces(h) === 'chucdanhcongviec');
 
                 statusBox.innerHTML += `<br>✅ Đã khớp nối cấu trúc cột thành công.`;
-
                 const timeIdSeed = Date.now();
 
                 const payload = parsedData.map((row, index) => {
@@ -319,10 +317,7 @@
                         ten: targetNgaySinhGoc && row[targetNgaySinhGoc] ? formatExcelDate(row[targetNgaySinhGoc], 'year_only') : "",
                         nam_sinh: targetNamSinhCol && row[targetNamSinhCol] ? formatExcelDate(row[targetNamSinhCol], 'full') : "",
                         nam_nghi_huu: targetNamNghiHuuCol && row[targetNamNghiHuuCol] ? formatExcelDate(row[targetNamNghiHuuCol], 'full') : "",
-                        
-                        // Đảm bảo mã đơn vị lưu dưới dạng chuỗi chữ chuẩn xác không mất dấu chấm
                         ma_don_vi: targetMaDonViCol && row[targetMaDonViCol] !== undefined ? String(row[targetMaDonViCol]).trim() : "",
-                        
                         so_so_bhxh: targetBhxhCol && row[targetBhxhCol] ? cleanTextField(row[targetBhxhCol]) : "",
                         so_cccd: targetCccdCol && row[targetCccdCol] ? cleanTextField(row[targetCccdCol]) : "",
                         an_toan_vien: targetAtvCol && row[targetAtvCol] !== undefined ? String(row[targetAtvCol]).trim() : "",
@@ -332,7 +327,6 @@
                 });
 
                 statusBox.innerHTML += `<br>⏳ Đang đồng bộ hóa lên Cloud cơ sở dữ liệu...`;
-
                 const { error } = await globalSupabase.from('nhan_su').insert(payload);
                 if (error) throw error;
 
@@ -342,7 +336,6 @@
                 label.innerText = "📂 CHỌN FILE DATA GỐC";
                 document.getElementById('excel-file-input').value = "";
                 lamMoiBangDuLieu();
-
             } catch (err) {
                 statusBox.style.backgroundColor = "#fee2e2"; statusBox.style.color = "#991b1b";
                 statusBox.innerHTML = `❌ <b>Lỗi cấu trúc:</b> ${err.message}`;
