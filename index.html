@@ -19,7 +19,6 @@
             --border: #cbd5e1;        
         }
 
-        /* Định dạng cỡ chữ to vừa phải, giao diện trang nhã, gọn gàng và cân đối */
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; }
         body { background-color: var(--bg); padding: 20px; color: var(--text-main); font-size: 16px; }
         .container { max-width: 100%; margin: 0 auto; }
@@ -47,6 +46,13 @@
         
         .status-box { padding: 12px; border-radius: 6px; margin-top: 12px; font-size: 0.9rem; display: none; line-height: 1.5; border: 1px solid #f59e0b; }
         
+        /* Bộ lọc tìm kiếm thông minh */
+        .search-box { display: flex; gap: 15px; margin-bottom: 15px; background: #f1f5f9; padding: 15px; border-radius: 6px; border: 1px solid var(--border); }
+        .search-input { flex: 1; padding: 10px 15px; border: 1px solid var(--border); border-radius: 4px; font-size: 1rem; outline: none; }
+        .search-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15); }
+        .filter-select { width: 220px; padding: 10px; border: 1px solid var(--border); border-radius: 4px; font-size: 1rem; background-color: white; cursor: pointer; outline: none; }
+        .filter-select:focus { border-color: var(--accent); }
+
         .table-container { overflow-x: auto; background: white; border-radius: 6px; border: 1px solid var(--border); }
         table { width: 100%; border-collapse: collapse; font-size: 1rem; min-width: 1650px; }
         
@@ -64,7 +70,7 @@
 <div class="container">
     <header>
         <h1>HỆ THỐNG QUẢN LÝ CƠ SỞ DỮ LIỆU NHÂN SỰ TOÀN DIỆN</h1>
-        <p>Giao diện chuẩn hóa kích thước gọn gàng - Tự động hiển thị rõ ràng Nam / Nữ</p>
+        <p>Tích hợp bộ tìm kiếm đa năng và phân nhóm lọc mã đơn vị chính xác</p>
     </header>
 
     <div class="layout">
@@ -90,6 +96,14 @@
 
         <div class="content">
             <div class="card">
+                <h2>🔍 Bộ Lọc Tìm Kiếm Thông Minh</h2>
+                <div class="search-box">
+                    <input type="text" id="search-keyword" class="search-input" placeholder="🔍 Nhập Tên, Số sổ BHXH, Số CCCD hoặc Chức danh để tìm nhanh...">
+                    <select id="filter-ma-don-vi" class="filter-select">
+                        <option value="">-- Tất cả Đơn Vị --</option>
+                    </select>
+                </div>
+
                 <h2>📋 Danh sách chi tiết thông tin cán bộ công nhân viên</h2>
                 <div class="table-container">
                     <table>
@@ -126,6 +140,9 @@
     const DB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ"; 
     
     const globalSupabase = supabase.createClient(DB_URL, DB_KEY);
+    
+    // Mảng lưu trữ dữ liệu gốc tải về từ Cloud phục vụ việc tìm kiếm nhanh tại chỗ
+    let globalCachedData = [];
 
     function clearAccentsAndSpaces(str) {
         if (!str) return '';
@@ -134,7 +151,6 @@
 
     function formatExcelDate(excelValue, formatType = 'full') {
         if (excelValue === undefined || excelValue === null || String(excelValue).trim() === "") return "";
-        
         let dateStr = String(excelValue).trim();
 
         if (!isNaN(excelValue)) {
@@ -157,7 +173,6 @@
                 return formatType === 'year_only' ? `${y}` : `${d}/${m}/${y}`;
             }
         }
-
         return dateStr;
     }
 
@@ -165,6 +180,87 @@
         if (value === undefined || value === null) return "";
         const str = String(value).trim();
         return (str.toUpperCase() === "NULL" || str === "---") ? "" : str;
+    }
+
+    // Hàm cập nhật danh sách các Mã đơn vị vào Dropdown tự động
+    function updateMaDonViDropdown(data) {
+        const select = document.getElementById('filter-ma-don-vi');
+        // Lưu giá trị đang chọn hiện tại để không bị mất khi reload
+        const currentSelected = select.value;
+        
+        // Trích xuất danh sách mã đơn vị không trùng lặp
+        const maDonViList = [...new Set(data.map(item => cleanTextField(item.ma_don_vi)).filter(Boolean))];
+        // Sắp xếp thứ tự
+        maDonViList.sort();
+
+        select.innerHTML = '<option value="">-- Tất cả Đơn Vị --</option>';
+        maDonViList.forEach(ma => {
+            const option = document.createElement('option');
+            option.value = ma;
+            option.innerText = `Mã đơn vị: ${ma}`;
+            select.appendChild(option);
+        });
+
+        // Chọn lại mã cũ nếu có
+        if (maDonViList.includes(currentSelected)) {
+            select.value = currentSelected;
+        }
+    }
+
+    // Hàm render vẽ bảng từ mảng dữ liệu được truyền vào
+    function hiểnThịDữLiệuRaBảng(data) {
+        const tbody = document.getElementById('table-body');
+        if (!data || data.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="12" style="text-align: center; color: #94a3b8; padding: 40px;">🔍 Không tìm thấy kết quả nhân sự phù hợp!</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = "";
+        data.forEach((item, index) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td style="text-align: center; font-weight: 600; background-color: #f8fafc;">${index + 1}</td>
+                <td class="col-name">${cleanTextField(item.ho_ten) || '---'}</td>
+                <td style="text-align: center; font-weight: 600;">${cleanTextField(item.gioi_tinh) || '---'}</td>
+                <td style="text-align: center; font-weight: 600; color: #2563eb;">${cleanTextField(item.ten) || '---'}</td> 
+                <td style="text-align: center;">${cleanTextField(item.nam_sinh) || '---'}</td>
+                <td style="text-align: center;">${cleanTextField(item.nam_nghi_huu) || '---'}</td>
+                <td style="text-align: center; font-weight: 600;">${cleanTextField(item.ma_don_vi) || '---'}</td>
+                <td>${cleanTextField(item.so_so_bhxh) || '---'}</td>
+                <td>${cleanTextField(item.so_cccd) || '---'}</td>
+                <td class="col-highlight">${cleanTextField(item.an_toan_vien) || '---'}</td>
+                <td class="col-highlight">${cleanTextField(item.nghe_cv_doc_hai) || '---'}</td>
+                <td style="font-weight: 500; white-space: normal;">${cleanTextField(item.chuc_danh_cong_viec) || '---'}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    // HÀM LỌC TÌM KIẾM ĐA NĂNG THÔNG MINH KẾT HỢP
+    function thựcHiệnBộLọcTìmKiếm() {
+        const keyword = clearAccentsAndSpaces(document.getElementById('search-keyword').value);
+        const selectedMaDonVi = document.getElementById('filter-ma-don-vi').value;
+
+        const filtered = globalCachedData.filter(item => {
+            // 1. Kiểm tra điều kiện Mã đơn vị chính xác tuyệt đối
+            if (selectedMaDonVi !== "" && cleanTextField(item.ma_don_vi) !== selectedMaDonVi) {
+                return false;
+            }
+
+            // 2. Kiểm tra từ khóa đa năng (Tên, bhxh, cccd, chức danh)
+            if (keyword !== "") {
+                const matchHoTen = clearAccentsAndSpaces(item.ho_ten).includes(keyword);
+                const matchBhxh = clearAccentsAndSpaces(item.so_so_bhxh).includes(keyword);
+                const matchCccd = clearAccentsAndSpaces(item.so_cccd).includes(keyword);
+                const matchChucDanh = clearAccentsAndSpaces(item.chuc_danh_cong_viec).includes(keyword);
+                
+                return matchHoTen || matchBhxh || matchCccd || matchChucDanh;
+            }
+
+            return true;
+        });
+
+        hiểnThịDữLiệuRaBảng(filtered);
     }
 
     async function lamMoiBangDuLieu() {
@@ -175,34 +271,25 @@
             const { data, error } = await globalSupabase.from('nhan_su').select('*').order('id', { ascending: true });
             if (error) throw error;
 
-            if (!data || data.length === 0) {
+            globalCachedData = data || [];
+
+            if (globalCachedData.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="12" style="text-align: center; color: #94a3b8; padding: 40px;">📭 Chưa có dữ liệu. Vui lòng nạp file bằng nút màu cam!</td></tr>`;
                 return;
             }
 
-            tbody.innerHTML = "";
-            data.forEach((item, index) => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td style="text-align: center; font-weight: 600; background-color: #f8fafc;">${index + 1}</td>
-                    <td class="col-name">${cleanTextField(item.ho_ten) || '---'}</td>
-                    <td style="text-align: center; font-weight: 600;">${cleanTextField(item.gioi_tinh) || '---'}</td>
-                    <td style="text-align: center; font-weight: 600; color: #2563eb;">${cleanTextField(item.ten) || '---'}</td> 
-                    <td style="text-align: center;">${cleanTextField(item.nam_sinh) || '---'}</td>
-                    <td style="text-align: center;">${cleanTextField(item.nam_nghi_huu) || '---'}</td>
-                    <td style="text-align: center; font-weight: 600;">${cleanTextField(item.ma_don_vi) || '---'}</td>
-                    <td>${cleanTextField(item.so_so_bhxh) || '---'}</td>
-                    <td>${cleanTextField(item.so_cccd) || '---'}</td>
-                    <td class="col-highlight">${cleanTextField(item.an_toan_vien) || '---'}</td>
-                    <td class="col-highlight">${cleanTextField(item.nghe_cv_doc_hai) || '---'}</td>
-                    <td style="font-weight: 500; white-space: normal;">${cleanTextField(item.chuc_danh_cong_viec) || '---'}</td>
-                `;
-                tbody.appendChild(tr);
-            });
+            // Cập nhật các danh mục nhóm Mã đơn vị vào Dropdown và đẩy ra bảng
+            updateMaDonViDropdown(globalCachedData);
+            thựcHiệnBộLọcTìmKiếm();
+
         } catch (e) {
             tbody.innerHTML = `<tr><td colspan="12" style="text-align: center; color: var(--danger); padding: 40px;">❌ Lỗi kết nối: ${e.message}</td></tr>`;
         }
     }
+
+    // Sự kiện lắng nghe bộ lọc khi gõ phím hoặc đổi nhóm đơn vị
+    document.getElementById('search-keyword').addEventListener('input', thựcHiệnBộLọcTìmKiếm);
+    document.getElementById('filter-ma-don-vi').addEventListener('change', thựcHiệnBộLọcTìmKiếm);
 
     document.getElementById('excel-file-input').addEventListener('change', function(e) {
         const file = e.target.files[0];
@@ -249,7 +336,6 @@
                 const timeIdSeed = Date.now();
 
                 const payload = parsedData.map((row, index) => {
-                    // CHUYỂN ĐỔI THÔNG MINH GIỚI TÍNH TỪ KÝ TỰ SANG CHỮ NAM/NỮ RÕ RÀNG
                     let xulyGioiTinh = "Nam";
                     if (targetGioiTinhCol && row[targetGioiTinhCol]) {
                         const gtRaw = String(row[targetGioiTinhCol]).trim().toLowerCase();
@@ -262,18 +348,14 @@
                         id: timeIdSeed + index,
                         ho_ten: row[targetHoTenCol] ? String(row[targetHoTenCol]).trim() : "",
                         gioi_tinh: xulyGioiTinh,
-                        
                         ten: targetNgaySinhGoc && row[targetNgaySinhGoc] ? formatExcelDate(row[targetNgaySinhGoc], 'year_only') : "",
-                        
                         nam_sinh: targetNamSinhCol && row[targetNamSinhCol] ? formatExcelDate(row[targetNamSinhCol], 'full') : "",
                         nam_nghi_huu: targetNamNghiHuuCol && row[targetNamNghiHuuCol] ? formatExcelDate(row[targetNamNghiHuuCol], 'full') : "",
                         ma_don_vi: targetMaDonViCol && row[targetMaDonViCol] ? cleanTextField(row[targetMaDonViCol]) : "",
                         so_so_bhxh: targetBhxhCol && row[targetBhxhCol] ? cleanTextField(row[targetBhxhCol]) : "",
                         so_cccd: targetCccdCol && row[targetCccdCol] ? cleanTextField(row[targetCccdCol]) : "",
-                        
                         an_toan_vien: targetAtvCol && row[targetAtvCol] !== undefined ? String(row[targetAtvCol]).trim() : "",
                         nghe_cv_doc_hai: targetDocHaiCol && row[targetDocHaiCol] !== undefined ? String(row[targetDocHaiCol]).trim() : "",
-                        
                         chuc_danh_cong_viec: targetChucDanhCol && row[targetChucDanhCol] ? cleanTextField(row[targetChucDanhCol]) : ""
                     };
                 });
@@ -305,6 +387,8 @@
         try {
             await globalSupabase.from('nhan_su').delete().gt('id', 0);
             alert("🗑 Đã làm sạch toàn bộ dữ liệu cũ!");
+            document.getElementById('search-keyword').value = "";
+            document.getElementById('filter-ma-don-vi').innerHTML = '<option value="">-- Tất cả Đơn Vị --</option>';
             lamMoiBangDuLieu();
         } catch (e) { alert(e.message); }
     });
