@@ -48,14 +48,15 @@
         .form-group input, .form-group select { width: 100%; padding: 11px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.95rem; }
         .form-group input[readonly] { background-color: #eaeded; font-weight: bold; color: #2c3e50; }
 
+        /* HỘP GỢI Ý TÌM KIẾM THÔNG MINH */
         .smart-search-results {
             position: absolute; width: 100%; background: white; border: 1px solid var(--border-color);
             max-height: 250px; overflow-y: auto; z-index: 999; border-radius: 6px; box-shadow: 0 8px 16px rgba(0,0,0,0.15);
             display: none; margin-top: 2px;
         }
-        .smart-search-item { padding: 10px 15px; cursor: pointer; border-bottom: 1px solid #f1f2f6; font-size: 0.9rem; display: flex; justify-content: space-between; }
+        .smart-search-item { padding: 10px 15px; cursor: pointer; border-bottom: 1px solid #f1f2f6; font-size: 0.9rem; display: flex; justify-content: space-between; align-items: center; }
         .smart-search-item:hover { background: #3498db; color: white; }
-        .smart-search-item .dept-badge { background: #e8f4fd; color: #3498db; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
+        .smart-search-item .dept-badge { background: #e8f4fd; color: #3498db; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
         .smart-search-item:hover .dept-badge { background: rgba(255,255,255,0.2); color: white; }
 
         .btn {
@@ -118,14 +119,14 @@
         <div class="panel">
             <h2>HỆ THỐNG CLOUD</h2>
             <button class="btn btn-primary" onclick="taiDuLieuTuCloud()">🔄 LÀM MỚI TỪ CLOUD</button>
-            <button class="btn btn-danger" id="btn-clear-cloud-ns">🗑️ XÓA SẠCH MÂY NHÂN SỰ</button>
+            <button class="btn btn-danger" onclick="xoaSachCloudNhanSu()">🗑️ XÓA SẠCH MÂY NHÂN SỰ</button>
             <h2 style="margin-top: 25px;">NẠP EXCEL NHÂN SỰ</h2>
             <label for="excel-ns" class="file-label" style="display:block; padding:12px; background:#95a5a6; color:white; text-align:center; border-radius:6px; cursor:pointer; font-weight:bold;">📥 CHỌN FILE EXCEL</label>
             <input type="file" id="excel-ns" accept=".xlsx, .xls" style="display:none;" onchange="napExcelNhanSu(this)">
         </div>
         <div class="panel" style="background:transparent; border:none; padding:0;">
             <div class="filter-section">
-                <div class="search-group"><input type="text" id="search-ns" placeholder="🔍 Tìm nhân sự nhanh theo tên, mã đơn vị..." oninput="locGiaoDienNhanSu()"></div>
+                <div class="search-group"><input type="text" id="search-ns" placeholder="🔍 Tìm nhân sự nhanh theo tên hoặc mã đơn vị..." oninput="locGiaoDienNhanSu()"></div>
             </div>
             <div class="table-responsive" style="background: white; padding: 20px; border-radius: 8px; border: 1px solid var(--border-color);">
                 <table>
@@ -151,7 +152,7 @@
                 
                 <div class="form-group">
                     <label>Người sử dụng (Tìm theo Tên hoặc Mã ĐV):</label>
-                    <input type="text" id="tb-nguoi-dung-search" placeholder="🔍 Nhập Tên hoặc Mã ĐV cần tìm..." oninput="goTimKiemNhanSu(this)" autocomplete="off">
+                    <input type="text" id="tb-nguoi-dung-search" placeholder="🔍 Gõ Mã ĐV (ví dụ: KT) hoặc Tên..." oninput="goTimKiemNhanSu(this)" autocomplete="off">
                     <input type="hidden" id="tb-nguoi-dung-value">
                     <div class="smart-search-results" id="smart-search-box"></div>
                 </div>
@@ -190,7 +191,7 @@
     let CACHE_NHAN_SU = [];
     let CACHE_THIẾT_BỊ = [];
 
-    // KÍCH HOẠT TẢI DỮ LIỆU NGAY LẬP TỨC KHÔNG CHỜ WINDOW LOAD
+    // Tự động tải dữ liệu ngay khi mở trang
     taiDuLieuTuCloud();
 
     function switchTab(tabName) {
@@ -227,26 +228,38 @@
         document.getElementById('tb-ma').value = `TB-2026-${String(soLuong + 1).padStart(4, '0')}`;
     }
 
+    // LOGIC TÌM KIẾM THÔNG MINH - GÕ MÃ ĐƠN VỊ SẼ LIỆT KÊ TOÀN BỘ NHÂN VIÊN MÃ ĐÓ
     function goTimKiemNhanSu(input) {
         const keyword = input.value.toLowerCase().trim();
         const box = document.getElementById('smart-search-box');
         
         if (!keyword) { box.style.display = 'none'; return; }
         
-        const ketQuaLoc = CACHE_NHAN_SU.filter(x => {
+        // Tiến hành lọc nâng cao
+        let ketQuaLoc = CACHE_NHAN_SU.filter(x => {
             const ten = x.ho_ten ? String(x.ho_ten).toLowerCase() : '';
             const maDV = x.ma_don_vi ? String(x.ma_don_vi).toLowerCase() : '';
             return ten.includes(keyword) || maDV.includes(keyword);
         });
 
+        // ƯU TIÊN SẮP XẾP: Nếu mã đơn vị khớp hoàn toàn hoặc khớp đầu chuỗi keyword, đẩy lên trước
+        ketQuaLoc.sort((a, b) => {
+            const maA = a.ma_don_vi ? String(a.ma_don_vi).toLowerCase() : '';
+            const maB = b.ma_don_vi ? String(b.ma_don_vi).toLowerCase() : '';
+            if (maA === keyword && maB !== keyword) return -1;
+            if (maB === keyword && maA !== keyword) return 1;
+            return 0;
+        });
+
         if(ketQuaLoc.length === 0) {
-            box.innerHTML = `<div class="smart-search-item" style="color:#aaa; cursor:default;">❌ Không tìm thấy nhân sự</div>`;
+            box.innerHTML = `<div class="smart-search-item" style="color:#aaa; cursor:default;">❌ Không tìm thấy mã đơn vị hoặc nhân sự phù hợp</div>`;
         } else {
             box.innerHTML = '';
-            ketQuaLoc.slice(0, 15).forEach(ns => {
+            // Nới rộng hiển thị lên tối đa 50 dòng để liệt kê hết toàn bộ nhóm phòng ban
+            ketQuaLoc.slice(0, 50).forEach(ns => {
                 const div = document.createElement('div');
                 div.className = 'smart-search-item';
-                div.innerHTML = `<span><b>${ns.ho_ten}</b></span> <span class="dept-badge">${ns.ma_don_vi || '---'}</span>`;
+                div.innerHTML = `<span><b>${ns.ho_ten}</b></span> <span class="dept-badge">Mã ĐV: ${ns.ma_don_vi || '---'}</span>`;
                 div.onclick = function() {
                     document.getElementById('tb-nguoi-dung-search').value = ns.ho_ten;
                     document.getElementById('tb-nguoi-dung-value').value = `${ns.ho_ten} (${ns.ma_don_vi || '---'})`;
@@ -263,6 +276,63 @@
             document.getElementById('smart-search-box').style.display = 'none';
         }
     });
+
+    // NẠP FILE EXCEL NHÂN SỰ VÀ ĐẨY THẲNG LÊN CLOUD SUPABASE
+    function napExcelNhanSu(input) {
+        const file = input.files[0];
+        if(!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async function(e) {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                
+                // Chuyển đổi thành mảng JSON JSON dữ liệu thô
+                const jsonRows = XLSX.utils.sheet_to_json(worksheet);
+                
+                // Ánh xạ chuyển đổi định dạng cột Excel sang cột DB Supabase
+                const mangNhanSuMapping = jsonRows.map(row => ({
+                    ho_ten: row['Họ & Tên'] || row['ho_ten'] || '',
+                    gioi_tinh: row['Giới Tính'] || row['gioi_tinh'] || '',
+                    nam_sinh: parseInt(row['Năm Sinh'] || row['nam_sinh']) || null,
+                    nam_ve_huu: parseInt(row['Năm Nghỉ Hưu'] || row['nam_ve_huu']) || null,
+                    ma_don_vi: String(row['Mã ĐV'] || row['ma_don_vi'] || '').trim(),
+                    chuc_danh_cong_viec: row['Chi Tiết'] || row['chuc_danh_cong_viec'] || ''
+                })).filter(x => x.ho_ten !== '');
+
+                if(mangNhanSuMapping.length === 0) {
+                    alert("Không tìm thấy dữ liệu hợp lệ trong file Excel!");
+                    return;
+                }
+
+                alert(`Đang upload dữ liệu ${mangNhanSuMapping.length} nhân sự lên đám mây...`);
+                
+                const { error } = await client.from('nhan_su').insert(mangNhanSuMapping);
+                if(error) throw error;
+
+                alert("🎉 Nạp dữ liệu Excel lên Cloud thành công!");
+                taiDuLieuTuCloud();
+            } catch (err) {
+                alert("Lỗi cấu trúc file Excel hoặc kết nối Cloud: " + err.message);
+                console.error(err);
+            }
+        };
+        reader.readAsArrayBuffer(file);
+        input.value = ''; // Reset input file
+    }
+
+    async function xoaSachCloudNhanSu() {
+        if(!confirm("Bạn có chắc chắn muốn xóa SẠCH TOÀN BỘ dữ liệu nhân sự trên đám mây?")) return;
+        try {
+            const { error } = await client.from('nhan_su').delete().neq('ho_ten', '');
+            if(error) throw error;
+            alert("Đã xóa sạch dữ liệu nhân sự Cloud!");
+            taiDuLieuTuCloud();
+        } catch(e) { alert("Lỗi xóa đám mây: " + e.message); }
+    }
 
     function locGiaoDienNhanSu() {
         const k = document.getElementById('search-ns').value.toLowerCase();
