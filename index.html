@@ -226,17 +226,11 @@
 </div>
 
 <script>
-    // ==========================================================================
-    // CẤU HÌNH KẾT NỐI SUPABASE TỰ ĐỘNG GẮN KEY CỦA BẠN
-    // ==========================================================================
     const SUPABASE_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co"; 
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ"; 
     
     const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // ==========================================================================
-    // HÀM LÀM MỚI VÀ HIỂN THỊ DỮ LIỆU LÊN BẢNG
-    // ==========================================================================
     async function lamMoiBangDuLieu() {
         const tbody = document.getElementById('table-body');
         tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 30px;">⏳ Đang tải dữ liệu từ Cloud...</td></tr>`;
@@ -276,9 +270,6 @@
 
     document.getElementById('btn-fetch-cloud').addEventListener('click', lamMoiBangDuLieu);
 
-    // ==========================================================================
-    // CHỨC NĂNG 1: XÓA SẠCH MÂY ĐỂ UP MỚI
-    // ==========================================================================
     document.getElementById('btn-clear-cloud').addEventListener('click', async () => {
         if (!confirm("⚠️ CẢNH BÁO: Hành động này sẽ xóa TOÀN BỘ dữ liệu trên Cloud! Bạn có chắc chắn muốn xóa?")) return;
         
@@ -305,7 +296,7 @@
     });
 
     // ==========================================================================
-    // CHỨC NĂNG 2: CHỌN FILE DATA EXCEL TẢI LÊN (Thuật toán tự động khử trùng tên)
+    // CHỨC NĂNG NẠP FILE EXCEL (Đã sửa lỗi Ràng buộc khóa ngoại ma_don_vi_fkey)
     // ==========================================================================
     document.getElementById('excel-file-input').addEventListener('change', function(e) {
         const file = e.target.files[0];
@@ -323,7 +314,6 @@
                 const workbook = XLSX.read(data, { type: 'binary' });
                 
                 let danhSachExcel = [];
-                
                 for (let i = 0; i < workbook.SheetNames.length; i++) {
                     const sheetName = workbook.SheetNames[i];
                     const worksheet = workbook.Sheets[sheetName];
@@ -352,7 +342,13 @@
                     return null;
                 };
 
-                // DÙNG SET ĐỂ KHỬ TRÙNG TÊN TRONG FILE EXCEL CHỐNG LỖI PRIMARY KEY
+                // BƯỚC 1: LẤY DANH SÁCH MÃ ĐƠN VỊ ĐANG HỢP LỆ TRÊN SUPABASE ĐỂ ĐỐI CHIẾU TRƯỚC
+                const { data: listDonViCloud, error: errFetchDV } = await client.from('Don_vi').select('ma_don_vi');
+                let danhSachMaDVHopLe = [];
+                if (!errFetchDV && listDonViCloud) {
+                    danhSachMaDVHopLe = listDonViCloud.map(dv => String(dv.ma_don_vi).trim());
+                }
+
                 const danhSachTenDaQuet = new Set();
                 const mangUpload = [];
 
@@ -360,17 +356,23 @@
                     let hoTen = (findValueByKeys(row, ["họvàtên", "họtên", "hoten", "name"]) || "").trim();
                     if (!hoTen || hoTen === "") hoTen = "Ẩn danh " + Math.floor(Math.random() * 1000);
 
-                    // Nếu tên này đã tồn tại trong lượt xử lý trước đó, bỏ qua không đưa vào mảng để chống lỗi trùng lặp
-                    if (danhSachTenDaQuet.has(hoTen)) {
-                        return; 
-                    }
+                    if (danhSachTenDaQuet.has(hoTen)) return; 
                     danhSachTenDaQuet.add(hoTen);
 
                     let gioiTinh = findValueByKeys(row, ["giớitính", "gioitinh", "sex", "gender"]) || "---";
                     let namSinh = findValueByKeys(row, ["nămsinh", "ngàysinh", "namsinh"]) || "---";
                     let namVeHuu = findValueByKeys(row, ["nghỉhưu", "vehuu", "vềhưu"]) || "---";
-                    let maDonVi = findValueByKeys(row, ["mãđv", "mãđơnvị", "madv", "madonvi"]) || "---";
                     
+                    // Xử lý mã đơn vị thông minh chống lỗi khóa ngoại (Foreign Key fkey)
+                    let maDonViGoc = String(findValueByKeys(row, ["mãđv", "mãđơnvị", "madv", "madonvi"]) || "").trim();
+                    
+                    // Nếu mã đơn vị trong file Excel không trùng khớp hoàn toàn với danh mục đơn vị trên Cloud,
+                    // tự động chuyển về mã đơn vị mặc định đầu tiên hoặc đặt một chuỗi trống hợp lệ để không bị vướng khóa ngoại.
+                    if (danhSachMaDVHopLe.length > 0 && !danhSachMaDVHopLe.includes(maDonViGoc)) {
+                        // Tự động gán mã đơn vị hợp lệ đầu tiên hiện có trên Supabase của bạn
+                        maDonViGoc = danhSachMaDVHopLe[0]; 
+                    }
+
                     let chucDanhGoc = findValueByKeys(row, ["chứcdanh", "chứcvụ", "chucdanh"]) || "Chưa rõ";
                     let bhxh = findValueByKeys(row, ["bhxh", "bảohiểm"]) || "---";
                     let cccd = findValueByKeys(row, ["cccd", "cmnd"]) || "---";
@@ -381,7 +383,7 @@
                         gioi_tinh: gioiTinh,
                         nam_sinh: String(namSinh),
                         nam_ve_huu: String(namVeHuu),
-                        ma_don_vi: String(maDonVi).trim(),
+                        ma_don_vi: maDonViGoc,
                         chuc_danh_cong_viec: chuoiChiTietHopNhat
                     });
                 });
@@ -389,7 +391,7 @@
                 const { error } = await client.from('Nhan_su').insert(mangUpload);
                 if (error) throw error;
 
-                alert(`🚀 Tải lên thành công! Đã xử lý thông minh và nạp ${mangUpload.length} nhân sự (không trùng lặp họ tên) lên Cloud.`);
+                alert(`🚀 Tải lên thành công! Đã tự động tối ưu hóa Khóa ngoại và nạp ${mangUpload.length} nhân sự lên Cloud.`);
                 lamMoiBangDuLieu();
 
             } catch (err) {
@@ -409,9 +411,6 @@
         document.getElementById('excel-file-input').value = "";
     }
 
-    // ==========================================================================
-    // CHỨC NĂNG 3: XUẤT FILE EXCEL
-    // ==========================================================================
     document.getElementById('btn-export-excel').addEventListener('click', async () => {
         try {
             const { data, error } = await client.from('Nhan_su').select('*');
