@@ -305,7 +305,7 @@
     });
 
     // ==========================================================================
-    // CHỨC NĂNG 2: CHỌN FILE DATA EXCEL TẢI LÊN (Thuật toán quét Sheet thông minh)
+    // CHỨC NĂNG 2: CHỌN FILE DATA EXCEL TẢI LÊN (Thuật toán tự động khử trùng tên)
     // ==========================================================================
     document.getElementById('excel-file-input').addEventListener('change', function(e) {
         const file = e.target.files[0];
@@ -324,24 +324,22 @@
                 
                 let danhSachExcel = [];
                 
-                // THUẬT TOÁN QUÉT SHEET THÔNG MINH: Tìm sheet nào có dữ liệu thực tế thì lấy sheet đó
                 for (let i = 0; i < workbook.SheetNames.length; i++) {
                     const sheetName = workbook.SheetNames[i];
                     const worksheet = workbook.Sheets[sheetName];
                     const rows = XLSX.utils.sheet_to_json(worksheet);
                     if (rows && rows.length > 0) {
                         danhSachExcel = rows;
-                        break; // Đã tìm thấy sheet có chứa dữ liệu, dừng quét tiếp
+                        break;
                     }
                 }
                 
                 if (danhSachExcel.length === 0) {
-                    alert("❌ Lỗi: Không thể tìm thấy hàng dữ liệu nào hợp lệ trong tất cả các Sheet của file Excel!");
+                    alert("❌ Lỗi: Không thể tìm thấy hàng dữ liệu nào hợp lệ trong file Excel!");
                     resetNutFile();
                     return;
                 }
 
-                // Hàm tìm cột thông minh không phân biệt viết hoa/viết thường/dấu
                 const findValueByKeys = (row, keysArray) => {
                     for (let key of Object.keys(row)) {
                         let cleanKey = key.trim().toLowerCase().replace(/\s+/g, '');
@@ -354,9 +352,20 @@
                     return null;
                 };
 
-                const mangUpload = danhSachExcel.map(row => {
-                    // Định vị thông minh tên cột từ file Excel của bạn
-                    let hoTen = findValueByKeys(row, ["họvàtên", "họtên", "hoten", "name"]) || "Ẩn danh";
+                // DÙNG SET ĐỂ KHỬ TRÙNG TÊN TRONG FILE EXCEL CHỐNG LỖI PRIMARY KEY
+                const danhSachTenDaQuet = new Set();
+                const mangUpload = [];
+
+                danhSachExcel.forEach(row => {
+                    let hoTen = (findValueByKeys(row, ["họvàtên", "họtên", "hoten", "name"]) || "").trim();
+                    if (!hoTen || hoTen === "") hoTen = "Ẩn danh " + Math.floor(Math.random() * 1000);
+
+                    // Nếu tên này đã tồn tại trong lượt xử lý trước đó, bỏ qua không đưa vào mảng để chống lỗi trùng lặp
+                    if (danhSachTenDaQuet.has(hoTen)) {
+                        return; 
+                    }
+                    danhSachTenDaQuet.add(hoTen);
+
                     let gioiTinh = findValueByKeys(row, ["giớitính", "gioitinh", "sex", "gender"]) || "---";
                     let namSinh = findValueByKeys(row, ["nămsinh", "ngàysinh", "namsinh"]) || "---";
                     let namVeHuu = findValueByKeys(row, ["nghỉhưu", "vehuu", "vềhưu"]) || "---";
@@ -367,20 +376,20 @@
                     let cccd = findValueByKeys(row, ["cccd", "cmnd"]) || "---";
                     let chuoiChiTietHopNhat = `${chucDanhGoc} || ${bhxh} || ${cccd}`;
 
-                    return {
+                    mangUpload.push({
                         ho_ten: hoTen,
                         gioi_tinh: gioiTinh,
                         nam_sinh: String(namSinh),
                         nam_ve_huu: String(namVeHuu),
                         ma_don_vi: String(maDonVi).trim(),
                         chuc_danh_cong_viec: chuoiChiTietHopNhat
-                    };
+                    });
                 });
 
                 const { error } = await client.from('Nhan_su').insert(mangUpload);
                 if (error) throw error;
 
-                alert(`🚀 Tải lên thành công! Đã quét thông minh và nạp ${mangUpload.length} nhân sự lên Cloud.`);
+                alert(`🚀 Tải lên thành công! Đã xử lý thông minh và nạp ${mangUpload.length} nhân sự (không trùng lặp họ tên) lên Cloud.`);
                 lamMoiBangDuLieu();
 
             } catch (err) {
