@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hệ Thống Nhân Sự Đa Cột Toàn Diện - Vinapaco ERP</title>
+    <title>Hệ Thống Quản Lý Nhân Sự Toàn Diện - Vinapaco ERP</title>
     
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -50,7 +50,7 @@
 <div class="container">
     <header>
         <h1>HỆ THỐNG QUẢN LÝ CƠ SỞ DỮ LIỆU NHÂN SỰ TOÀN DIỆN</h1>
-        <p>⚡ Đồng bộ tự động - Nhận diện đa trường - Chuẩn hóa xử lý chuỗi và bộ nhớ đệm ⚡</p>
+        <p>⚡ Hiển thị đầy đủ 12 cột - Nhận diện thông minh viết tắt NNDH, ATV, Chức danh ⚡</p>
     </header>
 
     <div class="layout">
@@ -58,13 +58,13 @@
             <div class="card">
                 <h2>☁️ DỮ LIỆU HỆ THỐNG</h2>
                 <button class="btn btn-primary" id="btn-fetch-cloud">🔄 Làm mới hiển thị</button>
-                <button class="btn btn-danger" id="btn-clear-cloud">🗑️ Xóa sạch mây để up mới</button>
+                <button class="btn btn-danger" id="btn-clear-cloud">🗑️ Xóa dữ liệu bảng</button>
             </div>
 
             <div class="card">
                 <h2>📥 NẠP FILE EXCEL DATA</h2>
                 <input type="file" id="excel-file-input" accept=".xlsx, .xls" style="display:none;">
-                <label for="excel-file-input" class="file-label" id="main-file-label">⚡ CHỌN FILE EXCEL ⚡</label>
+                <label for="excel-file-input" class="file-label" id="main-file-label">⚡ CHỌN FILE EXCEL ĐỂ UP MỚI ⚡</label>
                 <div class="status-box" id="process-status-box"></div>
             </div>
 
@@ -83,21 +83,21 @@
                             <tr>
                                 <th style="width: 40px;">STT</th>
                                 <th>Họ và Tên</th>
-                                <th>Tên Gọi (Đã tách)</th>
+                                <th>Tên Gợi (Đã tách)</th>
                                 <th>Giới Tính</th>
                                 <th>Năm Sinh</th>
                                 <th>Năm Nghỉ Hưu</th>
-                                <th>Mã Đơn Vị</th>
+                                <th>Mã Đơn Vi</th>
                                 <th>Số Sổ BHXH</th>
                                 <th>Số CCCD</th>
                                 <th>An Toàn Viên</th>
-                                <th>Nghề/CV Độc Hại</th>
+                                <th>Nghề/CV Độc Hại (NNDH)</th>
                                 <th>Chức Danh Công Việc</th>
                             </tr>
                         </thead>
                         <tbody id="table-body">
                             <tr>
-                                <td colspan="12" style="text-align: center; color: #94a3b8; padding: 30px;">Hệ thống đang chờ kết nối dữ liệu...</td>
+                                <td colspan="12" style="text-align: center; color: #94a3b8; padding: 30px;">Hệ thống đang sẵn sàng kết nối...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -118,6 +118,7 @@
         return String(str).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[_\s\-\.\,\/]/g, "");
     }
 
+    // THUẬT TOÁN TÁCH TÊN GỌI CHUẨN XÁC
     function coLapLayTenGoi(full_name) {
         if (!full_name) return "";
         const chuoiSach = String(full_name).trim();
@@ -125,16 +126,17 @@
         return mangTu.length > 0 ? mangTu[mangTu.length - 1] : "";
     }
 
+    // HIỂN THỊ ĐỦ 12 CỘT RA GIAO DIỆN
     async function lamMoiBangDuLieu() {
         const tbody = document.getElementById('table-body');
-        tbody.innerHTML = `<tr><td colspan="12" style="text-align: center; padding: 30px;">⏳ Đang cập nhật dữ liệu trực tuyến...</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="12" style="text-align: center; padding: 30px;">⏳ Đang tải dữ liệu từ đám mây...</td></tr>`;
 
         try {
             const { data, error } = await globalSupabase.from('nhan_su').select('*').order('id', { ascending: true });
             if (error) throw error;
 
             if (!data || data.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="12" style="text-align: center; color: #94a3b8; padding: 30px;">📭 Không có dữ liệu hiển thị. Hãy nạp file Excel mới!</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="12" style="text-align: center; color: #94a3b8; padding: 30px;">📭 Cơ sở dữ liệu trống. Hãy nạp file Excel!</td></tr>`;
                 return;
             }
 
@@ -172,7 +174,7 @@
         label.innerText = "⏳ ĐANG XỬ LÝ...";
         statusBox.style.display = "block";
         statusBox.style.backgroundColor = "#fffbeb"; statusBox.style.borderColor = "#fef3c7"; statusBox.style.color = "#b45309";
-        statusBox.innerHTML = `⏳ <b>Bước 1:</b> Đọc cấu trúc Excel...`;
+        statusBox.innerHTML = `⏳ <b>Bước 1:</b> Đang đọc cấu trúc file Excel...`;
 
         const reader = new FileReader();
         reader.onload = async function(evt) {
@@ -186,17 +188,18 @@
 
                 const excelHeaders = Object.keys(parsedData[0]);
 
+                // Bộ quy tắc dò từ khóa thông minh, xử lý cả trường viết tắt (atv, nndh)
                 const rules = {
-                    ho_ten: ['hoten', 'hovaten', 'nhanvien', 'fullname', 'tennhanvien'],
+                    ho_ten: ['hoten', 'hovaten', 'nhanvien', 'fullname'],
                     gioi_tinh: ['gioitinh', 'phai', 'namnu', 'sex'],
                     nam_sinh: ['namsinh', 'ngaysinh', 'ns'],
                     nam_nghi_huu: ['namnghihuu', 'nghihuu', 'vehuu'],
                     ma_don_vi: ['madonvi', 'donvi', 'bophan', 'phongban', 'maqp'],
                     so_so_bhxh: ['bhxh', 'sosobhxh', 'sobhxh'],
                     so_cccd: ['cccd', 'cmnd', 'socccd', 'thecancuoc'],
-                    an_toan_vien: ['antoanvien', 'atv'],
-                    nghe_cv_doc_hai: ['nghecvdochai', 'dochai', 'nndh', 'ngheo'],
-                    chuc_danh_cong_viec: ['chucdanh', 'chucvu', 'congviec', 'chucdanhcongviec']
+                    an_toan_vien: ['antoanvien', 'atv', 'an_toan_vien'],
+                    nghe_cv_doc_hai: ['nghecvdochai', 'dochai', 'nndh', 'ngheo', 'doc_hai'],
+                    chuc_danh_cong_viec: ['chucdanh', 'chucvu', 'congviec', 'chucdanhcongviec', 'cdcv']
                 };
 
                 function detectColumn(keywords) {
@@ -217,7 +220,7 @@
                 const targetDocHaiCol = detectColumn(rules.nghe_cv_doc_hai);
                 const targetChucDanhCol = detectColumn(rules.chuc_danh_cong_viec);
 
-                statusBox.innerHTML += `<br>✅ <b>Bước 2:</b> Khớp cấu trúc thông minh thành công.`;
+                statusBox.innerHTML += `<br>✅ <b>Bước 2:</b> Đã map thành công các trường dữ liệu.`;
 
                 const timeIdSeed = Date.now();
 
@@ -226,7 +229,7 @@
                     return {
                         id: timeIdSeed + index,
                         ho_ten: checkHoTenGoc,
-                        ten: coLapLayTenGoi(checkHoTenGoc),
+                        ten: coLapLayTenGoi(checkHoTenGoc), // Tách lấy tên chính xác đưa vào cột riêng
                         gioi_tinh: targetGioiTinhCol && row[targetGioiTinhCol] ? String(row[targetGioiTinhCol]).trim() : "",
                         nam_sinh: targetNamSinhCol && row[targetNamSinhCol] ? String(row[targetNamSinhCol]).trim() : "",
                         nam_nghi_huu: targetNamNghiHuuCol && row[targetNamNghiHuuCol] ? String(row[targetNamNghiHuuCol]).trim() : "",
@@ -239,33 +242,34 @@
                     };
                 });
 
-                statusBox.innerHTML += `<br>⏳ <b>Bước 3:</b> Đang đẩy gói tin lên đám mây...`;
+                statusBox.innerHTML += `<br>⏳ <b>Bước 3:</b> Đang tải dữ liệu chuẩn hóa lên Đám mây...`;
 
                 const { error } = await globalSupabase.from('nhan_su').insert(payload);
                 if (error) throw error;
 
                 statusBox.style.backgroundColor = "#f0fdf4"; statusBox.style.borderColor = "#bbf7d0"; statusBox.style.color = "#166534";
-                statusBox.innerHTML = `🎉 <b>ĐỒNG BỘ THÀNH CÔNG!</b><br>Đã xử lý <b>[${payload.length}]</b> bản ghi.`;
+                statusBox.innerHTML = `🎉 <b>ĐỒNG BỘ HOÀN TOÀN THÀNH CÔNG!</b><br>Đã xử lý trơn tru dữ liệu cho <b>[${payload.length}]</b> nhân sự.`;
                 
-                label.innerText = "⚡ CHỌN FILE EXCEL ⚡";
+                label.innerText = "⚡ CHỌN FILE EXCEL ĐỂ UP MỚI ⚡";
                 document.getElementById('excel-file-input').value = "";
                 lamMoiBangDuLieu();
 
             } catch (err) {
                 statusBox.style.backgroundColor = "#fef2f2"; statusBox.style.borderColor = "#fca5a5"; statusBox.style.color = "#991b1b";
-                statusBox.innerHTML = `❌ <b>Lỗi:</b> ${err.message}<br><i>Mẹo: Đảm bảo các trường đã được thêm đúng trong SQL.</i>`;
-                label.innerText = "⚡ CHỌN FILE EXCEL ⚡";
+                statusBox.innerHTML = `❌ <b>Lỗi nạp dữ liệu:</b> ${err.message}`;
+                label.innerText = "⚡ CHỌN FILE EXCEL ĐỂ UP MỚI ⚡";
                 document.getElementById('excel-file-input').value = "";
             }
         };
         reader.readAsBinaryString(file);
     });
 
+    // NÚT XÓA SẠCH BẢNG ĐỂ UP MỚI TRÁNH XUNG ĐỘT TRÙNG LẶP ID
     document.getElementById('btn-clear-cloud').addEventListener('click', async () => {
-        if (!confirm("⚠️ Bạn có chắc chắn muốn dọn sạch bảng không?")) return;
+        if (!confirm("⚠️ Bạn có chắc chắn muốn dọn sạch toàn bộ bảng nhân sự trên đám mây không?")) return;
         try {
             await globalSupabase.from('nhan_su').delete().gt('id', 0);
-            alert("🗑️ Bảng đã sạch. Hệ thống sẵn sàng nhận dữ liệu mới!");
+            alert("🗑️ Đã dọn dẹp cơ sở dữ liệu. Bảng hiện đang trống!");
             lamMoiBangDuLieu();
         } catch (e) { alert(e.message); }
     });
@@ -273,7 +277,7 @@
     document.getElementById('btn-export-excel').addEventListener('click', async () => {
         try {
             const { data } = await globalSupabase.from('nhan_su').select('*').order('id', { ascending: true });
-            if (!data.length) return alert("Không có dữ liệu!");
+            if (!data.length) return alert("Không có dữ liệu để xuất!");
             
             const mapping = data.map((item, index) => ({
                 "STT": index + 1,
@@ -293,7 +297,7 @@
             const ws = XLSX.utils.json_to_sheet(mapping);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "NhanSu");
-            XLSX.writeFile(wb, "Bao_Cao_Nhan_Su.xlsx");
+            XLSX.writeFile(wb, "Bao_Cao_Nhan_Su_Full.xlsx");
         } catch (e) { alert(e.message); }
     });
 
