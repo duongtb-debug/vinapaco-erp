@@ -1,85 +1,435 @@
-// ==========================================================================
-// XỬ LÝ SỰ KIỆN TAB NHÂN SỰ: XÓA SẠCH CLOUD & UP FILE EXCEL NEW
-// ==========================================================================
-
-// 1. Logic nút "XÓA SẠCH MÂY ĐỂ UP MỚI"
-document.getElementById('btn-clear-cloud').addEventListener('click', async () => {
-    if (!confirm("⚠️ CẢNH BÁO: Hành động này sẽ xóa TOÀN BỘ dữ liệu nhân sự trên Cloud của Tổng công ty! Bạn có chắc chắn muốn xóa không?")) return;
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ Thống Quản Lý Nhân Sự & Nghỉ Hưu</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
-    try {
-        document.getElementById('btn-clear-cloud').innerText = "⏳ ĐANG XÓA...";
-        document.getElementById('btn-clear-cloud').disabled = true;
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --accent-color: #e74c3c;
+            --bg-color: #f4f6f7;
+            --panel-bg: #ffffff;
+            --border-color: #bdc3c7;
+        }
 
-        // Xóa toàn bộ hàng bằng cách sử dụng filter không rỗng (ví dụ: id lớn hơn 0)
-        const { error } = await client.from('nhan_su').delete().gt('id', 0);
-        
-        if (error) throw error;
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
 
-        alert("🎉 Đã xóa sạch dữ liệu trên đám mây!");
-        lamMoiBangDuLieu(); // Cập nhật lại giao diện bảng trống
-    } catch (e) {
-        alert("Lỗi khi xóa dữ liệu: " + e.message);
-    } finally {
-        document.getElementById('btn-clear-cloud').innerText = "🗑️ XÓA SẠCH MÂY ĐỂ UP MỚI";
-        document.getElementById('btn-clear-cloud').disabled = false;
-    }
-});
+        body {
+            background-color: var(--bg-color);
+            color: #333;
+            padding: 20px;
+        }
 
-// 2. Logic đọc và tải File Excel lên Đám mây tự động
-document.getElementById('excel-file-input').addEventListener('change', function(e) {
-    const file = e.target.files[0];
-    if (!file) return;
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
 
-    const reader = new FileReader();
-    reader.onload = async function(evt) {
+        header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .main-layout {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 20px;
+        }
+
+        .control-panel {
+            background: var(--panel-bg);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border: 1px solid var(--border-color);
+            height: fit-content;
+        }
+
+        .data-panel {
+            background: var(--panel-bg);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border: 1px solid var(--border-color);
+        }
+
+        h2 {
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+            color: var(--primary-color);
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 5px;
+        }
+
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 12px;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .btn-primary {
+            background-color: #3498db;
+            color: white;
+        }
+
+        .btn-primary:hover { background-color: #2980b9; }
+
+        .btn-danger {
+            background-color: var(--accent-color);
+            color: white;
+        }
+
+        .btn-danger:hover { background-color: #c0392b; }
+
+        .btn-success {
+            background-color: #2ecc71;
+            color: white;
+        }
+
+        .btn-success:hover { background-color: #27ae60; }
+
+        .file-input-wrapper {
+            position: relative;
+            margin-bottom: 12px;
+        }
+
+        .file-input-wrapper input[type="file"] {
+            display: none;
+        }
+
+        .file-label {
+            display: block;
+            background-color: #95a5a6;
+            color: white;
+            padding: 12px;
+            border-radius: 6px;
+            text-align: center;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .file-label:hover { background-color: #7f8c8d; }
+
+        /* Styles cho bảng dữ liệu */
+        .table-responsive {
+            overflow-x: auto;
+            margin-top: 15px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 0.95rem;
+        }
+
+        th, td {
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background-color: var(--primary-color);
+            color: white;
+            font-weight: 600;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        tr:hover {
+            background-color: #f1f2f6;
+        }
+
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .status-active { background-color: #d4edda; color: #155724; }
+        .status-retired { background-color: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>HỆ THỐNG QUẢN LÝ DỮ LIỆU NHÂN SỰ TỔNG CÔNG TY</h1>
+        <p>Hệ thống đồng bộ dữ liệu đám mây Supabase & Phân tích lộ trình nghỉ hưu</p>
+    </header>
+
+    <div class="main-layout">
+        <div class="control-panel">
+            <h2>HỆ THỐNG ĐÁM MÂY</h2>
+            <button class="btn btn-primary" id="btn-fetch-cloud">🔄 LÀM MỚI TỪ ĐÁM MÂY</button>
+            <button class="btn btn-danger" id="btn-clear-cloud">🗑️ XÓA SẠCH MÂY ĐỂ UP MỚI</button>
+            
+            <h2 style="margin-top: 25px;">NẠP FILE DỮ LIỆU</h2>
+            <div class="file-input-wrapper">
+                <label for="excel-file-input" class="file-label">📥 CHỌN FILE DATA EXCEL TẢI LÊN</label>
+                <input type="file" id="excel-file-input" accept=".xlsx, .xls">
+            </div>
+
+            <h2 style="margin-top: 25px;">XUẤT BÁO CÁO</h2>
+            <button class="btn btn-success" id="btn-export-excel"> Excel Xuất Danh Sách</button>
+        </div>
+
+        <div class="data-panel">
+            <h2>DANH SÁCH NHÂN SỰ TOÀN CÔNG TY</h2>
+            <div class="table-responsive">
+                <table id="data-table">
+                    <thead>
+                        <tr>
+                            <th>STT</th>
+                            <th>Họ và Tên</th>
+                            <th>Giới Tính</th>
+                            <th>Năm Sinh</th>
+                            <th>Năm Nghỉ Hưu</th>
+                            <th>Mã Đơn Vị</th>
+                            <th>Thông Tin Chi Tiết (Chức Danh || BHXH || CCCD)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body">
+                        <tr>
+                            <td colspan="7" style="text-align: center; color: #7f8c8d; padding: 30px;">
+                                Chưa có dữ liệu. Vui lòng bấm "Làm mới từ đám mây" hoặc tải lên file Excel mới.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ==========================================================================
+    // CẤU HÌNH KẾT NỐI SUPABASE
+    // ==========================================================================
+    const SUPABASE_URL = "https://your-supabase-url.supabase.co"; // Thay bằng URL dự án của bạn
+    const SUPABASE_ANON_KEY = "your-anon-key"; // Thay bằng Anon Key của bạn
+    
+    const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // ==========================================================================
+    // HÀM LÀM MỚI VÀ HIỂN THỊ DỮ LIỆU LÊN BẢNG (READ)
+    // ==========================================================================
+    async function lamMoiBangDuLieu() {
+        const tbody = document.getElementById('table-body');
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 30px;">⏳ Đang tải dữ liệu từ Cloud...</td></tr>`;
+
         try {
-            const data = evt.target.result;
-            const workbook = XLSX.read(data, { type: 'binary' });
-            
-            // Lấy sheet đầu tiên của file Excel
-            const firstSheetName = workbook.SheetNames[0];
-            const worksheet = workbook.Sheets[firstSheetName];
-            
-            // Chuyển đổi dữ liệu sang định dạng JSON mảng danh sách
-            const danhSachExcel = XLSX.utils.sheet_to_json(worksheet);
-            
-            if (danhSachExcel.length === 0) {
-                alert("File Excel trống hoặc không đúng định dạng!");
+            const { data, error } = await client
+                .from('nhan_su')
+                .select('*')
+                .order('ho_ten', { ascending: true });
+
+            if (error) throw error;
+
+            if (!data || data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #7f8c8d; padding: 30px;">Cơ sở dữ liệu đám mây hiện đang trống!</td></tr>`;
                 return;
             }
 
-            alert(`Tìm thấy ${danhSachExcel.length} nhân sự trong file. Tiến hành đồng bộ lên Cloud...`);
-
-            // Khớp các cột từ file Excel của bạn tương ứng với các cột trong DB Supabase
-            const mangUpload = danhSachExcel.map(row => {
-                // Xử lý ghép cột chức danh, BHXH, CCCD thành định dạng chuỗi "||" của hệ thống nếu cần
-                let chucDanhGoc = row["Chức danh công việc"] || row["Chức danh"] || "";
-                let bhxh = row["Số BHXH"] || row["BHXH"] || "---";
-                let cccd = row["Số CCCD"] || row["CCCD"] || "---";
-                let chuoiChucDanhHopNhat = `${chucDanhGoc} || ${bhxh} || ${cccd}`;
-
-                return {
-                    ho_ten: row["Họ và tên"] || row["Họ tên"] || "Không tên",
-                    nam_sinh: row["Ngày sinh"] || row["Năm sinh"] || "---",
-                    nam_ve_huu: row["Ngày nghỉ hưu"] || row["Năm nghỉ hưu"] || "---",
-                    gioi_tinh: row["Giới tính"] || "---",
-                    ma_don_vi: String(row["Mã ĐV"] || row["Mã đơn vị"] || "---").trim(),
-                    chuc_danh_cong_viec: chuoiChucDanhHopNhat
-                };
+            tbody.innerHTML = "";
+            data.forEach((item, index) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td style="font-weight: bold;">${item.ho_ten || '---'}</td>
+                    <td>${item.gioi_tinh || '---'}</td>
+                    <td>${item.nam_sinh || '---'}</td>
+                    <td>${item.nam_ve_huu || '---'}</td>
+                    <td><span class="status-badge status-active">${item.ma_don_vi || '---'}</span></td>
+                    <td style="font-size: 0.9rem; color: #555;">${item.chuc_danh_cong_viec || '---'}</td>
+                `;
+                tbody.appendChild(tr);
             });
 
-            // Gửi dữ liệu loạt lớn (Bulk Insert) lên Supabase
-            const { error } = await client.from('nhan_su').insert(mangUpload);
+        } catch (e) {
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--accent-color); padding: 30px;">❌ Lỗi: ${e.message}</td></tr>`;
+        }
+    }
+
+    // Sự kiện nút làm mới thủ công
+    document.getElementById('btn-fetch-cloud').addEventListener('click', lamMoiBangDuLieu);
+
+
+    // ==========================================================================
+    // CHỨC NĂNG 1: XÓA SẠCH MÂY ĐỂ UP MỚI (DELETE)
+    // ==========================================================================
+    document.getElementById('btn-clear-cloud').addEventListener('click', async () => {
+        // Hiển thị hộp thoại cảnh báo nghiêm trọng
+        const xacNhan = confirm("⚠️ CẢNH BÁO NGUY HIỂM:\nHành động này sẽ XÓA VĨNH VIỄN toàn bộ dữ liệu nhân sự trên Đám mây của Tổng công ty!\n\nBạn có chắc chắn 100% muốn thực hiện không?");
+        if (!xacNhan) return;
+        
+        try {
+            document.getElementById('btn-clear-cloud').innerText = "⏳ ĐANG XÓA SẠCH...";
+            document.getElementById('btn-clear-cloud').disabled = true;
+
+            // Thực hiện lệnh delete với điều kiện luôn đúng để xóa toàn bộ hàng (id lớn hơn 0)
+            const { error } = await client.from('nhan_su').delete().gt('id', 0);
+            
             if (error) throw error;
 
-            alert("🚀 Tải lên và nạp dữ liệu mới thành công!");
-            document.getElementById('excel-file-input').value = ""; // Reset input file
-            lamMoiBangDuLieu(); // Reload lại bảng
-
-        } catch (err) {
-            alert("Lỗi nạp dữ liệu file Excel: " + err.message);
-            console.error(err);
+            alert("🎉 Thành công: Đã xóa toàn bộ dữ liệu nhân sự trên đám mây!");
+            lamMoiBangDuLieu(); // Cập nhật lại giao diện bảng về trạng thái trống
+            
+        } catch (e) {
+            alert("❌ Thất bại! Lỗi khi xóa dữ liệu mây: " + e.message);
+            console.error(e);
+        } finally {
+            document.getElementById('btn-clear-cloud').innerText = "🗑️ XÓA SẠCH MÂY ĐỂ UP MỚI";
+            document.getElementById('btn-clear-cloud').disabled = false;
         }
-    };
-    reader.readAsBinaryString(file);
-});
+    });
+
+
+    // ==========================================================================
+    // CHỨC NĂNG 2: ĐỌC FILE EXCEL & NẠP LÊN ĐÁM MÂY (CREATE - BULK INSERT)
+    // ==========================================================================
+    document.getElementById('excel-file-input').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        
+        // Trạng thái giao diện khi đang đọc file
+        const label = document.querySelector('.file-label');
+        label.innerText = "⏳ ĐANG ĐỌC & NẠP DỮ LIỆU...";
+        label.style.backgroundColor = "#e67e22";
+
+        reader.onload = async function(evt) {
+            try {
+                const data = evt.target.result;
+                // Đọc workbook bằng cấu trúc thư viện XLSX
+                const workbook = XLSX.read(data, { type: 'binary' });
+                
+                // Trích xuất dữ liệu từ Sheet đầu tiên trong file
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                
+                // Chuyển Sheet thành cấu trúc mảng đối tượng JSON
+                const danhSachExcel = XLSX.utils.sheet_to_json(worksheet);
+                
+                if (danhSachExcel.length === 0) {
+                    alert("❌ Lỗi: File Excel trống hoặc không đúng cấu trúc dòng tiêu đề!");
+                    traTrangThaiNutFile();
+                    return;
+                }
+
+                if(!confirm(`Tìm thấy ${danhSachExcel.length} nhân sự trong file.\nXác nhận đẩy toàn bộ dữ liệu này lên Supabase Cloud?`)) {
+                    traTrangThaiNutFile();
+                    return;
+                }
+
+                // Khớp bản đồ cấu trúc trường (Mapping) từ file Excel vào Database Supabase
+                const mangUpload = danhSachExcel.map(row => {
+                    // Xử lý đóng gói chuỗi Chức danh || BHXH || CCCD tương ứng cấu trúc cột hệ thống của bạn
+                    let chucDanh = row["Chức danh công việc"] || row["Chức danh"] || "Chưa phân công";
+                    let bhxh = row["Số BHXH"] || row["BHXH"] || "---";
+                    let cccd = row["Số CCCD"] || row["CCCD"] || "---";
+                    let chuoiChiTietHopNhat = `${chucDanh} || ${bhxh} || ${cccd}`;
+
+                    return {
+                        ho_ten: row["Họ và tên"] || row["Họ tên"] || "Ẩn danh",
+                        gioi_tinh: row["Giới tính"] || "---",
+                        nam_sinh: String(row["Năm sinh"] || row["Ngày sinh"] || "---"),
+                        nam_ve_huu: String(row["Năm nghỉ hưu"] || row["Ngày nghỉ hưu"] || "---"),
+                        ma_don_vi: String(row["Mã ĐV"] || row["Mã đơn vị"] || "---").trim(),
+                        chuc_danh_cong_viec: chuoiChiTietHopNhat
+                    };
+                });
+
+                // Thực hiện chèn hàng loạt (Bulk Insert) lên Supabase để tối ưu tốc độ mạng
+                const { error } = await client.from('nhan_su').insert(mangUpload);
+                
+                if (error) throw error;
+
+                alert(`🚀 TUYỆT VỜI!\nĐã tải và nạp thành công toàn bộ ${mangUpload.length} nhân sự lên hệ thống đám mây!`);
+                lamMoiBangDuLieu(); // Làm mới lại bảng hiển thị giao diện
+
+            } catch (err) {
+                alert("❌ Lỗi nạp dữ liệu từ file Excel: " + err.message);
+                console.error(err);
+            } finally {
+                traTrangThaiNutFile();
+            }
+        };
+
+        // Đọc file dưới dạng chuỗi nhị phân
+        reader.readAsBinaryString(file);
+    });
+
+    // Hàm trả lại trạng thái ban đầu cho nút tải file
+    function traTrangThaiNutFile() {
+        const label = document.querySelector('.file-label');
+        label.innerText = "📥 CHỌN FILE DATA EXCEL TẢI LÊN";
+        label.style.backgroundColor = "#95a5a6";
+        document.getElementById('excel-file-input').value = ""; // Reset giá trị input
+    }
+
+
+    // ==========================================================================
+    // CHỨC NĂNG 3: XUẤT BÁO CÁO EXCEL TỪ DATA CLOUD (EXPORT)
+    // ==========================================================================
+    document.getElementById('btn-export-excel').addEventListener('click', async () => {
+        try {
+            const { data, error } = await client.from('nhan_su').select('*');
+            if (error) throw error;
+            if (!data || data.length === 0) {
+                alert("Không có dữ liệu trên mây để xuất file!");
+                return;
+            }
+
+            // Tạo cấu trúc dữ liệu xuất file sạch đẹp
+            const dataToExport = data.map((item, index) => ({
+                "STT": index + 1,
+                "Họ và Tên": item.ho_ten,
+                "Giới Tính": item.gioi_tinh,
+                "Năm Sinh": item.nam_birth || item.nam_sinh,
+                "Năm Nghỉ Hưu": item.nam_ve_huu,
+                "Mã Đơn Vị": item.ma_don_vi,
+                "Chi Tiết (Chức danh || BHXH || CCCD)": item.chuc_danh_cong_viec
+            }));
+
+            const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Danh sach Nhan su");
+            XLSX.writeFile(workbook, "Danh_Sach_Nhan_Su_Cloud.xlsx");
+        } catch (e) {
+            alert("Lỗi xuất file: " + e.message);
+        }
+    });
+
+    // Tự động tải dữ liệu ngay khi vừa truy cập trang web lần đầu
+    window.onload = lamMoiBangDuLieu;
+</script>
+
+</body>
+</html>
