@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hệ Thống Quản Lý Nhân Sự Chuẩn Hóa - Vinapaco ERP</title>
+    <title>Hệ Thống Quản Lý Nhân Sự Toàn Diện - Vinapaco ERP</title>
     
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -43,7 +43,7 @@
         .status-box { padding: 14px; border-radius: 8px; margin-top: 15px; font-size: 0.85rem; display: none; line-height: 1.6; }
         .table-container { overflow-x: auto; margin-top: 10px; background: white; border-radius: 8px; border: 1px solid var(--border-color); }
         
-        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; min-width: 1100px; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; min-width: 1300px; }
         th, td { padding: 12px 14px; border-bottom: 1px solid var(--border-color); text-align: left; white-space: nowrap; }
         th { background-color: #f1f5f9; color: #1e293b; font-weight: 600; text-transform: uppercase; font-size: 0.8rem; }
         tr:hover { background-color: #f8fafc; }
@@ -53,8 +53,8 @@
 
 <div class="container">
     <header>
-        <h1>HỆ THỐNG QUẢN LÝ DỮ LIỆU ĐA CỘT HOÀN HẢO - VINAPACO</h1>
-        <p>⚡ Chuẩn Hóa Tách Tên Gọi Độc Lập & Hiển Thị Đầy Đủ Nội Dung Cột File Excel ⚡</p>
+        <h1>HỆ THỐNG QUẢN LÝ ĐA CỘT TOÀN DIỆN - VINAPACO</h1>
+        <p>⚡ Hiển Thị Đầy Đủ 100% Cột Từ File Excel & Tách Tên Gọi Chính Xác ⚡</p>
     </header>
 
     <div class="main-layout">
@@ -85,11 +85,15 @@
                 <h2>📋 DANH SÁCH CHI TIẾT CÁC TRƯỜNG NHÂN SỰ ĐÃ ĐỒNG BỘ</h2>
                 <div class="table-container">
                     <table id="dynamic-table">
-                        <thead id="table-head">
+                        <thead>
                             <tr>
                                 <th style="width: 50px;">STT</th>
                                 <th>Họ và Tên</th>
                                 <th>Tên Gọi (Đã tách)</th>
+                                <th>Giới Tính</th>
+                                <th>Năm Sinh</th>
+                                <th>Năm Nghỉ Hưu</th>
+                                <th>Mã Đơn Vị</th>
                                 <th>Số Sổ BHXH</th>
                                 <th>Số CCCD</th>
                                 <th>An Toàn Viên</th>
@@ -97,7 +101,7 @@
                         </thead>
                         <tbody id="table-body">
                             <tr>
-                                <td colspan="6" style="text-align: center; color: #94a3b8; padding: 40px;">Hệ thống đang sẵn sàng kết nối dữ liệu...</td>
+                                <td colspan="10" style="text-align: center; color: #94a3b8; padding: 40px;">Hệ thống đang sẵn sàng kết nối dữ liệu...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -113,13 +117,13 @@
     
     const globalSupabase = supabase.createClient(DB_URL, DB_KEY);
 
-    // Hàm chuẩn hóa ký tự chuỗi để so khớp cột không lỗi font
+    // Chuẩn hóa chuỗi tìm tiêu đề cột
     function clearAccentsAndSpaces(str) {
         if (!str) return '';
         return String(str).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[_\s\-\.\,\/]/g, "");
     }
 
-    // THUẬT TOÁN TÁCH TÊN GỌI CHÍNH XÁC: Chỉ lấy từ cuối cùng của chuỗi Họ Tên đầy đủ
+    // THUẬT TOÁN TÁCH TÊN CHÍNH XÁC (Chỉ lấy từ cuối cùng)
     function coLapLayTenGoi(full_name) {
         if (!full_name) return "";
         const chuoiSach = String(full_name).trim();
@@ -127,17 +131,17 @@
         return mangTu.length > 0 ? mangTu[mangTu.length - 1] : "";
     }
 
-    // LÀM MỚI DANH SÁCH BẢNG HIỂN THỊ TRÊN SCREEN
+    // LÀM MỚI HIỂN THỊ BẢNG ĐẦY ĐỦ 10 CỘT
     async function lamMoiBangDuLieu() {
         const tbody = document.getElementById('table-body');
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 40px;">⏳ Đang đồng bộ hóa dữ liệu từ đám mây...</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; padding: 40px;">⏳ Đang đồng bộ hóa dữ liệu từ đám mây...</td></tr>`;
 
         try {
-            const { data, error } = await globalSupabase.from('nhan_su').select('ho_ten, ten, so_so_bhxh, so_cccd, an_toan_vien').order('id', { ascending: true });
+            const { data, error } = await globalSupabase.from('nhan_su').select('*').order('id', { ascending: true });
             if (error) throw error;
 
             if (!data || data.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #94a3b8; padding: 40px;">📭 Cơ sở dữ liệu trống. Vui lòng nạp file Excel!</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: #94a3b8; padding: 40px;">📭 Cơ sở dữ liệu trống. Vui lòng nạp file Excel!</td></tr>`;
                 return;
             }
 
@@ -148,6 +152,10 @@
                     <td>${index + 1}</td>
                     <td style="font-weight: 600; color: #1e3a8a;">${item.ho_ten || '---'}</td>
                     <td style="color: #10b981; font-weight: bold;">${item.ten || '---'}</td>
+                    <td>${item.gioi_tinh || '---'}</td>
+                    <td>${item.nam_sinh || '---'}</td>
+                    <td>${item.nam_nghi_huu || '---'}</td>
+                    <td>${item.ma_don_vi || '---'}</td>
                     <td>${item.so_so_bhxh || '---'}</td>
                     <td>${item.so_cccd || '---'}</td>
                     <td style="color: #64748b;">${item.an_toan_vien || 'NULL'}</td>
@@ -155,11 +163,11 @@
                 tbody.appendChild(tr);
             });
         } catch (e) {
-            tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--accent-color); padding: 40px; font-weight: bold;">❌ Lỗi đồng bộ: ${e.message}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--accent-color); padding: 40px;">❌ Lỗi: ${e.message}</td></tr>`;
         }
     }
 
-    // ĐỌC, KIỂM TRA VÀ CHUẨN HÓA DỮ LIỆU EXCEL TRƯỚC KHI ĐẨY LÊN CLOUD
+    // ĐỌC VÀ ĐỒNG BỘ FILE EXCEL ĐA CỘT
     document.getElementById('excel-file-input').addEventListener('change', function(e) {
         const file = e.target.files[0];
         if (!file) return;
@@ -180,15 +188,19 @@
                 const worksheet = workbook.Sheets[workbook.SheetNames[0]];
                 const parsedData = XLSX.utils.sheet_to_json(worksheet);
                 
-                if (parsedData.length === 0) throw new Error("File Excel rỗng, không tìm thấy dữ liệu nhân sự!");
+                if (parsedData.length === 0) throw new Error("File Excel không có dữ liệu!");
 
                 const excelHeaders = Object.keys(parsedData[0]);
 
-                // Khởi tạo quy tắc map cột thông minh chuẩn hóa
+                // Bộ quy tắc nhận diện cột thông minh tự động
                 const rules = {
-                    ho_ten: ['hoten', 'hovaten', 'nhanvien', 'fullname', 'tennhanvien'],
-                    so_so_bhxh: ['bhxh', 'sosobhxh', 'sobhxh', 'baohiem'],
-                    so_cccd: ['cccd', 'cmnd', 'socccd', 'socmnd', 'thecancuoc'],
+                    ho_ten: ['hoten', 'hovaten', 'nhanvien', 'fullname'],
+                    gioi_tinh: ['gioitinh', 'phai', 'sex', 'gioitinhnu'],
+                    nam_sinh: ['namsinh', 'ngaysinh', 'birth'],
+                    nam_nghi_huu: ['namnghihuu', 'nghihuu'],
+                    ma_don_vi: ['madonvi', 'donvi', 'bophan', 'phongban'],
+                    so_so_bhxh: ['bhxh', 'sosobhxh', 'sobhxh'],
+                    so_cccd: ['cccd', 'cmnd', 'socccd', 'socmnd'],
                     an_toan_vien: ['antoanvien', 'atv', 'an_toan_vien']
                 };
 
@@ -199,38 +211,44 @@
                     });
                 }
 
-                // Xác định tên cột thực tế trong file Excel của người dùng
                 const targetHoTenCol = detectColumn(rules.ho_ten) || excelHeaders[1] || excelHeaders[0];
+                const targetGioiTinhCol = detectColumn(rules.gioi_tinh);
+                const targetNamSinhCol = detectColumn(rules.nam_sinh);
+                const targetNamNghiHuuCol = detectColumn(rules.nam_nghi_huu);
+                const targetMaDonViCol = detectColumn(rules.ma_don_vi);
                 const targetBhxhCol = detectColumn(rules.so_so_bhxh);
                 const targetCccdCol = detectColumn(rules.so_cccd);
                 const targetAtvCol = detectColumn(rules.an_toan_vien);
 
-                statusBox.innerHTML += `<br>✅ <b>Bước 2:</b> Đã map các trường dữ liệu Excel thành công.`;
+                statusBox.innerHTML += `<br>✅ <b>Bước 2:</b> Đã map các trường dữ liệu thành công.`;
 
                 const timeIdSeed = Date.now();
 
-                // Tạo payload làm sạch, CHẶN HOÀN TOÀN việc trùng lặp ghi đè thuộc tính 'ten'
+                // Đóng gói dữ liệu ĐẦY ĐỦ CÁC TRƯỜNG
                 const payload = parsedData.map((row, index) => {
                     const checkHoTenGoc = row[targetHoTenCol] ? String(row[targetHoTenCol]).trim() : "";
                     
                     return {
-                        id: timeIdSeed + index, // Khóa chính tự động tăng độc bản
+                        id: timeIdSeed + index,
                         ho_ten: checkHoTenGoc,
-                        ten: coLapLayTenGoi(checkHoTenGoc), // CHUẨN HÓA: Cố lập chỉ lấy từ cuối cùng làm Tên gọi
+                        ten: coLapLayTenGoi(checkHoTenGoc), // Tách riêng từ cuối cùng chính xác
+                        gioi_tinh: targetGioiTinhCol && row[targetGioiTinhCol] ? String(row[targetGioiTinhCol]).trim() : "",
+                        nam_sinh: targetNamSinhCol && row[targetNamSinhCol] ? String(row[targetNamSinhCol]).trim() : "",
+                        nam_nghi_huu: targetNamNghiHuuCol && row[targetNamNghiHuuCol] ? String(row[targetNamNghiHuuCol]).trim() : "",
+                        ma_don_vi: targetMaDonViCol && row[targetMaDonViCol] ? String(row[targetMaDonViCol]).trim() : "",
                         so_so_bhxh: targetBhxhCol && row[targetBhxhCol] ? String(row[targetBhxhCol]).trim() : "",
                         so_cccd: targetCccdCol && row[targetCccdCol] ? String(row[targetCccdCol]).trim() : "",
                         an_toan_vien: targetAtvCol && row[targetAtvCol] ? String(row[targetAtvCol]).trim() : null
                     };
                 });
 
-                statusBox.innerHTML += `<br>⏳ <b>Bước 3:</b> Đang thực hiện đồng bộ dữ liệu chuẩn hóa lên Supabase...`;
+                statusBox.innerHTML += `<br>⏳ <b>Bước 3:</b> Đang đẩy dữ liệu lên đám mây Supabase...`;
 
-                // Đẩy gói tin đã chuẩn hóa lên Cloud
                 const { error } = await globalSupabase.from('nhan_su').insert(payload);
                 if (error) throw error;
 
                 statusBox.style.backgroundColor = "#f0fdf4"; statusBox.style.borderColor = "#bbf7d0"; statusBox.style.color = "#166534";
-                statusBox.innerHTML = `🎉 <b>XỬ LÝ ĐỒNG BỘ HOÀN HẢO!</b><br>Đã lưu trữ và bóc tách dữ liệu chuẩn xác cho <b>[${payload.length}]</b> nhân sự.`;
+                statusBox.innerHTML = `🎉 <b>ĐỒNG BỘ THÀNH CÔNG ĐẦY ĐỦ!</b><br>Đã lưu trữ thành công dữ liệu cho <b>[${payload.length}]</b> nhân sự.`;
                 
                 label.innerText = "⚡ CHỌN FILE EXCEL ĐỂ ĐỒNG BỘ ⚡";
                 document.getElementById('excel-file-input').value = "";
@@ -238,7 +256,7 @@
 
             } catch (err) {
                 statusBox.style.backgroundColor = "#fef2f2"; statusBox.style.borderColor = "#fca5a5"; statusBox.style.color = "#991b1b";
-                statusBox.innerHTML = `❌ <b>Thất bại:</b> ${err.message}`;
+                statusBox.innerHTML = `❌ <b>Thất bại:</b> ${err.message}<br><i>Mẹo: Đảm bảo bạn đã tạo đủ các cột vật lý trên Supabase Table Editor!</i>`;
                 label.innerText = "⚡ CHỌN FILE EXCEL ĐỂ ĐỒNG BỘ ⚡";
                 document.getElementById('excel-file-input').value = "";
             }
@@ -246,28 +264,31 @@
         reader.readAsBinaryString(file);
     });
 
-    // SỰ KIỆN XÓA DỮ LIỆU TRÊN TOÀN HỆ THỐNG CLOUD
+    // SỰ KIỆN XÓA SẠCH BẢNG CLOUD
     document.getElementById('btn-clear-cloud').addEventListener('click', async () => {
-        if (!confirm("⚠️ Hành động này sẽ xóa toàn bộ danh sách nhân sự hiện tại trên Đám Mây. Bạn có chắc chắn không?")) return;
+        if (!confirm("⚠️ Bạn có chắc muốn xóa toàn bộ danh sách hiện tại trên Đám Mây không?")) return;
         try {
             const { error } = await globalSupabase.from('nhan_su').delete().gt('id', 0);
             if (error) throw error;
-            alert("🗑️ Cơ sở dữ liệu đám mây đã được dọn sạch.");
+            alert("🗑️ Đã làm sạch cơ sở dữ liệu.");
             lamMoiBangDuLieu();
         } catch (e) { alert("Lỗi: " + e.message); }
     });
 
-    // TRÍCH XUẤT NGƯỢC DỮ LIỆU RA FILE EXCEL BÁO CÁO
+    // XUẤT EXCEL FULL 10 TRƯỜNG
     document.getElementById('btn-export-excel').addEventListener('click', async () => {
         try {
-            const { data, error } = await globalSupabase.from('nhan_su').select('ho_ten, ten, so_so_bhxh, so_cccd, an_toan_vien').order('id', { ascending: true });
-            if (error || !data.length) return alert("Hệ thống chưa có dữ liệu để kết xuất báo cáo!");
+            const { data, error } = await globalSupabase.from('nhan_su').select('*').order('id', { ascending: true });
+            if (error || !data.length) return alert("Không có dữ liệu để xuất!");
             
-            // Định dạng lại tiêu đề hiển thị trong file Excel xuất ra
             const outputRows = data.map((item, index) => ({
                 "STT": index + 1,
                 "Họ và Tên": item.ho_ten,
                 "Tên gọi": item.ten,
+                "Giới tính": item.gioi_tinh,
+                "Năm sinh": item.nam_sinh,
+                "Năm nghỉ hưu": item.nam_nghi_huu,
+                "Mã đơn vị": item.ma_don_vi,
                 "Số sổ BHXH": item.so_so_bhxh,
                 "Số CCCD": item.so_cccd,
                 "An toàn viên": item.an_toan_vien
@@ -276,8 +297,8 @@
             const ws = XLSX.utils.json_to_sheet(outputRows);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "DanhSachNhanSu");
-            XLSX.writeFile(wb, "Bao_Cao_Nhan_Su_Vinapaco.xlsx");
-        } catch (e) { alert("Lỗi khi tạo file Excel: " + e.message); }
+            XLSX.writeFile(wb, "Bao_Cao_Nhan_Su_Vinapaco_Full.xlsx");
+        } catch (e) { alert("Lỗi xuất file: " + e.message); }
     });
 
     document.getElementById('btn-fetch-cloud').addEventListener('click', lamMoiBangDuLieu);
