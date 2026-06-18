@@ -3,25 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quản Lý Nhân Sự - Vinapaco ERP</title>
+    <title>Quản Lý Nhân Sự Toàn Diện - Vinapaco ERP</title>
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f6f9; color: #333; }
-        .container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 1200px; margin: 0 auto; }
-        h2 { border-bottom: 2px solid #007bff; padding-bottom: 10px; color: #007bff; }
-        .upload-section { background: #e9ecef; padding: 15px; border-radius: 6px; margin-bottom: 20px; border: 1px dashed #6c757d; }
-        input[type="file"] { margin-right: 10px; }
-        button { background-color: #28a745; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; }
-        button:hover { background-color: #218838; }
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #fff; }
-        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; background-color: #f4f6f9; color: #333; }
+        .container { background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); max-width: 1200px; margin: 0 auto; }
+        h2 { border-bottom: 3px solid #007bff; padding-bottom: 10px; color: #007bff; margin-top: 0; }
+        h3 { color: #495057; margin-bottom: 10px; }
+        .upload-section { background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 25px; border: 2px dashed #007bff; }
+        .mapping-section { background: #fff3cd; padding: 20px; border-radius: 8px; margin-bottom: 25px; border: 1px solid #ffeeba; display: none; }
+        .mapping-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; margin-top: 15px; }
+        .mapping-item { background: white; padding: 10px; border-radius: 6px; border: 1px solid #ddd; display: flex; flex-direction: column; }
+        .mapping-item label { font-weight: bold; margin-bottom: 5px; color: #495057; }
+        select { padding: 8px; border-radius: 4px; border: 1px solid #ced4da; font-size: 14px; }
+        button { color: white; border: none; padding: 12px 20px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px; transition: background 0.2s; }
+        .btn-blue { background-color: #007bff; } .btn-blue:hover { background-color: #0056b3; }
+        .btn-green { background-color: #28a745; margin-top: 15px; } .btn-green:hover { background-color: #218838; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        th, td { border: 1px solid #dee2e6; padding: 12px; text-align: left; }
         th { background-color: #007bff; color: white; }
-        tr:nth-child(even) { background-color: #f9f9f9; }
-        .error { color: #dc3545; font-weight: bold; margin-top: 10px; background: #f8d7da; padding: 10px; border-radius: 4px; }
-        .loading { color: #666; font-style: italic; }
+        tr:nth-child(even) { background-color: #f8f9fa; }
+        .error { color: #dc3545; font-weight: bold; margin-top: 10px; background: #f8d7da; padding: 12px; border-radius: 4px; border: 1px solid #f5c6cb; }
+        .loading { color: #6c757d; font-style: italic; padding: 10px 0; }
     </style>
 </head>
 <body>
@@ -30,150 +36,197 @@
     <h2>Hệ Thống Quản Lý Nhân Sự - Vinapaco ERP</h2>
     
     <div class="upload-section">
-        <h3>Bước 1: Nạp file Excel nhân sự lên đám mây</h3>
-        <p style="font-size: 13px; color: #555;">💡 Hệ thống tự động nhận diện các cột: <b>Họ tên, Tên, Số sổ BHXH, Số CCCD, An toàn viên</b>.</p>
-        <input type="file" id="excel-file" accept=".xlsx, .xls" />
-        <button onclick="handleUpload()">Tiến Hành Nạp Lên Supabase</button>
+        <h3>Bước 1: Chọn file Excel từ máy tính</h3>
+        <input type="file" id="excel-file" accept=".xlsx, .xls" style="margin-bottom: 10px;" />
+        <button class="btn-blue" onclick="loadExcelHeaders()">Đọc Cấu Trúc File Excel</button>
+    </div>
+
+    <div id="mapping-area" class="mapping-section">
+        <h3>Bước 2: Khớp cột dữ liệu (Đảm bảo chính xác 100%)</h3>
+        <p style="font-size: 13px; color: #664d03; margin: 0;">Hãy chọn cột trong file Excel tương ứng với từng cột dữ liệu trên hệ thống đám mây bên dưới:</p>
+        
+        <div class="mapping-grid">
+            <div class="mapping-item">
+                <label>Họ và Tên (ho_ten):</label>
+                <select id="map-ho-ten"><option value="">-- Bỏ qua cột này --</option></select>
+            </div>
+            <div class="mapping-item">
+                <label>Tên gọi (ten):</label>
+                <select id="map-ten"><option value="">-- Bỏ qua cột này --</option></select>
+            </div>
+            <div class="mapping-item">
+                <label>Số sổ BHXH (so_so_bhxh):</label>
+                <select id="map-bhxh"><option value="">-- Bỏ qua cột này --</option></select>
+            </div>
+            <div class="mapping-item">
+                <label>Số CCCD (so_cccd):</label>
+                <select id="map-cccd"><option value="">-- Bỏ qua cột này --</option></select>
+            </div>
+            <div class="mapping-item">
+                <label>An toàn viên (an_toan_vien):</label>
+                <select id="map-atv"><option value="">-- Bỏ qua cột này --</option></select>
+            </div>
+        </div>
+        
+        <button class="btn-green" onclick="submitData()">🚀 Tiến Hành Nạp Lên Đám Mây</button>
     </div>
 
     <div>
-        <h3>Bước 2: Danh sách nhân sự hiện tại trên hệ thống</h3>
+        <h3>Danh sách nhân sự hiện tại trên hệ thống</h3>
         <div id="status-message" class="loading">Đang tải dữ liệu từ Supabase...</div>
         
         <table id="data-table" style="display: none;">
             <thead>
-                <tr id="table-header">
-                    </tr>
+                <tr id="table-header"></tr>
             </thead>
-            <tbody id="table-body">
-                </tbody>
+            <tbody id="table-body"></tbody>
         </table>
     </div>
 </div>
 
 <script>
-    // Cấu hình Supabase của bạn
+    // Cấu hình kết nối Supabase của bạn
     const SUPABASE_URL = 'https://mtfpxsfxjsnghtalamdd.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ';
-
-    // Khởi tạo Supabase Client
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // Danh sách các cột HỢP LỆ tồn tại trên Supabase của bạn
-    const VALID_COLUMNS = ['ho_ten', 'ten', 'so_so_bhxh', 'so_cccd', 'an_toan_vien'];
+    let excelRawRows = []; // Lưu trữ dữ liệu thô của file excel
 
-    // ========================================================
-    // 1. HÀM XỬ LÝ ĐỌC FILE EXCEL VÀ NẠP DỮ LIỆU LÊN SUPABASE
-    // ========================================================
-    function handleUpload() {
+    // 1. ĐỌC CÁC TIÊU ĐỀ CỘT CỦA FILE EXCEL
+    function loadExcelHeaders() {
         const fileInput = document.getElementById('excel-file');
         if (!fileInput.files || fileInput.files.length === 0) {
-            alert("Vui lòng chọn một file Excel trước khi bấm nạp!");
+            alert("Vui lòng chọn file Excel trước!");
             return;
         }
 
         const file = fileInput.files[0];
         const reader = new FileReader();
 
-        reader.onload = async function (e) {
+        reader.onload = function (e) {
             try {
                 const data = new Uint8Array(e.target.result);
                 const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
                 
-                const firstSheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[firstSheetName];
+                // Đọc toàn bộ dòng dưới dạng JSON
+                excelRawRows = XLSX.utils.sheet_to_json(firstSheet);
                 
-                const rawJsonData = XLSX.utils.sheet_to_json(worksheet);
-
-                if (rawJsonData.length === 0) {
-                    alert("File Excel này trống rỗng, không có dữ liệu!");
+                if(excelRawRows.length === 0) {
+                    alert("File Excel trống dữ liệu!");
                     return;
                 }
 
-                // Chuẩn hóa và lọc sạch dữ liệu trước khi đẩy lên đám mây
-                const formattedData = rawJsonData.map(row => {
-                    const cleanRow = {};
-                    Object.keys(row).forEach(key => {
-                        // Đổi chữ thường, bỏ khoảng trắng và chuyển đổi chữ tiếng Việt thông dụng
-                        let cleanKey = key.trim().toLowerCase().replace(/ /g, '_');
+                // Lấy danh sách tiêu đề cột thực tế trong file Excel
+                const excelHeaders = Object.keys(excelRawRows[0]);
+                
+                // Đổ danh sách tiêu đề vào các ô Select bản đồ
+                const selects = ['map-ho-ten', 'map-ten', 'map-bhxh', 'map-cccd', 'map-atv'];
+                selects.forEach(id => {
+                    const selectEl = document.getElementById(id);
+                    selectEl.innerHTML = '<option value="">-- Bỏ qua cột này --</option>'; // Reset
+                    
+                    excelHeaders.forEach(header => {
+                        const option = document.createElement('option');
+                        option.value = header;
+                        option.innerText = header;
                         
-                        // Sửa lỗi mapping các kiểu đặt tên cột Excel khác nhau về đúng chuẩn Supabase của bạn
-                        if (cleanKey.includes('họ_và_tên') || cleanKey.includes('ho_va_ten') || cleanKey.includes('họ_tên') || cleanKey === 'ho_ten') {
-                            cleanKey = 'ho_ten';
-                        } else if (cleanKey.includes('bhxh') || cleanKey.includes('bảo_hiểm')) {
-                            cleanKey = 'so_so_bhxh';
-                        } else if (cleanKey.includes('cccd') || cleanKey.includes('chứng_minh')) {
-                            cleanKey = 'so_cccd';
-                        } else if (cleanKey.includes('an_toàn_viên')) {
-                            cleanKey = 'an_toan_vien';
-                        } else if (cleanKey === 'tên') {
-                            cleanKey = 'ten';
-                        }
+                        // Tự động gợi ý khớp nếu tên gần giống nhau
+                        const hLower = header.toLowerCase();
+                        if (id === 'map-ho-ten' && (hLower.includes('họ') || hLower.includes('ho_ten'))) option.selected = true;
+                        if (id === 'map-ten' && (hLower === 'tên' || hLower === 'ten')) option.selected = true;
+                        if (id === 'map-bhxh' && hLower.includes('bhxh')) option.selected = true;
+                        if (id === 'map-cccd' && hLower.includes('cccd')) option.selected = true;
+                        if (id === 'map-atv' && hLower.includes('an_toàn')) option.selected = true;
 
-                        // CHỈ GIỮ LẠI CỘT NÀO HỢP LỆ TRÊN SUPABASE (Bỏ qua gioi_tinh_nu, vv...)
-                        if (VALID_COLUMNS.includes(cleanKey)) {
-                            cleanRow[cleanKey] = row[key];
-                        }
+                        selectEl.appendChild(option);
                     });
-                    return cleanRow;
                 });
 
-                alert(`Đang tiến hành đồng bộ ${formattedData.length} nhân sự lên đám mây Supabase...`);
-
-                // Thực hiện đẩy lên bảng 'nhan_su'
-                const { error } = await supabaseClient
-                    .from('nhan_su')
-                    .insert(formattedData);
-
-                if (error) throw error;
-
-                alert(`🎯 DỨT ĐIỂM THÀNH CÔNG! Đã bóc tách và nạp đúng [${formattedData.length}] nhân sự lên đám mây.`);
-                
-                // Tải lại dữ liệu xuống bảng hiển thị
-                fetchData();
+                // Hiển thị khu vực cấu hình bản đồ cột
+                document.getElementById('mapping-area').style.display = 'block';
+                alert(`Đọc thành công cấu trúc file! Xin mời thực hiện Bước 2 để khớp cột.`);
 
             } catch (err) {
-                console.error("Lỗi chi tiết:", err);
-                alert(`❌ Nạp dữ liệu THẤT BẠI!\nLý do: ${err.message}`);
+                alert("Không thể đọc file Excel này: " + err.message);
             }
         };
-
         reader.readAsArrayBuffer(file);
     }
 
-    // ========================================================
-    // 2. HÀM LẤY DỮ LIỆU TỪ SUPABASE VÀ ĐỔ VÀO BẢNG
-    // ========================================================
+    // 2. CHUYỂN ĐỔI THEO BẢN ĐỒ VÀ ĐẨY LÊN SUPABASE
+    async function submitData() {
+        try {
+            // Lấy giá trị map mà người dùng đã chọn
+            const mapHoTen = document.getElementById('map-ho-ten').value;
+            const mapTen = document.getElementById('map-ten').value;
+            const mapBhxh = document.getElementById('map-bhxh').value;
+            const mapCccd = document.getElementById('map-cccd').value;
+            const mapAtv = document.getElementById('map-atv').value;
+
+            if(!mapHoTen && !mapTen) {
+                alert("Bắt buộc phải chọn cột khớp cho 'Họ và tên' hoặc 'Tên' để nhận diện nhân sự!");
+                return;
+            }
+
+            // Chuyển đổi mảng thô sang định dạng chuẩn khớp 100% với Supabase
+            const finalPayload = excelRawRows.map(row => {
+                const cleanRow = {};
+                if (mapHoTen && row[mapHoTen] !== undefined) cleanRow['ho_ten'] = String(row[mapHoTen]).trim();
+                if (mapTen && row[mapTen] !== undefined) cleanRow['ten'] = String(row[mapTen]).trim();
+                if (mapBhxh && row[mapBhxh] !== undefined) cleanRow['so_so_bhxh'] = String(row[mapBhxh]).trim();
+                if (mapCccd && row[mapCccd] !== undefined) cleanRow['so_cccd'] = String(row[mapCccd]).trim();
+                if (mapAtv && row[mapAtv] !== undefined) cleanRow['an_toan_vien'] = String(row[mapAtv]).trim();
+                return cleanRow;
+            });
+
+            alert(`Hệ thống đang nạp ${finalPayload.length} nhân sự chuẩn hóa lên đám mây...`);
+
+            // Đẩy trực tiếp lên Supabase
+            const { error } = await supabaseClient
+                .from('nhan_su')
+                .insert(finalPayload);
+
+            if (error) throw error;
+
+            alert(`🎯 TUYỆT VỜI! Đã bóc tách và nạp thành công [${finalPayload.length}] nhân sự lên đám mây mà không gặp bất cứ lỗi cột nào.`);
+            
+            // Ẩn vùng khớp dữ liệu và tải lại danh sách mới
+            document.getElementById('mapping-area').style.display = 'none';
+            fetchData();
+
+        } catch (err) {
+            console.error(err);
+            alert(`❌ Thất bại: ${err.message}`);
+        }
+    }
+
+    // 3. TẢI DỮ LIỆU HIỂN THỊ XUỐNG BẢNG
     async function fetchData() {
         const statusDiv = document.getElementById('status-message');
         const table = document.getElementById('data-table');
         const headerRow = document.getElementById('table-header');
         const tbody = document.getElementById('table-body');
 
-        headerRow.innerHTML = "";
-        tbody.innerHTML = "";
+        headerRow.innerHTML = ""; tbody.innerHTML = "";
         statusDiv.style.display = 'block';
         statusDiv.className = "loading";
-        statusDiv.innerHTML = "Đang tải dữ liệu từ Supabase... Minh bạch dữ liệu.";
+        statusDiv.innerHTML = "Đang đồng bộ dữ liệu từ đám mây...";
         table.style.display = 'none';
 
         try {
-            const { data, error } = await supabaseClient
-                .from('nhan_su')
-                .select('*');
-
+            const { data, error } = await supabaseClient.from('nhan_su').select('*');
             if (error) throw error;
 
             if (!data || data.length === 0) {
                 statusDiv.className = "error";
-                statusDiv.innerHTML = "⚡ Kết nối thành công nhưng bảng dữ liệu đang trống rỗng.";
+                statusDiv.innerHTML = "⚡ Kết nối thành công. Cơ sở dữ liệu đám mây hiện tại đang trống rỗng.";
                 return;
             }
 
             statusDiv.style.display = 'none';
             table.style.display = 'table';
 
-            // Tạo tiêu đề dựa trên các cột thực tế trả về
             const columns = Object.keys(data[0]);
             columns.forEach(col => {
                 const th = document.createElement('th');
@@ -181,7 +234,6 @@
                 headerRow.appendChild(th);
             });
 
-            // Đổ dữ liệu vào bảng
             data.forEach(row => {
                 const tr = document.createElement('tr');
                 columns.forEach(col => {
@@ -191,11 +243,9 @@
                 });
                 tbody.appendChild(tr);
             });
-
         } catch (error) {
-            console.error('Lỗi lấy dữ liệu:', error);
             statusDiv.className = "error";
-            statusDiv.innerHTML = `❌ Lỗi tải dữ liệu: ${error.message}`;
+            statusDiv.innerHTML = `❌ Lỗi: ${error.message}`;
         }
     }
 
