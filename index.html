@@ -48,7 +48,7 @@
         .form-group input, .form-group select { width: 100%; padding: 11px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.95rem; }
         .form-group input[readonly] { background-color: #eaeded; font-weight: bold; color: #2c3e50; }
 
-        /* HỘP GỢI Ý TÌM KIẾM THÔNG MINH */
+        /* DROPDOWN TÌM KIẾM THÔNG MINH */
         .smart-search-results {
             position: absolute; width: 100%; background: white; border: 1px solid var(--border-color);
             max-height: 250px; overflow-y: auto; z-index: 999; border-radius: 6px; box-shadow: 0 8px 16px rgba(0,0,0,0.15);
@@ -152,7 +152,7 @@
                 
                 <div class="form-group">
                     <label>Người sử dụng (Tìm theo Tên hoặc Mã ĐV):</label>
-                    <input type="text" id="tb-nguoi-dung-search" placeholder="🔍 Gõ Mã ĐV (ví dụ: KT) hoặc Tên..." oninput="goTimKiemNhanSu(this)" autocomplete="off">
+                    <input type="text" id="tb-nguoi-dung-search" placeholder="🔍 Gõ Mã ĐV hoặc Tên cần tìm..." oninput="goTimKiemNhanSu(this)" autocomplete="off">
                     <input type="hidden" id="tb-nguoi-dung-value">
                     <div class="smart-search-results" id="smart-search-box"></div>
                 </div>
@@ -186,13 +186,24 @@
 <script>
     const SUPABASE_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co"; 
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ"; 
-    const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
+    
+    let client;
     let CACHE_NHAN_SU = [];
     let CACHE_THIẾT_BỊ = [];
 
-    // Tự động tải dữ liệu ngay khi mở trang
-    taiDuLieuTuCloud();
+    // CHẶN GIAO DIỆN KHỞI TẠO: Ép ứng dụng chỉ gọi API sau khi DOM dựng hoàn tất 100%
+    document.addEventListener("DOMContentLoaded", function() {
+        client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        taiDuLieuTuCloud();
+        
+        // Sự kiện click đóng dropdown tìm kiếm khi nhấp ra ngoài rộng
+        document.addEventListener('click', function(e) {
+            if(e.target.id !== 'tb-nguoi-dung-search') {
+                const box = document.getElementById('smart-search-box');
+                if(box) box.style.display = 'none';
+            }
+        });
+    });
 
     function switchTab(tabName) {
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -225,24 +236,23 @@
 
     function tuDongSinhMaThietBi() {
         let soLuong = CACHE_THIẾT_BỊ.length;
-        document.getElementById('tb-ma').value = `TB-2026-${String(soLuong + 1).padStart(4, '0')}`;
+        const inputMa = document.getElementById('tb-ma');
+        if(inputMa) inputMa.value = `TB-2026-${String(soLuong + 1).padStart(4, '0')}`;
     }
 
-    // LOGIC TÌM KIẾM THÔNG MINH - GÕ MÃ ĐƠN VỊ SẼ LIỆT KÊ TOÀN BỘ NHÂN VIÊN MÃ ĐÓ
     function goTimKiemNhanSu(input) {
         const keyword = input.value.toLowerCase().trim();
         const box = document.getElementById('smart-search-box');
         
         if (!keyword) { box.style.display = 'none'; return; }
         
-        // Tiến hành lọc nâng cao
         let ketQuaLoc = CACHE_NHAN_SU.filter(x => {
             const ten = x.ho_ten ? String(x.ho_ten).toLowerCase() : '';
             const maDV = x.ma_don_vi ? String(x.ma_don_vi).toLowerCase() : '';
             return ten.includes(keyword) || maDV.includes(keyword);
         });
 
-        // ƯU TIÊN SẮP XẾP: Nếu mã đơn vị khớp hoàn toàn hoặc khớp đầu chuỗi keyword, đẩy lên trước
+        // Sắp xếp mã đơn vị trùng khớp lên đầu danh sách nhóm
         ketQuaLoc.sort((a, b) => {
             const maA = a.ma_don_vi ? String(a.ma_don_vi).toLowerCase() : '';
             const maB = b.ma_don_vi ? String(b.ma_don_vi).toLowerCase() : '';
@@ -255,7 +265,6 @@
             box.innerHTML = `<div class="smart-search-item" style="color:#aaa; cursor:default;">❌ Không tìm thấy mã đơn vị hoặc nhân sự phù hợp</div>`;
         } else {
             box.innerHTML = '';
-            // Nới rộng hiển thị lên tối đa 50 dòng để liệt kê hết toàn bộ nhóm phòng ban
             ketQuaLoc.slice(0, 50).forEach(ns => {
                 const div = document.createElement('div');
                 div.className = 'smart-search-item';
@@ -271,13 +280,6 @@
         box.style.display = 'block';
     }
 
-    document.addEventListener('click', function(e) {
-        if(e.target.id !== 'tb-nguoi-dung-search') {
-            document.getElementById('smart-search-box').style.display = 'none';
-        }
-    });
-
-    // NẠP FILE EXCEL NHÂN SỰ VÀ ĐẨY THẲNG LÊN CLOUD SUPABASE
     function napExcelNhanSu(input) {
         const file = input.files[0];
         if(!file) return;
@@ -290,10 +292,7 @@
                 const firstSheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[firstSheetName];
                 
-                // Chuyển đổi thành mảng JSON JSON dữ liệu thô
                 const jsonRows = XLSX.utils.sheet_to_json(worksheet);
-                
-                // Ánh xạ chuyển đổi định dạng cột Excel sang cột DB Supabase
                 const mangNhanSuMapping = jsonRows.map(row => ({
                     ho_ten: row['Họ & Tên'] || row['ho_ten'] || '',
                     gioi_tinh: row['Giới Tính'] || row['gioi_tinh'] || '',
@@ -309,7 +308,6 @@
                 }
 
                 alert(`Đang upload dữ liệu ${mangNhanSuMapping.length} nhân sự lên đám mây...`);
-                
                 const { error } = await client.from('nhan_su').insert(mangNhanSuMapping);
                 if(error) throw error;
 
@@ -317,11 +315,10 @@
                 taiDuLieuTuCloud();
             } catch (err) {
                 alert("Lỗi cấu trúc file Excel hoặc kết nối Cloud: " + err.message);
-                console.error(err);
             }
         };
         reader.readAsArrayBuffer(file);
-        input.value = ''; // Reset input file
+        input.value = '';
     }
 
     async function xoaSachCloudNhanSu() {
@@ -337,6 +334,7 @@
     function locGiaoDienNhanSu() {
         const k = document.getElementById('search-ns').value.toLowerCase();
         const tbody = document.getElementById('body-ns');
+        if(!tbody) return;
         tbody.innerHTML = '';
         CACHE_NHAN_SU.filter(x => {
             const ten = x.ho_ten ? String(x.ho_ten).toLowerCase() : '';
@@ -376,6 +374,7 @@
     function locGiaoDienThietBi() {
         const k = document.getElementById('search-tb').value.toLowerCase();
         const zone = document.getElementById('qr-zone-preview');
+        if(!zone) return;
         zone.innerHTML = '';
 
         const mangLoc = CACHE_THIẾT_BỊ.filter(x => {
@@ -386,7 +385,7 @@
         });
 
         if(mangLoc.length === 0) {
-            zone.innerHTML = '<p style="color:#7f8c8d; padding:20px;">Không có thiết bị dã cấp phát nào phù hợp.</p>';
+            zone.innerHTML = '<p style="color:#7f8c8d; padding:20px;">Không có thiết bị đã cấp phát nào phù hợp.</p>';
             return;
         }
 
