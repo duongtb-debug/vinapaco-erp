@@ -285,7 +285,7 @@
         box.style.display = 'block';
     }
 
-    // SỬA DỨT ĐIỂM: ĐỌC DỮ LIỆU THEO VỊ TRÍ CỘT (CỐ ĐỊNH CHỐNG SAI TIÊU ĐỀ)
+    // SIÊU THUẬT TOÁN QUÉT TOÀN BỘ CỘT TỰ ĐỘNG CHỐNG LỆCH FILE GOOGLE FORM 
     function napExcelNhanSu(input) {
         const file = input.files[0];
         if(!file) return;
@@ -299,50 +299,76 @@
                 const worksheet = workbook.Sheets[firstSheetName];
                 
                 const rawRows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-                if (!rawRows || rawRows.length === 0) { return alert("File Excel rỗng!"); }
+                if (!rawRows || rawRows.length === 0) { return alert("File Excel không có dữ liệu!"); }
 
                 const mangNhanSuMapping = [];
-                
-                // Vòng lặp bỏ qua dòng đầu tiên (dòng tiêu đề câu hỏi Google Form)
+
+                // Quét từ dòng thứ 2 (chỉ số i = 1) để lấy dữ liệu thực tế
                 for (let i = 1; i < rawRows.length; i++) {
                     const row = rawRows[i];
-                    if (!row || !Array.isArray(row)) continue;
+                    if (!row || !Array.isArray(row) || row.length < 2) continue;
 
-                    // Vì file Google Form có cột đầu (Cột A) là Dấu thời gian (Timestamp)
-                    // Cột B (Vị trí số 1 trong mảng) CHẮC CHẮN là Họ và Tên nhân sự
-                    let ho_ten = row[1] ? String(row[1]).trim() : '';
-                    
-                    // Nếu cột Họ Tên rỗng, thử tìm bất kỳ ô nào có chữ ở cột tiếp theo để tránh sót
-                    if (ho_ten === "" && row[2]) {
-                        ho_ten = String(row[2]).trim();
+                    let ho_ten = "";
+                    let gioi_tinh = "---";
+                    let nam_sinh = null;
+                    let chi_tiet_khao_sat = [];
+
+                    // Vòng lặp thông minh quét qua từng ô trong hàng để phân loại dữ liệu tự động
+                    for (let j = 0; j < row.length; j++) {
+                        let cellVal = row[j];
+                        if (cellVal === undefined || cellVal === null) continue;
+                        let valStr = String(cellVal).trim();
+                        if (valStr === "") continue;
+
+                        // 1. Nhận diện Họ và Tên: Ô chữ dài có khoảng trắng và không chứa các ký tự đặc biệt của mốc thời gian
+                        if (ho_ten === "" && valStr.length >= 3 && valStr.includes(" ") && !valStr.includes("/") && !valStr.includes(":")) {
+                            ho_ten = valStr;
+                            continue;
+                        }
+
+                        // 2. Nhận diện Giới tính
+                        if (valStr.toLowerCase() === "nam" || valStr.toLowerCase() === "nữ" || valStr.toLowerCase() === "nu") {
+                            gioi_tinh = valStr;
+                            continue;
+                        }
+
+                        // 3. Nhận diện Năm sinh (Là số nguyên có 4 chữ số và bắt đầu bằng 19xx hoặc 20xx)
+                        if (!nam_sinh && /^\d{4}$/.test(valStr)) {
+                            let parseNum = parseInt(valStr);
+                            if (parseNum > 1940 && parseNum < 2015) {
+                                nam_sinh = parseNum;
+                                continue;
+                            }
+                        }
+
+                        // 4. Các cột câu hỏi dài của Google Form gom hết vào đây làm chi tiết
+                        chi_tiet_khao_sat.push(valStr);
                     }
 
+                    // Nếu vẫn không quét được tên bằng thuật toán thông minh, ép buộc lấy cột thứ 2 (cột B cũ) làm tên cứu cánh
+                    if (ho_ten === "" && row[1]) {
+                        ho_ten = String(row[1]).trim();
+                    }
+
+                    // Điều kiện bắt buộc để nạp: Phải có tên và không trùng với tiêu đề
                     if (ho_ten === "" || ho_ten.toLowerCase().includes("họ và tên") || ho_ten.toLowerCase().includes("timestamp")) continue;
 
-                    // Đọc các thông tin bổ sung nếu có (theo thứ tự các cột tiếp theo)
-                    const gioi_tinh = row[3] ? String(row[3]).trim() : '---';
-                    const nam_sinh = row[4] ? (parseInt(row[4]) || null) : null;
-                    const nam_ve_huu = null;
-                    const ma_don_vi = null; // Để trống chống lỗi khóa ngoại Database
-
-                    // Lấy toàn bộ phần thông tin khảo sát còn lại làm chi tiết công việc
-                    const chuc_danh_cong_viec = row[5] ? "Khảo sát: " + String(row[5]).trim() : '---';
-
-                    mangNhanSuMapping.push({ 
-                        ho_ten, 
-                        gioi_tinh, 
-                        nam_sinh, 
-                        nam_ve_huu, 
-                        ma_don_vi, 
-                        chuc_danh_cong_viec 
+                    mangNhanSuMapping.push({
+                        ho_ten: ho_ten,
+                        gioi_tinh: gioi_tinh,
+                        nam_sinh: nam_sinh,
+                        nam_ve_huu: null,
+                        ma_don_vi: null, // Để null chống lỗi khóa ngoại Database
+                        chuc_danh_cong_viec: chi_tiet_khao_sat.slice(0, 2).join(" | ") || "Dữ liệu Google Form"
                     });
                 }
 
+                // Kiểm tra kết quả bóc tách trước khi đẩy lên cloud
                 if (mangNhanSuMapping.length === 0) {
-                    return alert("Không tìm thấy dòng dữ liệu hợp lệ. Hãy kiểm tra lại file!");
+                    return alert("❌ Lỗi: Hệ thống không trích xuất được nhân sự nào từ cấu trúc file này. Hãy kiểm tra xem file có đúng danh sách không!");
                 }
 
-                // Thực hiện chia nhỏ cụm (Chunk) đẩy lên Supabase siêu tốc
+                // Cắt nhỏ mảng dữ liệu (200 dòng/lượt) đẩy đồng thời tránh treo trình duyệt
                 const chunkSize = 200;
                 let promises = [];
                 for (let i = 0; i < mangNhanSuMapping.length; i += chunkSize) {
@@ -351,10 +377,10 @@
                 }
                 
                 await Promise.all(promises);
-                alert(`🎉 Thành công rực rỡ! Đã bóc tách và đồng bộ thành công ${mangNhanSuMapping.length} nhân sự từ Google Form lên hệ thống.`);
+                alert(`🎉 DỨT ĐIỂM THÀNH CÔNG! Đã bóc tách và nạp đúng [${mangNhanSuMapping.length}] nhân sự lên đám mây.`);
                 await taiDuLieuTuCloud();
 
-            } catch (err) { alert("Lỗi xử lý tệp Excel: " + err.message); }
+            } catch (err) { alert("Lỗi xử lý file Excel: " + err.message); }
         };
         reader.readAsArrayBuffer(file);
         input.value = ''; 
