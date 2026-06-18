@@ -19,7 +19,7 @@
             --border: #cbd5e1;        
         }
 
-        /* Định dạng cỡ chữ to vừa phải, giao diện trang nhã, gọn gàng */
+        /* Định dạng cỡ chữ to vừa phải, giao diện trang nhã, gọn gàng và cân đối */
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; }
         body { background-color: var(--bg); padding: 20px; color: var(--text-main); font-size: 16px; }
         .container { max-width: 100%; margin: 0 auto; }
@@ -48,7 +48,7 @@
         .status-box { padding: 12px; border-radius: 6px; margin-top: 12px; font-size: 0.9rem; display: none; line-height: 1.5; border: 1px solid #f59e0b; }
         
         .table-container { overflow-x: auto; background: white; border-radius: 6px; border: 1px solid var(--border); }
-        table { width: 100%; border-collapse: collapse; font-size: 1rem; min-width: 1700px; }
+        table { width: 100%; border-collapse: collapse; font-size: 1rem; min-width: 1650px; }
         
         th { background-color: #f1f5f9; color: #1e293b; padding: 12px 10px; font-weight: 600; text-transform: uppercase; font-size: 0.85rem; border: 1px solid var(--border); text-align: center; }
         td { padding: 12px 10px; border: 1px solid var(--border); text-align: left; white-space: nowrap; color: #334155; }
@@ -56,7 +56,7 @@
         tr:hover { background-color: #f1f5f9; }
         
         .col-name { font-weight: 600; color: #1e3a8a; }
-        .col-highlight { text-align: center; font-weight: 600; color: #0f172a; background-color: #fcfcfc; }
+        .col-highlight { text-align: center; font-weight: 600; color: #0f172a; }
     </style>
 </head>
 <body>
@@ -64,7 +64,7 @@
 <div class="container">
     <header>
         <h1>HỆ THỐNG QUẢN LÝ CƠ SỞ DỮ LIỆU NHÂN SỰ TOÀN DIỆN</h1>
-        <p>Giao diện chuẩn hóa kích thước - Khớp dữ liệu chính xác tuyệt đối từ tệp gốc</p>
+        <p>Giao diện chuẩn hóa kích thước gọn gàng - Đọc đúng thông tin nguyên bản file gốc</p>
     </header>
 
     <div class="layout">
@@ -98,9 +98,9 @@
                                 <th style="width: 60px;">STT</th>
                                 <th>Họ và Tên</th>
                                 <th style="width: 100px;">Giới Tính</th>
-                                <th style="width: 110px;">Năm</th>
-                                <th style="width: 140px;">Năm Sinh</th>
-                                <th style="width: 150px;">Năm Nghỉ Hưu</th>
+                                <th style="width: 90px;">Năm</th>
+                                <th style="width: 130px;">Năm Sinh</th>
+                                <th style="width: 140px;">Năm Nghỉ Hưu</th>
                                 <th style="width: 120px;">Mã Đơn Vị</th>
                                 <th>Số Sổ BHXH</th>
                                 <th>Số CCCD</th>
@@ -132,7 +132,7 @@
         return String(str).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[_\s\-\.\,\/]/g, "");
     }
 
-    // Hàm xử lý bóc tách định dạng ngày chuẩn xác, không lấy nhầm trường
+    // Hàm bóc tách thời gian: type 'year_only' sẽ trích xuất chuẩn xác 4 số năm sinh từ cột ngay_sinh gốc
     function formatExcelDate(excelValue, formatType = 'full') {
         if (excelValue === undefined || excelValue === null || String(excelValue).trim() === "") return "";
         
@@ -195,8 +195,8 @@
                     <td>${cleanTextField(item.so_so_bhxh) || '---'}</td>
                     <td>${cleanTextField(item.so_cccd) || '---'}</td>
                     <td class="col-highlight">${cleanTextField(item.an_toan_vien) || '---'}</td>
-                    <td class="col-highlight" style="color: #ea580c;">${cleanTextField(item.nghe_cv_doc_hai) || '---'}</td>
-                    <td style="font-weight: 500;">${cleanTextField(item.chuc_danh_cong_viec) || '---'}</td>
+                    <td class="col-highlight">${cleanTextField(item.nghe_cv_doc_hai) || '---'}</td>
+                    <td style="font-weight: 500; white-space: normal;">${cleanTextField(item.chuc_danh_cong_viec) || '---'}</td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -229,12 +229,12 @@
 
                 const excelHeaders = Object.keys(parsedData[0]);
 
-                // Nhận diện cột chính xác theo đúng tệp gốc của bạn
+                // Khớp chính xác theo tiêu đề cột của file Book1_chuan_hoa.xlsx
                 const targetHoTenCol = excelHeaders.find(h => clearAccentsAndSpaces(h) === 'hovaten' || clearAccentsAndSpaces(h) === 'hovaten');
-                const targetGioiTinhCol = excelHeaders.find(h => clearAccentsAndSpaces(h) === 'gioitinhnu' || clearAccentsAndSpaces(h) === 'gioitinh');
+                const targetGioiTinhCol = excelHeaders.find(h => clearAccentsAndSpaces(h) === 'gioitinh' || clearAccentsAndSpaces(h) === 'nux');
                 
-                // Phân tách rõ ràng tiêu đề cột 'NAM' và 'NAM_VE_HUU'
-                const targetNamOnlyCol = excelHeaders.find(h => String(h).trim() === 'NAM');
+                // Trỏ trường 'ngay_sinh' để lấy số Năm bóc tách riêng
+                const targetNgaySinhGoc = excelHeaders.find(h => clearAccentsAndSpaces(h) === 'ngaysinh');
                 const targetNamSinhCol = excelHeaders.find(h => clearAccentsAndSpaces(h) === 'namsinh');
                 const targetNamNghiHuuCol = excelHeaders.find(h => clearAccentsAndSpaces(h) === 'namvehuu');
                 
@@ -242,9 +242,9 @@
                 const targetBhxhCol = excelHeaders.find(h => clearAccentsAndSpaces(h) === 'sobhxh');
                 const targetCccdCol = excelHeaders.find(h => clearAccentsAndSpaces(h) === 'socccd');
                 
-                // Khớp chính xác cột viết hoa có gạch dưới trong file dữ liệu gốc
-                const targetAtvCol = excelHeaders.find(h => String(h).trim() === 'AN_TOAN_VIEN');
-                const targetDocHaiCol = excelHeaders.find(h => String(h).trim() === 'NNDH');
+                // Khớp chính xác tuyệt đối chữ thường viết liền từ file gốc của bạn
+                const targetAtvCol = excelHeaders.find(h => String(h).trim() === 'an_toan_vien');
+                const targetDocHaiCol = excelHeaders.find(h => String(h).trim() === 'nndh');
                 
                 const targetChucDanhCol = excelHeaders.find(h => clearAccentsAndSpaces(h) === 'chucdanhcongviec');
 
@@ -258,22 +258,18 @@
                         ho_ten: row[targetHoTenCol] ? String(row[targetHoTenCol]).trim() : "",
                         gioi_tinh: targetGioiTinhCol && row[targetGioiTinhCol] ? cleanTextField(row[targetGioiTinhCol]) : "",
                         
-                        // Bóc tách chính xác cột chỉ lấy số Năm 
-                        ten: targetNamOnlyCol && row[targetNamOnlyCol] ? formatExcelDate(row[targetNamOnlyCol], 'year_only') : "",
+                        // Lấy chính xác năm sinh từ trường ngày sinh (bỏ qua ngày tháng, chỉ lấy 4 số năm)
+                        ten: targetNgaySinhGoc && row[targetNgaySinhGoc] ? formatExcelDate(row[targetNgaySinhGoc], 'year_only') : "",
                         
-                        // Định dạng ngày đầy đủ cho cột Năm Sinh
                         nam_sinh: targetNamSinhCol && row[targetNamSinhCol] ? formatExcelDate(row[targetNamSinhCol], 'full') : "",
-                        
-                        // Định dạng ngày đầy đủ cho cột Năm Nghỉ Hưu
                         nam_nghi_huu: targetNamNghiHuuCol && row[targetNamNghiHuuCol] ? formatExcelDate(row[targetNamNghiHuuCol], 'full') : "",
-                        
                         ma_don_vi: targetMaDonViCol && row[targetMaDonViCol] ? cleanTextField(row[targetMaDonViCol]) : "",
                         so_so_bhxh: targetBhxhCol && row[targetBhxhCol] ? cleanTextField(row[targetBhxhCol]) : "",
                         so_cccd: targetCccdCol && row[targetCccdCol] ? cleanTextField(row[targetCccdCol]) : "",
                         
-                        // HIỂN THỊ CHÍNH XÁC GIÁ TRỊ GỐC TỪ FILE (Giữ nguyên text gốc, trống thì để trống)
-                        an_toan_vien: targetAtvCol && row[targetAtvCol] !== undefined ? cleanTextField(row[targetAtvCol]) : "",
-                        nghe_cv_doc_hai: targetDocHaiCol && row[targetDocHaiCol] !== undefined ? cleanTextField(row[targetDocHaiCol]) : "",
+                        // GIỮ NGUYÊN BẢN 100% THÔNG TIN TỪ FILE (file ghi số mấy hiện số đó, trống để trống)
+                        an_toan_vien: targetAtvCol && row[targetAtvCol] !== undefined ? String(row[targetAtvCol]).trim() : "",
+                        nghe_cv_doc_hai: targetDocHaiCol && row[targetDocHaiCol] !== undefined ? String(row[targetDocHaiCol]).trim() : "",
                         
                         chuc_danh_cong_viec: targetChucDanhCol && row[targetChucDanhCol] ? cleanTextField(row[targetChucDanhCol]) : ""
                     };
@@ -285,7 +281,7 @@
                 if (error) throw error;
 
                 statusBox.style.backgroundColor = "#dcfce7"; statusBox.style.color = "#166534";
-                statusBox.innerHTML = `🎉 <b>ĐỒNG BỘ THÀNH CÔNG!</b><br>Đã lưu trữ thành công thông tin của <b>[${payload.length}]</b> cán bộ nhân viên.`;
+                statusBox.innerHTML = `🎉 <b>ĐỒNG BỘ THÀNH CÔNG!</b><br>Đã lưu trữ dữ liệu của <b>[${payload.length}]</b> cán bộ nhân viên.`;
                 
                 label.innerText = "📂 CHỌN FILE DATA GỐC";
                 document.getElementById('excel-file-input').value = "";
@@ -302,10 +298,10 @@
     });
 
     document.getElementById('btn-clear-cloud').addEventListener('click', async () => {
-        if (!confirm("⚠️ Bạn có chắc chắn muốn dọn sạch bảng dữ liệu cũ trên Cloud để up tệp chuẩn mới này lên không?")) return;
+        if (!confirm("⚠️ Bạn có chắc chắn muốn xóa sạch kho dữ liệu cũ để nạp lại bản chuẩn hóa này không?")) return;
         try {
             await globalSupabase.from('nhan_su').delete().gt('id', 0);
-            alert("🗑️ Đã làm sạch toàn bộ dữ liệu hệ thống!");
+            alert("🗑 shutdown Đã làm sạch toàn bộ dữ liệu cũ!");
             lamMoiBangDuLieu();
         } catch (e) { alert(e.message); }
     });
