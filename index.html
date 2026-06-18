@@ -50,7 +50,7 @@
 <div class="container">
     <header>
         <h1>HỆ THỐNG QUẢN LÝ CƠ SỞ DỮ LIỆU NHÂN SỰ TOÀN DIỆN</h1>
-        <p>⚡ Hiển thị đầy đủ 12 cột - Khắc phục hoàn toàn lỗi đồng bộ cấu trúc Cache ⚡</p>
+        <p>⚡ Sửa lỗi định dạng Ngày/Tháng/Năm Sinh & Trích xuất duy nhất Năm Về Hưu từ Excel ⚡</p>
     </header>
 
     <div class="layout">
@@ -85,8 +85,8 @@
                                 <th>Họ và Tên</th>
                                 <th>Tên Gợi (Đã tách)</th>
                                 <th>Giới Tính</th>
-                                <th>Năm Sinh</th>
-                                <th>Năm Nghỉ Hưu</th>
+                                <th>Năm Sinh (DD/MM/YYYY)</th>
+                                <th>Năm Nghỉ Hưu (YYYY)</th>
                                 <th>Mã Đơn Vị</th>
                                 <th>Số Sổ BHXH</th>
                                 <th>Số CCCD</th>
@@ -123,6 +123,36 @@
         const chuoiSach = String(full_name).trim();
         const mangTu = chuoiSach.split(/\s+/);
         return mangTu.length > 0 ? mangTu[mangTu.length - 1] : "";
+    }
+
+    // THUẬT TOÁN CHUYỂN ĐỔI NGÀY THÁNG EXCEL THÀNH CHUỖI ĐỊNH DẠNG VIỆT NAM
+    function formatExcelDate(excelValue, targetType = 'full') {
+        if (!excelValue) return "";
+        
+        let dateObj;
+        
+        // Nếu là định dạng số của Excel (Serial Number)
+        if (!isNaN(excelValue)) {
+            dateObj = XLSX.SSF.parse_date_code(excelValue);
+            if (!dateObj) return String(excelValue).trim();
+            
+            const day = String(dateObj.d).padStart(2, '0');
+            const month = String(dateObj.m).padStart(2, '0');
+            const year = dateObj.y;
+            
+            if (targetType === 'year_only') {
+                return String(year);
+            }
+            return `${day}/${month}/${year}`;
+        }
+        
+        // Nếu đã là chuỗi ký tự dạng ngày tháng sẵn
+        const strDate = String(excelValue).trim();
+        if (targetType === 'year_only') {
+            const match = strDate.match(/\b(19|20)\d{2}\b/);
+            return match ? match[0] : strDate;
+        }
+        return strDate;
     }
 
     async function lamMoiBangDuLieu() {
@@ -172,7 +202,7 @@
         label.innerText = "⏳ ĐANG XỬ LÝ...";
         statusBox.style.display = "block";
         statusBox.style.backgroundColor = "#fffbeb"; statusBox.style.borderColor = "#fef3c7"; statusBox.style.color = "#b45309";
-        statusBox.innerHTML = `⏳ <b>Bước 1:</b> Đang phân tích file Excel...`;
+        statusBox.innerHTML = `⏳ <b>Bước 1:</b> Đang phân tích cấu trúc file Excel...`;
 
         const reader = new FileReader();
         reader.onload = async function(evt) {
@@ -180,7 +210,9 @@
                 const data = evt.target.result;
                 const workbook = XLSX.read(data, { type: 'binary' });
                 const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-                const parsedData = XLSX.utils.sheet_to_json(worksheet);
+                
+                // Đọc thô dữ liệu để thuật toán tự động xử lý date code
+                const parsedData = XLSX.utils.sheet_to_json(worksheet, { raw: true });
                 
                 if (parsedData.length === 0) throw new Error("File Excel rỗng!");
 
@@ -190,7 +222,7 @@
                     ho_ten: ['hoten', 'hovaten', 'nhanvien', 'fullname'],
                     gioi_tinh: ['gioitinh', 'phai', 'namnu', 'sex'],
                     nam_sinh: ['namsinh', 'ngaysinh', 'ns'],
-                    nam_nghi_huu: ['namnghihuu', 'nghihuu', 'vehuu'],
+                    nam_nghi_huu: ['namnghihuu', 'nghihuu', 'vehuu', 'nam'],
                     ma_don_vi: ['madonvi', 'donvi', 'bophan', 'phongban', 'maqp'],
                     so_so_bhxh: ['bhxh', 'sosobhxh', 'sobhxh'],
                     so_cccd: ['cccd', 'cmnd', 'socccd', 'thecancuoc'],
@@ -217,19 +249,25 @@
                 const targetDocHaiCol = detectColumn(rules.nghe_cv_doc_hai);
                 const targetChucDanhCol = detectColumn(rules.chuc_danh_cong_viec);
 
-                statusBox.innerHTML += `<br>✅ <b>Bước 2:</b> Ánh xạ tiêu đề file Excel thành công.`;
+                statusBox.innerHTML += `<br>✅ <b>Bước 2:</b> Chuẩn hóa định dạng thời gian và ánh xạ cột...`;
 
                 const timeIdSeed = Date.now();
 
                 const payload = parsedData.map((row, index) => {
                     const checkHoTenGoc = row[targetHoTenCol] ? String(row[targetHoTenCol]).trim() : "";
+                    
                     return {
                         id: timeIdSeed + index,
                         ho_ten: checkHoTenGoc,
                         ten: coLapLayTenGoi(checkHoTenGoc),
                         gioi_tinh: targetGioiTinhCol && row[targetGioiTinhCol] ? String(row[targetGioiTinhCol]).trim() : "",
-                        nam_sinh: targetNamSinhCol && row[targetNamSinhCol] ? String(row[targetNamSinhCol]).trim() : "",
-                        nam_nghi_huu: targetNamNghiHuuCol && row[targetNamNghiHuuCol] ? String(row[targetNamNghiHuuCol]).trim() : "",
+                        
+                        // Áp dụng bộ định dạng chuẩn hóa ngày tháng năm sinh đầy đủ
+                        nam_sinh: targetNamSinhCol && row[targetNamSinhCol] ? formatExcelDate(row[targetNamSinhCol], 'full') : "",
+                        
+                        // Áp dụng bộ định dạng chỉ lấy duy nhất 4 số của năm nghỉ hưu
+                        nam_nghi_huu: targetNamNghiHuuCol && row[targetNamNghiHuuCol] ? formatExcelDate(row[targetNamNghiHuuCol], 'year_only') : "",
+                        
                         ma_don_vi: targetMaDonViCol && row[targetMaDonViCol] ? String(row[targetMaDonViCol]).trim() : "",
                         so_so_bhxh: targetBhxhCol && row[targetBhxhCol] ? String(row[targetBhxhCol]).trim() : "",
                         so_cccd: targetCccdCol && row[targetCccdCol] ? String(row[targetCccdCol]).trim() : "",
@@ -239,13 +277,13 @@
                     };
                 });
 
-                statusBox.innerHTML += `<br>⏳ <b>Bước 3:</b> Đang đẩy dữ liệu lên đám mây Supabase...`;
+                statusBox.innerHTML += `<br>⏳ <b>Bước 3:</b> Đang tải dữ liệu chuẩn hóa lên Supabase...`;
 
                 const { error } = await globalSupabase.from('nhan_su').insert(payload);
                 if (error) throw error;
 
                 statusBox.style.backgroundColor = "#f0fdf4"; statusBox.style.borderColor = "#bbf7d0"; statusBox.style.color = "#166534";
-                statusBox.innerHTML = `🎉 <b>ĐỒNG BỘ THÀNH CÔNG!</b><br>Đã tải lên toàn bộ dữ liệu 12 cột cho <b>[${payload.length}]</b> nhân sự.`;
+                statusBox.innerHTML = `🎉 <b>ĐỒNG BỘ THÀNH CÔNG!</b><br>Đã tải lên và hiển thị chuẩn dạng thời gian cho <b>[${payload.length}]</b> nhân sự.`;
                 
                 label.innerText = "⚡ CHỌN FILE EXCEL ⚡";
                 document.getElementById('excel-file-input').value = "";
@@ -253,7 +291,7 @@
 
             } catch (err) {
                 statusBox.style.backgroundColor = "#fef2f2"; statusBox.style.borderColor = "#fca5a5"; statusBox.style.color = "#991b1b";
-                statusBox.innerHTML = `❌ <b>Thất bại:</b> ${err.message}<br><i>Mẹo: Kiểm tra kĩ xem đã thực hiện chạy lệnh SQL ALTER TABLE trên Supabase chưa.</i>`;
+                statusBox.innerHTML = `❌ <b>Thất bại:</b> ${err.message}`;
                 label.innerText = "⚡ CHỌN FILE EXCEL ⚡";
                 document.getElementById('excel-file-input').value = "";
             }
@@ -262,7 +300,7 @@
     });
 
     document.getElementById('btn-clear-cloud').addEventListener('click', async () => {
-        if (!confirm("⚠️ Bạn có chắc chắn muốn xóa toàn bộ danh sách để nạp lại?")) return;
+        if (!confirm("⚠️ Bạn có chắc chắn muốn xóa toàn bộ danh sách cũ để nạp lại dạng ngày tháng chuẩn?")) return;
         try {
             await globalSupabase.from('nhan_su').delete().gt('id', 0);
             alert("🗑️ Đã dọn sạch bảng dữ liệu trên đám mây!");
