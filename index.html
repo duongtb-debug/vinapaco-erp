@@ -115,13 +115,59 @@
         }
         .file-label:hover { background-color: #7f8c8d; }
 
+        /* KHU VỰC TÌM KIẾM & BỘ LỌC THÔNG MINH */
+        .filter-section {
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border: 1px solid #e2e8f0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .search-group {
+            flex: 1;
+            min-width: 280px;
+        }
+
+        .search-group input {
+            width: 100%;
+            padding: 10px 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 0.95rem;
+            outline: none;
+        }
+        .search-group input:focus { border-color: #3498db; box-shadow: 0 0 5px rgba(52,152,219,0.3); }
+
+        .filter-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .filter-group select {
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background: white;
+            font-size: 0.9rem;
+            outline: none;
+            cursor: pointer;
+        }
+
         .table-responsive { overflow-x: auto; margin-top: 15px; }
         table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.95rem; }
         th, td { padding: 12px 15px; border-bottom: 1px solid var(--border-color); }
         th { background-color: var(--primary-color); color: white; font-weight: 600; }
         tr:nth-child(even) { background-color: #f9f9f9; }
         tr:hover { background-color: #f1f2f6; }
+        
         .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; background-color: #d4edda; color: #155724; }
+        .counter-badge { background: #34495e; color: white; padding: 2px 8px; border-radius: 20px; font-size: 0.9rem; margin-left: 10px; }
     </style>
 </head>
 <body>
@@ -149,7 +195,30 @@
         </div>
 
         <div class="data-panel">
-            <h2>DANH SÁCH NHÂN SỰ TOÀN CÔNG TY</h2>
+            <h2>DANH SÁCH NHÂN SỰ TOÀN CÔNG TY <span class="counter-badge" id="txt-count">Tổng số: 0</span></h2>
+            
+            <div class="filter-section">
+                <div class="search-group">
+                    <input type="text" id="inp-search" placeholder="🔍 Tìm kiếm thông minh theo Tên, Mã ĐV, CCCD, BHXH...">
+                </div>
+                <div class="filter-group">
+                    <select id="sel-gioitinh">
+                        <option value="">-- Tất cả Giới tính --</option>
+                        <option value="Nam">Nam</option>
+                        <option value="Nữ">Nữ</option>
+                    </select>
+                    <select id="sel-donvi">
+                        <option value="">-- Tất cả Đơn vị --</option>
+                    </select>
+                    <select id="sel-loitrinhtre">
+                        <option value="">-- Lộ trình Nghỉ hưu (Tất cả) --</option>
+                        <option value="sap">⚠️ Sắp nghỉ hưu (Trong 3 năm tới)</option>
+                        <option value="da">🚨 Đã đến tuổi / Quá tuổi nghỉ hưu</option>
+                        <option value="chua">🟢 Còn thời gian công tác dài</option>
+                    </select>
+                </div>
+            </div>
+
             <div class="table-responsive">
                 <table id="data-table">
                     <thead>
@@ -177,67 +246,146 @@
 </div>
 
 <script>
-    // ==========================================================================
-    // ⚠️ HÃY THAY ĐỔI 2 DÒNG NÀY BẰNG THÔNG TIN MỚI NHẤT TRÊN SUPABASE CỦA BẠN
-    // ==========================================================================
     const SUPABASE_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co"; 
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ"; 
     
     const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-    // Tự động kiểm tra viết hoa / viết thường linh hoạt cho tên bảng
     let TEN_BANG_NHAN_SU = "nhan_su";
+    
+    // Mảng toàn cục lưu trữ dữ liệu gốc từ Cloud phục vụ bộ lọc Client-side siêu tốc
+    let duLieuGocHienTai = [];
 
+    // Hàm loại bỏ dấu tiếng Việt phục vụ tìm kiếm thông minh không dấu
+    function loaiBoDauTiengViet(str) {
+        if (!str) return "";
+        return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase();
+    }
+
+    // ==========================================================================
+    // HÀM TẢI DỮ LIỆU & TỰ ĐỘNG TẠO FILTER ĐƠN VỊ ĐỘNG
+    // ==========================================================================
     async function lamMoiBangDuLieu() {
         const tbody = document.getElementById('table-body');
         tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 30px;">⏳ Đang tải dữ liệu từ Cloud...</td></tr>`;
 
         try {
-            // Thử nghiệm gọi bảng viết thường trước
             let res = await client.from(TEN_BANG_NHAN_SU).select('*').order('ho_ten', { ascending: true });
-            
-            // Nếu lỗi 404, tự động chuyển đổi sang bảng viết hoa danh định
             if (res.error && res.error.status === 404 && TEN_BANG_NHAN_SU === "nhan_su") {
                 TEN_BANG_NHAN_SU = "Nhan_su";
                 res = await client.from(TEN_BANG_NHAN_SU).select('*').order('ho_ten', { ascending: true });
             }
 
             if (res.error) throw res.error;
+            duLieuGocHienTai = res.data || [];
 
-            if (!res.data || res.data.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #7f8c8d; padding: 30px;">Cơ sở dữ liệu đám mây hiện đang trống!</td></tr>`;
-                return;
-            }
-
-            tbody.innerHTML = "";
-            res.data.forEach((item, index) => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>${index + 1}</td>
-                    <td style="font-weight: bold;">${item.ho_ten || '---'}</td>
-                    <td>${item.gioi_tinh || '---'}</td>
-                    <td>${item.nam_sinh || '---'}</td>
-                    <td>${item.nam_ve_huu || '---'}</td>
-                    <td><span class="status-badge">${item.ma_don_vi || '---'}</span></td>
-                    <td style="font-size: 0.9rem; color: #555;">${item.chuc_danh_cong_viec || '---'}</td>
-                `;
-                tbody.appendChild(tr);
+            // Cập nhật danh sách đơn vị động vào thanh Bộ lọc Dropdown
+            const selectDV = document.getElementById('sel-donvi');
+            selectDV.innerHTML = '<option value="">-- Tất cả Đơn vị --</option>';
+            const danhSachMaDVYeuThich = [...new Set(duLieuGocHienTai.map(item => item.ma_don_vi).filter(Boolean))];
+            danhSachMaDVYeuThich.sort().forEach(dv => {
+                const opt = document.createElement('option');
+                opt.value = dv; opt.innerText = dv;
+                selectDV.appendChild(opt);
             });
+
+            // Chạy hàm render lọc dữ liệu lần đầu
+            thucHienLocDuLieuThongMinh();
 
         } catch (e) {
             tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--accent-color); padding: 30px;">❌ Lỗi kết nối mây: [Mã ${e.status || e.code}] ${e.message}</td></tr>`;
         }
     }
 
+    // ==========================================================================
+    // THUẬT TOÁN LỌC & TÌM KIẾM THÔNG MINH NHẤT (REALTIME CHẠY KHÔNG TREO MÁY)
+    // ==========================================================================
+    function thucHienLocDuLieuThongMinh() {
+        const keyword = loaiBoDauTiengViet(document.getElementById('inp-search').value.trim());
+        const filterGioiTinh = document.getElementById('sel-gioitinh').value;
+        const filterDonVi = document.getElementById('sel-donvi').value;
+        const filterLoiTrinh = document.getElementById('sel-loitrinhtre').value;
+
+        const namHienTai = 2026; // Đồng bộ mốc thời gian hệ thống thực tế năm 2026
+
+        // Lọc dữ liệu trên mảng bộ nhớ tạm Client
+        const mangKetQuaLoc = duLieuGocHienTai.filter(item => {
+            // 1. Kiểm tra Từ khóa tìm kiếm đa năng
+            if (keyword !== "") {
+                const textGoc = loaiBoDauTiengViet(`${item.ho_ten} ${item.ma_don_vi} ${item.chuc_danh_cong_viec}`);
+                if (!textGoc.includes(keyword)) return false;
+            }
+
+            // 2. Kiểm tra bộ lọc giới tính
+            if (filterGioiTinh !== "" && item.gioi_tinh !== filterGioiTinh) return false;
+
+            // 3. Kiểm tra bộ lọc đơn vị
+            if (filterDonVi !== "" && item.ma_don_vi !== filterDonVi) return false;
+
+            // 4. Kiểm tra phân tích lộ trình tuổi nghỉ hưu chuyên sâu
+            if (filterLoiTrinh !== "") {
+                const namVeHuu = parseInt(item.nam_ve_huu);
+                if (isNaN(namVeHuu)) return false; // Không xác định được lộ trình
+
+                if (filterLoiTrinh === "sap" && (namVeHuu < namHienTai || namVeHuu > namHienTai + 3)) return false;
+                if (filterLoiTrinh === "da" && namVeHuu > namHienTai) return false;
+                if (filterLoiTrinh === "chua" && namVeHuu <= namHienTai + 3) return false;
+            }
+
+            return true;
+        });
+
+        // Đổ dữ liệu đã lọc ra bảng giao diện công việc
+        const tbody = document.getElementById('table-body');
+        document.getElementById('txt-count').innerText = `Tổng số: ${mangKetQuaLoc.length}`;
+
+        if (mangKetQuaLoc.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #7f8c8d; padding: 25px;">🔍 Không tìm thấy nhân sự nào khớp với điều kiện lọc!</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = "";
+        mangKetQuaLoc.forEach((item, index) => {
+            const tr = document.createElement('tr');
+            
+            // Đánh dấu màu cảnh báo cho người sắp / đã nghỉ hưu
+            let styleNamNghihuu = "";
+            const nvh = parseInt(item.nam_ve_huu);
+            if (!isNaN(nvh)) {
+                if (nvh <= namHienTai) styleNamNghihuu = "color: #e74c3c; font-weight: bold;"; // Đã đến tuổi nghỉ hưu
+                else if (nvh <= namHienTai + 3) styleNamNghihuu = "color: #e67e22; font-weight: bold;"; // Sắp nghỉ hưu
+            }
+
+            tr.innerHTML = `
+                <td>${index + 1}</td>
+                <td style="font-weight: bold; color:#2c3e50;">${item.ho_ten || '---'}</td>
+                <td>${item.gioi_tinh || '---'}</td>
+                <td>${item.nam_sinh || '---'}</td>
+                <td style="${styleNamNghihuu}">${item.nam_ve_huu || '---'}</td>
+                <td><span class="status-badge">${item.ma_don_vi || '---'}</span></td>
+                <td style="font-size: 0.9rem; color: #555;">${item.chuc_danh_cong_viec || '---'}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    // Gắn sự kiện lắng nghe để lọc ngay lập tức khi người dùng thao tác gõ/chọn (Realtime)
+    document.getElementById('inp-search').addEventListener('input', thucHienLocDuLieuThongMinh);
+    document.getElementById('sel-gioitinh').addEventListener('change', thucHienLocDuLieuThongMinh);
+    document.getElementById('sel-donvi').addEventListener('change', thucHienLocDuLieuThongMinh);
+    document.getElementById('sel-loitrinhtre').addEventListener('change', thucHienLocDuLieuThongMinh);
+
     document.getElementById('btn-fetch-cloud').addEventListener('click', lamMoiBangDuLieu);
 
+    // ==========================================================================
+    // CÁC CHỨC NĂNG HỆ THỐNG PHỤ TRỢ (XÓA, NẠP EXCEL GIỮ NGUYÊN AN TOÀN)
+    // ==========================================================================
     document.getElementById('btn-clear-cloud').addEventListener('click', async () => {
         if (!confirm("⚠️ Bạn có chắc chắn muốn xóa toàn bộ dữ liệu bảng nhân sự trên Cloud?")) return;
         try {
             document.getElementById('btn-clear-cloud').innerText = "⏳ ĐANG XÓA...";
             const { error } = await client.from(TEN_BANG_NHAN_SU).delete().neq('ho_ten', 'XOA_ALL_BATCH_2026');
             if (error) throw error;
-            alert("🎉 Đã xóa sạch dữ liệu!");
+            alert("🎉 Đã xóa sạch dữ liệu trên đám mây!");
             lamMoiBangDuLieu();
         } catch (e) { alert("Lỗi xóa: " + e.message); }
         finally { document.getElementById('btn-clear-cloud').innerText = "🗑️ XÓA SẠCH MÂY ĐỂ UP MỚI"; }
@@ -256,7 +404,6 @@
             try {
                 const data = evt.target.result;
                 const workbook = XLSX.read(data, { type: 'binary' });
-                
                 let danhSachExcel = [];
                 for (let sheetName of workbook.SheetNames) {
                     const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
@@ -308,7 +455,7 @@
                 const { error } = await client.from(TEN_BANG_NHAN_SU).insert(mangUpload);
                 if (error) throw error;
 
-                alert(`🚀 Tải lên thành công ${mangUpload.length} nhân sự lên Cloud.`);
+                alert(`🚀 Tải lên thành công dữ liệu nhân sự lên Cloud.`);
                 lamMoiBangDuLieu();
 
             } catch (err) { alert("Lỗi nạp dữ liệu Excel: " + err.message); }
