@@ -111,8 +111,8 @@
                     <input type="text" id="tb-ten" placeholder="Ví dụ: Máy tính Dell Latitude" required>
                 </div>
                 <div class="form-group">
-                    <label>Người sử dụng (Tìm theo Tên hoặc Mã ĐV):</label>
-                    <input type="text" id="tb-nguoi-dung-search" placeholder="🔍 Gõ Mã ĐV hoặc Tên cần tìm..." oninput="goTimKiemNhanSu(this)" autocomplete="off">
+                    <label>Người sử dụng:</label>
+                    <input type="text" id="tb-nguoi-dung-search" placeholder="🔍 Gõ tìm nhân sự hoặc tự điền tên tự do..." oninput="goTimKiemNhanSu(this)" autocomplete="off">
                     <input type="hidden" id="tb-nguoi-dung-value">
                     <div class="smart-search-results" id="smart-search-box"></div>
                 </div>
@@ -126,7 +126,7 @@
                 </div>
                 <button type="submit" class="btn btn-success">💾 LƯU & TẠO TEM QR ĐÁM MÂY</button>
             </form>
-            <button class="btn btn-danger" style="margin-top:15px;" onclick="xoaSachThietBi()">🗑️ XÓA HẾT THIẾT BỊ</button>
+            <button class="btn btn-danger" style="margin-top:15px;" onclick="xoaSachThietBi()">🗑️ XÓA HẾT THIẾT BỊ CỤC BỘ</button>
         </div>
         <div class="panel" style="background:transparent; border:none; padding:0;">
             <div class="filter-section">
@@ -195,10 +195,12 @@
         if(inputMa) inputMa.value = `TB-2026-${String(soLuong + 1).padStart(4, '0')}`;
     }
 
+    // TỐI ƯU HÓA: HIỂN THỊ CHẤP NHẬN MỌI TRƯỜNG DỮ LIỆU ĐỂ RỖNG (NULL-SAFE)
     function locGiaoDienNhanSu() {
         const tbody = document.getElementById('body-ns');
         if(!tbody) return;
         tbody.innerHTML = '';
+        
         const sEl = document.getElementById('search-ns');
         const k = sEl ? sEl.value.toLowerCase().trim() : '';
 
@@ -213,7 +215,7 @@
             let gioi_tinh = String(x.gioi_tinh || '---').trim();
             let nam_sinh = x.nam_sinh || '---';
             let nam_ve_huu = x.nam_ve_huu || '---';
-            let ma_don_vi = String(x.ma_don_vi || '---').trim();
+            let ma_don_vi = x.ma_don_vi ? String(x.ma_don_vi).trim() : 'Trống';
             let chuc_danh = String(x.chuc_danh_cong_viec || '---').trim();
 
             if (k !== '') {
@@ -234,7 +236,7 @@
             </tr>`;
         }
         if (count === 0) {
-            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:#aaa; padding: 20px;">Không có dữ liệu nhân sự phù hợp</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:#aaa; padding: 20px;">Không có dữ liệu hoặc bấm "LÀM MỚI TỪ CLOUD" để đồng bộ bảng hiển thị</td></tr>`;
         }
     }
 
@@ -243,25 +245,18 @@
         const box = document.getElementById('smart-search-box');
         if (!keyword) { box.style.display = 'none'; return; }
         
-        const laMaDonViChuan = CACHE_NHAN_SU.some(x => x && x.ma_don_vi && String(x.ma_don_vi).toLowerCase() === keyword);
-        let ketQuaLoc = [];
-        
-        if (laMaDonViChuan) {
-            ketQuaLoc = CACHE_NHAN_SU.filter(x => x && x.ma_don_vi && String(x.ma_don_vi).toLowerCase() === keyword);
-        } else {
-            ketQuaLoc = CACHE_NHAN_SU.filter(x => {
-                if(!x) return false;
-                const ten = String(x.ho_ten || '').toLowerCase();
-                const maDV = String(x.ma_don_vi || '').toLowerCase();
-                return ten.includes(keyword) || maDV.includes(keyword);
-            });
-        }
+        let ketQuaLoc = CACHE_NHAN_SU.filter(x => {
+            if(!x) return false;
+            const ten = String(x.ho_ten || '').toLowerCase();
+            const maDV = String(x.ma_don_vi || '').toLowerCase();
+            return ten.includes(keyword) || maDV.includes(keyword);
+        });
 
         if(ketQuaLoc.length === 0) {
-            box.innerHTML = `<div class="smart-search-item" style="color:#aaa; cursor:default;">❌ Không tìm thấy nhân sự</div>`;
+            box.innerHTML = `<div class="smart-search-item" style="color:#aaa; cursor:default;">❌ Nhập tự do tên người dùng</div>`;
         } else {
             box.innerHTML = '';
-            ketQuaLoc.slice(0, 30).forEach(ns => {
+            ketQuaLoc.slice(0, 15).forEach(ns => {
                 let tenNS = ns.ho_ten || 'Trống';
                 let maDV = ns.ma_don_vi || '---';
                 const div = document.createElement('div');
@@ -269,7 +264,7 @@
                 div.innerHTML = `<span><b>${tenNS}</b></span> <span class="dept-badge">Mã ĐV: ${maDV}</span>`;
                 div.onclick = function() {
                     document.getElementById('tb-nguoi-dung-search').value = tenNS;
-                    document.getElementById('tb-nguoi-dung-value').value = `${tenNS} (${maDV})`;
+                    document.getElementById('tb-nguoi-dung-value').value = tenNS;
                     box.style.display = 'none';
                 };
                 box.appendChild(div);
@@ -278,7 +273,6 @@
         box.style.display = 'block';
     }
 
-    // CHUYÊN GIA XỬ LÝ: TỰ ĐỘNG BẮT LỖI RÀNG BUỘC NGOẠI KHÓA (FOREIGN KEY FALLBACK)
     function napExcelNhanSu(input) {
         const file = input.files[0];
         if(!file) return;
@@ -292,10 +286,7 @@
                 const worksheet = workbook.Sheets[firstSheetName];
                 
                 const rawRows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-                if (!rawRows || rawRows.length === 0) {
-                    alert("File Excel rỗng!");
-                    return;
-                }
+                if (!rawRows || rawRows.length === 0) { return alert("File Excel rỗng!"); }
 
                 let headerIndex = -1;
                 let viTriTen = -1, viTriMa = -1, viTriGioiTinh = -1, viTriNamSinh = -1, viTriHuu = -1, viTriChiTiet = -1;
@@ -303,23 +294,18 @@
                 for (let i = 0; i < rawRows.length; i++) {
                     const currentRow = rawRows[i];
                     if (!currentRow || !Array.isArray(currentRow)) continue;
-
                     for (let j = 0; j < currentRow.length; j++) {
                         if (currentRow[j] === undefined || currentRow[j] === null) continue;
                         let valStr = String(currentRow[j]).toLowerCase().trim().replace(/\s+/g, '');
-
                         if (valStr.includes('họtên') || valStr.includes('hoten') || valStr.includes('họvàtên') || valStr === 'tên') {
-                            headerIndex = i;
-                            viTriTen = j;
+                            headerIndex = i; viTriTen = j;
                         }
                     }
-                    
                     if (headerIndex !== -1) {
                         const currentRowHeader = rawRows[headerIndex];
                         for (let j = 0; j < currentRowHeader.length; j++) {
                             if (currentRowHeader[j] === undefined || currentRowHeader[j] === null) continue;
                             let valStr = String(currentRowHeader[j]).toLowerCase().trim().replace(/\s+/g, '');
-
                             if (j === viTriTen) continue;
                             if (valStr.includes('mã') || valStr.includes('madv') || valStr.includes('đơnvị')) viTriMa = j;
                             if (valStr.includes('giới') || valStr.includes('gioi') || valStr.includes('nam/nữ')) viTriGioiTinh = j;
@@ -331,9 +317,7 @@
                     }
                 }
 
-                if (headerIndex === -1 || viTriTen === -1) {
-                    headerIndex = 0; viTriTen = 0; viTriMa = 1;
-                }
+                if (headerIndex === -1 || viTriTen === -1) { headerIndex = 0; viTriTen = 0; viTriMa = 1; }
 
                 const mangNhanSuMapping = [];
                 for (let i = headerIndex + 1; i < rawRows.length; i++) {
@@ -341,83 +325,37 @@
                     if (!row || !Array.isArray(row) || row[viTriTen] === undefined || row[viTriTen] === null) continue;
 
                     const ho_ten = String(row[viTriTen]).trim();
-                    if (ho_ten === "" || ho_ten.toLowerCase().includes('họ tên') || ho_ten.toLowerCase() === 'tên') continue;
+                    if (ho_ten === "" || ho_ten.toLowerCase().includes('họ tên')) continue;
 
                     const gioi_tinh = viTriGioiTinh !== -1 && row[viTriGioiTinh] ? String(row[viTriGioiTinh]).trim() : '---';
                     const nam_sinh = viTriNamSinh !== -1 && row[viTriNamSinh] ? (parseInt(row[viTriNamSinh]) || null) : null;
                     const nam_ve_huu = viTriHuu !== -1 && row[viTriHuu] ? (parseInt(row[viTriHuu]) || null) : null;
-                    
-                    // Xử lý mã đơn vị trống
-                    let ma_don_vi = viTriMa !== -1 && row[viTriMa] ? String(row[viTriMa]).trim() : '';
-                    if (ma_don_vi === '') { ma_don_vi = null; } // Đặt null để bỏ qua hoặc nhận diện trống an toàn
+                    let ma_don_vi = viTriMa !== -1 && row[viTriMa] ? String(row[viTriMa]).trim() : null;
 
                     const chuc_danh_cong_viec = viTriChiTiet !== -1 && row[viTriChiTiet] ? String(row[viTriChiTiet]).trim() : '---';
 
-                    mangNhanSuMapping.push({
-                        ho_ten, gioi_tinh, nam_sinh, nam_ve_huu, ma_don_vi, chuc_danh_cong_viec
-                    });
+                    mangNhanSuMapping.push({ ho_ten, gioi_tinh, nam_sinh, nam_ve_huu, ma_don_vi, chuc_danh_cong_viec });
                 }
 
-                if(mangNhanSuMapping.length === 0) {
-                    alert("❌ Không tìm thấy dữ liệu hợp lệ!");
-                    return;
-                }
-
-                alert(`Đang bóc tách và nạp ${mangNhanSuMapping.length} nhân sự lên Cloud...`);
-                
-                // THỬ NGHIỆM ĐỢT 1: Nạp hàng loạt
-                const { error: batchError } = await client.from('nhan_su').insert(mangNhanSuMapping);
-                
-                if(!batchError) {
-                    alert("🎉 Tuyệt vời! Đồng bộ thành công toàn bộ danh sách lên Cloud!");
-                    taiDuLieuTuCloud();
-                    return;
-                }
-
-                // NẾU BỊ CHẶN NGOẠI KHÓA (FOREIGN KEY): Kích hoạt thuật toán xử lý từng bản ghi một (Row-by-Row Fallback)
-                console.warn("Phát hiện lỗi ràng buộc mã đơn vị. Đang kích hoạt chế độ nạp an toàn từng dòng...");
-                alert("⚠️ Phát hiện một số dòng có Mã đơn vị lạ (chưa tồn tại trong danh mục hệ thống). Hệ thống đang chuyển sang chế độ tự sửa lỗi và nạp an toàn...");
+                alert(`Đang tiến hành đồng bộ an toàn ${mangNhanSuMapping.length} nhân sự lên đám mây...`);
 
                 let soDongThanhCong = 0;
-                let dongLoiChiTiet = [];
-
                 for(let k = 0; k < mangNhanSuMapping.length; k++) {
-                    const singleRow = mangNhanSuMapping[k];
-                    
-                    // Thử đẩy dòng này lên mạng
-                    const { error: singleError } = await client.from('nhan_su').insert([singleRow]);
-                    
-                    if (!singleError) {
+                    const item = mangNhanSuMapping[k];
+                    const { error } = await client.from('nhan_su').insert([item]);
+                    if (!error) {
                         soDongThanhCong++;
                     } else {
-                        // Nếu lỗi do mã đơn vị (Foreign Key), thử xóa bỏ mã đơn vị lỗi và nạp lại vào nhóm mặc định (hoặc để trống)
-                        if (singleError.code === "23503") { 
-                            const backupMa = singleRow.ma_don_vi;
-                            singleRow.ma_don_vi = null; // Gỡ mã lỗi ra để cứu bản ghi nhân sự
-                            
-                            const { error: retryError } = await client.from('nhan_su').insert([singleRow]);
-                            if (!retryError) {
-                                soDongThanhCong++;
-                                dongLoiChiTiet.push(`- Nhân viên [${singleRow.ho_ten}]: Mã ĐV cũ '${backupMa}' không hợp lệ, đã đưa về mặc định.`);
-                            } else {
-                                dongLoiChiTiet.push(`- Dòng [${singleRow.ho_ten}]: Lỗi lưu trữ (${singleError.message})`);
-                            }
-                        } else {
-                            dongLoiChiTiet.push(`- Dòng [${singleRow.ho_ten}]: ${singleError.message}`);
-                        }
+                        item.ma_don_vi = null; // Gỡ mã đơn vị để cứu dữ liệu nếu lỗi
+                        const { error: retryErr } = await client.from('nhan_su').insert([item]);
+                        if(!retryErr) soDongThanhCong++;
                     }
                 }
 
-                alert(`🎉 Đã xử lý xong! Nạp thành công ${soDongThanhCong}/${mangNhanSuMapping.length} nhân sự.`);
-                if (dongLoiChiTiet.length > 0) {
-                    console.log("Chi tiết nhật ký điều chỉnh mã ĐV lỗi:\n" + dongLoiChiTiet.join("\n"));
-                }
-                taiDuLieuTuCloud();
+                alert(`🎉 Đồng bộ hoàn tất! Đã đưa thành công ${soDongThanhCong}/${mangNhanSuMapping.length} nhân sự lên mây.`);
+                await taiDuLieuTuCloud();
 
-            } catch (err) {
-                alert("Lỗi xử lý Excel: " + err.message);
-                console.error(err);
-            }
+            } catch (err) { alert("Lỗi xử lý Excel: " + err.message); }
         };
         reader.readAsArrayBuffer(file);
         input.value = ''; 
@@ -436,7 +374,7 @@
 
     async function themThietBiMoi(e) {
         e.preventDefault();
-        const nguoiDung = document.getElementById('tb-nguoi-dung-value').value || document.getElementById('tb-nguoi-dung-search').value || "Chưa cấp phát";
+        const nguoiDung = document.getElementById('tb-nguoi-dung-search').value.trim() || "Chưa cấp phát";
         const obj = {
             ma_thiet_bi: document.getElementById('tb-ma').value,
             ten_thiet_bi: document.getElementById('tb-ten').value.trim(),
@@ -444,28 +382,25 @@
             trang_thai: document.getElementById('tb-trangthai').value,
             ngay_cap_phat: new Date().toLocaleDateString('vi-VN')
         };
+        
+        await client.from('thiet_bi').insert([obj]);
         CACHE_THIẾT_BỊ.push(obj);
         locGiaoDienThietBi();
         tuDongSinhMaThietBi();
-        try { await client.from('thiet_bi').insert([obj]); } catch(err) {}
+        
         document.getElementById('tb-ten').value = '';
         document.getElementById('tb-nguoi-dung-search').value = '';
-        document.getElementById('tb-nguoi-dung-value').value = '';
-        alert("🎉 Đã sinh mã QR thiết bị thành công!");
+        alert("🎉 Đã sinh và cấp tem QR thành công!");
     }
 
     function locGiaoDienThietBi() {
         const zone = document.getElementById('qr-zone-preview');
-        if(!zone) return;
-        zone.innerHTML = '';
+        if(!zone) return; zone.innerHTML = '';
         const kEl = document.getElementById('search-tb');
         const k = kEl ? kEl.value.toLowerCase() : '';
         const mangLoc = CACHE_THIẾT_BỊ.filter(x => {
             if(!x) return false;
-            const ma = String(x.ma_thiet_bi || '').toLowerCase();
-            const ten = String(x.ten_thiet_bi || '').toLowerCase();
-            const ng = String(x.nguoi_su_dung || '').toLowerCase();
-            return !k || ma.includes(k) || ten.includes(k) || ng.includes(k);
+            return !k || String(x.ma_thiet_bi).toLowerCase().includes(k) || String(x.ten_thiet_bi).toLowerCase().includes(k) || String(x.nguoi_su_dung).toLowerCase().includes(k);
         });
         if(mangLoc.length === 0) { zone.innerHTML = '<p style="color:#7f8c8d; padding:20px;">Không có thiết bị.</p>'; return; }
         mangLoc.forEach(tb => {
