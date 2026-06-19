@@ -316,10 +316,10 @@
                 client.from('ho_so_thanh_toan').select('*').order('id', { ascending: false })
             ]);
 
-            if(resNS.data) CACHE_NHAN_SU = resNS.data;
-            if(resTB.data) CACHE_THIẾT_BỊ = resTB.data;
-            if(resSC.data) CACHE_SỬA_CHỮA = resSC.data;
-            if(resTT.data) CACHE_THANH_TOÁN = resTT.data;
+            CACHE_NHAN_SU = resNS.data || [];
+            CACHE_THIẾT_BỊ = resTB.data || [];
+            CACHE_SỬA_CHỮA = resSC.data || [];
+            CACHE_THANH_TOÁN = resTT.data || [];
 
             tuDongSinhMaThietBi();
             locGiaoDienThietBi();
@@ -586,7 +586,7 @@
         if(!select) return;
         select.innerHTML = '<option value="">-- Chọn mã thiết bị --</option>';
         CACHE_THIẾT_BỊ.forEach(tb => {
-            select.innerHTML += `<option value="${tb.ma_thiet_bi}">${tb.ma_thiet_bi} (${tb.ten_thiet_bi})</option>`;
+            select.innerHTML += `<option value="${tb.ma_thiet_bi}">${tb.ma_thiet_bi} (${tb.ten_thiet_bi || ''})</option>`;
         });
     }
 
@@ -595,14 +595,14 @@
         if(!select) return;
         select.innerHTML = '<option value="">-- Chọn thiết bị --</option>';
         CACHE_THIẾT_BỊ.forEach(tb => {
-            select.innerHTML += `<option value="${tb.ma_thiet_bi}">${tb.ma_thiet_bi} - ${tb.ten_thiet_bi}</option>`;
+            select.innerHTML += `<option value="${tb.ma_thiet_bi}">${tb.ma_thiet_bi} - ${tb.ten_thiet_bi || ''}</option>`;
         });
     }
 
     function capNhatTenThietBiSuaChua() {
         const ma = document.getElementById('sc-ma-tb').value;
         const khop = CACHE_THIẾT_BỊ.find(x => x.ma_thiet_bi === ma);
-        document.getElementById('sc-ten-tb').value = khop ? khop.ten_thiet_bi : '';
+        document.getElementById('sc-ten-tb').value = khop ? (khop.ten_thiet_bi || '') : '';
     }
 
     function goTimKiemNhanSu(input) {
@@ -611,7 +611,7 @@
         if (!keyword) { box.style.display = 'none'; return; }
         
         let ketQuaLoc = CACHE_NHAN_SU.filter(x => 
-            x.ho_ten.toLowerCase().includes(keyword) || 
+            (x.ho_ten || '').toLowerCase().includes(keyword) || 
             String(x.so_cccd || '').includes(keyword)
         );
         
@@ -659,12 +659,12 @@
         const tableBody = document.getElementById('body-tb-table');
         if(!tableBody) return; tableBody.innerHTML = '';
         CACHE_THIẾT_BỊ.forEach(tb => {
-            let classStatus = tb.trang_thai.includes("bảo trì") ? "status-warn" : "status-good";
+            let classStatus = (tb.trang_thai || '').includes("bảo trì") ? "status-warn" : "status-good";
             tableBody.innerHTML += `<tr>
                 <td><b>${tb.ma_thiet_bi}</b></td>
-                <td>${tb.ten_thiet_bi}</td>
-                <td>${tb.nguoi_su_dung}</td>
-                <td><span class="status-pill ${classStatus}">${tb.trang_thai}</span></td>
+                <td>${tb.ten_thiet_bi || ''}</td>
+                <td>${tb.nguoi_su_dung || ''}</td>
+                <td><span class="status-pill ${classStatus}">${tb.trang_thai || 'Hoạt động tốt'}</span></td>
                 <td><button type="button" class="btn-action btn-action-edit" onclick="kichHoatCheDoSua('${tb.id}', '${tb.ma_thiet_bi}', '${escapeHtml(tb.ten_thiet_bi)}', '${escapeHtml(tb.nguoi_su_dung)}', '${tb.trang_thai}')">⚙️ Sửa</button></td>
             </tr>`;
         });
@@ -725,9 +725,9 @@
 
             tbody.innerHTML += `<tr>
                 <td><b>${sc.ma_thiet_bi}</b></td>
-                <td>${sc.ten_thiet_bi}</td>
-                <td>${sc.noi_dung_sua}</td>
-                <td><span class="status-pill ${classStatus}">${sc.trang_thai}</span></td>
+                <td>${sc.ten_thiet_bi || ''}</td>
+                <td>${sc.noi_dung_sua || ''}</td>
+                <td><span class="status-pill ${classStatus}">${sc.trang_thai || ''}</span></td>
                 <td>${vungThaoTac}</td>
             </tr>`;
         });
@@ -781,7 +781,7 @@
         if(!newWindow) return alert("Vui lòng mở Pop-up trình duyệt!");
         newWindow.document.title = "Xem tài liệu";
         let viewHtml = hs.file_data && hs.file_data.startsWith("data:image/") ? `<img src="${hs.file_data}" style="max-width:85%; max-height:75vh; margin-top:20px; border-radius:8px;">` : `<iframe src="${hs.file_data}" style="width:90%; height:75vh; margin-top:20px;"></iframe>`;
-        newWindow.document.body.innerHTML = `<div style="text-align:center; padding:20px; background:#f8fafc;"><a href="${hs.file_data}" download="${hs.file_name}" style="padding:10px 20px; background:#10b981; color:white; font-weight:bold; text-decoration:none; border-radius:6px;">📥 TẢI XUỐNG FILE GỐC</a><br>${viewHtml}</div>`;
+        newWindow.document.body.innerHTML = `<div style="text-align:center; padding:20px; background:#f8fafc;"><a href="${hs.file_data}" download="${hs.file_name || 'file'}" style="padding:10px 20px; background:#10b981; color:white; font-weight:bold; text-decoration:none; border-radius:6px;">📥 TẢI XUỐNG FILE GỐC</a><br>${viewHtml}</div>`;
     }
 
     function locGiaoDienThanhToan() {
@@ -802,7 +802,7 @@
                 <td>${tt.ma_thiet_bi}</td>
                 <td>${tt.don_vi_sua_chua || "---"}</td>
                 <td><b>${soTienNum.toLocaleString('vi-VN')} Đ</b></td>
-                <td><span class="status-pill ${badgeClass}">${tt.trang_thai}</span></td>
+                <td><span class="status-pill ${badgeClass}">${tt.trang_thai || ''}</span></td>
                 <td>${fileBtn}</td>
                 <td><button type="button" class="btn-action btn-action-edit" onclick="kichHoatCheDoSuaThanhToan('${tt.id}','${tt.ma_ho_so}','${tt.ma_thiet_bi}','${escapeHtml(tt.don_vi_sua_chua)}',${soTienNum},'${tt.trang_thai}')">⚙️ Sửa</button></td>
             </tr>`;
