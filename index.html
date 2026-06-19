@@ -80,13 +80,14 @@
         .btn-action-done { background-color: #10b981; }
         .btn-action-done:hover { background-color: #059669; transform: translateY(-1px); }
 
-        .qr-preview-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 15px; margin-top: 15px; }
+        .qr-preview-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 15px; margin-top: 15px; }
         .qr-ticket { background: white; border: 1px dashed #94a3b8; padding: 12px; display: flex; border-radius: 8px; position: relative; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
         .qr-code-zone { width: 35%; display: flex; flex-direction: column; align-items: center; justify-content: center; border-right: 1px dashed #e2e8f0; padding-right: 8px; }
-        .qr-code-zone img { width: 90px; height: 90px; }
-        .qr-code-zone span { font-size: 0.65rem; font-weight: bold; margin-top: 3px; color: #64748b; }
+        .qr-code-zone img { width: 105px; height: 105px; }
+        .qr-code-zone span { font-size: 0.65rem; font-weight: bold; margin-top: 5px; color: #64748b; }
         .qr-info-zone { width: 65%; padding-left: 12px; display: flex; flex-direction: column; justify-content: center; font-size: 0.75rem; line-height: 1.4; }
         .qr-title { font-weight: 800; font-size: 0.8rem; color: #1e3a8a; border-bottom: 1px solid #cbd5e1; padding-bottom: 2px; margin-bottom: 4px; text-transform: uppercase; }
+        .qr-history-box { margin-top: 4px; padding-top: 4px; border-top: 1px dotted #cbd5e1; font-size: 0.65rem; color: #475569; max-height: 40px; overflow: hidden; text-overflow: ellipsis; }
         
         .badge-print { position: absolute; top: 6px; right: 6px; cursor: pointer; background: #e2e8f0; color: #475569; border: none; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; }
         
@@ -95,7 +96,7 @@
             body * { display: none !important; }
             #print-section, #print-section * { display: flex !important; }
             #print-section { position: absolute; left: 0; top: 0; width: 100%; flex-wrap: wrap; gap: 5mm; background: white; }
-            .qr-ticket { width: 85mm; height: 40mm; border: 1px solid #000 !important; page-break-inside: avoid; border-radius: 0; }
+            .qr-ticket { width: 90mm; height: 45mm; border: 1px solid #000 !important; page-break-inside: avoid; border-radius: 0; }
             .badge-print { display: none !important; }
         }
     </style>
@@ -170,7 +171,7 @@
                 </table>
             </div>
 
-            <h2>XEM TRƯỚC HỆ THỐNG TEM TÀI SẢN</h2>
+            <h2>XEM TRƯỚC HỆ THỐNG TEM TÀI SẢN (Tự Động Đồng Bộ Nhật Ký Sửa Chữa)</h2>
             <div class="qr-preview-container" id="qr-zone-preview"></div>
         </div>
     </div>
@@ -392,7 +393,6 @@
             ngay_cap_phat: new Date().toLocaleDateString('vi-VN')
         };
 
-        // Ghi trực tiếp vào biến lưu trữ giao diện bất kể Supabase có bật RLS bảo mật hay không
         if (!isEditing) {
             obj.id = 'temp_' + Date.now();
             CACHE_THIẾT_BỊ.push(obj);
@@ -401,7 +401,6 @@
             if(idx !== -1) CACHE_THIẾT_BỊ[idx] = { ...obj, id: idDb };
         }
         
-        // Vẽ lại bảng ngay tắp lự
         locGiaoDienThietBi();
         alert("🎉 Dữ liệu đã lưu thành công!");
         huyCheDoSua();
@@ -435,7 +434,7 @@
         if(idx !== -1) CACHE_THIẾT_BỊ[idx].trang_thai = 'Cần bảo trì';
         
         locGiaoDienSuaChua();
-        locGiaoDienThietBi();
+        locGiaoDienThietBi(); // Đóng gói lại mã QR có kèm nội dung sửa chữa đang diễn ra
         document.getElementById('sc-noidung').value = '';
         alert("🛠️ Đã ghi nhận thông tin sửa chữa vào hệ thống!");
 
@@ -457,7 +456,7 @@
         if(idxTB !== -1) CACHE_THIẾT_BỊ[idxTB].trang_thai = 'Hoạt động tốt';
         
         locGiaoDienSuaChua();
-        locGiaoDienThietBi();
+        locGiaoDienThietBi(); // Tái sinh mã QR tích hợp lịch sử mới hoàn thành dạng: "Đã sửa xong"
         alert("🟢 Thiết bị đã được hoàn trạng thái: Hoạt động tốt!");
 
         try {
@@ -520,6 +519,18 @@
             if(tb.trang_thai && tb.trang_thai.includes("bảo trì")) classStatus = "status-warn";
             if(tb.trang_thai && tb.trang_thai.includes("Hỏng")) classStatus = "status-bad";
 
+            // Bước 1: Tìm kiếm toàn bộ các dòng lịch sử sửa chữa của riêng thiết bị này
+            const danhSachLichSuThietBi = CACHE_SỬA_CHỮA.filter(sc => sc.ma_thiet_bi === tb.ma_thiet_bi);
+            
+            // Bước 2: Nén thông tin lịch sử thành chuỗi văn bản để nhúng vào mã QR công khai
+            let textDongNhatKyQR = "";
+            let textHienThiTrenTem = "Chưa có lịch sử sửa chữa.";
+            
+            if(danhSachLichSuThietBi.length > 0) {
+                textHienThiTrenTem = danhSachLichSuThietBi.map(sc => `• ${sc.ngay_sua}: ${sc.noi_dung_sua} [${sc.trang_thai}]`).join("<br>");
+                textDongNhatKyQR = "\n[NHẬT KÝ BẢO TRÌ BẢO DƯỠNG]:\n" + danhSachLichSuThietBi.map((sc, index) => `${index + 1}. Ngày ${sc.ngay_sua}: ${sc.noi_dung_sua} (${sc.trang_thai})`).join("\n");
+            }
+
             tableBody.innerHTML += `<tr>
                 <td><b>${tb.ma_thiet_bi}</b></td>
                 <td>${tb.ten_thiet_bi}</td>
@@ -537,8 +548,9 @@
             const ticket = document.createElement('div');
             ticket.className = 'qr-ticket';
             
-            const textThongTinTaiSan = `[THÔNG TIN TÀI SẢN THIẾT BỊ]\n- Mã TS: ${tb.ma_thiet_bi}\n- Tên thiết bị: ${tb.ten_thiet_bi}\n- Người quản lý: ${tb.nguoi_su_dung}\n- Trạng thái: ${tb.trang_thai}\n- Ngày cấp: ${tb.ngay_cap_phat || '2026'}`;
-            const linkAnhQR = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(textThongTinTaiSan)}&ecc=M`;
+            // Tạo chuỗi mã QR có đính kèm lịch sử sửa chữa động
+            const textThongTinTaiSan = `[THÔNG TIN TÀI SẢN THIẾT BỊ]\n- Mã TS: ${tb.ma_thiet_bi}\n- Tên thiết bị: ${tb.ten_thiet_bi}\n- Người quản lý: ${tb.nguoi_su_dung}\n- Trạng thái: ${tb.trang_thai}\n- Ngày cấp: ${tb.ngay_cap_phat || '2026'}${textDongNhatKyQR}`;
+            const linkAnhQR = `https://api.qrserver.com/v1/create-qr-code/?size=165x165&data=${encodeURIComponent(textThongTinTaiSan)}&ecc=M`;
             
             ticket.innerHTML = `
                 <div class="qr-code-zone">
@@ -549,9 +561,11 @@
                     <div class="qr-title">MÃ TS: ${tb.ma_thiet_bi}</div>
                     <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"><b>Thiết bị:</b> ${tb.ten_thiet_bi}</div>
                     <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"><b>Sử dụng:</b> ${tb.nguoi_su_dung}</div>
-                    <div><b>Ngày cấp:</b> ${tb.ngay_cap_phat || '2026'}</div>
-                    <div style="margin-top:5px;">
-                        <span class="status-pill ${classStatus}">${tb.trang_thai}</span>
+                    <div><b>Ngày cấp:</b> ${tb.ngay_cap_phat || '2026'} | <span class="status-pill ${classStatus}" style="padding: 2px 6px; font-size:0.65rem;">${tb.trang_thai}</span></div>
+                    
+                    <div class="qr-history-box">
+                        <b style="color:var(--primary-color);">📜 Nhật ký sửa chữa:</b><br>
+                        ${textHienThiTrenTem}
                     </div>
                 </div>
                 <button class="badge-print" onclick="inMotTemThietBi(this.parentElement.innerHTML)">🖨️ In</button>
