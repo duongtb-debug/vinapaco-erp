@@ -391,6 +391,7 @@
         return str;
     }
 
+    // THUẬT TOÁN ĐỌC EXCEL NÂNG CẤP CHẤM ĐIỂM: KHÔNG SỢ THIẾU CHỮ "HỌ", KHÔNG SỢ SAI DÒNG TIÊU ĐỀ
     function docVaUploadNhanSuTuExcel(input) {
         const file = input.files[0];
         if(!file) return;
@@ -409,47 +410,75 @@
                 }
 
                 let headerIdx = -1;
-                let colMapping = {
+                let maxScore = -1;
+                let bestMapping = {
                     stt: -1, hoTen: -1, ten: -1, soBhxh: -1, soCccd: -1,
                     atv: -1, nndh: -1, namVeHuu: -1, maDonVi: -1, nam: -1,
                     namSinh: -1, nu: -1, chucDanh: -1
                 };
 
-                // Thuật toán quét thông minh: Định vị dòng chứa tiêu đề bảng không phụ thuộc dòng cố định
-                for (let i = 0; i < rows.length; i++) {
+                // Thuật toán chấm điểm thông minh cho từng hàng nhằm định vị hàng tiêu đề chính xác nhất
+                for (let i = 0; i < Math.min(rows.length, 25); i++) {
                     let row = rows[i];
                     if (!row) continue;
                     
+                    let currentScore = 0;
+                    let tempMapping = { stt: -1, hoTen: -1, ten: -1, soBhxh: -1, soCccd: -1, atv: -1, nndh: -1, namVeHuu: -1, maDonVi: -1, nam: -1, namSinh: -1, nu: -1, chucDanh: -1 };
+
                     for (let j = 0; j < row.length; j++) {
                         if (!row[j]) continue;
                         let val = String(row[j]).replace(/\s+/g, '').trim().toLowerCase();
                         
-                        if ((val.includes("họ") && val.includes("tên")) || val.includes("hoten") || val.includes("hovaten")) { colMapping.hoTen = j; }
-                        else if (val === "stt") { colMapping.stt = j; }
-                        else if (val === "tên" || val === "ten") { colMapping.ten = j; }
-                        else if (val.includes("bhxh") || val.includes("bảohiểm") || val.includes("sổbhxh")) { colMapping.soBhxh = j; }
-                        else if (val.includes("cccd") || val.includes("chứngminh") || val.includes("cmnd")) { colMapping.soCccd = j; }
-                        else if (val.includes("antoàn") || val.includes("atv")) { colMapping.atv = j; }
-                        else if (val.includes("nnđh") || val.includes("nndh")) { colMapping.nndh = j; }
-                        else if (val.includes("vềhưu") || val.includes("vehuu")) { colMapping.namVeHuu = j; }
-                        else if (val.includes("mãđơnvị") || val.includes("madonvi") || val.includes("mãđv") || (val.includes("mã") && val.includes("vị"))) { colMapping.maDonVi = j; }
-                        else if (val === "năm" || val === "nam" || val.includes("khảosát")) { colMapping.nam = j; }
-                        else if (val.includes("nămsinh") || val.includes("namsinh")) { colMapping.namSinh = j; }
-                        else if (val.includes("nữ") || val === "nu") { colMapping.nu = j; }
-                        else if (val.includes("chứcdanh") || val.includes("côngviệc") || val.includes("chucdanh")) { colMapping.chucDanh = j; }
+                        // Định vị cột Tên chính (Chấp nhận: Họ và tên, Họ tên, Tên nhân viên, Tên, Name, Fullname)
+                        if (val.includes("họvàtên") || val.includes("hovaten") || val.includes("họtên") || val.includes("hoten") || val.includes("fullname")) {
+                            tempMapping.hoTen = j;
+                            currentScore += 10;
+                        } else if (val === "tên" || val === "ten" || val.includes("tênnhânviên") || val === "name") {
+                            if (tempMapping.hoTen === -1) { 
+                                tempMapping.hoTen = j; 
+                            } else {
+                                tempMapping.ten = j;
+                            }
+                            currentScore += 5;
+                        } else if (val === "stt" || val.includes("sốtt")) {
+                            tempMapping.stt = j; currentScore += 2;
+                        } else if (val.includes("bhxh") || val.includes("bảohiểm") || val.includes("sổbhxh")) {
+                            tempMapping.soBhxh = j; currentScore += 4;
+                        } else if (val.includes("cccd") || val.includes("chứngminh") || val.includes("cmnd") || val.includes("sốđịnhdanh")) {
+                            tempMapping.soCccd = j; currentScore += 4;
+                        } else if (val.includes("antoàn") || val.includes("atv")) {
+                            tempMapping.atv = j; currentScore += 2;
+                        } else if (val.includes("nnđh") || val.includes("nndh") || val.includes("độchại")) {
+                            tempMapping.nndh = j; currentScore += 2;
+                        } else if (val.includes("vềhưu") || val.includes("vehuu")) {
+                            tempMapping.namVeHuu = j; currentScore += 2;
+                        } else if (val.includes("mãđơnvị") || val.includes("madonvi") || val.includes("mãđv") || (val.includes("mã") && val.includes("vị"))) {
+                            tempMapping.maDonVi = j; currentScore += 3;
+                        } else if (val === "năm" || val === "nam" || val.includes("khảosát")) {
+                            tempMapping.nam = j; currentScore += 1;
+                        } else if (val.includes("nămsinh") || val.includes("namsinh")) {
+                            tempMapping.namSinh = j; currentScore += 3;
+                        } else if (val.includes("nữ") || val === "nu" || val.includes("giớitính")) {
+                            tempMapping.nu = j; currentScore += 2;
+                        } else if (val.includes("chứcdanh") || val.includes("côngviệc") || val.includes("chucdanh") || val.includes("vịtrí")) {
+                            tempMapping.chucDanh = j; currentScore += 3;
+                        }
                     }
 
-                    if (colMapping.hoTen !== -1) {
+                    // Nếu hàng này có điểm nhận diện vượt trội và tối thiểu chứa được trường họ tên / tên
+                    if (currentScore > maxScore && tempMapping.hoTen !== -1) {
+                        maxScore = currentScore;
                         headerIdx = i;
-                        break;
+                        bestMapping = { ...tempMapping };
                     }
                 }
 
-                if (headerIdx === -1) {
-                    alert("🚨 Lỗi cấu trúc: Hệ thống không thể định vị cột 'Họ và tên' trong file Excel!");
+                if (headerIdx === -1 || maxScore < 5) {
+                    alert("🚨 Lỗi cấu trúc: Hệ thống không thể tự động định vị được cột Họ Tên hoặc Tên trong file Excel của bạn. Vui lòng kiểm tra lại dòng tiêu đề!");
                     input.value = ""; return;
                 }
 
+                let colMapping = bestMapping;
                 let danhSachUpload = [];
                 let setMaDonViExcel = new Set(); 
 
@@ -466,7 +495,7 @@
                     if (!row || row.length === 0) continue;
 
                     let hoTen = colMapping.hoTen !== -1 && row[colMapping.hoTen] ? String(row[colMapping.hoTen]).trim() : "";
-                    if (!hoTen || hoTen.toLowerCase() === "họ và tên" || hoTen.toLowerCase() === "x") continue;
+                    if (!hoTen || hoTen.toLowerCase() === "họ và tên" || hoTen.toLowerCase() === "họ tên" || hoTen.toLowerCase() === "x" || hoTen.toLowerCase() === "tên") continue;
 
                     let stt       = colMapping.stt !== -1 && row[colMapping.stt] ? String(row[colMapping.stt]).trim() : "";
                     let ten       = colMapping.ten !== -1 && row[colMapping.ten] ? String(row[colMapping.ten]).trim() : "";
@@ -505,7 +534,7 @@
                 }
 
                 if(danhSachUpload.length === 0) {
-                    alert("🚨 Không tìm thấy danh sách nhân sự nào hợp lệ!");
+                    alert("🚨 Không tìm thấy danh sách nhân sự nào hợp lệ dưới hàng tiêu đề!");
                     input.value = ""; return;
                 }
 
@@ -522,7 +551,7 @@
                 if(errNhanSu) {
                     alert("🚨 Lỗi đồng bộ đám mây: \n" + errNhanSu.message);
                 } else {
-                    alert(`🎉 Xuất sắc! Hệ thống đã nhận diện thông minh và nạp thành công ${danhSachUpload.length} nhân sự mới.`);
+                    alert(`🎉 Thành công! Hệ thống đã tự động định vị thông minh dòng tiêu đề số ${headerIdx + 1} và nạp ${danhSachUpload.length} nhân sự lên Cloud.`);
                 }
                 
                 document.getElementById('search-ns').value = "";
@@ -788,7 +817,6 @@
         newWindow.document.body.innerHTML = `<div style="text-align:center; padding:20px; background:#f8fafc;"><a href="${hs.file_data}" download="${hs.file_name || 'file'}" style="padding:10px 20px; background:#10b981; color:white; font-weight:bold; text-decoration:none; border-radius:6px;">📥 TẢI XUỐNG FILE GỐC</a><br>${viewHtml}</div>`;
     }
 
-    // GIẢI PHÁP DỨT ĐIỂM CHỐNG CRASH TRANG: Ép kiểu an toàn trước khi gọi toLocaleString
     function locGiaoDienThanhToan() {
         const tbody = document.getElementById('body-tt-table');
         if(!tbody) return; tbody.innerHTML = '';
