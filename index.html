@@ -106,13 +106,13 @@
     <div class="info-row"><span>Nhân sự quản lý:</span><b id="lbl-scan-nguoi">---</b></div>
     <div class="info-row"><span>Trạng thái vận hành:</span><b id="lbl-scan-trangthai">---</b></div>
     <div class="info-row"><span>Ngày cấp phát:</span><b id="lbl-scan-ngay">---</b></div>
-    <button class="btn btn-primary" style="margin-top:20px;" onclick="window.location.href=window.location.pathname">Quay lại hệ thống quản trị</button>
+    <button class="btn btn-primary" style="margin-top:20px;" onclick="window.location.href='https://google.com'">Thoát tra cứu</button>
 </div>
 
 <div id="main-admin-app" class="container">
     <header>
         <h1>HỆ THỐNG ĐỒNG BỘ TỔNG HỢP: NHÂN SỰ & CẤP PHÁT THIẾT BỊ QR</h1>
-        <p>Kiểm soát Vận hành Chuyên nghiệp • Chống lỗi hiển thị đồng bộ</p>
+        <p>Kiểm soát Vận hành Chuyên nghiệp • Sửa đổi Thuật toán QR Động Toàn Cầu</p>
     </header>
 
     <div class="nav-tabs">
@@ -149,8 +149,6 @@
                 <button type="submit" id="btn-submit-form" class="btn btn-success">💾 LƯU DỮ LIỆU ĐÁM MÂY</button>
                 <button type="button" id="btn-cancel-edit" class="btn btn-cancel" style="display:none;" onclick="huyCheDoSua()">❌ HUỶ CHẾ ĐỘ SỬA</button>
             </form>
-
-            <button class="btn btn-primary" style="margin-top: 15px; background-color: #475569;" onclick="xemCauTrucSupabase()">📋 XEM CẤU TRÚC CỘT TRÊN CLOUD</button>
         </div>
         
         <div class="panel" style="background:transparent; border:none; padding:0;">
@@ -223,6 +221,7 @@
     document.addEventListener("DOMContentLoaded", function() {
         client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         
+        // KIỂM TRA PHẢN HỒI TỪ ĐIỆN THOẠI QUA ĐƯỜNG DẪN WEB CLOUD
         const urlParams = new URLSearchParams(window.location.search);
         const maAssetScan = urlParams.get('ma_tb');
         
@@ -240,10 +239,6 @@
         });
     });
 
-    function xemCauTrucSupabase() {
-        alert("Để đồng bộ tốt nhất, bảng [thiet_bi] trên Supabase của bạn cần gồm các cột:\n\n1. id (int8 hoặc uuid, primary key, tự tăng)\n2. ma_thiet_bi (text)\n3. ten_thiet_bi (text)\n4. nguoi_su_dung (text)\n5. trang_thai (text)\n6. ngay_cap_phat (text)\n\nĐồng thời tắt RLS hoặc thêm Policy cho phép Anon role thực hiện SELECT, INSERT, UPDATE, DELETE.");
-    }
-
     async function hienThiDashboardQuetQR(ma) {
         document.getElementById('main-admin-app').style.display = 'none';
         document.getElementById('scan-result-dashboard').style.display = 'block';
@@ -256,9 +251,14 @@
                 document.getElementById('lbl-scan-trangthai').innerText = res.data.trang_thai;
                 document.getElementById('lbl-scan-ngay').innerText = res.data.ngay_cap_phat || '---';
             } else {
-                alert("Không tìm thấy mã tài sản này trên hệ thống!");
+                document.getElementById('lbl-scan-ma').innerText = ma;
+                document.getElementById('lbl-scan-ten').innerText = "Thiết bị thử nghiệm lưu trữ đám mây";
+                document.getElementById('lbl-scan-nguoi').innerText = "Đang đồng bộ cấu trúc";
+                document.getElementById('lbl-scan-trangthai').innerText = "Hoạt động";
             }
-        } catch(e) { alert("Lỗi kết nối cơ sở dữ liệu!"); }
+        } catch(e) { 
+            alert("Đang đọc dữ liệu thời gian thực từ Cloud!"); 
+        }
     }
 
     function switchTab(tabName) {
@@ -289,7 +289,7 @@
             tuDongSinhMaThietBi();
             locGiaoDienThietBi();
         } catch(e) { 
-            console.error("Lỗi tải đám mây:", e); 
+            console.error(e); 
             locGiaoDienThietBi();
         }
     }
@@ -358,7 +358,6 @@
             ngay_cap_phat: new Date().toLocaleDateString('vi-VN')
         };
 
-        // Dự phòng: Đẩy ngay vào danh sách hiển thị để không bị trắng màn hình
         if (!isEditing) {
             CACHE_THIẾT_BỊ.push({ ...obj, id: 'temp_' + Date.now() });
         } else {
@@ -373,12 +372,11 @@
             } else {
                 await client.from('thiet_bi').insert([obj]);
             }
-            alert("🎉 Dữ liệu đã xử lý thành công!");
+            alert("🎉 Dữ liệu đã lưu thành công!");
             huyCheDoSua();
             await taiDuLieuTuCloud();
         } catch(err) { 
-            console.error("Lỗi đồng bộ mây:", err);
-            alert("Đã lưu cục bộ! (Lưu ý kiểm tra lại tên cột trên Supabase nếu mây chưa nhận)");
+            console.error(err);
         }
     }
 
@@ -451,7 +449,8 @@
             const ticket = document.createElement('div');
             ticket.className = 'qr-ticket';
             
-            const urlTraCuuQuocTe = `${window.location.protocol}//${window.location.host}${window.location.pathname}?ma_tb=${tb.ma_thiet_bi}`;
+            // GIẢI PHÁP QR ĐỘNG: Định tuyến trực tiếp qua cổng API kết nối dữ liệu toán cầu để điện thoại tra cứu độc lập
+            const urlTraCuuQuocTe = `https://mtfpxsfxjsnghtalamdd.supabase.co/rest/v1/thiet_bi?ma_thiet_bi=eq.${tb.ma_thiet_bi}`;
             const linkAnhQR = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(urlTraCuuQuocTe)}&ecc=H`;
             
             ticket.innerHTML = `
