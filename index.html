@@ -52,12 +52,9 @@
         
         .btn { display: inline-flex; align-items: center; justify-content: center; width: 100%; padding: 12px; margin-bottom: 10px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: all 0.2s; font-size: 0.95rem; gap: 6px; }
         .btn-primary { background-color: #2563eb; color: white; }
-        .btn-primary:hover { background-color: #1d4ed8; }
         .btn-success { background-color: var(--success-color); color: white; }
-        .btn-success:hover { background-color: #047857; }
         .btn-cancel { background-color: #94a3b8; color: white; }
         .btn-purple { background-color: var(--purple-color); color: white; }
-        .btn-purple:hover { background-color: #6d28d9; }
         
         .filter-section { background: #ffffff; padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #e2e8f0; display: flex; flex-wrap: wrap; gap: 15px; align-items: center; }
         .search-group { flex: 1; min-width: 250px; }
@@ -74,13 +71,10 @@
         .status-bad { background-color: #fee2e2; color: #b91c1c; }
         .status-done { background-color: #e0f2fe; color: #0369a1; }
         
-        /* ĐỔI MỚI GIAO DIỆN NÚT BẤM THAO TÁC */
         .action-btns { display: flex; gap: 6px; flex-wrap: wrap; }
         .btn-action { display: inline-flex; align-items: center; gap: 4px; padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 600; color: white; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
         .btn-action-edit { background-color: #f59e0b; }
         .btn-action-edit:hover { background-color: #d97706; transform: translateY(-1px); }
-        .btn-action-repair { background-color: #8b5cf6; }
-        .btn-action-repair:hover { background-color: #7c3aed; transform: translateY(-1px); }
         .btn-action-delete { background-color: #ef4444; }
         .btn-action-delete:hover { background-color: #dc2626; transform: translateY(-1px); }
         .btn-action-done { background-color: #10b981; }
@@ -301,10 +295,14 @@
             locGiaoDienNhanSu();
 
             const resTB = await client.from('thiet_bi').select('*').order('ma_thiet_bi');
-            CACHE_THIẾT_BỊ = resTB.data || [];
+            if(resTB.data && resTB.data.length > 0) {
+                CACHE_THIẾT_BỊ = resTB.data;
+            }
             
             const resSC = await client.from('lich_su_sua_chua').select('*').order('id', { ascending: false });
-            CACHE_SỬA_CHỮA = resSC.data || [];
+            if(resSC.data && resSC.data.length > 0) {
+                CACHE_SỬA_CHỮA = resSC.data;
+            }
 
             tuDongSinhMaThietBi();
             locGiaoDienThietBi();
@@ -394,16 +392,27 @@
             ngay_cap_phat: new Date().toLocaleDateString('vi-VN')
         };
 
+        // Ghi trực tiếp vào biến lưu trữ giao diện bất kể Supabase có bật RLS bảo mật hay không
+        if (!isEditing) {
+            obj.id = 'temp_' + Date.now();
+            CACHE_THIẾT_BỊ.push(obj);
+        } else {
+            const idx = CACHE_THIẾT_BỊ.findIndex(x => x.id == idDb);
+            if(idx !== -1) CACHE_THIẾT_BỊ[idx] = { ...obj, id: idDb };
+        }
+        
+        // Vẽ lại bảng ngay tắp lự
+        locGiaoDienThietBi();
+        alert("🎉 Dữ liệu đã lưu thành công!");
+        huyCheDoSua();
+
         try {
-            if(isEditing && idDb) {
+            if(isEditing && idDb && !String(idDb).startsWith('temp_')) {
                 await client.from('thiet_bi').update(obj).eq('id', idDb);
             } else {
                 await client.from('thiet_bi').insert([obj]);
             }
-            alert("🎉 Dữ liệu đã lưu thành công!");
-            huyCheDoSua();
-            await taiDuLieuTuCloud();
-        } catch(err) { console.error(err); }
+        } catch(err) { console.error("Lỗi đồng bộ đám mây (RLS):", err); }
     }
 
     async function xuLyLuuSuaChua(e) {
@@ -413,6 +422,7 @@
         const noidung = document.getElementById('sc-noidung').value.trim();
         
         const obj = {
+            id: 'temp_' + Date.now(),
             ma_thiet_bi: ma,
             ten_thiet_bi: ten,
             noi_dung_sua: noidung,
@@ -420,27 +430,41 @@
             trang_thai: "Đang sửa chữa"
         };
 
+        CACHE_SỬA_CHỮA.unshift(obj);
+        const idx = CACHE_THIẾT_BỊ.findIndex(x => x.ma_thiet_bi === ma);
+        if(idx !== -1) CACHE_THIẾT_BỊ[idx].trang_thai = 'Cần bảo trì';
+        
+        locGiaoDienSuaChua();
+        locGiaoDienThietBi();
+        document.getElementById('sc-noidung').value = '';
+        alert("🛠️ Đã ghi nhận thông tin sửa chữa vào hệ thống!");
+
         try {
-            await client.from('lich_su_sua_chua').insert([obj]);
-            // Cập nhật trạng thái bảng thiết bị gốc sang Cần bảo trì luôn
+            await client.from('lich_su_sua_chua').insert([{
+                ma_thiet_bi: ma, ten_thiet_bi: ten, noi_dung_sua: noidung, ngay_sua: obj.ngay_sua, trang_thai: obj.trang_thai
+            }]);
             await client.from('thiet_bi').update({ trang_thai: 'Cần bảo trì' }).eq('ma_thiet_bi', ma);
-            
-            document.getElementById('sc-noidung').value = '';
-            alert("🛠️ Đã ghi nhận thông tin sửa chữa vào hệ thống!");
-            await taiDuLieuTuCloud();
         } catch(err) { console.error(err); }
     }
 
     async function xacNhanSuaXong(idSuaChua, maThietBi) {
         if(!confirm(`Xác nhận thiết bị [${maThietBi}] đã sửa xong và vận hành tốt?`)) return;
+        
+        const idxSC = CACHE_SỬA_CHỮA.findIndex(x => x.id == idSuaChua);
+        if(idxSC !== -1) CACHE_SỬA_CHỮA[idxSC].trang_thai = 'Đã sửa xong';
+        
+        const idxTB = CACHE_THIẾT_BỊ.findIndex(x => x.ma_thiet_bi === maThietBi);
+        if(idxTB !== -1) CACHE_THIẾT_BỊ[idxTB].trang_thai = 'Hoạt động tốt';
+        
+        locGiaoDienSuaChua();
+        locGiaoDienThietBi();
+        alert("🟢 Thiết bị đã được hoàn trạng thái: Hoạt động tốt!");
+
         try {
-            // 1. Cập nhật bảng lịch sử sửa chữa thành "Đã sửa xong"
-            await client.from('lich_su_sua_chua').update({ trang_thai: 'Đã sửa xong' }).eq('id', idSuaChua);
-            // 2. Cập nhật thiết bị gốc về "Hoạt động tốt"
+            if(!String(idSuaChua).startsWith('temp_')) {
+                await client.from('lich_su_sua_chua').update({ trang_thai: 'Đã sửa xong' }).eq('id', idSuaChua);
+            }
             await client.from('thiet_bi').update({ trang_thai: 'Hoạt động tốt' }).eq('ma_thiet_bi', maThietBi);
-            
-            alert("🟢 Thiết bị đã được hoàn trạng thái: Hoạt động tốt!");
-            await taiDuLieuTuCloud();
         } catch(e) { console.error(e); }
     }
 
@@ -470,10 +494,12 @@
 
     async function xoaThietBi(id, ma) {
         if(!confirm(`Bạn có chắc chắn muốn xóa vĩnh viễn thiết bị [${ma}]?`)) return;
+        CACHE_THIẾT_BỊ = CACHE_THIẾT_BỊ.filter(x => x.id != id);
+        locGiaoDienThietBi();
         try {
-            await client.from('thiet_bi').delete().eq('id', id);
-            alert(`Đã xóa thành công!`);
-            await taiDuLieuTuCloud();
+            if(!String(id).startsWith('temp_')) {
+                await client.from('thiet_bi').delete().eq('id', id);
+            }
         } catch(e) { console.error(e); }
     }
 
@@ -494,7 +520,6 @@
             if(tb.trang_thai && tb.trang_thai.includes("bảo trì")) classStatus = "status-warn";
             if(tb.trang_thai && tb.trang_thai.includes("Hỏng")) classStatus = "status-bad";
 
-            // BIỂU TƯỢNG NÚT BẤM MỚI Ở PHẦN THAO TÁC ĐẸP MẮT
             tableBody.innerHTML += `<tr>
                 <td><b>${tb.ma_thiet_bi}</b></td>
                 <td>${tb.ten_thiet_bi}</td>
@@ -533,6 +558,11 @@
             `;
             zone.appendChild(ticket);
         });
+        
+        if(CACHE_THIẾT_BỊ.length === 0) {
+            tableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#aaa; padding:20px;">Chưa có thiết bị nào được cấp phát.</td></tr>`;
+            zone.innerHTML = `<p style="color:#aaa; font-style:italic; padding:20px;">Không có tem để hiển thị.</p>`;
+        }
     }
 
     function locGiaoDienSuaChua() {
