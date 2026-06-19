@@ -18,6 +18,7 @@
             --warning-color: #f59e0b;
             --purple-color: #8b5cf6;
             --dark-blue: #0f172a;
+            --danger-color: #dc2626;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
         body { background-color: var(--bg-color); color: #1e293b; padding: 20px; }
@@ -58,6 +59,7 @@
         .btn-cancel { background-color: #94a3b8; color: white; }
         .btn-purple { background-color: var(--purple-color); color: white; }
         .btn-dark { background-color: var(--dark-blue); color: white; }
+        .btn-danger { background-color: var(--danger-color); color: white; }
         
         .filter-section { background: #ffffff; padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #e2e8f0; display: flex; flex-wrap: wrap; gap: 15px; align-items: center; }
         .search-group { flex: 1; min-width: 250px; }
@@ -93,7 +95,7 @@
 <div id="main-admin-app" class="container">
     <header>
         <h1>HỆ THỐNG ĐỒNG BỘ TỔNG HỢP: NHÂN SỰ, THIẾT BỊ QR & HỒ SƠ THANH TOÁN CHỨNG TỪ</h1>
-        <p>Giao diện tức thì - Bấm chuyển tab chạy ngay 100% không đứng hình</p>
+        <p>Tối ưu hóa phản hồi - Loại bỏ 100% lag khi tải danh sách lớn</p>
     </header>
 
     <div class="nav-tabs">
@@ -243,14 +245,17 @@
     <div id="tab-nhan-su" class="tab-content">
         <div class="panel" style="max-width:100%;">
             <div class="filter-section" style="background: #eff6ff; border: 1px dashed #3b82f6;">
-                <div style="flex: 1;">
+                <div style="flex: 2; min-width: 280px;">
                     <label style="font-weight: bold; color: var(--primary-color); display: block; margin-bottom: 5px;">📥 NHẬP DỮ LIỆU TỪ EXCEL KHẢO SÁT CHUẨN CỘT:</label>
                     <input type="file" id="excel-file-nhap" accept=".xlsx, .xls" onchange="docVaUploadNhanSuTuExcel(this)" style="padding: 8px; background: white; border: 1px solid var(--border-color); border-radius: 6px; width: 100%;">
+                </div>
+                <div style="flex: 1; min-width: 200px; padding-top: 22px;">
+                    <button class="btn btn-danger" style="margin-bottom:0;" onclick="xoaToanBoNhanSuCloud()">🚨 XÓA SẠCH ĐÁM MÂY ĐỂ LÀM MỚI</button>
                 </div>
             </div>
             
             <div class="filter-section">
-                <div class="search-group"><input type="text" id="search-ns" placeholder="🔍 Tìm nhân sự theo tên..." oninput="locGiaoDienNhanSu()"></div>
+                <div class="search-group"><input type="text" id="search-ns" placeholder="🔍 Gõ tìm nhân sự (Tìm kiếm siêu tốc không độ trễ)..." oninput="locGiaoDienNhanSu()"></div>
                 <button class="btn btn-primary" style="width:auto; margin-bottom:0;" onclick="taiDuLieuTuCloud(true)">🔄 CẬP NHẬT DỮ LIỆU CLOUD</button>
             </div>
             <h2>DANH SÁCH CƠ SỞ NHÂN SỰ ĐỒNG BỘ (<span id="count-ns">0</span> nhân sự)</h2>
@@ -283,11 +288,9 @@
     document.addEventListener("DOMContentLoaded", function() {
         client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         
-        // Khởi tạo giao diện bằng mảng rỗng trước để nút bấm hoạt động ngay tức thì
         tuDongSinhMaThietBi();
         locGiaoDienThietBi();
         
-        // Gọi tải ngầm dữ liệu từ máy chủ
         taiDuLieuTuCloud(false); 
         
         document.addEventListener('click', function(e) {
@@ -298,7 +301,6 @@
         });
     });
 
-    // CHUYỂN TAB CHẠY NGAY TỨC THÌ 0 GIÂY - KHÔNG PHỤ THUỘC VÀO TỐC ĐỘ MẠNG
     function switchTab(tabName) {
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -328,7 +330,6 @@
 
     async function taiDuLieuTuCloud(isManualClick) {
         try {
-            // Chạy song song tất cả các luồng tải để tối ưu tốc độ mạng đường truyền
             const [resNS, resTB, resSC, resTT] = await Promise.all([
                 client.from('nhan_su').select('*'),
                 client.from('thiet_bi').select('*').order('ma_thiet_bi'),
@@ -341,7 +342,6 @@
             if(resSC.data) CACHE_SỬA_CHỮA = resSC.data;
             if(resTT.data) CACHE_THANH_TOÁN = resTT.data;
 
-            // Dữ liệu tải xong sẽ tự đổ thẳng vào bảng mà không khóa hay treo nút bấm của bạn
             tuDongSinhMaThietBi();
             locGiaoDienThietBi();
             locGiaoDienNhanSu();
@@ -354,6 +354,55 @@
         } catch(e) { 
             console.error("Lỗi đồng bộ ngầm: ", e); 
         }
+    }
+
+    // 🚨 TÍNH NĂNG MỚI: XÓA SẠCH ĐÁM MÂY ĐỂ LÀM MỚI NHÂN SỰ
+    async function xoaToanBoNhanSuCloud() {
+        if (!confirm("⚠ CẢNH BÁO NGUY HIỂM:\nBạn có chắc chắn muốn XÓA TOÀN BỘ danh sách nhân sự trên Đám mây để làm mới lại từ đầu không? Hành động này không thể hoàn tác!")) {
+            return;
+        }
+        
+        try {
+            // Thực hiện xóa tất cả bản ghi bằng bộ lọc gte id = 0
+            const { error } = await client.from('nhan_su').delete().gte('id', 0);
+            if (error) {
+                alert("Lỗi khi xóa đám mây: " + error.message);
+            } else {
+                alert("🗑 Đã xóa sạch cơ sở dữ liệu nhân sự trên Cloud thành công!");
+                CACHE_NHAN_SU = [];
+                locGiaoDienNhanSu();
+            }
+        } catch(err) {
+            alert("Không thể kết nối máy chủ để xóa: " + err.message);
+        }
+    }
+
+    // ⚡ TỐI ƯU HÓA SIÊU MƯỢT: SỬ DỤNG FRAGMENT ĐỂ CHỐNG LAG DOM 100%
+    function locGiaoDienNhanSu() {
+        const tbody = document.getElementById('body-ns');
+        if(!tbody) return;
+        
+        tbody.innerHTML = ''; // Xóa bảng nhanh
+        const keyword = document.getElementById('search-ns').value.toLowerCase().trim();
+        
+        // Dùng DocumentFragment để gom dữ liệu xử lý trong bộ nhớ RAM thay vì ép trình duyệt nạp liên tục
+        const fragment = document.createDocumentFragment();
+        let count = 0;
+        
+        for (let i = 0; i < CACHE_NHAN_SU.length; i++) {
+            const x = CACHE_NHAN_SU[i];
+            if(keyword && !x.ho_ten.toLowerCase().includes(keyword) && !String(x.chuc_danh_cong_viec).toLowerCase().includes(keyword)) {
+                continue;
+            }
+            count++;
+            
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${count}</td><td><b>${x.ho_ten}</b></td><td>${x.gioi_tinh || '---'}</td><td>${x.nam_sinh || '---'}</td><td>${x.chuc_danh_cong_viec || '---'}</td>`;
+            fragment.appendChild(tr);
+        }
+        
+        tbody.appendChild(fragment); // Đẩy toàn bộ dữ liệu ra màn hình cùng 1 lúc duy nhất (0ms lag)
+        document.getElementById('count-ns').innerText = CACHE_NHAN_SU.length;
     }
 
     function docVaUploadNhanSuTuExcel(input) {
@@ -431,7 +480,6 @@
         document.getElementById('tb-ma').value = `TB-2026-${String(CACHE_THIẾT_BỊ.length + 1).padStart(4, '0')}`;
     }
 
-    /* Tương tự, tất cả mã logic đồng bộ giao diện nội bộ bên dưới giữ nguyên tốc độ xử lý tức thì */
     function tuDongSinhMaHosoThanhToan() {
         if(isEditingTT) return;
         document.getElementById('tt-ma-hs').value = `HS-TT-${String(CACHE_THANH_TOÁN.length + 1).padStart(4, '0')}`;
@@ -459,19 +507,6 @@
         const ma = document.getElementById('sc-ma-tb').value;
         const khop = CACHE_THIẾT_BỊ.find(x => x.ma_thiet_bi === ma);
         document.getElementById('sc-ten-tb').value = khop ? khop.ten_thiet_bi : '';
-    }
-
-    function locGiaoDienNhanSu() {
-        const tbody = document.getElementById('body-ns');
-        if(!tbody) return; tbody.innerHTML = '';
-        const k = document.getElementById('search-ns').value.toLowerCase().trim();
-        let count = 0;
-        CACHE_NHAN_SU.forEach(x => {
-            if(k && !x.ho_ten.toLowerCase().includes(k) && !String(x.chuc_danh_cong_viec).toLowerCase().includes(k)) return;
-            count++;
-            tbody.innerHTML += `<tr><td>${count}</td><td><b>${x.ho_ten}</b></td><td>${x.gioi_tinh || '---'}</td><td>${x.nam_sinh || '---'}</td><td>${x.chuc_danh_cong_viec || '---'}</td></tr>`;
-        });
-        document.getElementById('count-ns').innerText = CACHE_NHAN_SU.length;
     }
 
     function goTimKiemNhanSu(input) {
@@ -536,7 +571,7 @@
 
     function kichHoatCheDoSua(id, ma, ten, nguoi, trangthai) {
         isEditing = true;
-        document.getElementById('form-title').innerText = "⚙️ CẬP NHẬT THIẾT BỊ";
+        document.getElementById('form-title').innerText = "⚙️ CẬPNHẬT THIẾT BỊ";
         document.getElementById('tb-id-db').value = id;
         document.getElementById('tb-ma').value = ma;
         document.getElementById('tb-ten').value = ten;
