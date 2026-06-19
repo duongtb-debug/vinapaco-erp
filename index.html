@@ -74,9 +74,6 @@
         .status-warn { background-color: #fef9c3; color: #a16207; }
         .status-bad { background-color: #fee2e2; color: #b91c1c; }
         
-        .action-btns { display: flex; gap: 6px; }
-        .btn-action { padding: 4px 8px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.75rem; font-weight: bold; color: white; }
-        
         .qr-preview-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 15px; margin-top: 15px; }
         .qr-ticket { background: white; border: 1px dashed #94a3b8; padding: 12px; display: flex; border-radius: 8px; position: relative; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
         .qr-code-zone { width: 35%; display: flex; flex-direction: column; align-items: center; justify-content: center; border-right: 1px dashed #e2e8f0; padding-right: 8px; }
@@ -99,20 +96,10 @@
 </head>
 <body>
 
-<div id="scan-result-dashboard">
-    <h2>🔍 THÔNG TIN TÀI SẢN THIẾT BỊ</h2>
-    <div class="info-row"><span>Mã tài sản:</span><b id="lbl-scan-ma">---</b></div>
-    <div class="info-row"><span>Tên thiết bị:</span><b id="lbl-scan-ten">---</b></div>
-    <div class="info-row"><span>Nhân sự quản lý:</span><b id="lbl-scan-nguoi">---</b></div>
-    <div class="info-row"><span>Trạng thái vận hành:</span><b id="lbl-scan-trangthai">---</b></div>
-    <div class="info-row"><span>Ngày cấp phát:</span><b id="lbl-scan-ngay">---</b></div>
-    <button class="btn btn-primary" style="margin-top:20px;" onclick="window.location.href=window.location.pathname">Quay lại quản trị</button>
-</div>
-
 <div id="main-admin-app" class="container">
     <header>
         <h1>HỆ THỐNG ĐỒNG BỘ TỔNG HỢP: NHÂN SỰ & CẤP PHÁT THIẾT BỊ QR</h1>
-        <p>Giải pháp In Ấn Định Tuyến QR Thông Minh Toàn Cầu</p>
+        <p>Giải pháp Mã QR Độc lập - Kết nối Đám mây Trực tiếp Không Lỗi</p>
     </header>
 
     <div class="nav-tabs">
@@ -220,15 +207,7 @@
 
     document.addEventListener("DOMContentLoaded", function() {
         client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        
-        const urlParams = new URLSearchParams(window.location.search);
-        const maAssetScan = urlParams.get('ma_tb');
-        
-        if(maAssetScan) {
-            hienThiDashboardQuetQR(maAssetScan);
-        } else {
-            taiDuLieuTuCloud();
-        }
+        taiDuLieuTuCloud();
 
         document.addEventListener('click', function(e) {
             if(e.target.id !== 'tb-nguoi-dung-search') {
@@ -237,21 +216,6 @@
             }
         });
     });
-
-    async function hienThiDashboardQuetQR(ma) {
-        document.getElementById('main-admin-app').style.display = 'none';
-        document.getElementById('scan-result-dashboard').style.display = 'block';
-        try {
-            const res = await client.from('thiet_bi').select('*').eq('ma_thiet_bi', ma).single();
-            if(res.data) {
-                document.getElementById('lbl-scan-ma').innerText = res.data.ma_thiet_bi;
-                document.getElementById('lbl-scan-ten').innerText = res.data.ten_thiet_bi;
-                document.getElementById('lbl-scan-nguoi').innerText = res.data.nguoi_su_dung;
-                document.getElementById('lbl-scan-trangthai').innerText = res.data.trang_thai;
-                document.getElementById('lbl-scan-ngay').innerText = res.data.ngay_cap_phat || '---';
-            }
-        } catch(e) { console.error(e); }
-    }
 
     function switchTab(tabName) {
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -439,10 +403,9 @@
             const ticket = document.createElement('div');
             ticket.className = 'qr-ticket';
             
-            // GIẢI PHÁP ĐỊNH TUYẾN QR TOÀN CẦU DÀNH CHO THIẾT BỊ DI ĐỘNG:
-            // Tránh lỗi API Key của Supabase bằng cách dẫn điện thoại tới một Cổng giao diện Web hiển thị trung gian an toàn và chuyên dụng.
-            const urlGiaoDienTraCuuDiDong = `https://smart-asset-lookup.vercel.app/?project=mtfpxsfxjsnghtalamdd&table=thiet_bi&column=ma_thiet_bi&value=${tb.ma_thiet_bi}`;
-            const linkAnhQR = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(urlGiaoDienTraCuuDiDong)}&ecc=H`;
+            // GIẢI PHÁP ĐỘC LẬP CLOUD: Nhúng trực tiếp apikey và anon key vào URL để bất kì điện thoại nào kết nối Internet cũng có thể lấy dữ liệu trực tiếp tức thì
+            const urlXacThucTrucTiep = `${SUPABASE_URL}/rest/v1/thiet_bi?ma_thiet_bi=eq.${encodeURIComponent(tb.ma_thiet_bi)}&apikey=${SUPABASE_ANON_KEY}`;
+            const linkAnhQR = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(urlXacThucTrucTiep)}&ecc=H`;
             
             ticket.innerHTML = `
                 <div class="qr-code-zone">
