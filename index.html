@@ -87,7 +87,7 @@
 <div id="main-admin-app" class="container">
     <header>
         <h1>HỆ THỐNG ĐỒNG BỘ TỔNG HỢP: NHÂN SỰ, THIẾT BỊ QR & HỒ SƠ THANH TOÁN CHỨNG TỪ</h1>
-        <p>Phiên bản Chuyên gia - Đã sửa triệt để lỗi Khóa ngoại dữ liệu</p>
+        <p>Phiên bản Vá lỗi Toàn diện - Ép mã đơn vị mặc định Chống rỗng (NOT NULL Constraint)</p>
     </header>
 
     <div class="nav-tabs">
@@ -387,7 +387,7 @@
         return str;
     }
 
-    // 🔥 HÀM ĐƯỢC CHUẨN HÓA THEO CHUẨN CHUYÊN GIA - KHÓA CHẶT LỖI KHÓA NGOẠI
+    // ⚡ VÁ LỖI CẤP ĐỘ CAO NHẤT: CHẶN ĐỨNG HOÀN TOÀN LỖI NOT-NULL CONSTRAINT & LỖI KHÓA NGOẠI
     function docVaUploadNhanSuTuExcel(input) {
         const file = input.files[0];
         if(!file) return;
@@ -399,7 +399,6 @@
                 const workbook = XLSX.read(data, { type: 'array' });
                 const sheetName = workbook.SheetNames[0];
                 const sheet = workbook.Sheets[sheetName];
-                // raw: false ép tất cả các định dạng ô (kể cả số thập phân như 14.2) về chuỗi hiển thị chuẩn
                 const jsonRows = XLSX.utils.sheet_to_json(sheet, { raw: false }); 
                 
                 if(jsonRows.length === 0) {
@@ -415,31 +414,34 @@
                     let atv = "", nndh = "", namVeHuu = "", maDonVi = "", nam = "", namSinh = "", nu = "", chucDanh = "";
 
                     for (let key in row) {
-                        let cleanKey = key.replace(/\s+/g, ' ').trim().toLowerCase();
+                        // Khử hoàn toàn khoảng trắng dư thừa trong tiêu đề (Ví dụ "Mã  đơn  vị" -> "măđơnvị")
+                        let cleanKey = key.replace(/\s+/g, '').trim().toLowerCase();
                         
                         if (cleanKey === "stt") stt = row[key];
-                        else if (cleanKey.includes("họ và tên") || cleanKey === "ho ten") hoTen = row[key];
+                        else if (cleanKey.includes("họvàtên") || cleanKey.includes("hoten")) hoTen = row[key];
                         else if (cleanKey === "tên" || cleanKey === "ten") ten = row[key];
-                        else if (cleanKey.includes("bhxh") || cleanKey.includes("bảo hiểm")) soBhxh = row[key];
-                        else if (cleanKey.includes("cccd") || cleanKey.includes("chứng minh")) soCccd = row[key];
-                        else if (cleanKey.includes("an toàn viên") || cleanKey.includes("an toan")) atv = row[key];
+                        else if (cleanKey.includes("bhxh") || cleanKey.includes("bảohiểm")) soBhxh = row[key];
+                        else if (cleanKey.includes("cccd") || cleanKey.includes("chứngminh")) soCccd = row[key];
+                        else if (cleanKey.includes("antoànviên") || cleanKey.includes("antoan")) atv = row[key];
                         else if (cleanKey === "nnđh" || cleanKey === "nndh") nndh = row[key];
-                        else if (cleanKey.includes("về hưu") || cleanKey.includes("ve huu")) namVeHuu = row[key];
-                        else if (cleanKey.includes("mã đơn vị") || cleanKey.includes("ma don vi")) maDonVi = row[key];
+                        else if (cleanKey.includes("vềhưu") || cleanKey.includes("vehuu")) namVeHuu = row[key];
+                        else if (cleanKey.includes("mãđơnvị") || cleanKey.includes("madonvi")) maDonVi = row[key];
                         else if (cleanKey === "năm" || cleanKey === "nam") nam = row[key];
-                        else if (cleanKey.includes("năm sinh") || cleanKey === "nam sinh") namSinh = row[key];
+                        else if (cleanKey.includes("nămsinh") || cleanKey === "namsinh") namSinh = row[key];
                         else if (cleanKey.includes("nữ") || cleanKey === "nu") nu = row[key];
-                        else if (cleanKey.includes("chức danh") || cleanKey.includes("công việc") || cleanKey.includes("chuc danh")) chucDanh = row[key];
+                        else if (cleanKey.includes("chứcdanh") || cleanKey.includes("côngviệc")) chucDanh = row[key];
                     }
 
                     if (hoTen && String(hoTen).trim() !== "") {
                         let cleanCccd = String(soCccd || '').trim();
-                        // ⚡ BẮT BUỘC ÉP KIỂU CHUỖI VÀ KHỬ KHOẢNG TRẮNG CHO MÃ ĐƠN VỊ TỪ EXCEL
                         let cleanMaDonVi = String(maDonVi || '').replace(/\s+/g, '').trim();
                         
-                        if (cleanMaDonVi !== "") {
-                            setMaDonViExcel.add(cleanMaDonVi);
+                        // 🛠️ CHỐNG LỖI NOT-NULL: Nếu dòng Excel không có mã đơn vị, ép sang mã mặc định "DV-UNKNOWN"
+                        if (cleanMaDonVi === "") {
+                            cleanMaDonVi = "DV-UNKNOWN";
                         }
+                        
+                        setMaDonViExcel.add(cleanMaDonVi);
 
                         if (cleanCccd === "" || !danhSachCccdCu.includes(cleanCccd)) {
                             danhSachUpload.push({
@@ -451,7 +453,7 @@
                                 an_toan_vien: String(atv || ''),
                                 nndh: String(nndh || ''),
                                 nam_ve_huu: formatExcelDate(namVeHuu),
-                                ma_don_vi: cleanMaDonVi || null, // Nếu rỗng thì truyền null tránh lỗi khóa ngoại trống
+                                ma_don_vi: cleanMaDonVi, // Đảm bảo luôn có dữ liệu chuỗi, không bao giờ null
                                 nam_khao_sat: formatExcelDate(nam),
                                 nam_sinh: formatExcelDate(namSinh),
                                 gioi_tinh_nu: String(nu || ''),
@@ -466,28 +468,27 @@
                     input.value = ""; return;
                 }
 
-                // 🔄 ĐỒNG BỘ DANH MỤC TRƯỚC: Đổ toàn bộ mã đơn vị dạng String vào bảng `don_vi` bằng `upsert`
+                // 🔄 BƯỚC 1: Đăng ký toàn bộ danh mục mã đơn vị (kể cả DV-UNKNOWN) vào bảng đơn vị trước
                 if (setMaDonViExcel.size > 0) {
                     let mangMaDonVi = Array.from(setMaDonViExcel);
                     let payloadDonVi = mangMaDonVi.map(m => ({
                         ma_don_vi: m,
-                        ten_don_vi: `Đơn vị mã ${m}`
+                        ten_don_vi: m === "DV-UNKNOWN" ? "Đơn vị chưa xác định" : `Đơn vị mã ${m}`
                     }));
                     
-                    // Sử dụng upsert với onConflict để chèn mã mới, bỏ qua mã đã tồn tại mà không sinh lỗi
                     const { error: errDonVi } = await client.from('don_vi').upsert(payloadDonVi, { onConflict: 'ma_don_vi' });
                     if(errDonVi) {
-                        console.error("Lỗi đồng bộ bảng đơn vị:", errDonVi);
+                        console.error("Lỗi đăng ký danh mục:", errDonVi);
                     }
                 }
 
-                // 🔄 TẢI NHÂN SỰ LÊN SAU KHI ĐƯỜNG DẪN KHÓA NGOẠI ĐÃ ĐƯỢC THÔNG SUỐT
+                // 🔄 BƯỚC 2: Đẩy dữ liệu nhân sự lên Đám mây một cách thông suốt
                 const { error: errNhanSu } = await client.from('nhan_su').insert(danhSachUpload);
                 if(errNhanSu) {
-                    console.error("Lỗi tải nhân sự:", errNhanSu);
-                    alert("🚨 Không thể nạp dữ liệu lên đám mây: \n" + errNhanSu.message);
+                    console.error("Lỗi Supabase:", errNhanSu);
+                    alert("🚨 Không thể nạp dữ liệu: \n" + errNhanSu.message);
                 } else {
-                    alert(`🎉 Thành công! Hệ thống đã xử lý và nạp thành công ${danhSachUpload.length} nhân sự mới lên Đám mây!`);
+                    alert(`🎉 Thành công mỹ mãn! Hệ thống đã nạp ${danhSachUpload.length} nhân sự lên Đám mây mà không gặp bất kỳ trở ngại nào!`);
                 }
                 
                 document.getElementById('search-ns').value = "";
@@ -495,7 +496,7 @@
                 await taiDuLieuTuCloud(false);
 
             } catch (err) {
-                alert("Lỗi cấu trúc xử lý tệp: " + err.message);
+                alert("Lỗi cấu trúc tệp Excel: " + err.message);
             }
         };
         reader.readAsArrayBuffer(file);
