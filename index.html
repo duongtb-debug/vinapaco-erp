@@ -333,7 +333,7 @@
             
             if(isManualClick) alert("🎉 Dữ liệu hệ thống đã đồng bộ mới nhất!");
         } catch(e) { 
-            console.error("Lỗi đồng bộ ngầm: ", e); 
+            console.error("Lỗi đồng bộ: ", e); 
         }
     }
 
@@ -391,7 +391,7 @@
         return str;
     }
 
-    // THUẬT TOÁN ĐỌC EXCEL NÂNG CẤP CHẤM ĐIỂM: KHÔNG SỢ THIẾU CHỮ "HỌ", KHÔNG SỢ SAI DÒNG TIÊU ĐỀ
+    // --- REBUILT 100%: THUẬT TOÁN ĐỌC EXCEL NHÂN SỰ MỚI HOÀN TOÀN ---
     function docVaUploadNhanSuTuExcel(input) {
         const file = input.files[0];
         if(!file) return;
@@ -404,111 +404,124 @@
                 const sheetName = workbook.SheetNames[0];
                 const sheet = workbook.Sheets[sheetName];
                 
+                // Trích xuất toàn bộ dòng ở dạng ma trận mảng
                 const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false }); 
                 if(rows.length === 0) {
-                    alert("File Excel trống!"); return;
+                    alert("File Excel rỗng!"); return;
                 }
 
                 let headerIdx = -1;
-                let maxScore = -1;
-                let bestMapping = {
-                    stt: -1, hoTen: -1, ten: -1, soBhxh: -1, soCccd: -1,
-                    atv: -1, nndh: -1, namVeHuu: -1, maDonVi: -1, nam: -1,
-                    namSinh: -1, nu: -1, chucDanh: -1
+                let colMapping = {
+                    stt_file: -1, ho_ten: -1, ten: -1, so_bhxh: -1, so_cccd: -1,
+                    an_toan_vien: -1, nndh: -1, nam_ve_huu: -1, ma_don_vi: -1, nam: -1,
+                    nam_sinh: -1, gioi_tinh_nu: -1, chuc_danh_cong_viec: -1
                 };
 
-                // Thuật toán chấm điểm thông minh cho từng hàng nhằm định vị hàng tiêu đề chính xác nhất
-                for (let i = 0; i < Math.min(rows.length, 25); i++) {
+                // Vòng lặp quyét tìm hàng chứa từ khóa Tiêu Đề phù hợp nhất
+                for (let i = 0; i < Math.min(rows.length, 20); i++) {
                     let row = rows[i];
-                    if (!row) continue;
+                    if (!row || row.length === 0) continue;
                     
-                    let currentScore = 0;
-                    let tempMapping = { stt: -1, hoTen: -1, ten: -1, soBhxh: -1, soCccd: -1, atv: -1, nndh: -1, namVeHuu: -1, maDonVi: -1, nam: -1, namSinh: -1, nu: -1, chucDanh: -1 };
+                    let matches = 0;
+                    let tempMapping = { stt_file: -1, ho_ten: -1, ten: -1, so_bhxh: -1, so_cccd: -1, an_toan_vien: -1, nndh: -1, nam_ve_huu: -1, ma_don_vi: -1, nam: -1, nam_sinh: -1, gioi_tinh_nu: -1, chuc_danh_cong_viec: -1 };
 
                     for (let j = 0; j < row.length; j++) {
                         if (!row[j]) continue;
-                        let val = String(row[j]).replace(/\s+/g, '').trim().toLowerCase();
+                        // Chuyển chuỗi về dạng trơn không dấu cách, viết thường để so sánh diện rộng
+                        let txt = String(row[j]).replace(/\s+/g, '').trim().toLowerCase();
                         
-                        // Định vị cột Tên chính (Chấp nhận: Họ và tên, Họ tên, Tên nhân viên, Tên, Name, Fullname)
-                        if (val.includes("họvàtên") || val.includes("hovaten") || val.includes("họtên") || val.includes("hoten") || val.includes("fullname")) {
-                            tempMapping.hoTen = j;
-                            currentScore += 10;
-                        } else if (val === "tên" || val === "ten" || val.includes("tênnhânviên") || val === "name") {
-                            if (tempMapping.hoTen === -1) { 
-                                tempMapping.hoTen = j; 
-                            } else {
-                                tempMapping.ten = j;
-                            }
-                            currentScore += 5;
-                        } else if (val === "stt" || val.includes("sốtt")) {
-                            tempMapping.stt = j; currentScore += 2;
-                        } else if (val.includes("bhxh") || val.includes("bảohiểm") || val.includes("sổbhxh")) {
-                            tempMapping.soBhxh = j; currentScore += 4;
-                        } else if (val.includes("cccd") || val.includes("chứngminh") || val.includes("cmnd") || val.includes("sốđịnhdanh")) {
-                            tempMapping.soCccd = j; currentScore += 4;
-                        } else if (val.includes("antoàn") || val.includes("atv")) {
-                            tempMapping.atv = j; currentScore += 2;
-                        } else if (val.includes("nnđh") || val.includes("nndh") || val.includes("độchại")) {
-                            tempMapping.nndh = j; currentScore += 2;
-                        } else if (val.includes("vềhưu") || val.includes("vehuu")) {
-                            tempMapping.namVeHuu = j; currentScore += 2;
-                        } else if (val.includes("mãđơnvị") || val.includes("madonvi") || val.includes("mãđv") || (val.includes("mã") && val.includes("vị"))) {
-                            tempMapping.maDonVi = j; currentScore += 3;
-                        } else if (val === "năm" || val === "nam" || val.includes("khảosát")) {
-                            tempMapping.nam = j; currentScore += 1;
-                        } else if (val.includes("nămsinh") || val.includes("namsinh")) {
-                            tempMapping.namSinh = j; currentScore += 3;
-                        } else if (val.includes("nữ") || val === "nu" || val.includes("giớitính")) {
-                            tempMapping.nu = j; currentScore += 2;
-                        } else if (val.includes("chứcdanh") || val.includes("côngviệc") || val.includes("chucdanh") || val.includes("vịtrí")) {
-                            tempMapping.chucDanh = j; currentScore += 3;
+                        if (txt.includes("họvàtên") || txt.includes("hovaten") || txt.includes("họtên") || txt.includes("hoten") || txt.includes("fullname")) {
+                            tempMapping.ho_ten = j; matches += 5;
+                        } else if (txt === "tên" || txt === "ten" || txt.includes("tênnhânviên")) {
+                            tempMapping.ten = j; matches += 3;
+                        } else if (txt === "stt" || txt.includes("sốtt") || txt === "thứtự") {
+                            tempMapping.stt_file = j; matches += 1;
+                        } else if (txt.includes("bhxh") || txt.includes("bảohiểm") || txt.includes("sổbhxh")) {
+                            tempMapping.so_bhxh = j; matches += 2;
+                        } else if (txt.includes("cccd") || txt.includes("chứngminh") || txt.includes("cmnd") || txt.includes("sốđịnhdanh")) {
+                            tempMapping.so_cccd = j; matches += 2;
+                        } else if (txt.includes("antoàn") || txt.includes("atv")) {
+                            tempMapping.an_toan_vien = j; matches += 1;
+                        } else if (txt.includes("nnđh") || txt.includes("nndh") || txt.includes("độchại")) {
+                            tempMapping.nndh = j; matches += 1;
+                        } else if (txt.includes("vềhưu") || txt.includes("vehuu") || txt.includes("nghỉhưu")) {
+                            tempMapping.nam_ve_huu = j; matches += 1;
+                        } else if (txt.includes("đơnvị") || txt.includes("madonvi") || txt.includes("mãđv") || txt.includes("mãbộphận")) {
+                            tempMapping.ma_don_vi = j; matches += 2;
+                        } else if (txt === "năm" || txt === "nam" || txt.includes("khảosát")) {
+                            tempMapping.nam = j; matches += 1;
+                        } else if (txt.includes("nămsinh") || txt.includes("namsinh")) {
+                            tempMapping.nam_sinh = j; matches += 2;
+                        } else if (txt.includes("nữ") || txt === "nu" || txt.includes("giớitính")) {
+                            tempMapping.gioi_tinh_nu = j; matches += 1;
+                        } else if (txt.includes("chứcdanh") || txt.includes("côngviệc") || txt.includes("chucdanh") || txt.includes("vịtrí")) {
+                            tempMapping.chuc_danh_cong_viec = j; matches += 2;
                         }
                     }
 
-                    // Nếu hàng này có điểm nhận diện vượt trội và tối thiểu chứa được trường họ tên / tên
-                    if (currentScore > maxScore && tempMapping.hoTen !== -1) {
-                        maxScore = currentScore;
+                    // Điều kiện tối quyết: Cần tìm thấy cột Họ Tên và tổng điểm nhận diện cao
+                    if (tempMapping.ho_ten !== -1 && matches >= 5) {
                         headerIdx = i;
-                        bestMapping = { ...tempMapping };
+                        colMapping = tempMapping;
+                        break; // Tìm thấy dòng tiêu đề lý tưởng, dừng quét tiêu đề
                     }
                 }
 
-                if (headerIdx === -1 || maxScore < 5) {
-                    alert("🚨 Lỗi cấu trúc: Hệ thống không thể tự động định vị được cột Họ Tên hoặc Tên trong file Excel của bạn. Vui lòng kiểm tra lại dòng tiêu đề!");
+                // Trường hợp đặc biệt nếu file không có cột "Họ và Tên" riêng biệt mà chỉ có cột "Tên"
+                if (headerIdx === -1) {
+                    for (let i = 0; i < Math.min(rows.length, 20); i++) {
+                        let row = rows[i]; if (!row) continue;
+                        for (let j = 0; j < row.length; j++) {
+                            let txt = String(row[j]).replace(/\s+/g, '').trim().toLowerCase();
+                            if (txt === "tên" || txt === "ten") {
+                                headerIdx = i;
+                                colMapping.ho_ten = j; 
+                                break;
+                            }
+                        }
+                        if (headerIdx !== -1) break;
+                    }
+                }
+
+                if (headerIdx === -1) {
+                    alert("🚨 Không thể xác định dòng tiêu đề chứa trường thông tin Họ tên/Tên của nhân viên. Hãy kiểm tra lại file Excel.");
                     input.value = ""; return;
                 }
 
-                let colMapping = bestMapping;
                 let danhSachUpload = [];
                 let setMaDonViExcel = new Set(); 
 
+                // Tính toán ID tiếp theo kế thừa từ dữ liệu Cloud cũ để không bị trùng khóa chính
                 let maxId = 0;
                 if (CACHE_NHAN_SU && CACHE_NHAN_SU.length > 0) {
-                    for (let i = 0; i < CACHE_NHAN_SU.length; i++) {
-                        let currentId = parseInt(CACHE_NHAN_SU[i].id) || 0;
-                        if (currentId > maxId) { maxId = currentId; }
-                    }
+                    CACHE_NHAN_SU.forEach(ns => {
+                        let currentId = parseInt(ns.id) || 0;
+                        if (currentId > maxId) maxId = currentId;
+                    });
                 }
 
+                // Duyệt bóc tách dữ liệu từ các hàng nằm dưới dòng tiêu đề chính
                 for (let i = headerIdx + 1; i < rows.length; i++) {
                     const row = rows[i];
                     if (!row || row.length === 0) continue;
 
-                    let hoTen = colMapping.hoTen !== -1 && row[colMapping.hoTen] ? String(row[colMapping.hoTen]).trim() : "";
-                    if (!hoTen || hoTen.toLowerCase() === "họ và tên" || hoTen.toLowerCase() === "họ tên" || hoTen.toLowerCase() === "x" || hoTen.toLowerCase() === "tên") continue;
+                    // Lấy ra Họ và Tên của dòng hiện tại
+                    let hoTenRaw = colMapping.ho_ten !== -1 && row[colMapping.ho_ten] ? String(row[colMapping.ho_ten]).trim() : "";
+                    if (!hoTenRaw || hoTenRaw.toLowerCase() === "họ và tên" || hoTenRaw.toLowerCase() === "họ tên") continue;
 
-                    let stt       = colMapping.stt !== -1 && row[colMapping.stt] ? String(row[colMapping.stt]).trim() : "";
+                    // Ánh xạ an toàn toàn bộ 13 trường dữ liệu tương ứng
+                    let stt       = colMapping.stt_file !== -1 && row[colMapping.stt_file] ? String(row[colMapping.stt_file]).trim() : "";
                     let ten       = colMapping.ten !== -1 && row[colMapping.ten] ? String(row[colMapping.ten]).trim() : "";
-                    let soBhxh    = colMapping.soBhxh !== -1 && row[colMapping.soBhxh] ? String(row[colMapping.soBhxh]).trim() : "";
-                    let soCccd    = colMapping.soCccd !== -1 && row[colMapping.soCccd] ? String(row[colMapping.soCccd]).trim() : "";
-                    let atv       = colMapping.atv !== -1 && row[colMapping.atv] ? String(row[colMapping.atv]).trim() : "";
+                    let soBhxh    = colMapping.so_bhxh !== -1 && row[colMapping.so_bhxh] ? String(row[colMapping.so_bhxh]).trim() : "";
+                    let soCccd    = colMapping.so_cccd !== -1 && row[colMapping.so_cccd] ? String(row[colMapping.so_cccd]).trim() : "";
+                    let atv       = colMapping.an_toan_vien !== -1 && row[colMapping.an_toan_vien] ? String(row[colMapping.an_toan_vien]).trim() : "";
                     let nndh      = colMapping.nndh !== -1 && row[colMapping.nndh] ? String(row[colMapping.nndh]).trim() : "";
-                    let namVeHuu  = colMapping.namVeHuu !== -1 && row[colMapping.namVeHuu] ? String(row[colMapping.namVeHuu]).trim() : "";
-                    let maDonVi   = colMapping.maDonVi !== -1 && row[colMapping.maDonVi] ? String(row[colMapping.maDonVi]).trim() : "";
+                    let namVeHuu  = colMapping.nam_ve_huu !== -1 && row[colMapping.nam_ve_huu] ? String(row[colMapping.nam_ve_huu]).trim() : "";
+                    let maDonVi   = colMapping.ma_don_vi !== -1 && row[colMapping.ma_don_vi] ? String(row[colMapping.ma_don_vi]).trim() : "";
                     let nam       = colMapping.nam !== -1 && row[colMapping.nam] ? String(row[colMapping.nam]).trim() : "";
-                    let namSinh   = colMapping.namSinh !== -1 && row[colMapping.namSinh] ? String(row[colMapping.namSinh]).trim() : "";
-                    let nu        = colMapping.nu !== -1 && row[colMapping.nu] ? String(row[colMapping.nu]).trim() : "";
-                    let chucDanh  = colMapping.chucDanh !== -1 && row[colMapping.chucDanh] ? String(row[colMapping.chucDanh]).trim() : "";
+                    let namSinh   = colMapping.nam_sinh !== -1 && row[colMapping.nam_sinh] ? String(row[colMapping.nam_sinh]).trim() : "";
+                    let nu        = colMapping.gioi_tinh_nu !== -1 && row[colMapping.gioi_tinh_nu] ? String(row[colMapping.gioi_tinh_nu]).trim() : "";
+                    let chucDanh  = colMapping.chuc_danh_cong_viec !== -1 && row[colMapping.chuc_danh_cong_viec] ? String(row[colMapping.chuc_danh_cong_viec]).trim() : "";
 
                     let cleanMaDonVi = maDonVi.replace(/\s+/g, '');
                     if (cleanMaDonVi === "") { cleanMaDonVi = "DV-UNKNOWN"; }
@@ -518,7 +531,7 @@
                     danhSachUpload.push({
                         id: maxId,
                         stt_file: stt,
-                        ho_ten: hoTen,
+                        ho_ten: hoTenRaw,
                         ten: ten,
                         so_bhxh: soBhxh,
                         so_cccd: soCccd,
@@ -534,10 +547,11 @@
                 }
 
                 if(danhSachUpload.length === 0) {
-                    alert("🚨 Không tìm thấy danh sách nhân sự nào hợp lệ dưới hàng tiêu đề!");
+                    alert("🚨 Phân tích hoàn tất nhưng không tìm thấy bản ghi nhân sự hợp lệ nào!");
                     input.value = ""; return;
                 }
 
+                // Thực hiện đồng bộ các Mã đơn vị phát sinh lên Cloud trước
                 if (setMaDonViExcel.size > 0) {
                     let mangMaDonVi = Array.from(setMaDonViExcel);
                     let payloadDonVi = mangMaDonVi.map(m => ({
@@ -547,11 +561,12 @@
                     await client.from('don_vi').upsert(payloadDonVi, { onConflict: 'ma_don_vi' });
                 }
 
+                // Thực hiện nạp dữ liệu nhân sự lên Supabase Cloud
                 const { error: errNhanSu } = await client.from('nhan_su').insert(danhSachUpload);
                 if(errNhanSu) {
-                    alert("🚨 Lỗi đồng bộ đám mây: \n" + errNhanSu.message);
+                    alert("🚨 Lỗi ghi vào Cloud: \n" + errNhanSu.message);
                 } else {
-                    alert(`🎉 Thành công! Hệ thống đã tự động định vị thông minh dòng tiêu đề số ${headerIdx + 1} và nạp ${danhSachUpload.length} nhân sự lên Cloud.`);
+                    alert(`🎉 Thành công! Đã quét nhận diện chính xác tiêu đề tại dòng ${headerIdx + 1} và nạp đồng loạt ${danhSachUpload.length} nhân sự mới vào hệ thống đám mây.`);
                 }
                 
                 document.getElementById('search-ns').value = "";
@@ -559,7 +574,7 @@
                 await taiDuLieuTuCloud(false);
 
             } catch (err) {
-                alert("Lỗi cấu trúc tệp Excel: " + err.message);
+                alert("Lỗi phân tích tệp Excel: " + err.message);
             }
         };
         reader.readAsArrayBuffer(file);
@@ -604,6 +619,7 @@
         document.getElementById('count-ns').innerText = CACHE_NHAN_SU.length;
     }
 
+    // --- CÁC HÀM PHỤ TRỢ CHO 3 PHẦN THIẾT BỊ, BẢO TRÌ, CHI PHÍ (GIỮ NGUYÊN) ---
     function tuDongSinhMaThietBi() {
         if(isEditing) return;
         document.getElementById('tb-ma').value = `TB-2026-${String(CACHE_THIẾT_BỊ.length + 1).padStart(4, '0')}`;
