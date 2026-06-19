@@ -1,91 +1,386 @@
-function xuLyImportExcelNhanSu(input) {
-    const file = input.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = async function(e) {
-        try {
-            const data = new Uint8Array(e.target.result);
-            const workbook = XLSX.read(data, { type: 'array' });
-            const firstSheetName = workbook.SheetNames[0];
-            const worksheet = workbook.Sheets[firstSheetName];
-            
-            const jsonData = XLSX.utils.sheet_to_json(worksheet);
-            if (jsonData.length === 0) {
-                alert("⚠️ File Excel không có dữ liệu hoặc trống!");
-                input.value = ""; return;
-            }
-
-            let danhSachUpload = [];
-            let tuSinhMaId = CACHE_NHÂN_SỰ.length + 1;
-
-            for(let i = 0; i < jsonData.length; i++) {
-                const row = jsonData[i];
-                
-                // Đọc chính xác theo key tiêu đề trong file Book1_chuan_hoa của bạn
-                let hoTen = row["ho_va_ten"] || row["ho_ten"] || row["Họ và tên"];
-                let cccd = row["so_cccd"] || row["Số CCCD"] || "";
-                let chucVu = row["chuc_danh_cong_viec"] || row["chuc_vu"] || "Công nhân";
-                let ngaySinhRaw = row["ngay_sinh"] || row["nam_sinh"] || "";
-                let gioiTinh = row["nu_x"] === "X" || row["nu_x"] === "x" ? "Nữ" : "Nam";
-                let maDonVi = row["ma_don_vi"] || "Tổng công ty Giấy";
-                let soBhxh = row["so_bhxh"] || "";
-
-                // Định dạng lại ngày sinh nếu có dữ liệu ngày từ Excel (bỏ phần giờ 00:00:00 đi nếu có)
-                let ngaySinh = "";
-                if (ngaySinhRaw) {
-                    ngaySinh = ngaySinhRaw.toString().split(' ')[0]; 
-                }
-
-                // Nếu dòng này không có tên thì bỏ qua
-                if (!hoTen) continue; 
-
-                // Tự động sinh Mã Nhân Sự liên tục dựa trên STT tăng dần
-                let maNV = `NS-${String(tuSinhMaId).padStart(4, '0')}`;
-                tuSinhMaId++;
-
-                // Đóng gói đúng cấu trúc 14 trường để đẩy lên Supabase
-                danhSachUpload.push({
-                    ma_nhan_su: maNV,
-                    ho_ten: hoTen.toString().trim(),
-                    phong_ban: maDonVi.toString().trim(), // Gắn tạm mã đơn vị/phòng ban
-                    chuc_vu: chucVu.toString().trim(),
-                    gioi_tinh: gioiTinh,
-                    ngay_sinh: ngaySinh,
-                    noi_sinh: "", 
-                    nguyen_quan: "",
-                    cccd: cccd.toString().trim(),
-                    ngay_cap: "",
-                    noi_cap: "",
-                    dia_chi_thuong_tru: "Theo Số BHXH: " + soBhxh, // Tận dụng lưu thêm thông tin cần thiết
-                    dia_chi_hien_tai: "Tổng công ty Giấy Việt Nam",
-                    trang_thai: "Đang làm việc"
-                });
-            }
-
-            if (danhSachUpload.length === 0) {
-                alert("❌ Không quét được nhân sự nào hợp lệ. Vui lòng kiểm tra lại cột 'ho_va_ten' trong file.");
-                input.value = ""; return;
-            }
-
-            if(confirm(`📦 Đã bóc tách thành công ${danhSachUpload.length} nhân sự từ file gốc.\nBấm OK để thực hiện Bulk Insert lên Cloud?`)) {
-                // Đẩy toàn bộ mảng dữ liệu lên Supabase trong 1 request duy nhất
-                const { data: insertedData, error } = await client.from('nhan_su').insert(danhSachUpload).select();
-                
-                if (error) {
-                    console.error("Chi tiết lỗi Supabase:", error);
-                    alert("❌ Lỗi nạp dữ liệu lên đám mây: " + (error.message || JSON.stringify(error)));
-                } else {
-                    alert(`🎉 Thành công! Đã nạp đồng bộ ${danhSachUpload.length} nhân sự vào hệ thống quản lý.`);
-                    if(insertedData) CACHE_NHÂN_SỰ = CACHE_NHÂN_SỰ.concat(insertedData);
-                    locGiaoDienNhanSu();
-                }
-            }
-        } catch(err) {
-            console.error(err);
-            alert("❌ Lỗi cấu trúc trong quá trình xử lý tệp!");
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ Thống Quản Lý Tổng Hợp Nhân Sự & Thiết Bị QR Quốc Tế</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <style>
+        :root {
+            --primary-color: #1e3a8a;
+            --accent-color: #ef4444;
+            --bg-color: #f8fafc;
+            --panel-bg: #ffffff;
+            --border-color: #cbd5e1;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --purple-color: #8b5cf6;
+            --dark-blue: #0f172a;
         }
-        input.value = ""; 
-    };
-    reader.readAsArrayBuffer(file);
-}
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
+        body { background-color: var(--bg-color); color: #1e293b; padding: 20px; }
+        .container { max-width: 1750px; margin: 0 auto; }
+        
+        header { 
+            background: linear-gradient(135deg, #1e3a8a, #3b82f6); 
+            color: white; padding: 20px; border-radius: 12px; margin-bottom: 25px; text-align: center;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+        header h1 { font-size: 1.7rem; margin-bottom: 5px; }
+        
+        .nav-tabs { display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 3px solid var(--primary-color); flex-wrap: wrap; }
+        .tab-btn { padding: 12px 20px; font-weight: bold; background: #e2e8f0; border: none; border-radius: 8px 8px 0 0; cursor: pointer; color: #475569; transition: all 0.2s; font-size: 0.9rem; }
+        .tab-btn.active { background: var(--primary-color); color: white; }
+        
+        .tab-content { display: none; }
+        .tab-content.active { display: grid; grid-template-columns: 450px 1fr; gap: 25px; }
+        
+        .panel { background: var(--panel-bg); padding: 25px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; height: fit-content; }
+        .panel-excel { background: #f0fdf4; border: 2px dashed #10b981; padding: 20px; border-radius: 12px; margin-top: 20px; }
+        h2 { margin-bottom: 20px; font-size: 1.2rem; color: var(--primary-color); border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; font-weight: 700; }
+        h3 { font-size: 1rem; color: #166534; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+        
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .form-group { margin-bottom: 14px; position: relative; }
+        .form-group.full-width { grid-column: span 2; }
+        .form-group label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 0.85rem; color: #334155; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 9px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 0.9rem; }
+        
+        .btn { display: inline-flex; align-items: center; justify-content: center; width: 100%; padding: 11px; margin-bottom: 10px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: all 0.2s; font-size: 0.9rem; gap: 6px; }
+        .btn-purple { background-color: var(--purple-color); color: white; }
+        .btn-cancel { background-color: #94a3b8; color: white; }
+        .btn-excel-download { background-color: #16a34a; color: white; padding: 8px 12px; font-size: 0.85rem; width: auto; display: inline-flex; margin-bottom: 0; }
+        
+        .filter-section { background: #ffffff; padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #e2e8f0; display: flex; flex-wrap: wrap; gap: 15px; align-items: center; }
+        .search-group { flex: 1; min-width: 250px; }
+        .search-group input { width: 100%; padding: 11px; border: 1px solid var(--border-color); border-radius: 8px; }
+        
+        .table-responsive { overflow-x: auto; background: white; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 25px; }
+        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem; white-space: nowrap; }
+        th, td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; vertical-align: middle; }
+        th { background-color: #f8fafc; color: #475569; font-weight: 700; }
+        
+        .status-pill { padding: 3px 8px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; display: inline-block; }
+        .status-good { background-color: #dcfce7; color: #15803d; }
+        .status-warn { background-color: #fef9c3; color: #a16207; }
+        .status-danger { background-color: #fee2e2; color: #b91c1c; }
+        
+        .finance-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .card-stat { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px; display: flex; flex-direction: column; gap: 5px; border-left: 5px solid var(--primary-color); }
+        .card-stat.purple { border-left-color: var(--purple-color); }
+        .card-stat.paid { border-left-color: var(--success-color); }
+        .card-stat-label { font-size: 0.8rem; font-weight: 600; color: #64748b; text-transform: uppercase; }
+        .card-stat-value { font-size: 1.4rem; font-weight: 800; color: #0f172a; }
+        .btn-action { padding: 4px 8px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.75rem; font-weight: 600; color: white; background-color: #f59e0b; }
+    </style>
+</head>
+<body>
+
+<div id="main-admin-app" class="container">
+    <header>
+        <h1>HỆ THỐNG ĐỒNG BỘ TỔNG HỢP: NHÂN SỰ, THIẾT BỊ QR & QUẢN LÝ TÀI LIỆU CHỨNG TỪ</h1>
+        <p>Quản Lý Tài Sản Thiết Bị Độc Lập - Lưu Trữ Hồ Sơ Số Hoá Phục Vụ Thanh Quyết Toán</p>
+    </header>
+
+    <div class="nav-tabs">
+        <button class="tab-btn" onclick="switchTab('thiet-bi')">💻 CẤP PHÁT & IN TEM QR THIẾT BỊ</button>
+        <button class="tab-btn" onclick="switchTab('sua-chua')">🛠️ THEO DÕI LỊCH SỬ SỬA CHỮA</button>
+        <button class="tab-btn" onclick="switchTab('thanh-toan')">💰 QUẢN LÝ THANH TOÁN BẢO TRÌ</button>
+        <button class="tab-btn active" onclick="switchTab('nhan-su')">👤 QUẢN LÝ HỒ SƠ NHÂN SỰ</button>
+    </div>
+
+    <div id="tab-thiet-bi" class="tab-content"><div class="panel"><h2>CẤP PHÁT THIẾT BỊ MỚI</h2></div></div>
+    <div id="tab-sua-chua" class="tab-content"><div class="panel"><h2>BÁO CÁO SỬA CHỮA</h2></div></div>
+    <div id="tab-thanh-toan" class="tab-content"><div class="panel"><h2>LẬP HỒ SƠ THANH TOÁN MỚI</h2></div></div>
+
+    <div id="tab-nhan-su" class="tab-content active">
+        <div class="panel">
+            <h2 id="form-title-ns">HỒ SƠ THÔNG TIN NHÂN VIÊN</h2>
+            <form id="form-nhansu" onsubmit="xuLyLuuNhanSu(event)">
+                <input type="hidden" id="ns-id-db">
+                <div class="form-grid">
+                    <div class="form-group"><label>Mã Nhân Sự (*):</label><input type="text" id="ns-ma" placeholder="NS-0001"></div>
+                    <div class="form-group"><label>Họ và Tên (*):</label><input type="text" id="ns-hoten" required></div>
+                    <div class="form-group"><label>Phòng Ban / Đơn Vị:</label><input type="text" id="ns-phongban"></div>
+                    <div class="form-group"><label>Vị Trí Công Việc:</label><input type="text" id="ns-chucvu"></div>
+                    <div class="form-group"><label>Giới Tính:</label><select id="ns-gioitinh"><option value="Nam">Nam</option><option value="Nữ">Nữ</option></select></div>
+                    <div class="form-group"><label>Ngày Sinh:</label><input type="text" id="ns-ngaysinh" placeholder="YYYY-MM-DD"></div>
+                    <div class="form-group"><label>Số CCCD:</label><input type="text" id="ns-cccd"></div>
+                    <div class="form-group"><label>Số BHXH:</label><input type="text" id="ns-sbhxh" placeholder="Mã số BHXH"></div>
+                    <div class="form-group full-width"><label>Trạng Thái Làm Việc:</label>
+                        <select id="ns-trangthai">
+                            <option value="Đang làm việc">🟢 Đang làm việc</option>
+                            <option value="Thử việc">🟡 Thử việc</option>
+                            <option value="Đã nghỉ việc">🔴 Đã nghỉ việc</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" id="btn-submit-ns" class="btn btn-purple">👤 LƯU HỒ SƠ THỦ CÔNG</button>
+                <button type="button" id="btn-cancel-ns" class="btn btn-cancel" style="display:none;" onclick="huyCheDoSuaNhanSu()">❌ HUỶ SỬA</button>
+            </form>
+
+            <div class="panel-excel">
+                <h3>🟢 NHẬP NHÂN SỰ HÀNG LOẠT (EXCEL)</h3>
+                <p style="font-size: 0.8rem; color:#475569; margin-bottom: 12px; line-height:1.4;">
+                    Hệ thống tự động bóc tách từ file `Book1_chuan_hoa.xlsx` của bạn.
+                </p>
+                <div class="form-group" style="margin-top:12px; margin-bottom:0;">
+                    <label style="color:#166534; font-weight: bold;">Chọn File Excel Nhân Sự:</label>
+                    <input type="file" id="excel-file-input" accept=".xlsx, .xls, .csv" onchange="xuLyImportExcelNhanSu(this)">
+                </div>
+            </div>
+        </div>
+
+        <div class="panel" style="background:transparent; border:none; padding:0;">
+            <div class="finance-cards">
+                <div class="card-stat purple"><span class="card-stat-label">Tổng Nhân Sự Hệ Thống</span><span class="card-stat-value" id="stat-tong-ns">0</span></div>
+                <div class="card-stat paid"><span class="card-stat-label">Đang Làm Việc</span><span class="card-stat-value" id="stat-ns-lamviec">0</span></div>
+            </div>
+            <div class="filter-section">
+                <div class="search-group">
+                    <input type="text" id="search-ns" placeholder="🔍 Tìm nhanh theo Tên, Mã NV, Số CCCD hoặc Phòng ban..." oninput="locGiaoDienNhanSu()">
+                </div>
+            </div>
+            
+            <h2>DANH SÁCH CHI TIẾT HỒ SƠ NHÂN SỰ</h2>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Thao Tác</th>
+                            <th>Mã NV</th>
+                            <th>Họ và Tên</th>
+                            <th>Phòng Ban</th>
+                            <th>Vị Trí Công Việc</th>
+                            <th>Giới Tính</th>
+                            <th>Ngày Sinh</th>
+                            <th>Số CCCD</th>
+                            <th>Trạng Thái</th>
+                        </tr>
+                    </thead>
+                    <tbody id="body-ns-table"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const SUPABASE_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co".trim(); 
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ".trim(); 
+    
+    let client;
+    let CACHE_NHÂN_SỰ = [];
+    let isEditingNS = false;
+
+    document.addEventListener("DOMContentLoaded", function() {
+        client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        taiDuLieuTuCloud();
+    });
+
+    function switchTab(tabName) {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        if(tabName === 'nhan-su') {
+            document.querySelectorAll('.tab-btn')[3].classList.add('active');
+            document.getElementById('tab-nhan-su').classList.add('active');
+            locGiaoDienNhanSu();
+        }
+    }
+
+    async function taiDuLieuTuCloud() {
+        try {
+            const resNS = await client.from('nhan_su').select('*').order('ma_nhan_su');
+            if(resNS.data) {
+                CACHE_NHÂN_SỰ = resNS.data;
+                locGiaoDienNhanSu();
+            }
+        } catch(e) { console.error("Lỗi kết nối Cloud:", e); }
+    }
+
+    // XỬ LÝ IMPORT EXCEL HÀNG LOẠT VỚI BỘ LỌC LÀM SẠCH DỮ LIỆU
+    function xuLyImportExcelNhanSu(input) {
+        const file = input.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async function(e) {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                
+                const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                if (jsonData.length === 0) {
+                    alert("⚠️ File Excel không chứa bản ghi dữ liệu!");
+                    input.value = ""; return;
+                }
+
+                let danhSachUpload = [];
+                let tuSinhMaId = CACHE_NHÂN_SỰ.length + 1;
+
+                for(let i = 0; i < jsonData.length; i++) {
+                    const row = jsonData[i];
+                    
+                    let hoTen = row["ho_va_ten"] || row["ho_ten"] || row["Họ và tên"];
+                    if (!hoTen) continue; // Bỏ qua dòng trống tên
+
+                    let cccd = row["so_cccd"] || row["Số CCCD"] || "";
+                    let chucVu = row["chuc_danh_cong_viec"] || row["chuc_vu"] || "";
+                    let ngaySinhRaw = row["ngay_sinh"] || row["nam_sinh"] || "";
+                    let gioiTinh = row["nu_x"] && row["nu_x"].toString().trim().toUpperCase() === "X" ? "Nữ" : "Nam";
+                    let maDonVi = row["ma_don_vi"] || "Tổng công ty Giấy";
+                    let soBhxh = row["so_bhxh"] || "";
+
+                    // Làm sạch định dạng ngày sinh, cắt chuỗi bỏ phần giờ 00:00:00 thừa
+                    let ngaySinhCleaned = "";
+                    if (ngaySinhRaw) {
+                        ngaySinhCleaned = ngaySinhRaw.toString().split(' ')[0].trim();
+                    }
+
+                    let maNV = row["ma_nhan_su"] || row["ma_nv"] || `NS-${String(tuSinhMaId).padStart(4, '0')}`;
+                    tuSinhMaId++;
+
+                    // Chỉ đẩy lên những trường đảm bảo text an toàn tránh lỗi schema của DB cũ
+                    danhSachUpload.push({
+                        ma_nhan_su: maNV.toString().trim(),
+                        ho_ten: hoTen.toString().trim(),
+                        phong_ban: maDonVi.toString().trim(),
+                        chuc_vu: chucVu.toString().trim(),
+                        gioi_tinh: gioiTinh,
+                        ngay_sinh: ngaySinhCleaned,
+                        cccd: cccd.toString().trim(),
+                        trang_thai: "Đang làm việc"
+                    });
+                }
+
+                if (danhSachUpload.length === 0) {
+                    alert("❌ Không quét được nhân sự nào hợp lệ.");
+                    input.value = ""; return;
+                }
+
+                if(confirm(`📦 Tìm thấy ${danhSachUpload.length} nhân sự đã được làm sạch cấu trúc ngày.\nBấm OK để nạp lên Supabase Cloud?`)) {
+                    // Thực hiện Bulk Insert
+                    const { data: insertedData, error } = await client.from('nhan_su').insert(danhSachUpload).select();
+                    
+                    if (error && Object.keys(error).length > 0) {
+                        console.error("Lỗi chi tiết từ Supabase DB:", error);
+                        alert("❌ Thất bại: " + error.message);
+                    } else {
+                        alert(`🎉 Thành công! Hệ thống đã nạp ${danhSachUpload.length} nhân sự lên Đám mây.`);
+                        if(insertedData && insertedData.length > 0) {
+                            CACHE_NHÂN_SỰ = CACHE_NHÂN_SỰ.concat(insertedData);
+                        } else {
+                            // Phòng hờ nếu database lưu thành công nhưng trả ra mảng kết quả trống
+                            await taiDuLieuTuCloud();
+                        }
+                        locGiaoDienNhanSu();
+                    }
+                }
+            } catch(err) {
+                console.error("Lỗi JavaScript xử lý tệp:", err);
+                alert("❌ Lỗi cấu trúc tệp dữ liệu!");
+            }
+            input.value = ""; 
+        };
+        reader.readAsArrayBuffer(file);
+    }
+
+    async function xuLyLuuNhanSu(e) {
+        e.preventDefault();
+        const idDb = document.getElementById('ns-id-db').value;
+        const obj = {
+            ma_nhan_su: document.getElementById('ns-ma').value.trim(),
+            ho_ten: document.getElementById('ns-hoten').value.trim(),
+            phong_ban: document.getElementById('ns-phongban').value.trim(),
+            chuc_vu: document.getElementById('ns-chucvu').value.trim(),
+            gioi_tinh: document.getElementById('ns-gioitinh').value,
+            ngay_sinh: document.getElementById('ns-ngaysinh').value.trim(),
+            cccd: document.getElementById('ns-cccd').value.trim(),
+            trang_thai: document.getElementById('ns-trangthai').value
+        };
+
+        if(!isEditingNS) {
+            const { data, error } = await client.from('nhan_su').insert([obj]).select();
+            if(!error && data) CACHE_NHÂN_SỰ.push(data[0]);
+        } else {
+            const { error } = await client.from('nhan_su').update(obj).eq('id', idDb);
+            if(!error) {
+                const idx = CACHE_NHÂN_SỰ.findIndex(x => x.id == idDb);
+                if(idx !== -1) CACHE_NHÂN_SỰ[idx] = { ...obj, id: idDb };
+            }
+        }
+        alert("👤 Cập nhật dữ liệu thành công!");
+        huyCheDoSuaNhanSu();
+        locGiaoDienNhanSu();
+    }
+
+    function kichHoatCheDoSuaNhanSu(id, ma, hoten, pb, cv, gt, ns, cccd, tthai) {
+        isEditingNS = true;
+        document.getElementById('form-title-ns').innerText = "⚙️ ĐIỀU CHỈNH HỒ SƠ: " + ma;
+        document.getElementById('ns-id-db').value = id;
+        document.getElementById('ns-ma').value = ma;
+        document.getElementById('ns-hoten').value = hoten;
+        document.getElementById('ns-phongban').value = pb;
+        document.getElementById('ns-chucvu').value = cv;
+        document.getElementById('ns-gioitinh').value = gt || "Nam";
+        document.getElementById('ns-ngaysinh').value = ns;
+        document.getElementById('ns-cccd').value = cccd;
+        document.getElementById('ns-trangthai').value = tthai;
+        document.getElementById('btn-submit-ns').innerText = "🔄 CẬP NHẬT HỒ SƠ";
+        document.getElementById('btn-cancel-ns').style.display = 'block';
+    }
+
+    function huyCheDoSuaNhanSu() {
+        isEditingNS = false;
+        document.getElementById('form-title-ns').innerText = "HỒ SƠ THÔNG TIN NHÂN VIÊN";
+        document.getElementById('form-nhansu').reset();
+        document.getElementById('ns-id-db').value = '';
+        document.getElementById('btn-submit-ns').innerText = "👤 LƯU HỒ SƠ THỦ CÔNG";
+        document.getElementById('btn-cancel-ns').style.display = 'none';
+    }
+
+    function locGiaoDienNhanSu() {
+        const tbody = document.getElementById('body-ns-table');
+        if(!tbody) return; tbody.innerHTML = '';
+        const k = document.getElementById('search-ns').value.toLowerCase().trim();
+
+        let tongLamViec = 0;
+        CACHE_NHÂN_SỰ.forEach(ns => {
+            if(ns.trang_thai === "Đang làm việc") tongLamViec++;
+
+            if(k && !ns.ho_ten.toLowerCase().includes(k) && 
+                   !ns.ma_nhan_su.toLowerCase().includes(k) && 
+                   !ns.cccd.toLowerCase().includes(k) && 
+                   !(ns.phong_ban || "").toLowerCase().includes(k)) return;
+
+            let badge = "status-good";
+            if(ns.trang_thai === "Thử việc") badge = "status-warn";
+            if(ns.trang_thai === "Đã nghỉ việc") badge = "status-danger";
+
+            tbody.innerHTML += `<tr>
+                <td>
+                    <button class="btn-action" onclick="kichHoatCheDoSuaNhanSu('${ns.id}', '${ns.ma_nhan_su}', '${escapeHtml(ns.ho_ten)}', '${escapeHtml(ns.phong_ban||"")}', '${escapeHtml(ns.chuc_vu||"")}', '${ns.gioi_tinh||""}', '${ns.ngay_sinh||""}', '${ns.cccd||""}', '${ns.trang_thai}')">⚙️ Sửa</button>
+                </td>
+                <td><b>${ns.ma_nhan_su}</b></td>
+                <td><b>${ns.ho_ten}</b></td>
+                <td>${ns.phong_ban || ""}</td>
+                <td>${ns.chuc_vu || ""}</td>
+                <td>${ns.gioi_tinh || ""}</td>
+                <td>${ns.ngay_sinh || ""}</td>
+                <td>${ns.cccd || ""}</td>
+                <td><span class="status-pill ${badge}">${ns.trang_thai}</span></td>
+            </tr>`;
+        });
+
+        document.getElementById('stat-tong-ns').innerText = CACHE_NHÂN_SỰ.length;
+        document.getElementById('stat-ns-lamviec').innerText = tongLamViec;
+    }
+
+    function escapeHtml(text) { return text ? text.replace(/'/g, "\\'").replace(/"/g, '&quot;') : ''; }
+</script>
+</body>
+</html>
