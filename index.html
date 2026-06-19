@@ -38,7 +38,9 @@
         .tab-content.active { display: grid; grid-template-columns: 420px 1fr; gap: 25px; }
         
         .panel { background: var(--panel-bg); padding: 25px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; height: fit-content; }
+        .panel-excel { background: #f0fdf4; border: 2px dashed #10b981; padding: 15px; border-radius: 12px; margin-top: 15px; }
         h2 { margin-bottom: 20px; font-size: 1.2rem; color: var(--primary-color); border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; font-weight: 700; }
+        h3 { font-size: 1rem; color: #166534; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
         
         .form-group { margin-bottom: 16px; position: relative; }
         .form-group label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 0.9rem; color: #334155; }
@@ -56,6 +58,7 @@
         .btn-cancel { background-color: #94a3b8; color: white; }
         .btn-dark { background-color: var(--dark-blue); color: white; }
         .btn-purple { background-color: var(--purple-color); color: white; }
+        .btn-excel-download { background-color: #16a34a; color: white; padding: 8px 12px; font-size: 0.85rem; width: auto; display: inline-flex; margin-bottom: 0; }
         
         .filter-section { background: #ffffff; padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #e2e8f0; display: flex; flex-wrap: wrap; gap: 15px; align-items: center; }
         .search-group { flex: 1; min-width: 250px; }
@@ -82,7 +85,6 @@
         .action-btns { display: flex; gap: 6px; flex-wrap: wrap; }
         .btn-action { display: inline-flex; align-items: center; gap: 4px; padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 600; color: white; transition: all 0.2s; }
         .btn-action-edit { background-color: #f59e0b; }
-        .btn-action-delete { background-color: #ef4444; }
         
         .btn-view-doc { background-color: #0284c7; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; text-decoration: none; font-weight: bold; display: inline-flex; align-items: center; gap: 4px; }
         .btn-view-doc:hover { background-color: #0369a1; }
@@ -104,6 +106,7 @@
         <button class="tab-btn" onclick="switchTab('nhan-su')">👤 QUẢN LÝ HỒ SƠ NHÂN SỰ</button>
     </div>
 
+    <!-- PHÂN HỆ THIẾT BỊ -->
     <div id="tab-thiet-bi" class="tab-content active">
         <div class="panel">
             <h2 id="form-title-tb">CẤP PHÁT THIẾT BỊ MỚI</h2>
@@ -146,6 +149,7 @@
         </div>
     </div>
 
+    <!-- PHÂN HỆ SỬA CHỮA -->
     <div id="tab-sua-chua" class="tab-content">
         <div class="panel">
             <h2 id="form-title-sc">BÁO CÁO SỬA CHỮA / BẢO TRÌ</h2>
@@ -185,6 +189,7 @@
         </div>
     </div>
 
+    <!-- PHÂN HỆ THANH TOÁN -->
     <div id="tab-thanh-toan" class="tab-content">
         <div class="panel">
             <h2 id="form-title-tt">LẬP HỒ SƠ THANH TOÁN MỚI</h2>
@@ -246,6 +251,7 @@
         </div>
     </div>
 
+    <!-- PHÂN HỆ QUẢN LÝ HỒ SƠ NHÂN SỰ (HỖ TRỢ IMPORT EXCEL HÀNG LOẠT) -->
     <div id="tab-nhan-su" class="tab-content">
         <div class="panel">
             <h2 id="form-title-ns">THÊM NHÂN SỰ & HỒ SƠ SỐ HÓA</h2>
@@ -293,6 +299,19 @@
                 <button type="submit" id="btn-submit-ns" class="btn btn-purple">👤 LƯU HỒ SƠ NHÂN SỰ</button>
                 <button type="button" id="btn-cancel-ns" class="btn btn-cancel" style="display:none;" onclick="huyCheDoSuaNhanSu()">❌ HUỶ SỬA</button>
             </form>
+
+            <!-- KHU VỰC NHẬP HÀNG LOẠT BẰNG EXCEL -->
+            <div class="panel-excel">
+                <h3>🟢 NHẬP NHÂN SỰ HÀNG LOẠT (EXCEL)</h3>
+                <p style="font-size: 0.8rem; color:#475569; margin-bottom: 10px; line-height:1.4;">
+                    Hệ thống tự động sinh Mã NV tăng dần dựa trên dữ liệu hiện tại. Bạn chỉ cần điền các thông tin cơ bản.
+                </p>
+                <button type="button" class="btn btn-excel-download" onclick="taiExcelMauNhanSu()">📥 Tải File Excel Mẫu</button>
+                <div class="form-group" style="margin-top:12px; margin-bottom:0;">
+                    <label style="color:#166534;">Chọn file dữ liệu Excel để Upload:</label>
+                    <input type="file" id="excel-file-input" accept=".xlsx, .xls" onchange="xuLyImportExcelNhanSu(this)">
+                </div>
+            </div>
         </div>
 
         <div class="panel" style="background:transparent; border:none; padding:0;">
@@ -692,10 +711,103 @@
         document.getElementById('stat-tien-cho-duyet').innerText = tongTienChoDuyet.toLocaleString('vi-VN') + " VNĐ";
     }
 
-    // --- LOGIC PHÂN HỆ NHÂN SỰ ---
+    // --- LOGIC PHÂN HỆ NHÂN SỰ & IMPORT EXCEL ---
     function tuDongSinhMaNhanSu() {
         if(isEditingNS) return;
         document.getElementById('ns-ma').value = `NS-${String(CACHE_NHÂN_SỰ.length + 1).padStart(4, '0')}`;
+    }
+
+    // Chức năng 1: Tạo file mẫu cho người dùng tải xuống
+    function taiExcelMauNhanSu() {
+        const header = [["Họ và Tên Nhân Viên", "Bộ Phận Phòng Ban", "Chức Vụ", "Số CCCD Hộ Chiếu", "Trạng Thái Làm Việc"]];
+        const sampleData = [
+            ["Nguyễn Văn A", "Phòng Kỹ Thuật", "Chuyên viên", "001095001234", "Đang làm việc"],
+            ["Trần Thị B", "Phòng Nhân Sự", "Trưởng phòng", "002096005678", "Thử việc"]
+        ];
+        const ws = XLSX.utils.aoa_to_sheet(header.concat(sampleData));
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Mau_Nhan_Su");
+        XLSX.writeFile(wb, "Template_Import_Nhan_Su.xlsx");
+    }
+
+    // Chức năng 2: Đọc file Excel người dùng Upload và Bulk Insert vào Supabase
+    function xuLyImportExcelNhanSu(input) {
+        const file = input.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async function(e) {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                
+                // Chuyển dữ liệu Excel sang dạng Mảng các Object JSON
+                const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                if (jsonData.length === 0) {
+                    alert("⚠️ File Excel trống hoặc sai cấu trúc định dạng!");
+                    input.value = ""; return;
+                }
+
+                let mangNhanSuUpload = [];
+                let batDauMaSo = CACHE_NHÂN_SỰ.length + 1;
+
+                // Duyệt qua từng hàng thông tin của Excel
+                for(let i = 0; i < jsonData.length; i++) {
+                    const row = jsonData[i];
+                    
+                    // Lấy động dữ liệu theo Header mẫu
+                    const hoTen = row["Họ và Tên Nhân Viên"] || row["ho_ten"];
+                    const phongBan = row["Bộ Phận Phòng Ban"] || row["phong_ban"] || "Phòng Nhân Sự";
+                    const chucVu = row["Chức Vụ"] || row["chuc_vu"] || "Chuyên viên";
+                    const cccd = row["Số CCCD Hộ Chiếu"] || row["cccd"] || "";
+                    const trangThai = row["Trạng Thái Làm Việc"] || row["trang_thai"] || "Đang làm việc";
+
+                    if (!hoTen) continue; // Bỏ qua dòng trống tên nhân sự
+
+                    // Sinh mã tự động liên tục
+                    const maMoi = `NS-${String(batDauMaSo).padStart(4, '0')}`;
+                    batDauMaSo++;
+
+                    mangNhanSuUpload.push({
+                        ma_nhan_su: maMoi,
+                        ho_ten: hoTen.toString().trim(),
+                        phong_ban: phongBan.toString().trim(),
+                        chuc_vu: chucVu.toString().trim(),
+                        cccd: cccd.toString().trim(),
+                        trang_thai: trangThai.toString().trim(),
+                        file_data: "",
+                        file_name: ""
+                    });
+                }
+
+                if (mangNhanSuUpload.length === 0) {
+                    alert("❌ Không trích xuất được bản ghi nhân sự hợp lệ nào từ Excel!");
+                    input.value = ""; return;
+                }
+
+                if(confirm(`📦 Phát hiện ${mangNhanSuUpload.length} hồ sơ nhân sự hợp lệ. Bấm OK để tiến hành nạp đồng bộ Đám mây?`)) {
+                    // Thực hiện Insert hàng loạt (Bulk Insert) lên Supabase để tối ưu băng thông
+                    const { data: insertedData, error } = await client.from('nhan_su').insert(mangNhanSuUpload).select();
+                    
+                    if (error) {
+                        console.error(error);
+                        alert("❌ Thao tác lưu trên Cloud thất bại: " + error.message);
+                    } else {
+                        alert(`🎉 Thành công! Đã nạp vào hệ thống ${mangNhanSuUpload.length} nhân sự mới từ dữ liệu Excel.`);
+                        // Cập nhật lại bộ nhớ đệm ứng dụng
+                        if(insertedData) CACHE_NHÂN_SỰ = CACHE_NHÂN_SỰ.concat(insertedData);
+                        locGiaoDienNhanSu();
+                    }
+                }
+            } catch(err) {
+                console.error(err);
+                alert("❌ Đã có lỗi xảy ra trong quá trình xử lý cấu trúc tệp Excel!");
+            }
+            input.value = ""; // Clear dữ liệu input file
+        };
+        reader.readAsArrayBuffer(file);
     }
 
     async function xuLyLuuNhanSu(e) {
