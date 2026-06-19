@@ -190,15 +190,17 @@
                 </div>
                 <div class="form-group">
                     <label>Liên kết thiết bị bảo trì:</label>
-                    <select id="tt-ma-tb" required></select>
+                    <select id="tt-ma-tb" required>
+                        <option value="">-- Chọn thiết bị để thanh toán --</option>
+                    </select>
                 </div>
                 <div class="form-group">
                     <label>Đơn vị sửa chữa:</label>
-                    <input type="text" id="tt-don-vi" required>
+                    <input type="text" id="tt-don-vi" placeholder="Nhập tên đơn vị/cửa hàng sửa chữa" required>
                 </div>
                 <div class="form-group">
                     <label>Tổng giá trị thanh toán (VNĐ):</label>
-                    <input type="number" id="tt-so-tien" required>
+                    <input type="number" id="tt-so-tien" placeholder="Nhập số tiền" required>
                 </div>
                 <div class="form-group">
                     <label>📁 Đính kèm tài liệu (Phiếu yêu cầu, hóa đơn...):</label>
@@ -357,6 +359,9 @@
                 }
 
                 let danhSachUpload = [];
+                // Lấy danh sách tên nhân sự đã tồn tại để tránh nạp đè làm lỗi dữ liệu ổn định cũ
+                let danhSachTenCu = CACHE_NHAN_SU.map(n => String(n.ho_ten).toLowerCase().trim());
+
                 jsonRows.forEach(row => {
                     let hoTen = row["Họ và tên của bạn:"] || row["Họ và tên"] || row["Họ tên"] || Object.values(row)[1];
                     let gioiTinh = row["Giới tính:"] || row["Giới tính"] || "---";
@@ -364,25 +369,36 @@
                     let boPhan = row["Bộ phận công tác:"] || row["Bộ phận"] || "---";
 
                     if(hoTen) {
-                        danhSachUpload.push({
-                            ho_ten: String(hoTen).trim(),
-                            gioi_tinh: String(gioiTinh).trim(),
-                            nam_sinh: String(namSinh).trim(),
-                            chuc_danh_cong_viec: String(boPhan).trim()
-                        });
+                        let normalizedTen = String(hoTen).trim();
+                        // CHỈ THÊM NẾU TÊN CHƯA TỒN TẠI TRÊN CLOUD
+                        if (!danhSachTenCu.includes(normalizedTen.toLowerCase())) {
+                            danhSachUpload.push({
+                                ho_ten: normalizedTen,
+                                gioi_tinh: String(gioiTinh).trim(),
+                                nam_sinh: String(namSinh).trim(),
+                                chuc_danh_cong_viec: String(boPhan).trim()
+                            });
+                        }
                     }
                 });
 
-                if(danhSachUpload.length > 0) {
-                    alert(`🔄 Đang tải đồng bộ ${danhSachUpload.length} nhân sự lên Cloud Supabase...`);
-                    const { error } = await client.from('nhan_su').insert(danhSachUpload);
-                    if(error) {
-                        console.error(error);
-                        alert("Lỗi khi tải lên Cloud: " + error.message);
-                    } else {
-                        alert("🎉 Đã nhập thành công toàn bộ nhân sự từ file Excel khảo sát!");
-                        taiDuLieuTuCloud();
-                    }
+                if(danhSachUpload.length === 0) {
+                    alert("Mọi nhân sự trong File Excel này đều đã tồn tại trên Cloud. Không có dữ liệu mới nào được thêm vào để bảo vệ danh sách ổn định gốc!");
+                    input.value = "";
+                    return;
+                }
+
+                alert(`🔄 Phát hiện thêm ${danhSachUpload.length} nhân sự mới. Đang nạp đồng bộ an toàn lên Cloud Supabase...`);
+                const { error } = await client.from('nhan_su').insert(danhSachUpload);
+                if(error) {
+                    console.error(error);
+                    alert("Lỗi khi tải lên Cloud: " + error.message);
+                } else {
+                    alert("🎉 Đã nhập thành công các nhân sự mới và giữ nguyên dữ liệu gốc ổn định!");
+                    // Xoá từ khoá tìm kiếm để hiển thị lại toàn bộ dữ liệu đầy đủ
+                    document.getElementById('search-ns').value = "";
+                    input.value = "";
+                    await taiDuLieuTuCloud();
                 }
             } catch (err) {
                 alert("Không thể đọc file Excel này. Vui lòng kiểm tra lại cấu trúc file!");
@@ -473,27 +489,16 @@
             ngay_cap_phat: new Date().toLocaleDateString('vi-VN')
         };
         
-        if (!isEditing) {
-            obj.id = 'temp_' + Date.now();
-            CACHE_THIẾT_BỊ.push(obj);
-        } else {
-            const idx = CACHE_THIẾT_BỊ.findIndex(x => x.id == idDb);
-            if(idx !== -1) CACHE_THIẾT_BỊ[idx] = { ...obj, id: idDb };
-        }
-        
-        locGiaoDienThietBi();
-        alert("🎉 Đã ghi nhận thiết bị thành công!");
-        
         try {
             if(isEditing && idDb && !String(idDb).startsWith('temp_')) {
                 await client.from('thiet_bi').update(obj).eq('id', idDb);
             } else { 
-                const cleanObj = { ...obj }; delete cleanObj.id;
-                await client.from('thiet_bi').insert([cleanObj]); 
+                await client.from('thiet_bi').insert([obj]); 
             }
+            alert("🎉 Đã ghi nhận thiết bị lên Cloud thành công!");
             taiDuLieuTuCloud();
+            huyCheDoSua();
         } catch(err) { console.error(err); }
-        huyCheDoSua();
     }
 
     function locGiaoDienThietBi() {
@@ -545,30 +550,19 @@
             trang_thai: "Đang sửa chữa"
         };
         
-        CACHE_SỬA_CHỮA.unshift({ ...obj, id: 'temp_' + Date.now() });
-        locGiaoDienSuaChua();
-        document.getElementById('sc-noidung').value = '';
-        alert("🛠️ Đã ghi nhận lịch sử sửa chữa!");
-        
         try {
             await client.from('lich_su_sua_chua').insert([obj]);
+            alert("🛠️ Đã ghi nhận lịch sử sửa chữa lên đám mây!");
+            document.getElementById('sc-noidung').value = '';
             taiDuLieuTuCloud();
         } catch(err){ console.error(err); }
     }
 
     async function bamHoanTatSuaChua(idTempHoacDb) {
-        const idx = CACHE_SỬA_CHỮA.findIndex(x => x.id == idTempHoacDb);
-        if (idx === -1) return;
-        
-        CACHE_SỬA_CHỮA[idx].trang_thai = "Đã sửa xong";
-        locGiaoDienSuaChua();
-        alert("🟢 Đã chuyển trạng thái thiết bị sang: Đã sửa xong!");
-
         try {
-            if(!String(idTempHoacDb).startsWith('temp_')) {
-                await client.from('lich_su_sua_chua').update({ trang_thai: "Đã sửa xong" }).eq('id', idTempHoacDb);
-                taiDuLieuTuCloud();
-            }
+            await client.from('lich_su_sua_chua').update({ trang_thai: "Đã sửa xong" }).eq('id', idTempHoacDb);
+            alert("🟢 Thiết bị đã sửa xong hoàn tất!");
+            taiDuLieuTuCloud();
         } catch(err) { console.error(err); }
     }
 
@@ -615,7 +609,6 @@
         e.preventDefault();
         const idDb = document.getElementById('tt-id-db').value;
         
-        // SỬA LỖI TÊN CỘT CHUẨN: "don_vi_sua_chua" thay vì "don_vi_sua_chuai"
         const obj = {
             ma_ho_so: document.getElementById('tt-ma-hs').value,
             ma_thiet_bi: document.getElementById('tt-ma-tb').value,
@@ -627,35 +620,26 @@
             file_name: currentFileName
         };
 
-        if(!isEditingTT) {
-            CACHE_THANH_TOÁN.unshift({ ...obj, id: 'temp_' + Date.now() });
-        } else {
-            const idx = CACHE_THANH_TOÁN.findIndex(x => x.id == idDb);
-            if(idx !== -1) {
-                if(!base64FileString) {
-                    obj.file_data = CACHE_THANH_TOÁN[idx].file_data;
-                    obj.file_name = CACHE_THANH_TOÁN[idx].file_name;
-                }
-                CACHE_THANH_TOÁN[idx] = { ...obj, id: idDb };
-            }
-        }
-        locGiaoDienThanhToan();
-        alert("💵 Lưu hồ sơ thanh toán thành công!");
-
         try {
-            if(isEditingTT && idDb && !String(idDb).startsWith('temp_')) {
+            if(isEditingTT && idDb) {
+                if(!base64FileString) {
+                    const bản_cũ = CACHE_THANH_TOÁN.find(x => x.id == idDb);
+                    if(bản_cũ) {
+                        obj.file_data = bản_cũ.file_data;
+                        obj.file_name = bản_cũ.file_name;
+                    }
+                }
                 await client.from('ho_so_thanh_toan').update(obj).eq('id', idDb);
             } else {
-                const cleanObj = { ...obj }; delete cleanObj.id;
-                await client.from('ho_so_thanh_toan').insert([cleanObj]);
+                await client.from('ho_so_thanh_toan').insert([obj]);
             }
+            alert("💵 Hồ sơ chi phí quyết toán đã được đồng bộ an toàn lên Cloud!");
             taiDuLieuTuCloud();
+            huyCheDoSuaThanhToan();
         } catch(err) { 
             console.error(err); 
-            alert("Lỗi Supabase: " + err.message);
+            alert("Không thể lưu dữ liệu. Lỗi cấu trúc: " + err.message);
         }
-        
-        huyCheDoSuaThanhToan();
     }
 
     function xemLaiTaiLieuChungTu(index) {
@@ -702,8 +686,7 @@
             let badgeClass = tt.trang_thai === "Đã thanh toán" ? "status-good" : "status-warn";
             let fileBtn = tt.file_data ? `<button class="btn-view-doc" onclick="xemLaiTaiLieuChungTu(${idx})">👁️ Xem trước</button>` : `<span class="no-doc">❌ Không có</span>`;
             
-            // Lấy an toàn dữ liệu từ cột chuẩn don_vi_sua_chua
-            let tenDonVi = tt.don_vi_sua_chua || tt.don_vi_sua_chuai || "---";
+            let tenDonVi = tt.don_vi_sua_chua || "---";
 
             tbody.innerHTML += `<tr>
                 <td><b>${tt.ma_ho_so}</b></td>
@@ -712,7 +695,7 @@
                 <td><b>${tt.so_tien.toLocaleString('vi-VN')} Đ</b></td>
                 <td><span class="status-pill ${badgeClass}">${tt.trang_thai}</span></td>
                 <td>${fileBtn}</td>
-                <td><button class="btn-action btn-action-edit" onclick="kichHoatCheDoSuaThanhToan('${tt.id}','${tt.ma_ho_so}','${tt.ma_thiet_bi}','${escapeHtml(tenDonVi)}',${tt.so_tien},'${tt.trang_thai}')">⚙️</button></td>
+                <td><button class="btn-action btn-action-edit" onclick="kichHoatCheDoSuaThanhToan('${tt.id}','${tt.ma_ho_so}','${tt.ma_thiet_bi}','${escapeHtml(tenDonVi)}',${tt.so_tien},'${tt.trang_thai}')">⚙️ Sửa</button></td>
             </tr>`;
         });
 
@@ -750,7 +733,7 @@
         if(CACHE_THANH_TOÁN.length === 0) return alert("Không có dữ liệu chi phí!");
         const data = CACHE_THANH_TOÁN.map((tt, i) => ({
             "STT": i + 1, "Mã Hồ Sơ": tt.ma_ho_so, "Mã Thiết Bị": tt.ma_thiet_bi,
-            "Đơn Vị Sửa Chữa": tt.don_vi_sua_chua || tt.don_vi_sua_chuai, "Số Tiền (VNĐ)": tt.so_tien, "Trạng Thái": tt.trang_thai
+            "Đơn Vị Sửa Chữa": tt.don_vi_sua_chua, "Số Tiền (VNĐ)": tt.so_tien, "Trạng Thái": tt.trang_thai
         }));
         const wb = XLSX.utils.book_new();
         const ws = XLSX.utils.json_to_sheet(data);
@@ -758,6 +741,7 @@
         XLSX.writeFile(wb, `Bao_Cao_Chi_Phi_Sua_Chua_2026.xlsx`);
     }
 
+    // Hàm bổ trợ phòng chống lỗi vỡ chuỗi dữ liệu trong JavaScript HTML Injection
     function escapeHtml(text) { return text ? text.replace(/'/g, "\\'").replace(/"/g, '&quot;') : ''; }
 </script>
 </body>
