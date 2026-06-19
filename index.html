@@ -322,6 +322,9 @@
             const resSC = await client.from('lich_su_sua_chua').select('*').order('id', { ascending: false });
             if(resSC.data) CACHE_SỬA_CHỮA = resSC.data;
 
+            const resTT = await client.from('ho_so_thanh_toan').select('*').order('id', { ascending: false });
+            if(resTT.data) CACHE_THANH_TOÁN = resTT.data;
+
             tuDongSinhMaThietBi();
             locGiaoDienThietBi();
             locGiaoDienNhanSu();
@@ -418,15 +421,17 @@
         
         locGiaoDienThietBi();
         alert("🎉 Đã ghi nhận thiết bị thành công!");
-        huyCheDoSua();
         
         try {
             if(isEditing && idDb && !String(idDb).startsWith('temp_')) {
                 await client.from('thiet_bi').update(obj).eq('id', idDb);
             } else { 
-                await client.from('thiet_bi').insert([obj]); 
+                const cleanObj = { ...obj }; delete cleanObj.id;
+                await client.from('thiet_bi').insert([cleanObj]); 
             }
+            taiDuLieuTuCloud();
         } catch(err) { console.error(err); }
+        huyCheDoSua();
     }
 
     function locGiaoDienThietBi() {
@@ -471,24 +476,24 @@
         const ten = document.getElementById('sc-ten-tb').value;
         const noidung = document.getElementById('sc-noidung').value.trim();
         const obj = {
-            id: 'temp_' + Date.now(),
             ma_thiet_bi: ma,
             ten_thiet_bi: ten,
             noi_dung_sua: noidung,
             ngay_sua: new Date().toLocaleDateString('vi-VN'),
             trang_thai: "Đang sửa chữa"
         };
-        CACHE_SỬA_CHỮA.unshift(obj);
+        
+        CACHE_SỬA_CHỮA.unshift({ ...obj, id: 'temp_' + Date.now() });
         locGiaoDienSuaChua();
         document.getElementById('sc-noidung').value = '';
         alert("🛠️ Đã ghi nhận lịch sử sửa chữa!");
         
         try {
             await client.from('lich_su_sua_chua').insert([obj]);
+            taiDuLieuTuCloud();
         } catch(err){ console.error(err); }
     }
 
-    // --- CẬP NHẬT TRẠNG THÁI HOÀN TẤT SỬA CHỮA ---
     async function bamHoanTatSuaChua(idTempHoacDb) {
         const idx = CACHE_SỬA_CHỮA.findIndex(x => x.id == idTempHoacDb);
         if (idx === -1) return;
@@ -500,6 +505,7 @@
         try {
             if(!String(idTempHoacDb).startsWith('temp_')) {
                 await client.from('lich_su_sua_chua').update({ trang_thai: "Đã sửa xong" }).eq('id', idTempHoacDb);
+                taiDuLieuTuCloud();
             }
         } catch(err) { console.error(err); }
     }
@@ -509,8 +515,6 @@
         if(!tbody) return; tbody.innerHTML = '';
         CACHE_SỬA_CHỮA.forEach(sc => {
             let classStatus = sc.trang_thai === "Đã sửa xong" ? "status-done" : "status-warn";
-            
-            // Nếu đang sửa thì hiện nút "Bấm để hoàn tất", nếu đã xong thì khoá trạng thái
             let vungThaoTac = ``;
             if(sc.trang_thai === "Đang sửa chữa") {
                 vungThaoTac = `<button class="btn-action btn-action-done" onclick="bamHoanTatSuaChua('${sc.id}')">✓ Hoàn tất</button>`;
@@ -560,8 +564,7 @@
         };
 
         if(!isEditingTT) {
-            obj.id = 'temp_' + Date.now();
-            CACHE_THANH_TOÁN.unshift(obj);
+            CACHE_THANH_TOÁN.unshift({ ...obj, id: 'temp_' + Date.now() });
         } else {
             const idx = CACHE_THANH_TOÁN.findIndex(x => x.id == idDb);
             if(idx !== -1) {
@@ -574,10 +577,20 @@
         }
         locGiaoDienThanhToan();
         alert("💵 Lưu hồ sơ thanh toán thành công!");
+
+        try {
+            if(isEditingTT && idDb && !String(idDb).startsWith('temp_')) {
+                await client.from('ho_so_thanh_toan').update(obj).eq('id', idDb);
+            } else {
+                const cleanObj = { ...obj }; delete cleanObj.id;
+                await client.from('ho_so_thanh_toan').insert([cleanObj]);
+            }
+            taiDuLieuTuCloud();
+        } catch(err) { console.error(err); }
+        
         huyCheDoSuaThanhToan();
     }
 
-    // --- CHỨC NĂNG XEM TRƯỚC CHỨNG TỪ TRƯỚC KHI QUYẾT ĐỊNH TẢI XUỐNG ---
     function xemLaiTaiLieuChungTu(index) {
         const hs = CACHE_THANH_TOÁN[index];
         const newWindow = window.open();
@@ -585,7 +598,6 @@
         
         newWindow.document.title = "Xem trước tài liệu: " + hs.file_name;
         
-        // Tạo một giao diện xem trước chuyên nghiệp có nút Tải xuống riêng biệt
         let viewHtml = ``;
         if (hs.file_data.startsWith("data:image/")) {
             viewHtml = `<img src="${hs.file_data}" style="max-width:85%; max-height: 75vh; margin-top:20px; border:3px solid #cbd5e1; box-shadow:0 10px 15px rgba(0,0,0,0.1); border-radius:8px;">`;
@@ -600,7 +612,6 @@
                 <div style="background:#fff; max-width:1000px; margin:0 auto; padding:20px; border-radius:12px; box-shadow:0 4px 6px rgba(0,0,0,0.05);">
                     <h2 style="color:#1e3a8a; margin-bottom:5px;">📄 CHẾ ĐỘ XEM TRƯỚC CHỨNG TỪ CHƯA TẢI</h2>
                     <p style="color:#64748b; margin-bottom:15px;">Hồ sơ: <b>${hs.ma_ho_so}</b> | Tên tệp: <i>${hs.file_name}</i></p>
-                    
                     <div style="margin-bottom:20px;">
                         <a href="${hs.file_data}" download="${hs.file_name}" style="display:inline-flex; align-items:center; gap:8px; padding:12px 28px; background:#10b981; color:white; font-weight:bold; border-radius:8px; text-decoration:none; box-shadow:0 4px 6px rgba(16,185,129,0.2); font-size:1rem; transition:0.2s;">
                            📥 BẤM VÀO ĐÂY ĐỂ TẢI XUỐNG MÁY
