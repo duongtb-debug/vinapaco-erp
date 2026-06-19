@@ -251,7 +251,7 @@
                 <div class="search-group"><input type="text" id="search-ns" placeholder="🔍 Tìm nhân sự theo tên..." oninput="locGiaoDienNhanSu()"></div>
                 <button class="btn btn-primary" style="width:auto; margin-bottom:0;" onclick="taiDuLieuTuCloud()">🔄 TẢI LẠI TỪ CLOUD</button>
             </div>
-            <h2>DANH SÁCH CƠ SỞ NHÂN SỰ ĐỒNG BỘ (${CACHE_NHAN_SU.length} nhân sự)</h2>
+            <h2>DANH SÁCH CƠ SỞ NHÂN SỰ ĐỒNG BỘ (<span id="count-ns">0</span> nhân sự)</h2>
             <div class="table-responsive">
                 <table>
                     <thead>
@@ -334,10 +334,11 @@
             tuDongSinhMaThietBi();
             locGiaoDienThietBi();
             locGiaoDienNhanSu();
+            doDuLieuVaoSelectSuaChua();
+            doDuLieuVaoSelectThanhToan();
         } catch(e) { console.error(e); }
     }
 
-    // --- HÀM ĐỌC FILE EXCEL KHẢO SÁT VÀ ĐẨY LÊN CLOUD ---
     function docVaUploadNhanSuTuExcel(input) {
         const file = input.files[0];
         if(!file) return;
@@ -357,7 +358,6 @@
 
                 let danhSachUpload = [];
                 jsonRows.forEach(row => {
-                    // Tự động phân tích các cột dựa theo tên tiêu chuẩn từ Google Form khảo sát
                     let hoTen = row["Họ và tên của bạn:"] || row["Họ và tên"] || row["Họ tên"] || Object.values(row)[1];
                     let gioiTinh = row["Giới tính:"] || row["Giới tính"] || "---";
                     let namSinh = row["Năm sinh:"] || row["Năm sinh"] || "---";
@@ -374,7 +374,7 @@
                 });
 
                 if(danhSachUpload.length > 0) {
-                    alert(`🔄 Đang tải dữ liệu ${danhSachUpload.length} nhân sự lên Cloud Supabase...`);
+                    alert(`🔄 Đang tải đồng bộ ${danhSachUpload.length} nhân sự lên Cloud Supabase...`);
                     const { error } = await client.from('nhan_su').insert(danhSachUpload);
                     if(error) {
                         console.error(error);
@@ -436,6 +436,7 @@
             count++;
             tbody.innerHTML += `<tr><td>${count}</td><td><b>${x.ho_ten}</b></td><td>${x.gioi_tinh || '---'}</td><td>${x.nam_sinh || '---'}</td><td>${x.chuc_danh_cong_viec || '---'}</td></tr>`;
         });
+        document.getElementById('count-ns').innerText = CACHE_NHAN_SU.length;
     }
 
     function goTimKiemNhanSu(input) {
@@ -613,10 +614,12 @@
     async function xuLyLuuHosoThanhToan(e) {
         e.preventDefault();
         const idDb = document.getElementById('tt-id-db').value;
+        
+        // SỬA LỖI TÊN CỘT CHUẨN: "don_vi_sua_chua" thay vì "don_vi_sua_chuai"
         const obj = {
             ma_ho_so: document.getElementById('tt-ma-hs').value,
             ma_thiet_bi: document.getElementById('tt-ma-tb').value,
-            don_vi_sua_chuai: document.getElementById('tt-don-vi').value.trim(),
+            don_vi_sua_chua: document.getElementById('tt-don-vi').value.trim(),
             so_tien: parseFloat(document.getElementById('tt-so-tien').value) || 0,
             trang_thai: document.getElementById('tt-trang-thai').value,
             ngay_lap: new Date().toLocaleDateString('vi-VN'),
@@ -647,7 +650,10 @@
                 await client.from('ho_so_thanh_toan').insert([cleanObj]);
             }
             taiDuLieuTuCloud();
-        } catch(err) { console.error(err); }
+        } catch(err) { 
+            console.error(err); 
+            alert("Lỗi Supabase: " + err.message);
+        }
         
         huyCheDoSuaThanhToan();
     }
@@ -660,9 +666,9 @@
         newWindow.document.title = "Xem trước tài liệu: " + hs.file_name;
         
         let viewHtml = ``;
-        if (hs.file_data.startsWith("data:image/")) {
+        if (hs.file_data && hs.file_data.startsWith("data:image/")) {
             viewHtml = `<img src="${hs.file_data}" style="max-width:85%; max-height: 75vh; margin-top:20px; border:3px solid #cbd5e1; box-shadow:0 10px 15px rgba(0,0,0,0.1); border-radius:8px;">`;
-        } else if (hs.file_data.startsWith("data:application/pdf")) {
+        } else if (hs.file_data && hs.file_data.startsWith("data:application/pdf")) {
             viewHtml = `<iframe src="${hs.file_data}" style="width:90%; height:75vh; margin-top:20px; border:1px solid #ccc;"></iframe>`;
         } else {
             viewHtml = `<div style="background:#f1f5f9; padding:20px; display:inline-block; max-width:80%; border-radius:8px; text-align:left; margin-top:20px; font-family:monospace; white-space: pre-wrap;">Định dạng văn bản/tệp đính kèm (${hs.file_name}) không hỗ trợ hiển thị trực tiếp. Vui lòng bấm nút tải xuống để kiểm tra.</div>`;
@@ -695,15 +701,18 @@
 
             let badgeClass = tt.trang_thai === "Đã thanh toán" ? "status-good" : "status-warn";
             let fileBtn = tt.file_data ? `<button class="btn-view-doc" onclick="xemLaiTaiLieuChungTu(${idx})">👁️ Xem trước</button>` : `<span class="no-doc">❌ Không có</span>`;
+            
+            // Lấy an toàn dữ liệu từ cột chuẩn don_vi_sua_chua
+            let tenDonVi = tt.don_vi_sua_chua || tt.don_vi_sua_chuai || "---";
 
             tbody.innerHTML += `<tr>
                 <td><b>${tt.ma_ho_so}</b></td>
                 <td>${tt.ma_thiet_bi}</td>
-                <td>${tt.don_vi_sua_chuai}</td>
+                <td>${tenDonVi}</td>
                 <td><b>${tt.so_tien.toLocaleString('vi-VN')} Đ</b></td>
                 <td><span class="status-pill ${badgeClass}">${tt.trang_thai}</span></td>
                 <td>${fileBtn}</td>
-                <td><button class="btn-action btn-action-edit" onclick="kichHoatCheDoSuaThanhToan('${tt.id}','${tt.ma_ho_so}','${tt.ma_thiet_bi}','${escapeHtml(tt.don_vi_sua_chuai)}',${tt.so_tien},'${tt.trang_thai}')">⚙️</button></td>
+                <td><button class="btn-action btn-action-edit" onclick="kichHoatCheDoSuaThanhToan('${tt.id}','${tt.ma_ho_so}','${tt.ma_thiet_bi}','${escapeHtml(tenDonVi)}',${tt.so_tien},'${tt.trang_thai}')">⚙️</button></td>
             </tr>`;
         });
 
@@ -741,7 +750,7 @@
         if(CACHE_THANH_TOÁN.length === 0) return alert("Không có dữ liệu chi phí!");
         const data = CACHE_THANH_TOÁN.map((tt, i) => ({
             "STT": i + 1, "Mã Hồ Sơ": tt.ma_ho_so, "Mã Thiết Bị": tt.ma_thiet_bi,
-            "Đơn Vị Sửa Chữa": tt.don_vi_sua_chuai, "Số Tiền (VNĐ)": tt.so_tien, "Trạng Thái": tt.trang_thai
+            "Đơn Vị Sửa Chữa": tt.don_vi_sua_chua || tt.don_vi_sua_chuai, "Số Tiền (VNĐ)": tt.so_tien, "Trạng Thái": tt.trang_thai
         }));
         const wb = XLSX.utils.book_new();
         const ws = XLSX.utils.json_to_sheet(data);
