@@ -9,16 +9,18 @@ function docVaUploadNhanSuTuExcel(input) {
                 const workbook = XLSX.read(data, { type: 'array' });
                 const sheetName = workbook.SheetNames[0];
                 const sheet = workbook.Sheets[sheetName];
-                const jsonRows = XLSX.utils.sheet_to_json(sheet, { raw: false }); 
                 
-                if(jsonRows.length === 0) {
-                    alert("File Excel trống!"); return;
+                // Đọc ép về dạng mảng gồm các mảng con (Array of Arrays) để cố định chỉ số cột chuẩn 100%
+                const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false }); 
+                
+                if(rows.length <= 1) {
+                    alert("File Excel trống hoặc chỉ có tiêu đề!"); return;
                 }
 
                 let danhSachUpload = [];
                 let setMaDonViExcel = new Set(); 
 
-                // Tính toán ID lớn nhất hiện tại trên Cloud bằng vòng lặp để tránh tràn bộ nhớ đệm
+                // Tính toán ID lớn nhất hiện tại trên Cloud bằng vòng lặp tránh sập màn hình
                 let maxId = 0;
                 if (CACHE_NHAN_SU && CACHE_NHAN_SU.length > 0) {
                     for (let i = 0; i < CACHE_NHAN_SU.length; i++) {
@@ -29,88 +31,59 @@ function docVaUploadNhanSuTuExcel(input) {
                     }
                 }
 
-                jsonRows.forEach(row => {
-                    let stt = "", hoTen = "", ten = "", soBhxh = "", soCccd = "";
-                    let atv = "", nndh = "", namVeHuu = "", maDonVi = "", nam = "", namSinh = "", nu = "", chucDanh = "";
+                // Duyệt từ dòng thứ 2 (Index 1) trở đi để bỏ qua dòng tiêu đề gốc
+                for (let i = 1; i < rows.length; i++) {
+                    const row = rows[i];
+                    if (!row || row.length === 0) continue;
 
-                    for (let key in row) {
-                        // Loại bỏ hoàn toàn mọi khoảng trắng, tab, xuống dòng trong tiêu đề cột
-                        let cleanKey = key.replace(/\s+/g, '').trim().toLowerCase();
-                        
-                        // Quét từ khóa thông minh, linh hoạt loại trừ để tránh nhận diện nhầm lẫn
-                        if (cleanKey.includes("stt")) {
-                            stt = row[key];
-                        } else if (cleanKey.includes("họvàtên") || cleanKey.includes("hoten") || (cleanKey.includes("họ") && cleanKey.includes("tên"))) {
-                            hoTen = row[key];
-                        } else if (cleanKey === "tên" || cleanKey === "ten") {
-                            ten = row[key];
-                        } else if (cleanKey.includes("bhxh") || cleanKey.includes("bảohiểm") || cleanKey.includes("sosổ")) {
-                            soBhxh = row[key];
-                        } else if (cleanKey.includes("cccd") || cleanKey.includes("chứngminh") || cleanKey.includes("cmnd")) {
-                            soCccd = row[key];
-                        } else if (cleanKey.includes("antoàn") || cleanKey.includes("atv")) {
-                            atv = row[key];
-                        } else if (cleanKey.includes("nnđh") || cleanKey.includes("nndh")) {
-                            nndh = row[key];
-                        } else if (cleanKey.includes("vềhưu") || cleanKey.includes("vehuu")) {
-                            namVeHuu = row[key];
-                        } else if (cleanKey.includes("mãđơnvị") || cleanKey.includes("madonvi") || cleanKey.includes("đơnvị") || cleanKey.includes("mãđv")) {
-                            maDonVi = row[key];
-                        } else if (cleanKey === "năm" || cleanKey === "nam") {
-                            nam = row[key];
-                        } else if (cleanKey.includes("nămsinh") || cleanKey.includes("namsinh")) {
-                            namSinh = row[key];
-                        } else if (cleanKey.includes("nữ") || cleanKey === "nu") {
-                            nu = row[key];
-                        } else if (cleanKey.includes("chứcdanh") || cleanKey.includes("côngviệc") || cleanKey.includes("chucdanh")) {
-                            chucDanh = row[key];
-                        }
-                    }
+                    // Định vị chuẩn xác 100% dựa vào vị trí cột trong file Excel thực tế
+                    let stt         = row[0] ? String(row[0]).trim() : "";
+                    let hoTen       = row[1] ? String(row[1]).trim() : "";
+                    let ten         = row[2] ? String(row[2]).trim() : "";
+                    let soBhxh      = row[3] ? String(row[3]).trim() : "";
+                    let soCccd      = row[4] ? String(row[4]).trim() : "";
+                    let atv         = row[5] ? String(row[5]).trim() : "";
+                    let nndh        = row[6] ? String(row[6]).trim() : "";
+                    let namVeHuu   = row[7] ? String(row[7]).trim() : "";
+                    let maDonVi     = row[8] ? String(row[8]).trim() : "";
+                    let nam         = row[9] ? String(row[9]).trim() : "";
+                    let namSinh     = row[10] ? String(row[10]).trim() : "";
+                    let nu          = row[11] ? String(row[11]).trim() : "";
+                    let chucDanh    = row[12] ? String(row[12]).trim() : "";
 
-                    // Nếu không quét được cột Họ và tên ghép, thử tìm bất kỳ cột nào có chữ "họ" làm phương án dự phòng
-                    if (!hoTen) {
-                        for (let k in row) {
-                            let kClean = k.replace(/\s+/g, '').trim().toLowerCase();
-                            if (kClean.includes("họ") && !kClean.includes("hưu")) {
-                                hoTen = row[k];
-                                break;
-                            }
-                        }
-                    }
-
-                    // Loại trừ tiêu đề hoặc các dòng rỗng, dòng chứa ký hiệu đánh dấu giới tính
-                    if (hoTen && String(hoTen).trim() !== "" && String(hoTen).trim().toLowerCase() !== "x") {
-                        let cleanCccd = String(soCccd || '').trim();
-                        let cleanMaDonVi = String(maDonVi || '').replace(/\s+/g, '').trim();
+                    // Điều kiện bắt dòng nhân sự hợp lệ
+                    if (hoTen && hoTen.toLowerCase() !== "họ và tên" && hoTen !== "") {
+                        let cleanCccd = soCccd;
+                        let cleanMaDonVi = maDonVi.replace(/\s+/g, '');
                         
                         if (cleanMaDonVi === "") {
                             cleanMaDonVi = "DV-UNKNOWN";
                         }
                         
                         setMaDonViExcel.add(cleanMaDonVi);
-
                         maxId++; 
+
                         danhSachUpload.push({
                             id: maxId,
-                            stt_file: String(stt || ''),
-                            ho_ten: String(hoTen).trim(),
-                            ten: String(ten || '').trim(),
-                            so_bhxh: String(soBhxh || ''),
+                            stt_file: stt,
+                            ho_ten: hoTen,
+                            ten: ten,
+                            so_bhxh: soBhxh,
                             so_cccd: cleanCccd,
-                            an_toan_vien: String(atv || ''),
-                            nndh: String(nndh || ''),
+                            an_toan_vien: atv,
+                            nndh: nndh,
                             nam_ve_huu: formatExcelDate(namVeHuu),
                             ma_don_vi: cleanMaDonVi, 
                             nam_khao_sat: formatExcelDate(nam),
                             nam_sinh: formatExcelDate(namSinh),
-                            gioi_tinh_nu: String(nu || ''),
-                            chuc_danh_cong_viec: String(chucDanh || '')
+                            gioi_tinh_nu: nu,
+                            chuc_danh_cong_viec: chucDanh
                         });
                     }
-                });
+                }
 
                 if(danhSachUpload.length === 0) {
-                    alert("🚨 Hệ thống không tìm thấy dữ liệu hợp lệ! Hãy chắc chắn file đang nạp có chứa tiêu đề cột dạng 'Họ và tên'.");
+                    alert("🚨 Không tìm thấy bất kỳ nhân sự nào hợp lệ trong file Excel!");
                     input.value = ""; return;
                 }
 
@@ -128,9 +101,9 @@ function docVaUploadNhanSuTuExcel(input) {
                 const { error: errNhanSu } = await client.from('nhan_su').insert(danhSachUpload);
                 if(errNhanSu) {
                     console.error("Lỗi Supabase:", errNhanSu);
-                    alert("🚨 Lỗi đẩy lên Cloud thất bại: \n" + errNhanSu.message);
+                    alert("🚨 Lỗi đẩy lên cơ sở dữ liệu: \n" + errNhanSu.message);
                 } else {
-                    alert(`🎉 Thành công hoàn hảo! Đã nhận diện và tải lên thành công ${danhSachUpload.length} nhân sự lên Cloud.`);
+                    alert(`🎉 Thành công dứt điểm! Đã đồng bộ thành công ${danhSachUpload.length} nhân sự chuẩn lên Cloud.`);
                 }
                 
                 document.getElementById('search-ns').value = "";
