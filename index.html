@@ -87,7 +87,7 @@
 <div id="main-admin-app" class="container">
     <header>
         <h1>HỆ THỐNG ĐỒNG BỘ TỔNG HỢP: NHÂN SỰ, THIẾT BỊ QR & HỒ SƠ THANH TOÁN CHỨNG TỪ</h1>
-        <p>Fix triệt để lỗi Null Value - Tự động loại bỏ dòng trống từ file Excel</p>
+        <p>Fix dứt điểm lỗi Khóa ngoại (Foreign Key) - Tự động đồng bộ danh mục Đơn vị</p>
     </header>
 
     <div class="nav-tabs">
@@ -379,17 +379,16 @@
         }
     }
 
-    // Hàm phụ chuẩn hóa chuỗi ngày tháng từ Excel (ví dụ "1969-08-10 00:00:00" -> "1969-08-10")
     function formatExcelDate(val) {
         if (!val) return '';
         let str = String(val).trim();
         if (str.includes(' ')) {
-            return str.split(' ')[0]; // Chỉ lấy phần ngày YYYY-MM-DD
+            return str.split(' ')[0]; 
         }
         return str;
     }
 
-    // ⚡ XỬ LÝ ĐỌC FILE EXCEL & FIX DỨT ĐIỂM LỖI NULL VALUE CONSTRAINT
+    // ⚡ FIX TRIỆT ĐỂ LỖI KHÓA NGOẠI: Tự động đồng bộ danh mục Đơn Vị trước khi nạp nhân sự
     function docVaUploadNhanSuTuExcel(input) {
         const file = input.files[0];
         if(!file) return;
@@ -408,6 +407,7 @@
                 }
 
                 let danhSachUpload = [];
+                let setMaDonViExcel = new Set(); // Chứa các mã đơn vị có trong file
                 let danhSachCccdCu = CACHE_NHAN_SU.map(n => String(n.so_cccd || '').trim());
 
                 jsonRows.forEach(row => {
@@ -432,10 +432,14 @@
                         else if (cleanKey.includes("chức danh") || cleanKey.includes("công việc") || cleanKey.includes("chuc danh")) chucDanh = row[key];
                     }
 
-                    // CHỐNG LỖI DỨT ĐIỂM: Chỉ thêm vào mảng xử lý nếu ho_ten THỰC SỰ có dữ liệu chữ
                     if (hoTen && String(hoTen).trim() !== "") {
                         let cleanCccd = String(soCccd || '').trim();
-                        // Tránh trùng lặp nếu trùng số CCCD
+                        let cleanMaDonVi = String(maDonVi || '').trim();
+                        
+                        if (cleanMaDonVi !== "") {
+                            setMaDonViExcel.add(cleanMaDonVi);
+                        }
+
                         if (cleanCccd === "" || !danhSachCccdCu.includes(cleanCccd)) {
                             danhSachUpload.push({
                                 stt_file: String(stt || ''),
@@ -446,7 +450,7 @@
                                 an_toan_vien: String(atv || ''),
                                 nndh: String(nndh || ''),
                                 nam_ve_huu: formatExcelDate(namVeHuu),
-                                ma_don_vi: String(maDonVi || ''),
+                                ma_don_vi: cleanMaDonVi,
                                 nam_khao_sat: formatExcelDate(nam),
                                 nam_sinh: formatExcelDate(namSinh),
                                 gioi_tinh_nu: String(nu || ''),
@@ -457,16 +461,37 @@
                 });
 
                 if(danhSachUpload.length === 0) {
-                    alert("Không có dữ liệu mới hợp lệ hoặc toàn bộ dữ liệu là dòng trống/trùng số CCCD!");
+                    alert("Không có dữ liệu mới hợp lệ!");
                     input.value = ""; return;
                 }
 
-                // Thực hiện lưu lên Cloud
+                // 🔄 BƯỚC THẦN KỲ: Đồng bộ tự động các Mã Đơn Vị chưa tồn tại lên bảng `don_vi`
+                if (setMaDonViExcel.size > 0) {
+                    let mảngMãĐơn Vị = Array.from(setMaDonViExcel);
+                    
+                    // Lấy danh sách mã đơn vị hiện tại trên Cloud
+                    const { data: currentDonVi } = await client.from('don_vi').select('ma_don_vi');
+                    let listMaDonViCloud = (currentDonVi || []).map(d => String(d.ma_don_vi).trim());
+
+                    // Lọc ra các mã đơn vị trong file Excel chưa có trên Cloud
+                    let mãChưaCó = mảngMãĐơnVị.filter(m => !listMaDonViCloud.includes(m));
+
+                    if (mãChưaCó.length > 0) {
+                        let payloadDonVi = mãChưaCó.map(m => ({
+                            ma_don_vi: m,
+                            ten_don_vi: `Đơn vị mã ${m} (Tự động tạo)`
+                        }));
+                        // Insert bổ sung danh mục đơn vị trước
+                        await client.from('don_vi').insert(payloadDonVi);
+                    }
+                }
+
+                // Sau khi danh mục Đơn vị đã an toàn, tiến hành lưu Nhân Sự lên Cloud
                 const { error } = await client.from('nhan_su').insert(danhSachUpload);
                 if(error) {
                     alert("Lỗi khi tải lên cơ sở dữ liệu: " + error.message);
                 } else {
-                    alert(`🎉 Thành công! Hệ thống đã tự động lọc bỏ các hàng trống và nạp thành công ${danhSachUpload.length} nhân sự chuẩn hóa lên Cloud!`);
+                    alert(`🎉 Thành công dứt điểm! Hệ thống tự động kiểm tra danh mục, đồng bộ đơn vị và nạp thành công ${danhSachUpload.length} nhân sự chuẩn lên Đám mây!`);
                     document.getElementById('search-ns').value = "";
                     input.value = "";
                     await taiDuLieuTuCloud(false);
@@ -478,7 +503,6 @@
         reader.readAsArrayBuffer(file);
     }
 
-    // ⚡ HIỂN THỊ TOÀN DIỆN KHÔNG LAG
     function locGiaoDienNhanSu() {
         const tbody = document.getElementById('body-ns');
         if(!tbody) return;
