@@ -87,7 +87,7 @@
 <div id="main-admin-app" class="container">
     <header>
         <h1>HỆ THỐNG ĐỒNG BỘ TỔNG HỢP: NHÂN SỰ, THIẾT BỊ QR & HỒ SƠ THANH TOÁN CHỨNG TỪ</h1>
-        <p>Phiên bản cấu trúc chuẩn 100% theo file gốc - Hiển thị 13 cột thông tin không lag</p>
+        <p>Fix triệt để lỗi Null Value - Tự động loại bỏ dòng trống từ file Excel</p>
     </header>
 
     <div class="nav-tabs">
@@ -379,7 +379,17 @@
         }
     }
 
-    // ⚡ XỬ LÝ ĐỌC FILE EXCEL ĐẦY ĐỦ 13 CỘT THEO FILE GỐC
+    // Hàm phụ chuẩn hóa chuỗi ngày tháng từ Excel (ví dụ "1969-08-10 00:00:00" -> "1969-08-10")
+    function formatExcelDate(val) {
+        if (!val) return '';
+        let str = String(val).trim();
+        if (str.includes(' ')) {
+            return str.split(' ')[0]; // Chỉ lấy phần ngày YYYY-MM-DD
+        }
+        return str;
+    }
+
+    // ⚡ XỬ LÝ ĐỌC FILE EXCEL & FIX DỨT ĐIỂM LỖI NULL VALUE CONSTRAINT
     function docVaUploadNhanSuTuExcel(input) {
         const file = input.files[0];
         if(!file) return;
@@ -422,7 +432,8 @@
                         else if (cleanKey.includes("chức danh") || cleanKey.includes("công việc") || cleanKey.includes("chuc danh")) chucDanh = row[key];
                     }
 
-                    if (hoTen) {
+                    // CHỐNG LỖI DỨT ĐIỂM: Chỉ thêm vào mảng xử lý nếu ho_ten THỰC SỰ có dữ liệu chữ
+                    if (hoTen && String(hoTen).trim() !== "") {
                         let cleanCccd = String(soCccd || '').trim();
                         // Tránh trùng lặp nếu trùng số CCCD
                         if (cleanCccd === "" || !danhSachCccdCu.includes(cleanCccd)) {
@@ -434,10 +445,10 @@
                                 so_cccd: cleanCccd,
                                 an_toan_vien: String(atv || ''),
                                 nndh: String(nndh || ''),
-                                nam_ve_huu: String(namVeHuu || ''),
+                                nam_ve_huu: formatExcelDate(namVeHuu),
                                 ma_don_vi: String(maDonVi || ''),
-                                nam_khao_sat: String(nam || ''),
-                                nam_sinh: String(namSinh || ''),
+                                nam_khao_sat: formatExcelDate(nam),
+                                nam_sinh: formatExcelDate(namSinh),
                                 gioi_tinh_nu: String(nu || ''),
                                 chuc_danh_cong_viec: String(chucDanh || '')
                             });
@@ -446,15 +457,16 @@
                 });
 
                 if(danhSachUpload.length === 0) {
-                    alert("Không có dữ liệu mới hợp lệ hoặc toàn bộ dữ liệu bị trùng lặp số CCCD!");
+                    alert("Không có dữ liệu mới hợp lệ hoặc toàn bộ dữ liệu là dòng trống/trùng số CCCD!");
                     input.value = ""; return;
                 }
 
+                // Thực hiện lưu lên Cloud
                 const { error } = await client.from('nhan_su').insert(danhSachUpload);
                 if(error) {
                     alert("Lỗi khi tải lên cơ sở dữ liệu: " + error.message);
                 } else {
-                    alert(`🎉 Nạp thành công ${danhSachUpload.length} nhân sự lên hệ thống đám mây!`);
+                    alert(`🎉 Thành công! Hệ thống đã tự động lọc bỏ các hàng trống và nạp thành công ${danhSachUpload.length} nhân sự chuẩn hóa lên Cloud!`);
                     document.getElementById('search-ns').value = "";
                     input.value = "";
                     await taiDuLieuTuCloud(false);
@@ -466,7 +478,7 @@
         reader.readAsArrayBuffer(file);
     }
 
-    // ⚡ HIỂN THỊ TOÀN DIỆN 13 TRƯỜNG THÔNG TIN KHÔNG LAG
+    // ⚡ HIỂN THỊ TOÀN DIỆN KHÔNG LAG
     function locGiaoDienNhanSu() {
         const tbody = document.getElementById('body-ns');
         if(!tbody) return;
@@ -478,7 +490,6 @@
         for (let i = 0; i < CACHE_NHAN_SU.length; i++) {
             const x = CACHE_NHAN_SU[i];
             
-            // Tìm kiếm thông minh mở rộng trên nhiều trường thông tin
             if(keyword && 
                !x.ho_ten.toLowerCase().includes(keyword) && 
                !String(x.so_cccd || '').includes(keyword) && 
