@@ -162,7 +162,7 @@
                 </div>
                 <div class="form-group">
                     <label>Nội dung / Linh kiện sửa chữa:</label>
-                    <textarea id="sc-noidung" placeholder="Ví dụ: Thay SSD" required></textarea>
+                    <textarea id="sc-noidung" placeholder="Ví dụ: Thay ổ cứng SSD" required></textarea>
                 </div>
                 <button type="submit" class="btn btn-purple">🛠️ GHI NHẬN SỬA CHỮA</button>
             </form>
@@ -397,7 +397,6 @@
         box.style.display = 'block';
     }
 
-    // --- ĐÃ KHÔI PHỤC VÀ SỬA LỖI HÀM LƯU THIẾT BỊ ---
     async function xuLyLuuThietBi(e) {
         e.preventDefault();
         const idDb = document.getElementById('tb-id-db').value;
@@ -483,6 +482,26 @@
         locGiaoDienSuaChua();
         document.getElementById('sc-noidung').value = '';
         alert("🛠️ Đã ghi nhận lịch sử sửa chữa!");
+        
+        try {
+            await client.from('lich_su_sua_chua').insert([obj]);
+        } catch(err){ console.error(err); }
+    }
+
+    // --- CẬP NHẬT TRẠNG THÁI HOÀN TẤT SỬA CHỮA ---
+    async function bamHoanTatSuaChua(idTempHoacDb) {
+        const idx = CACHE_SỬA_CHỮA.findIndex(x => x.id == idTempHoacDb);
+        if (idx === -1) return;
+        
+        CACHE_SỬA_CHỮA[idx].trang_thai = "Đã sửa xong";
+        locGiaoDienSuaChua();
+        alert("🟢 Đã chuyển trạng thái thiết bị sang: Đã sửa xong!");
+
+        try {
+            if(!String(idTempHoacDb).startsWith('temp_')) {
+                await client.from('lich_su_sua_chua').update({ trang_thai: "Đã sửa xong" }).eq('id', idTempHoacDb);
+            }
+        } catch(err) { console.error(err); }
     }
 
     function locGiaoDienSuaChua() {
@@ -490,12 +509,21 @@
         if(!tbody) return; tbody.innerHTML = '';
         CACHE_SỬA_CHỮA.forEach(sc => {
             let classStatus = sc.trang_thai === "Đã sửa xong" ? "status-done" : "status-warn";
+            
+            // Nếu đang sửa thì hiện nút "Bấm để hoàn tất", nếu đã xong thì khoá trạng thái
+            let vungThaoTac = ``;
+            if(sc.trang_thai === "Đang sửa chữa") {
+                vungThaoTac = `<button class="btn-action btn-action-done" onclick="bamHoanTatSuaChua('${sc.id}')">✓ Hoàn tất</button>`;
+            } else {
+                vungThaoTac = `<span style="color:#64748b; font-size:0.85rem;">🔒 Đã hoàn thành</span>`;
+            }
+
             tbody.innerHTML += `<tr>
                 <td><b>${sc.ma_thiet_bi}</b></td>
                 <td>${sc.ten_thiet_bi}</td>
                 <td>${sc.noi_dung_sua}</td>
                 <td><span class="status-pill ${classStatus}">${sc.trang_thai}</span></td>
-                <td>🔒 Hoàn tất</td>
+                <td>${vungThaoTac}</td>
             </tr>`;
         });
     }
@@ -549,16 +577,39 @@
         huyCheDoSuaThanhToan();
     }
 
+    // --- CHỨC NĂNG XEM TRƯỚC CHỨNG TỪ TRƯỚC KHI QUYẾT ĐỊNH TẢI XUỐNG ---
     function xemLaiTaiLieuChungTu(index) {
         const hs = CACHE_THANH_TOÁN[index];
         const newWindow = window.open();
         if(!newWindow) return alert("Vui lòng mở Pop-up trình duyệt!");
-        newWindow.document.title = hs.file_name;
-        if(hs.file_data.startsWith("data:image/")) {
-            newWindow.document.body.innerHTML = `<div style="text-align:center;"><img src="${hs.file_data}" style="max-width:100%;"></div>`;
+        
+        newWindow.document.title = "Xem trước tài liệu: " + hs.file_name;
+        
+        // Tạo một giao diện xem trước chuyên nghiệp có nút Tải xuống riêng biệt
+        let viewHtml = ``;
+        if (hs.file_data.startsWith("data:image/")) {
+            viewHtml = `<img src="${hs.file_data}" style="max-width:85%; max-height: 75vh; margin-top:20px; border:3px solid #cbd5e1; box-shadow:0 10px 15px rgba(0,0,0,0.1); border-radius:8px;">`;
+        } else if (hs.file_data.startsWith("data:application/pdf")) {
+            viewHtml = `<iframe src="${hs.file_data}" style="width:90%; height:75vh; margin-top:20px; border:1px solid #ccc;"></iframe>`;
         } else {
-            newWindow.document.body.innerHTML = `<div style="font-family:sans-serif;text-align:center;padding:50px;"><h2>TÀI LIỆU</h2><p>${hs.file_name}</p><a href="${hs.file_data}" download="${hs.file_name}" style="padding:10px 20px;background:#10b981;color:white;text-decoration:none;border-radius:5px;">📥 TẢI XUỐNG FILE</a></div>`;
+            viewHtml = `<div style="background:#f1f5f9; padding:20px; display:inline-block; max-width:80%; border-radius:8px; text-align:left; margin-top:20px; font-family:monospace; white-space: pre-wrap;">Định dạng văn bản/tệp đính kèm (${hs.file_name}) không hỗ trợ hiển thị trực tiếp. Vui lòng bấm nút tải xuống để kiểm tra.</div>`;
         }
+
+        newWindow.document.body.innerHTML = `
+            <div style="font-family:'Segoe UI',sans-serif; text-align:center; padding:30px; background:#f8fafc; min-height:90vh;">
+                <div style="background:#fff; max-width:1000px; margin:0 auto; padding:20px; border-radius:12px; box-shadow:0 4px 6px rgba(0,0,0,0.05);">
+                    <h2 style="color:#1e3a8a; margin-bottom:5px;">📄 CHẾ ĐỘ XEM TRƯỚC CHỨNG TỪ CHƯA TẢI</h2>
+                    <p style="color:#64748b; margin-bottom:15px;">Hồ sơ: <b>${hs.ma_ho_so}</b> | Tên tệp: <i>${hs.file_name}</i></p>
+                    
+                    <div style="margin-bottom:20px;">
+                        <a href="${hs.file_data}" download="${hs.file_name}" style="display:inline-flex; align-items:center; gap:8px; padding:12px 28px; background:#10b981; color:white; font-weight:bold; border-radius:8px; text-decoration:none; box-shadow:0 4px 6px rgba(16,185,129,0.2); font-size:1rem; transition:0.2s;">
+                           📥 BẤM VÀO ĐÂY ĐỂ TẢI XUỐNG MÁY
+                        </a>
+                    </div>
+                    <hr style="border:0; border-top:1px solid #e2e8f0; margin:20px 0;">
+                    ${viewHtml}
+                </div>
+            </div>`;
     }
 
     function locGiaoDienThanhToan() {
@@ -571,7 +622,7 @@
             else tongTienChoDuyet += tt.so_tien;
 
             let badgeClass = tt.trang_thai === "Đã thanh toán" ? "status-good" : "status-warn";
-            let fileBtn = tt.file_data ? `<button class="btn-view-doc" onclick="xemLaiTaiLieuChungTu(${idx})">📂 Xem chứng từ</button>` : `<span class="no-doc">❌ Không có</span>`;
+            let fileBtn = tt.file_data ? `<button class="btn-view-doc" onclick="xemLaiTaiLieuChungTu(${idx})">👁️ Xem trước</button>` : `<span class="no-doc">❌ Không có</span>`;
 
             tbody.innerHTML += `<tr>
                 <td><b>${tt.ma_ho_so}</b></td>
