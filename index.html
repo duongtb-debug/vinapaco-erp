@@ -9,12 +9,14 @@
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    
     <style>
-        /* CSS tùy chỉnh bổ sung cho các nút và tab */
         .nav-tabs button { margin-right: 10px; margin-bottom: 10px; }
         .danger-zone { background-color: #d32f2f !important; border-color: #d32f2f; }
         .success-zone { background-color: #2e7d32 !important; border-color: #2e7d32; }
         table th, table td { text-align: center; vertical-align: middle; }
+        .filter-section { background: #f9f9f9; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e0e0e0;}
     </style>
 </head>
 <body class="container">
@@ -32,18 +34,32 @@
     <hr>
 
     <section id="tab-nhan-su" class="tab-content" style="display: none;">
+        
         <div class="grid">
-            <div>
-                <h5>Thêm nhân sự mới nhanh:</h5>
-                <div class="grid">
-                    <input type="text" id="add-ns-name" placeholder="Họ và Tên...">
-                    <input type="text" id="add-ns-dept" placeholder="Phòng ban...">
-                </div>
-                <button class="success-zone" onclick="themNhanSuNhanh()">➕ Thêm Lên Cloud</button>
+            <div style="border: 2px dashed #0076ff; padding: 15px; border-radius: 8px;">
+                <h5>📥 NHẬP DỮ LIỆU TỪ EXCEL KHẢO SÁT CHUẨN:</h5>
+                <p style="font-size: 0.8rem; color: gray; margin-bottom: 5px;">File Excel cần có 2 cột tiêu đề ở dòng đầu tiên là: <strong>name</strong> và <strong>department</strong></p>
+                <input type="file" id="excel-file-input" accept=".xlsx, .xls" onchange="nhapExcelHangLoat()">
             </div>
             
             <div style="text-align: right; align-self: end;">
                 <button class="danger-zone" onclick="xoaSachNhanSuCloud()">🚨 XÓA SẠCH ĐÁM MÂY ĐỂ LÀM MỚI</button>
+            </div>
+        </div>
+
+        <div class="filter-section">
+            <h5>🔍 BỘ LỌC & TÌM KIẾM THÔNG MINH</h5>
+            <div class="grid">
+                <div>
+                    <label for="search-input">Tìm nhanh theo tên...</label>
+                    <input type="text" id="search-input" placeholder="Gõ tên nhân viên cần tìm..." oninput="locDuLieuThongMinh()">
+                </div>
+                <div>
+                    <label for="filter-dept">Phân loại theo Phòng Ban</label>
+                    <select id="filter-dept" onchange="locDuLieuThongMinh()">
+                        <option value="ALL">-- Tất cả phòng ban --</option>
+                        </select>
+                </div>
             </div>
         </div>
 
@@ -63,23 +79,15 @@
         </figure>
     </section>
 
-    <section id="tab-cap-phat" class="tab-content" style="display: none;">
-        <h3>Phân hệ Cấp phát & Thiết bị QR</h3>
-        <p><i>(Hệ thống khung đã sẵn sàng, bạn sẽ tích hợp camera quét mã QR tại đây ở bước sau)</i></p>
-    </section>
-
-    <section id="tab-sua-chua" class="tab-content" style="display: none;">
-        <h3>Phân hệ Theo dõi sửa chữa & Hồ sơ thanh toán</h3>
-        <p><i>(Nơi quản lý lịch sử hỏng hóc và chứng từ chi phí bảo trì)</i></p>
-    </section>
+    <section id="tab-cap-phat" class="tab-content" style="display: none;"><h3>Phân hệ Cấp phát & Thiết bị QR</h3></section>
+    <section id="tab-sua-chua" class="tab-content" style="display: none;"><h3>Phân hệ Lịch sử Sửa chữa</h3></section>
 
 
     <script>
-        // 1. CẤU HÌNH KẾT NỐI SUPABASE (Điền thông tin dự án của bạn vào đây)
-        const SUPABASE_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co"; // 🔴 Thay bằng URL thật của bạn
-        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ";                    // 🔴 Thay bằng Key thật của bạn
+        // 1. CẤU HÌNH KẾT NỐI SUPABASE
+        const SUPABASE_URL = "https://your-project.supabase.co"; // 🔴 Thay bằng URL thật của bạn
+        const SUPABASE_KEY = "your-anon-key";                    // 🔴 Thay bằng Key thật của bạn
 
-        // Khởi tạo kết nối thông minh, tự động thử lại 3 lần nếu mạng lag
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
             auth: { persistSession: true, autoRefreshToken: true },
             global: {
@@ -90,44 +98,34 @@
                         catch (err) {
                             retries--;
                             if (retries === 0) throw err;
-                            console.warn(`⚠️ Mạng lỗi, đang thử kết nối lại... Còn ${retries} lần`);
-                            await new Promise(res => setTimeout(res, 2000)); // Chờ 2 giây
+                            await new Promise(res => setTimeout(res, 2000));
                         }
                     }
                 }
             }
         });
 
-        // 2. LOGIC ĐIỀU HƯỚNG CHUYỂN TAB MƯỢT MÀ
+        // Biến toàn cục để lưu trữ dữ liệu gốc tải từ Cloud về (phục vụ cho việc lọc nhanh không cần gọi lại mạng)
+        let mangDuLieuGoc = [];
+
+        // 2. LOGIC ĐIỀU HƯỚNG CHUYỂN TAB
         function chuyenTab(tabId) {
-            // Ẩn tất cả các nội dung tab
             document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
-            // Bỏ màu nổi bật của tất cả các nút
             document.querySelectorAll('.nav-tabs button').forEach(btn => btn.className = 'secondary');
-            
-            // Hiển thị tab được chọn
             document.getElementById(tabId).style.display = 'block';
             
-            // Đổi màu nút được chọn để người dùng biết mình đang ở đâu
             if(tabId === 'tab-nhan-su') {
-                document.getElementById('btn-nhan-su').className = ''; // Bỏ class secondary sẽ thành màu xanh mặc định
-                taiDuLieuNhanSu(); // Tự động tải dữ liệu mới nhất từ Cloud về
-            } else if(tabId === 'tab-cap-phat') {
-                document.getElementById('btn-cap-phat').className = '';
-            } else if(tabId === 'tab-sua-chua') {
-                document.getElementById('btn-sua-chua').className = '';
+                document.getElementById('btn-nhan-su').className = '';
+                taiDuLieuNhanSu(); 
             }
         }
 
-        // 3. HÀM TẢI DỮ LIỆU NHÂN SỰ TỪ SUPABASE VÀ HIỂN THỊ
+        // 3. TẢI DỮ LIỆU TỪ CLOUD
         async function taiDuLieuNhanSu() {
             const tbody = document.getElementById('data-table-nhan-su');
-            const countSpan = document.getElementById('count-nhan-su');
-            
-            tbody.innerHTML = "<tr><td colspan='3'>⏳ Đang tải dữ liệu đám mây ổn định...</td></tr>";
-
             try {
-                // Lệnh truy vấn bảng nhan_su, sắp xếp ID từ mới đến cũ
+                tbody.innerHTML = "<tr><td colspan='3'>⏳ Đang tải dữ liệu đám mây ổn định...</td></tr>";
+
                 const { data, error } = await supabaseClient
                     .from('nhan_su')
                     .select('*')
@@ -135,97 +133,163 @@
 
                 if (error) throw error;
 
-                // Nếu không có dữ liệu
-                if (!data || data.length === 0) {
-                    tbody.innerHTML = "<tr><td colspan='3'>☁️ Trống: Không có dữ liệu nhân sự trên Cloud.</td></tr>";
-                    countSpan.innerText = "0";
-                    return;
-                }
-
-                // Cập nhật số lượng nhân sự hiển thị
-                countSpan.innerText = data.length;
-
-                // Dùng vòng lặp map để chuyển mảng dữ liệu thành các hàng trong bảng HTML
-                tbody.innerHTML = data.map(nhanVien => `
-                    <tr>
-                        <td><code>${nhanVien.id}</code></td>
-                        <td><strong>${nhanVien.name}</strong></td>
-                        <td><mark>${nhanVien.department || 'Chưa phân phòng'}</mark></td>
-                    </tr>
-                `).join('');
+                mangDuLieuGoc = data || [];
+                
+                // Cập nhật lại danh sách phòng ban vào ô Dropdown lọc công cụ
+                capNhatBoLocPhongBan(mangDuLieuGoc);
+                
+                // Hiển thị dữ liệu ra bảng
+                hienThiRaBang(mangDuLieuGoc);
 
             } catch (err) {
-                console.error("Lỗi:", err.message);
                 tbody.innerHTML = `<tr><td colspan='3' style='color: red;'>❌ Lỗi kết nối Cloud: ${err.message}</td></tr>`;
             }
         }
 
-        // 4. HÀM THÊM MỚI NHÂN SỰ LÊN SERVER
-        async function themNhanSuNhanh() {
-            const nameInput = document.getElementById('add-ns-name');
-            const deptInput = document.getElementById('add-ns-dept');
+        // 4. HÀM HIỂN THỊ DỮ LIỆU RA BẢNG HTML
+        function hienThiRaBang(danhSachHienThi) {
+            const tbody = document.getElementById('data-table-nhan-su');
+            const countSpan = document.getElementById('count-nhan-su');
             
-            const name = nameInput.value.trim();
-            const department = deptInput.value.trim();
+            countSpan.innerText = danhSachHienThi.length;
 
-            if (!name) {
-                alert("Vui lòng điền Họ và Tên!");
+            if (danhSachHienThi.length === 0) {
+                tbody.innerHTML = "<tr><td colspan='3'>☁️ Trống: Không có kết quả trùng khớp.</td></tr>";
                 return;
             }
 
-            try {
-                // Lệnh đẩy dữ liệu lên bảng 'nhan_su'
-                const { error } = await supabaseClient
-                    .from('nhan_su')
-                    .insert([{ name: name, department: department }]);
+            tbody.innerHTML = danhSachHienThi.map(nhanVien => `
+                <tr>
+                    <td><code>${nhanVien.id}</code></td>
+                    <td><strong>${nhanVien.name}</strong></td>
+                    <td><mark>${nhanVien.department || 'Chưa phân phòng'}</mark></td>
+                </tr>
+            `).join('');
+        }
 
-                if (error) throw error;
+        // 5. TỰ ĐỘNG PHÂN LOẠI DANH SÁCH PHÒNG BAN VÀO DROPDOWN
+        function capNhatBoLocPhongBan(data) {
+            const selectDept = document.getElementById('filter-dept');
+            const phongBanHienTai = selectDept.value; // Giữ lại lựa chọn hiện tại của user nếu có
 
-                // Xóa chữ trong ô nhập sau khi thêm thành công
-                nameInput.value = '';
-                deptInput.value = '';
+            // Lấy danh sách các phòng ban duy nhất (Unique) không trùng lặp
+            const danhSachPhong = ['ALL'];
+            data.forEach(item => {
+                if (item.department && !danhSachPhong.includes(item.department)) {
+                    danhSachPhong.push(item.department);
+                }
+            });
+
+            // Vẽ lại các option cho ô Select
+            selectDept.innerHTML = danhSachPhong.map(phong => {
+                if(phong === 'ALL') return `<option value="ALL">-- Tất cả phòng ban --</option>`;
+                return `<option value="${phong}">${phong}</option>`;
+            }).join('');
+
+            // Đặt lại giá trị cũ nếu phòng ban đó vẫn tồn tại
+            if (danhSachPhong.includes(phongBanHienTai)) {
+                selectDept.value = phongBanHienTai;
+            }
+        }
+
+        // 6. BỘ LỌC TÌM KIẾM THÔNG MINH (Chạy cực mượt trực tiếp trên bộ nhớ máy)
+        function locDuLieuThongMinh() {
+            const tuKhoaTimKiem = document.getElementById('search-input').value.toLowerCase().trim();
+            const phongBanDuocChon = document.getElementById('filter-dept').value;
+
+            // Tiến hành lọc mảng dữ liệu gốc
+            const ketQuaLoc = mangDuLieuGoc.filter(nhanVien => {
+                // Điều kiện 1: Kiểm tra phòng ban
+                const khopPhongBan = (phongBanDuocChon === 'ALL') || (nhanVien.department === phongBanDuocChon);
                 
-                alert("🎉 Đã lưu nhân sự lên Cloud thành công!");
-                // Lưu ý: Không cần gọi hàm tải lại dữ liệu ở đây, vì tính năng Realtime bên dưới sẽ tự động làm việc đó!
+                // Điều kiện 2: Kiểm tra từ khóa tên (hỗ trợ tìm kiếm không dấu đơn giản bằng cách chuyển chữ thường)
+                const tenNhanVien = nhanVien.name ? nhanVien.name.toLowerCase() : '';
+                const khopTuKhoa = tenNhanVien.includes(tuKhoaTimKiem);
 
-            } catch (err) {
-                alert("Không thể thêm dữ liệu: " + err.message);
-            }
+                return khopPhongBan && khopTuKhoa;
+            });
+
+            // Hiển thị kết quả sau lọc lên màn hình
+            hienThiRaBang(ketQuaLoc);
         }
 
-        // 5. HÀM XÓA SẠCH DỮ LIỆU ĐỂ LÀM MỚI (Dùng cho nút Đỏ)
+        // 7. XỬ LÝ ĐỌC FILE EXCEL VÀ NẠP HÀNG LOẠT LÊN CLOUD
+        function nhapExcelHangLoat() {
+            const fileInput = document.getElementById('excel-file-input');
+            const file = fileInput.files[0];
+            
+            if (!file) return;
+
+            const reader = new FileReader();
+            
+            // Hàm kích hoạt sau khi trình duyệt đọc xong file cấu trúc mã nhị phân
+            reader.onload = async function(e) {
+                try {
+                    const dataFile = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(dataFile, { type: 'array' });
+                    
+                    // Lấy sheet đầu tiên trong file Excel làm việc
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    
+                    // Chuyển dữ liệu Sheet thành mảng JSON chuẩn
+                    const danhSachExcel = XLSX.utils.sheet_to_json(worksheet);
+                    
+                    if (danhSachExcel.length === 0) {
+                        alert("File Excel trống hoặc sai định dạng!");
+                        return;
+                    }
+
+                    // Kiểm tra cấu trúc xem có đúng cột `name` không
+                    if (!danhSachExcel[0].hasOwnProperty('name')) {
+                        alert("Lỗi: File Excel bắt buộc phải có cột tiêu đề tên là 'name' ở dòng đầu tiên!");
+                        return;
+                    }
+
+                    // Tiến hành định dạng lại mảng sạch để đẩy lên Supabase
+                    const mảngSạchĐẩyLênCloud = danhSachExcel.map(row => ({
+                        name: row.name ? String(row.name).trim() : 'Không rõ tên',
+                        department: row.department ? String(row.department).trim() : 'Chưa phân phòng'
+                    }));
+
+                    if(!confirm(`Hệ thống tìm thấy ${mảngSạchĐẩyLênCloud.length} nhân sự trong file Excel. Xác nhận nạp hàng loạt lên Cloud?`)) return;
+
+                    // Thực hiện lệnh Bulk Insert lên Supabase ổn định
+                    const { error } = await supabaseClient
+                        .from('nhan_su')
+                        .insert(mảngSạchĐẩyLênCloud);
+
+                    if (error) throw error;
+
+                    alert(`🎉 Đã nạp thành công hàng loạt ${mảngSạchĐẩyLênCloud.length} nhân sự từ Excel lên hệ thống đám mây!`);
+                    fileInput.value = ''; // Xóa file ở ô input để có thể chọn lại lần sau
+
+                } catch (err) {
+                    alert("Lỗi xử lý nạp file dữ liệu: " + err.message);
+                }
+            };
+
+            reader.readAsArrayBuffer(file);
+        }
+
+        // 8. HÀM XÓA SẠCH DỮ LIỆU CLOUD
         async function xoaSachNhanSuCloud() {
-            if (!confirm("⚠️ Chú ý: Bạn có chắc chắn muốn XÓA SẠCH toàn bộ nhân sự trên Cloud để làm mới không? Hành động này không thể hoàn tác!")) return;
-
+            if (!confirm("⚠️ Chú ý: Bạn có chắc chắn muốn XÓA SẠCH toàn bộ nhân sự trên Cloud không?")) return;
             try {
-                // Mẹo xóa sạch: Xóa tất cả các hàng có ID khác 0
-                const { error } = await supabaseClient
-                    .from('nhan_su')
-                    .delete()
-                    .neq('id', 0);
-
+                const { error } = await supabaseClient.from('nhan_su').delete().neq('id', 0);
                 if (error) throw error;
-                alert("🎉 Đã xóa sạch cơ sở dữ liệu nhân sự thành công!");
-
-            } catch (err) {
-                alert("Lỗi khi xóa: " + err.message);
-            }
+                alert("🎉 Đã dọn dẹp sạch sẽ Cloud!");
+            } catch (err) { alert("Lỗi khi xóa: " + err.message); }
         }
 
-        // 6. CƠ CHẾ ĐỒNG BỘ REALTIME TỰ ĐỘNG CHUYÊN NGHIỆP
-        // Đoạn code này lắng nghe trực tiếp từ Supabase. Cứ khi nào database có thay đổi (Thêm/Xóa/Sửa)
-        // là giao diện web sẽ tự động vẽ lại danh sách, không cần người dùng bấm F5.
+        // 9. KÊNH ĐỒNG BỘ REALTIME
         supabaseClient.channel('kenh-dong-bo-nhan-su')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'nhan_su' }, (payload) => {
-                console.log("🔔 Phát hiện thay đổi trên Cloud, tự động cập nhật bảng...", payload);
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'nhan_su' }, () => {
                 taiDuLieuNhanSu(); 
             })
             .subscribe();
 
-        // MẶC ĐỊNH KHI VỪA MỞ WEB: Tự động nhảy vào Tab nhân sự để hiển thị dữ liệu ngay
-        window.onload = () => {
-            chuyenTab('tab-nhan-su');
-        };
+        window.onload = () => { chuyenTab('tab-nhan-su'); };
     </script>
 </body>
 </html>
