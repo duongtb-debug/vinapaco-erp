@@ -257,6 +257,7 @@
     let currentFileName = "";  
     let isEditing = false;
     let isEditingTT = false;
+
     document.addEventListener("DOMContentLoaded", function() {
         client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         taiDuLieuTuCloud(false); 
@@ -267,6 +268,7 @@
             }
         });
     });
+
     async function taiDuLieuTuCloud(isManualClick) {
         try {
             const [resNS, resTB, resSC, resTT] = await Promise.all([
@@ -291,6 +293,7 @@
             console.error(e); 
         }
     }
+
     function switchTab(tabName) {
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -316,6 +319,7 @@
             locGiaoDienThietBi();
         }
     }
+
     async function xoaToanBoNhanSuCloud() {
         if (!confirm("BẠN CÓ CHẮC CHẮN MUỐN XÓA TOÀN BỘ NHÂN SỰ TRÊN CLOUD KHÔNG?")) return;
         try {
@@ -328,6 +332,18 @@
             }
         } catch(err) { alert(err.message); }
     }
+
+    function formatExcelDate(serial) {
+        if(!serial) return null;
+        if(String(serial).includes("/")) return String(serial).trim();
+        const num = parseInt(serial);
+        if(isNaN(num)) return String(serial).trim();
+        const utc_days  = Math.floor(num - 25569);
+        const utc_value = utc_days * 86400;                                        
+        const date_info = new Date(utc_value * 1000);
+        return date_info.toLocaleDateString('vi-VN');
+    }
+
     function docVaUploadNhanSuTuExcel(input) {
         const file = input.files[0];
         if(!file) return;
@@ -339,103 +355,111 @@
                 const sheet = workbook.Sheets[workbook.SheetNames[0]];
                 const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
                 if (rows.length === 0) { alert("File Excel trống!"); return; }
-                const dbColumns = ["id", "ho_ten", "so_cccd", "so_bhxh", "ma_don_vi", "chuc_danh_cong_viec", "nam_sinh", "ten"];
+                
                 function formatKey(k) {
                     return k.toString().toLowerCase().trim().replace(/\s+/g, '').replace(/đ/g, 'd').replace(/[^a-z0-9]/g, '');
                 }
+                
                 let headerIdx = -1;
-                let colMapping = {};
+                let colMapping = { hoten: -1, cccd: -1, bhxh: -1, madonvi: -1, chucdanh: -1, namsinh: -1 };
+                
                 for (let i = 0; i < Math.min(rows.length, 10); i++) {
                     let row = rows[i];
                     let foundHeader = false;
                     row.forEach((cell, cellIdx) => {
                         let text = formatKey(cell);
-                        if (text.includes("hoten") || text.includes("hovaten")) {
-                            foundHeader = true;
-                        }
+                        if (text.includes("hoten") || text.includes("hovaten")) foundHeader = true;
                     });
                     if (foundHeader) {
                         headerIdx = i;
                         row.forEach((cell, cellIdx) => {
                             let text = formatKey(cell);
-                            if(text) colMapping[text] = cellIdx;
+                            if (text.includes("hoten") || text.includes("hovaten")) colMapping.hoten = cellIdx;
+                            else if (text.includes("cccd") || text.includes("chungminh")) colMapping.cccd = cellIdx;
+                            else if (text.includes("bhxh") || text.includes("baohiem")) colMapping.bhxh = cellIdx;
+                            else if (text.includes("madonvi") || text.includes("bophan")) colMapping.madonvi = cellIdx;
+                            else if (text.includes("chucdanh") || text.includes("congviec")) colMapping.chucdanh = cellIdx;
+                            else if (text.includes("namsinh")) colMapping.namsinh = cellIdx;
                         });
                         break;
                     }
                 }
-                if (headerIdx === -1) {
+                
+                if (headerIdx === -1 || colMapping.hoten === -1) {
                     alert("Không định vị được dòng tiêu đề chứa cột 'Họ và tên'!");
                     input.value = ""; return;
                 }
+                
                 let maxId = 0;
                 CACHE_NHAN_SU.forEach(ns => { if (parseInt(ns.id) > maxId) maxId = parseInt(ns.id); });
                 let recordsToUpload = [];
                 let dsMaDonVi = new Set();
+                
                 for (let i = headerIdx + 1; i < rows.length; i++) {
                     let row = rows[i];
                     if (!row || row.length === 0) continue;
-                    let record = {};
-                    let matchedHoTen = "";
-                    Object.keys(colMapping).forEach(key => {
-                        if (key.includes("hoten") || key.includes("hovaten")) {
-                            matchedHoTen = String(row[colMapping[key]] || "").trim();
-                        }
-                    });
-                    if (!matchedHoTen || matchedHoTen.toLowerCase() === "họ và tên") continue;
-                    dbColumns.forEach(col => {
-                        if (col === "id") return;
-                        record[col] = null;
-                        let dbKeyFormatted = formatKey(col);
-                        Object.keys(colMapping).forEach(excelKey => {
-                            if (excelKey === dbKeyFormatted || excelKey.includes(dbKeyFormatted) || dbKeyFormatted.includes(excelKey)) {
-                                let cellVal = String(row[colMapping[excelKey]] || "").trim();
-                                if (cellVal !== "") record[col] = cellVal;
-                            }
-                        });
-                    });
-                    if (!record["ho_ten"]) record["ho_ten"] = matchedHoTen;
-                    let maDV = record["ma_don_vi"] ? record["ma_don_vi"].replace(/\s+/g, '') : "DV-UNKNOWN";
-                    record["ma_don_vi"] = maDV;
-                    dsMaDonVi.add(maDV);
+                    
+                    let hoTenVal = colMapping.hoten !== -1 ? String(row[colMapping.hoten] || "").trim() : "";
+                    if (!hoTenVal || hoTenVal.toLowerCase() === "họ và tên") continue;
+                    
+                    let cccdVal = colMapping.cccd !== -1 ? String(row[colMapping.cccd] || "").trim() : null;
+                    let bhxhVal = colMapping.bhxh !== -1 ? String(row[colMapping.bhxh] || "").trim() : null;
+                    let maDVVal = colMapping.madonvi !== -1 ? String(row[colMapping.madonvi] || "").trim().replace(/\s+/g, '') : "DV-UNKNOWN";
+                    let chucDanhVal = colMapping.chucdanh !== -1 ? String(row[colMapping.chucdanh] || "").trim() : null;
+                    let namSinhRaw = colMapping.namsinh !== -1 ? String(row[colMapping.namsinh] || "").trim() : null;
+                    let namSinhVal = formatExcelDate(namSinhRaw);
+                    
+                    dsMaDonVi.add(maDVVal);
                     maxId++;
-                    record["id"] = maxId;
-                    recordsToUpload.push(record);
+                    
+                    recordsToUpload.push({
+                        id: maxId,
+                        ho_ten: hoTenVal,
+                        so_cccd: cccdVal,
+                        so_bhxh: bhxhVal,
+                        ma_don_vi: maDVVal,
+                        chuc_danh_cong_viec: chucDanhVal,
+                        nam_sinh: namSinhVal
+                    });
                 }
+                
                 if (recordsToUpload.length === 0) {
-                    alert("Không tìm thấy hàng dữ liệu nào tương thích!");
+                    alert("Không tìm thấy hàng dữ liệu nhân sự nào hợp lệ!");
                     input.value = ""; return;
                 }
+                
                 if (dsMaDonVi.size > 0) {
                     let unitsPayload = Array.from(dsMaDonVi).map(m => ({ ma_don_vi: m, ten_don_vi: "Đơn vị " + m }));
                     await client.from('don_vi').upsert(unitsPayload, { onConflict: 'ma_don_vi' });
                 }
+                
                 const { error } = await client.from('nhan_su').insert(recordsToUpload);
                 if (error) {
                     alert("Lỗi tải lên Cloud: " + error.message);
                 } else {
-                    alert("Thành công! Đã nạp " + recordsToUpload.length + " nhân sự.");
+                    alert("Thành công rực rỡ! Đã nạp " + recordsToUpload.length + " nhân sự lên hệ thống Cloud.");
                 }
                 input.value = "";
                 await taiDuLieuTuCloud(false);
             } catch (err) {
-                alert("Lỗi tệp Excel: " + err.message);
+                alert("Lỗi cấu trúc tệp Excel: " + err.message);
             }
         };
         reader.readAsArrayBuffer(file);
     }
+
     function locGiaoDienNhanSu() {
         const thead = document.getElementById('header-ns');
         const tbody = document.getElementById('body-ns');
         if(!tbody || !thead) return;
-        thead.innerHTML = '';
-        tbody.innerHTML = '';
+        thead.innerHTML = ''; tbody.innerHTML = '';
         if (CACHE_NHAN_SU.length === 0) {
             thead.innerHTML = '<tr><th>Dữ liệu</th></tr>';
             tbody.innerHTML = '<tr><td>Không có dữ liệu nhân sự trên Cloud.</td></tr>';
             document.getElementById('count-ns').innerText = "0";
             return;
         }
-        let columns = Object.keys(CACHE_NHAN_SU[0]);
+        let columns = ["id", "ho_ten", "so_cccd", "so_bhxh", "ma_don_vi", "chuc_danh_cong_viec", "nam_sinh"];
         let thr = document.createElement('tr');
         columns.forEach(col => {
             let th = document.createElement('th');
@@ -457,14 +481,17 @@
         });
         document.getElementById('count-ns').innerText = CACHE_NHAN_SU.length;
     }
+
     function tuDongSinhMaThietBi() {
         if(isEditing) return;
         document.getElementById('tb-ma').value = "TB-2026-" + String(CACHE_THIẾT_BỊ.length + 1).padStart(4, '0');
     }
+
     function tuDongSinhMaHosoThanhToan() {
         if(isEditingTT) return;
         document.getElementById('tt-ma-hs').value = "HS-TT-" + String(CACHE_THANH_TOÁN.length + 1).padStart(4, '0');
     }
+
     function doDuLieuVaoSelectSuaChua() {
         const select = document.getElementById('sc-ma-tb');
         if(!select) return;
@@ -473,6 +500,7 @@
             select.innerHTML += '<option value="' + tb.ma_thiet_bi + '">' + tb.ma_thiet_bi + ' (' + (tb.ten_thiet_bi || '') + ')</option>';
         });
     }
+
     function doDuLieuVaoSelectThanhToan() {
         const select = document.getElementById('tt-ma-tb');
         if(!select) return;
@@ -481,11 +509,13 @@
             select.innerHTML += '<option value="' + tb.ma_thiet_bi + '">' + tb.ma_thiet_bi + ' - ' + (tb.ten_thiet_bi || '') + '</option>';
         });
     }
+
     function capNhatTenThietBiSuaChua() {
         const ma = document.getElementById('sc-ma-tb').value;
         const khop = CACHE_THIẾT_BỊ.find(x => x.ma_thiet_bi === ma);
         document.getElementById('sc-ten-tb').value = khop ? (khop.ten_thiet_bi || '') : '';
     }
+
     function goTimKiemNhanSu(input) {
         const keyword = input.value.toLowerCase().trim();
         const box = document.getElementById('smart-search-box');
@@ -508,6 +538,7 @@
         }
         box.style.display = 'block';
     }
+
     async function xuLyLuuThietBi(e) {
         e.preventDefault();
         const idDb = document.getElementById('tb-id-db').value;
@@ -529,6 +560,7 @@
             huyCheDoSua();
         } catch(err) { console.error(err); }
     }
+
     function locGiaoDienThietBi() {
         const tableBody = document.getElementById('body-tb-table');
         if(!tableBody) return; tableBody.innerHTML = '';
@@ -543,6 +575,7 @@
             '</tr>';
         });
     }
+
     function kichHoatCheDoSua(id, ma, keyTen, nguoi, trangthai) {
         isEditing = true;
         document.getElementById('form-title').innerText = "⚙️ CẬP NHẬT THIẾT BỊ";
@@ -553,6 +586,7 @@
         document.getElementById('tb-trangthai').value = trangthai;
         document.getElementById('btn-cancel-edit').style.display = 'block';
     }
+
     function huyCheDoSua() {
         isEditing = false;
         document.getElementById('form-title').innerText = "CẤP PHÁT THIẾT BỊ MỚI";
@@ -562,6 +596,7 @@
         document.getElementById('btn-cancel-edit').style.display = 'none';
         tuDongSinhMaThietBi();
     }
+
     async function xuLyLuuSuaChua(e) {
         e.preventDefault();
         const obj = {
@@ -578,6 +613,7 @@
             await taiDuLieuTuCloud(false);
         } catch(err){ console.error(err); }
     }
+
     async function bamHoanTatSuaChua(idDb) {
         try {
             await client.from('lich_su_sua_chua').update({ trang_thai: "Đã sửa xong" }).eq('id', idDb);
@@ -585,6 +621,7 @@
             await taiDuLieuTuCloud(false);
         } catch(err) { console.error(err); }
     }
+
     function locGiaoDienSuaChua() {
         const tbody = document.getElementById('body-sc-table');
         if(!tbody) return; tbody.innerHTML = '';
@@ -600,6 +637,7 @@
             '</tr>';
         });
     }
+
     function htmlSecuredConverter(inputElement) {
         const file = inputElement.files[0];
         if (!file) return;
@@ -612,6 +650,7 @@
         };
         reader.readAsDataURL(file);
     }
+
     async function xuLyLuuHosoThanhToan(e) {
         e.preventDefault();
         const idDb = document.getElementById('tt-id-db').value;
@@ -640,6 +679,7 @@
             huyCheDoSuaThanhToan();
         } catch(err) { alert(err.message); }
     }
+
     function xemLaiTaiLieuChungTu(index) {
         const hs = CACHE_THANH_TOÁN[index];
         const newWindow = window.open();
@@ -648,6 +688,7 @@
         let viewHtml = hs.file_data && hs.file_data.startsWith("data:image/") ? '<img src="' + hs.file_data + '" style="max-width:85%; max-height:75vh; margin-top:20px; border-radius:8px;">' : '<iframe src="' + hs.file_data + '" style="width:90%; height:75vh; margin-top:20px;"></iframe>';
         newWindow.document.body.innerHTML = '<div style="text-align:center; padding:20px; background:#f8fafc;"><a href="' + hs.file_data + '" download="' + (hs.file_name || 'file') + '" style="padding:10px 20px; background:#10b981; color:white; font-weight:bold; text-decoration:none; border-radius:6px;">📥 TẢI XUỐNG FILE GỐC</a><br>' + viewHtml + '</div>';
     }
+
     function locGiaoDienThanhToan() {
         const tbody = document.getElementById('body-tt-table');
         if(!tbody) return; 
@@ -671,16 +712,20 @@
             }
             let badgeClass = tt.trang_thai === "Đã thanh toán" ? "status-good" : "status-warn";
             let fileBtn = tt.file_data ? '<button type="button" class="btn-view-doc" onclick="xemLaiTaiLieuChungTu(' + idx + ')">👁️ Xem trước</button>' : '<span class="no-doc">❌ Không có</span>';
-            let rowHtml = '<tr>' +
-                '<td><b>' + (tt.ma_ho_so || '---') + '</b></td>' +
+            
+            let tr = document.createElement('tr');
+            tr.innerHTML = '<td><b>' + (tt.ma_ho_so || '---') + '</b></td>' +
                 '<td>' + (tt.ma_thiet_bi || '---') + '</td>' +
                 '<td>' + (tt.don_vi_sua_chua || "---") + '</td>' +
                 '<td><b>' + soTienNum.toLocaleString('vi-VN') + ' Đ</b></td>' +
                 '<td><span class="status-pill ' + badgeClass + '">' + (tt.trang_thai || '') + '</span></td>' +
                 '<td>' + fileBtn + '</td>' +
-                '<td><button type="button" class="btn-action btn-action-edit" onclick="kichHoatCheDoSuaThanhToan(\'' + tt.id + '\',\'' + tt.ma_ho_so + '\',\'' + tt.ma_thiet_bi + '\',\'' + escapeHtml(tt.don_vi_sua_chua || "") + '\',' + soTienNum + ',\'' + (tt.trang_thai || "") + '\')">⚙️ Sửa</button></td>' +
-                '</tr>';
-            tbody.innerHTML += rowHtml;
+                '<td><button type="button" class="btn-action btn-action-edit" id="btn-edit-tt-' + tt.id + '">⚙️ Sửa</button></td>';
+            
+            tr.querySelector('#btn-edit-tt-' + tt.id).onclick = function() {
+                kichHoatCheDoSuaThanhToan(tt.id, tt.ma_ho_so, tt.ma_thiet_bi, tt.don_vi_sua_chua || "", soTienNum, tt.trang_thai || "");
+            };
+            tbody.appendChild(tr);
         });
         if(document.getElementById('stat-tong-hs')) {
             document.getElementById('stat-tong-hs').innerText = CACHE_THANH_TOÁN.length;
@@ -692,6 +737,7 @@
             document.getElementById('stat-tien-cho-duyet').innerText = tongTienChoDuyet.toLocaleString('vi-VN') + " VNĐ";
         }
     }
+
     function kichHoatCheDoSuaThanhToan(id, mahs, matb, donvi, sotien, trangthai) {
         isEditingTT = true;
         document.getElementById('form-title-tt').innerText = "⚙️ SỬA HỒ SƠ: " + mahs;
@@ -703,6 +749,7 @@
         document.getElementById('tt-trang-thai').value = trangthai;
         document.getElementById('btn-cancel-tt').style.display = 'block';
     }
+
     function huyCheDoSuaThanhToan() {
         isEditingTT = false;
         document.getElementById('form-title-tt').innerText = "LẬP HỒ SƠ THANH TOÁN MỚI";
@@ -715,6 +762,7 @@
         base64FileString = ""; currentFileName = "";
         tuDongSinhMaHosoThanhToan();
     }
+
     function xuatBaoCaoExcelThanhToan() {
         if(CACHE_THANH_TOÁN.length === 0) return alert("Không có dữ liệu!");
         const data = CACHE_THANH_TOÁN.map((tt, i) => ({
@@ -726,6 +774,7 @@
         XLSX.utils.book_append_sheet(wb, ws, "Báo Cáo");
         XLSX.writeFile(wb, "Bao_Cao_Chi_Phi_Sua_Chua_2026.xlsx");
     }
+
     function escapeHtml(text) { return text ? text.replace(/'/g, "\\'").replace(/"/g, '&quot;') : ''; }
 </script>
 </body>
