@@ -28,7 +28,6 @@
         }
         header h1 { font-size: 1.7rem; margin-bottom: 5px; }
         
-        /* Giao diện xem nhanh khi quét QR trên điện thoại */
         #scan-result-dashboard { display: none; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); max-width: 500px; margin: 40px auto; border-top: 8px solid var(--primary-color); }
         #scan-result-dashboard h2 { color: var(--primary-color); margin-bottom: 15px; text-align: center; }
         .info-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f1f5f9; font-size: 0.95rem; }
@@ -65,7 +64,7 @@
         .search-group { flex: 1; min-width: 250px; }
         .search-group input { width: 100%; padding: 11px; border: 1px solid var(--border-color); border-radius: 8px; }
         
-        .table-responsive { overflow-x: auto; background: white; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0; }
+        .table-responsive { overflow-x: auto; background: white; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 25px; }
         table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem; }
         th, td { padding: 12px 14px; border-bottom: 1px solid #e2e8f0; }
         th { background-color: #f8fafc; color: #475569; font-weight: 700; }
@@ -125,7 +124,8 @@
         <div class="panel">
             <h2 id="form-title">CẤP PHÁT THIẾT BỊ MỚI</h2>
             <form id="form-thietbi" onsubmit="xuLyLuuThietBi(event)">
-                <input type="hidden" id="tb-id-db"> <div class="form-group">
+                <input type="hidden" id="tb-id-db">
+                <div class="form-group">
                     <label>Mã thiết bị (Tự động sinh):</label>
                     <input type="text" id="tb-ma" readonly>
                 </div>
@@ -159,7 +159,24 @@
                 <button class="btn btn-primary" style="width:auto; margin-bottom:0;" onclick="inToanBoTem()">🖨️ IN TOÀN BỘ TEM QR ĐÃ LỌC</button>
             </div>
             
-            <h2>XEM TRƯỚC HỆ THỐNG TEM TÀI SẢN</h2>
+            <h2>DANH SÁCH THIẾT BỊ ĐÃ CẤP PHÁT</h2>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Mã thiết bị</th>
+                            <th>Tên tài sản</th>
+                            <th>Nhân sự sử dụng</th>
+                            <th>Ngày cấp</th>
+                            <th>Trạng thái</th>
+                            <th>Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody id="body-tb-table"></tbody>
+                </table>
+            </div>
+
+            <h2>XEM TRƯỚC HỆ THỐNG TEM TÀI SẢN (Chuẩn 85x40mm)</h2>
             <div class="qr-preview-container" id="qr-zone-preview"></div>
         </div>
     </div>
@@ -204,7 +221,6 @@
     document.addEventListener("DOMContentLoaded", function() {
         client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         
-        // KIỂM TRA ĐƯỜNG DẪN QR ĐỘNG (Xử lý xem nhanh tài sản trên điện thoại)
         const urlParams = new URLSearchParams(window.location.search);
         const maAssetScan = urlParams.get('ma_tb');
         
@@ -293,7 +309,6 @@
         });
     }
 
-    // TÌM KIẾM NHÂN SỰ GẮN LIỀN VỚI THÔNG TIN BỘ PHẬN KHẢO SÁT KHỚP DANH SÁCH 971 NGƯỜI
     function goTimKiemNhanSu(input) {
         const keyword = input.value.toLowerCase().trim();
         const box = document.getElementById('smart-search-box');
@@ -304,7 +319,7 @@
         });
 
         if(ketQuaLoc.length === 0) {
-            box.innerHTML = `<div class="smart-search-item" style="color:#94a3b8;">⚠ Tự điền tên hoặc bộ phận mới ngoài danh sách</div>`;
+            box.innerHTML = `<div class="smart-search-item" style="color:#94a3b8;">⚠ Tự điền tên bộ phận ngoài danh sách</div>`;
         } else {
             box.innerHTML = '';
             ketQuaLoc.slice(0, 6).forEach(ns => {
@@ -322,7 +337,6 @@
         box.style.display = 'block';
     }
 
-    // HÀM XỬ LÝ LƯU (TÍNH NĂNG THÊM MỚI VÀ SỬA ĐỒNG BỘ ĐÁM MÂY)
     async function xuLyLuuThietBi(e) {
         e.preventDefault();
         const idDb = document.getElementById('tb-id-db').value;
@@ -336,11 +350,9 @@
 
         try {
             if(isEditing && idDb) {
-                // Thao tác Cập nhật (Sửa)
                 await client.from('thiet_bi').update(obj).eq('id', idDb);
                 alert("🎉 Đã cập nhật sửa đổi thiết bị thành công!");
             } else {
-                // Thao tác Thêm mới
                 await client.from('thiet_bi').insert([obj]);
                 alert("🎉 Cấp phát thiết bị mới thành công!");
             }
@@ -373,9 +385,8 @@
         tuDongSinhMaThietBi();
     }
 
-    // TÍNH NĂNG XÓA THIẾT BỊ KHỎI ĐÁM MÂY CLOUD
     async function xoaThietBi(id, ma) {
-        if(!confirm(`Bạn có chắc chắn muốn xóa vĩnh viễn thiết bị [${ma}] khỏi hệ thống? Thao tác này không thể hoàn tác.`)) return;
+        if(!confirm(`Bạn có chắc chắn muốn xóa vĩnh viễn thiết bị [${ma}] khỏi hệ thống?`)) return;
         try {
             await client.from('thiet_bi').delete().eq('id', id);
             alert(`Đã xóa thiết bị ${ma} thành công!`);
@@ -384,24 +395,42 @@
     }
 
     function locGiaoDienThietBi() {
+        const tableBody = document.getElementById('body-tb-table');
         const zone = document.getElementById('qr-zone-preview');
-        if(!zone) return; zone.innerHTML = '';
+        
+        if(!tableBody || !zone) return;
+        tableBody.innerHTML = '';
+        zone.innerHTML = '';
+        
         const k = document.getElementById('search-tb').value.toLowerCase().trim();
         
         CACHE_THIẾT_BỊ.forEach(tb => {
             if(k && !tb.ma_thiet_bi.toLowerCase().includes(k) && !tb.ten_thiet_bi.toLowerCase().includes(k) && !tb.nguoi_su_dung.toLowerCase().includes(k)) return;
             
-            const ticket = document.createElement('div');
-            ticket.className = 'qr-ticket';
-            
-            // ĐƯỜNG DẪN QR QUỐC TẾ TỰ ĐỘNG THEO LINK WEB HIỆN TẠI
-            const urlTraCuuQuocTe = `${window.location.protocol}//${window.location.host}${window.location.pathname}?ma_tb=${tb.ma_thiet_bi}`;
-            const linkAnhQR = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(urlTraCuuQuocTe)}&ecc=H`;
-            
             let classStatus = "status-good";
             if(tb.trang_thai.includes("bảo trì")) classStatus = "status-warn";
             if(tb.trang_thai.includes("Hỏng")) classStatus = "status-bad";
 
+            // 1. ĐỔ VÀO BẢNG DANH SÁCH (DỄ DÀNG THEO DÕI)
+            tableBody.innerHTML += `<tr>
+                <td><b>${tb.ma_thiet_bi}</b></td>
+                <td>${tb.ten_thiet_bi}</td>
+                <td>${tb.nguoi_su_dung}</td>
+                <td>${tb.ngay_cap_phat || '2026'}</td>
+                <td><span class="status-pill ${classStatus}">${tb.trang_thai}</span></td>
+                <td>
+                    <button class="btn-action" style="background:#f59e0b;" onclick="kichHoatCheDoSua('${tb.id}', '${tb.ma_thiet_bi}', '${escapeHtml(tb.ten_thiet_bi)}', '${escapeHtml(tb.nguoi_su_dung)}', '${tb.trang_thai}')">🛠️ Sửa</button>
+                    <button class="btn-action" style="background:#ef4444;" onclick="xoaThietBi('${tb.id}', '${tb.ma_thiet_bi}')">🗑️ Xóa</button>
+                </td>
+            </tr>`;
+
+            // 2. ĐỔ VÀO KHU VỰC IN TEM QR
+            const ticket = document.createElement('div');
+            ticket.className = 'qr-ticket';
+            
+            const urlTraCuuQuocTe = `${window.location.protocol}//${window.location.host}${window.location.pathname}?ma_tb=${tb.ma_thiet_bi}`;
+            const linkAnhQR = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(urlTraCuuQuocTe)}&ecc=H`;
+            
             ticket.innerHTML = `
                 <div class="qr-code-zone">
                     <img src="${linkAnhQR}" alt="QR Code">
@@ -412,18 +441,19 @@
                     <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"><b>Thiết bị:</b> ${tb.ten_thiet_bi}</div>
                     <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"><b>Sử dụng:</b> ${tb.nguoi_su_dung}</div>
                     <div><b>Ngày cấp:</b> ${tb.ngay_cap_phat || '2026'}</div>
-                    <div style="margin-top:5px; display:flex; justify-content:space-between; align-items:center;">
+                    <div style="margin-top:5px;">
                         <span class="status-pill ${classStatus}">${tb.trang_thai}</span>
-                        <div class="action-btns">
-                            <button class="btn-action" style="background:#f59e0b;" onclick="kichHoatCheDoSua('${tb.id}', '${tb.ma_thiet_bi}', '${escapeHtml(tb.ten_thiet_bi)}',尊'${escapeHtml(tb.nguoi_su_dung)}', '${tb.trang_thai}')">🛠️</button>
-                            <button class="btn-action" style="background:#ef4444;" onclick="xoaThietBi('${tb.id}', '${tb.ma_thiet_bi}')">🗑️</button>
-                        </div>
                     </div>
                 </div>
                 <button class="badge-print" onclick="inMotTemThietBi(this.parentElement.innerHTML)">🖨️ In</button>
             `;
             zone.appendChild(ticket);
         });
+
+        if(CACHE_THIẾT_BỊ.length === 0) {
+            tableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#aaa; padding:20px;">Chưa có thiết bị nào được cấp phát.</td></tr>`;
+            zone.innerHTML = `<p style="color:#aaa; font-style:italic; padding:20px;">Không có tem để hiển thị.</p>`;
+        }
     }
 
     function escapeHtml(text) {
@@ -440,7 +470,7 @@
         const printSec = document.getElementById('print-section');
         printSec.innerHTML = '';
         const cacTem = document.querySelectorAll('#qr-zone-preview .qr-ticket');
-        if(cacTem.length === 0) return alert("Không có danh sách!");
+        if(cacTem.length === 0) return alert("Không có danh sách tem thiết bị để in!");
         cacTem.forEach(t => { 
             const copyTem = t.cloneNode(true);
             printSec.appendChild(copyTem); 
