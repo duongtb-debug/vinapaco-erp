@@ -198,6 +198,7 @@
         } catch(e) { console.error("Lỗi kết nối Cloud:", e); }
     }
 
+    // PHƯƠNG THỨC IMPORT THÔNG MINH - CHỐNG LỆCH TIÊU ĐỀ FILE EXCEL
     function xuLyImportExcelNhanSu(input) {
         const file = input.files[0];
         if (!file) return;
@@ -210,37 +211,65 @@
                 const firstSheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[firstSheetName];
                 
-                const jsonData = XLSX.utils.sheet_to_json(worksheet);
-                if (jsonData.length === 0) {
-                    alert("⚠️ File Excel không chứa dữ liệu!");
+                // Đọc dữ liệu thô dạng mảng hai chiều để tự bóc tách tiêu đề chuẩn hóa
+                const rawRows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                if (rawRows.length < 2) {
+                    alert("⚠️ File Excel không chứa dữ liệu hoặc thiếu tiêu đề cột!");
+                    input.value = ""; return;
+                }
+
+                // Bước 1: Lấy dòng tiêu đề đầu tiên và chuẩn hóa (viết thường, xóa khoảng trắng)
+                const headers = rawRows[0].map(h => h ? h.toString().trim().toLowerCase().replace(/\s+/g, '') : '');
+                
+                // Tìm vị trí (chỉ số index) của các cột quan trọng
+                const idxHoTen = headers.findIndex(h => h.includes('ho_va_ten') || h.includes('hoten') || h.includes('hovaten'));
+                const idxCccd = headers.findIndex(h => h.includes('so_cccd') || h.includes('socccd') || h.includes('cccd'));
+                const idxChucVu = headers.findIndex(h => h.includes('chuc_danh_cong_viec') || h.includes('chucvu') || h.includes('chucdanh'));
+                const idxNgaySinh = headers.findIndex(h => h.includes('ngay_sinh') || h.includes('namsinh') || h.includes('ngaysinh'));
+                const idxNu = headers.findIndex(h => h.includes('nu_x') || h.includes('gioitinh'));
+                const idxMaDonVi = headers.findIndex(h => h.includes('ma_don_vi') || h.includes('phongban'));
+                const idxMaNV = headers.findIndex(h => h.includes('ma_nhan_su') || h.includes('manv'));
+
+                if (idxHoTen === -1) {
+                    alert("❌ Lỗi cấu trúc: File Excel của bạn thiếu cột họ tên (Ví dụ: ho_va_ten)!");
                     input.value = ""; return;
                 }
 
                 let danhSachUpload = [];
                 let tuSinhMaId = CACHE_NHÂN_SỰ.length + 1;
 
-                for(let i = 0; i < jsonData.length; i++) {
-                    const row = jsonData[i];
-                    
-                    let hoTen = row["ho_va_ten"] || row["ho_ten"] || row["Họ và tên"];
-                    if (!hoTen) continue; 
+                // Bước 2: Quét qua các dòng dữ liệu (từ dòng index số 1 trở đi)
+                for(let i = 1; i < rawRows.length; i++) {
+                    const row = rawRows[i];
+                    if (!row || row.length === 0) continue;
 
-                    let cccdRaw = row["so_cccd"] || row["Số CCCD"] || "";
-                    let chucVu = row["chuc_danh_cong_viec"] || row["chuc_vu"] || "";
-                    let ngaySinhRaw = row["ngay_sinh"] || row["nam_sinh"] || "";
-                    let gioiTinh = row["nu_x"] && row["nu_x"].toString().trim().toUpperCase() === "X" ? "Nữ" : "Nam";
-                    let maDonVi = row["ma_don_vi"] || "Tổng công ty Giấy";
+                    let hoTen = row[idxHoTen];
+                    if (!hoTen) continue; // Bỏ qua dòng trống tên
 
+                    let cccdRaw = idxCccd !== -1 ? row[idxCccd] : "";
+                    let chucVu = idxChucVu !== -1 ? row[idxChucVu] : "";
+                    let ngaySinhRaw = idxNgaySinh !== -1 ? row[idxNgaySinh] : "";
+                    let nuX = idxNu !== -1 ? row[idxNu] : "";
+                    let maDonVi = idxMaDonVi !== -1 ? row[idxMaDonVi] : "Tổng công ty Giấy";
+                    let maNVEx = idxMaNV !== -1 ? row[idxMaNV] : "";
+
+                    // Định dạng giới tính dựa trên cột nu_x
+                    let gioiTinh = "Nam";
+                    if(nuX && nuX.toString().trim().toUpperCase() === "X") {
+                        gioiTinh = "Nữ";
+                    }
+
+                    // Làm sạch định dạng ngày sinh
                     let ngaySinhCleaned = "";
                     if (ngaySinhRaw) {
                         ngaySinhCleaned = ngaySinhRaw.toString().split(' ')[0].trim();
                     }
 
-                    let maNV = row["ma_nhan_su"] || row["ma_nv"] || `NS-${String(tuSinhMaId).padStart(4, '0')}`;
+                    let maNV = maNVEx ? maNVEx.toString().trim() : `NS-${String(tuSinhMaId).padStart(4, '0')}`;
                     tuSinhMaId++;
 
                     let objData = {
-                        ma_nhan_su: maNV.toString().trim(),
+                        ma_nhan_su: maNV,
                         ho_ten: hoTen.toString().trim(),
                         phong_ban: maDonVi.toString().trim(),
                         chuc_vu: chucVu.toString().trim(),
@@ -249,8 +278,7 @@
                         trang_thai: "Đang làm việc"
                     };
 
-                    // KHỚP CHÍNH XÁC VỚI CỘT so_cccd TRÊN DATABASE CỦA BẠN SAU KHI ĐỔI SANG TEXT
-                    let textCccd = cccdRaw.toString().trim();
+                    let textCccd = cccdRaw ? cccdRaw.toString().trim() : "";
                     if(textCccd !== "") {
                         objData.so_cccd = textCccd; 
                     }
@@ -259,24 +287,22 @@
                 }
 
                 if (danhSachUpload.length === 0) {
-                    alert("❌ Không quét được nhân sự nào hợp lệ.");
+                    alert("❌ Không bóc tách được nhân sự nào hợp lệ. Vui lòng kiểm tra lại file Excel.");
                     input.value = ""; return;
                 }
 
-                if(confirm(`📦 Tìm thấy ${danhSachUpload.length} nhân sự.\nBấm OK để nạp đồng bộ lên đám mây?`)) {
+                if(confirm(`📦 Đọc file động thành công! Tìm thấy ${danhSachUpload.length} nhân sự.\nBấm OK để nạp lên Đám mây Supabase?`)) {
                     const { error } = await client.from('nhan_su').insert(danhSachUpload);
-                    
                     if (error) {
                         alert("❌ Thất bại: " + error.message);
                     } else {
                         alert(`🎉 Thành công! Hệ thống đã nạp ${danhSachUpload.length} nhân sự.`);
-                        // Tự động tải lại bảng dữ liệu sau khi import thành công
                         await taiDuLieuTuCloud();
                     }
                 }
             } catch(err) {
                 console.error(err);
-                alert("❌ Lỗi cấu trúc tệp dữ liệu!");
+                alert("❌ Lỗi cấu trúc hoặc lỗi xử lý tệp dữ liệu!");
             }
             input.value = ""; 
         };
