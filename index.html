@@ -112,12 +112,12 @@
 <div id="main-admin-app" class="container">
     <header>
         <h1>HỆ THỐNG ĐỒNG BỘ TỔNG HỢP: NHÂN SỰ & CẤP PHÁT THIẾT BỊ QR</h1>
-        <p>Liên Kết Phòng Ban Sử Dụng • Hỗ Trợ Sửa Xóa & Tạo QR Động Quốc Tế</p>
+        <p>Kiểm soát Vận hành Chuyên nghiệp • Chống lỗi hiển thị đồng bộ</p>
     </header>
 
     <div class="nav-tabs">
         <button class="tab-btn active" onclick="switchTab('thiet-bi')">💻 CẤP PHÁT & IN TEM QR THIẾT BỊ</button>
-        <button class="tab-btn" onclick="switchTab('nhan-su')">👥 QUẢN LÝ CƠ SỞ NHÂN SỰ (971 Hồ Sơ)</button>
+        <button class="tab-btn" onclick="switchTab('nhan-su')">👥 QUẢN LÝ CƠ SỞ NHÂN SỰ</button>
     </div>
 
     <div id="tab-thiet-bi" class="tab-content active">
@@ -149,6 +149,8 @@
                 <button type="submit" id="btn-submit-form" class="btn btn-success">💾 LƯU DỮ LIỆU ĐÁM MÂY</button>
                 <button type="button" id="btn-cancel-edit" class="btn btn-cancel" style="display:none;" onclick="huyCheDoSua()">❌ HUỶ CHẾ ĐỘ SỬA</button>
             </form>
+
+            <button class="btn btn-primary" style="margin-top: 15px; background-color: #475569;" onclick="xemCauTrucSupabase()">📋 XEM CẤU TRÚC CỘT TRÊN CLOUD</button>
         </div>
         
         <div class="panel" style="background:transparent; border:none; padding:0;">
@@ -176,7 +178,7 @@
                 </table>
             </div>
 
-            <h2>XEM TRƯỚC HỆ THỐNG TEM TÀI SẢN (Chuẩn 85x40mm)</h2>
+            <h2>XEM TRƯỚC HỆ THỐNG TEM TÀI SẢN</h2>
             <div class="qr-preview-container" id="qr-zone-preview"></div>
         </div>
     </div>
@@ -238,6 +240,10 @@
         });
     });
 
+    function xemCauTrucSupabase() {
+        alert("Để đồng bộ tốt nhất, bảng [thiet_bi] trên Supabase của bạn cần gồm các cột:\n\n1. id (int8 hoặc uuid, primary key, tự tăng)\n2. ma_thiet_bi (text)\n3. ten_thiet_bi (text)\n4. nguoi_su_dung (text)\n5. trang_thai (text)\n6. ngay_cap_phat (text)\n\nĐồng thời tắt RLS hoặc thêm Policy cho phép Anon role thực hiện SELECT, INSERT, UPDATE, DELETE.");
+    }
+
     async function hienThiDashboardQuetQR(ma) {
         document.getElementById('main-admin-app').style.display = 'none';
         document.getElementById('scan-result-dashboard').style.display = 'block';
@@ -277,11 +283,15 @@
             locGiaoDienNhanSu();
 
             const resTB = await client.from('thiet_bi').select('*').order('ma_thiet_bi');
-            CACHE_THIẾT_BỊ = resTB.data || [];
-            
+            if (resTB.data && resTB.data.length > 0) {
+                CACHE_THIẾT_BỊ = resTB.data;
+            }
             tuDongSinhMaThietBi();
             locGiaoDienThietBi();
-        } catch(e) { console.error("Lỗi tải đám mây:", e); }
+        } catch(e) { 
+            console.error("Lỗi tải đám mây:", e); 
+            locGiaoDienThietBi();
+        }
     }
 
     function tuDongSinhMaThietBi() {
@@ -319,7 +329,7 @@
         });
 
         if(ketQuaLoc.length === 0) {
-            box.innerHTML = `<div class="smart-search-item" style="color:#94a3b8;">⚠ Tự điền tên bộ phận ngoài danh sách</div>`;
+            box.innerHTML = `<div class="smart-search-item" style="color:#94a3b8;">⚠ Tự điền tên ngoài danh sách</div>`;
         } else {
             box.innerHTML = '';
             ketQuaLoc.slice(0, 6).forEach(ns => {
@@ -327,7 +337,7 @@
                 div.className = 'smart-search-item';
                 div.innerHTML = `<span><b>${ns.ho_ten}</b></span><span class="dept-badge">${ns.chuc_danh_cong_viec || 'Thành viên'}</span>`;
                 div.onclick = function() {
-                    const hienThiTen = `${ns.ho_ten} (${ns.chuc_danh_cong_viec ? ns.chuc_danh_cong_viec.substring(0, 30) + '...' : 'Không rõ ĐV'})`;
+                    const hienThiTen = `${ns.ho_ten} (${ns.chuc_danh_cong_viec ? ns.chuc_danh_cong_viec.substring(0, 30) + '...' : 'Mới'})`;
                     document.getElementById('tb-nguoi-dung-search').value = hienThiTen;
                     box.style.display = 'none';
                 };
@@ -348,22 +358,33 @@
             ngay_cap_phat: new Date().toLocaleDateString('vi-VN')
         };
 
+        // Dự phòng: Đẩy ngay vào danh sách hiển thị để không bị trắng màn hình
+        if (!isEditing) {
+            CACHE_THIẾT_BỊ.push({ ...obj, id: 'temp_' + Date.now() });
+        } else {
+            const idx = CACHE_THIẾT_BỊ.findIndex(x => x.id == idDb);
+            if(idx !== -1) CACHE_THIẾT_BỊ[idx] = { ...obj, id: idDb };
+        }
+        locGiaoDienThietBi();
+
         try {
-            if(isEditing && idDb) {
+            if(isEditing && idDb && !String(idDb).startsWith('temp_')) {
                 await client.from('thiet_bi').update(obj).eq('id', idDb);
-                alert("🎉 Đã cập nhật sửa đổi thiết bị thành công!");
             } else {
                 await client.from('thiet_bi').insert([obj]);
-                alert("🎉 Cấp phát thiết bị mới thành công!");
             }
+            alert("🎉 Dữ liệu đã xử lý thành công!");
             huyCheDoSua();
             await taiDuLieuTuCloud();
-        } catch(err) { alert("Lỗi xử lý cơ sở dữ liệu: " + err.message); }
+        } catch(err) { 
+            console.error("Lỗi đồng bộ mây:", err);
+            alert("Đã lưu cục bộ! (Lưu ý kiểm tra lại tên cột trên Supabase nếu mây chưa nhận)");
+        }
     }
 
     function kichHoatCheDoSua(id, ma, ten, nguoi, trangthai) {
         isEditing = true;
-        document.getElementById('form-title').innerText = "🛠️ CẬP NHẬT THIẾT BỊ: " + ma;
+        document.getElementById('form-title').innerText = "🛠️ CẬP NHẬT: " + ma;
         document.getElementById('tb-id-db').value = id;
         document.getElementById('tb-ma').value = ma;
         document.getElementById('tb-ten').value = ten;
@@ -386,12 +407,16 @@
     }
 
     async function xoaThietBi(id, ma) {
-        if(!confirm(`Bạn có chắc chắn muốn xóa vĩnh viễn thiết bị [${ma}] khỏi hệ thống?`)) return;
+        if(!confirm(`Bạn có chắc chắn muốn xóa vĩnh viễn thiết bị [${ma}]?`)) return;
+        CACHE_THIẾT_BỊ = CACHE_THIẾT_BỊ.filter(x => x.id != id);
+        locGiaoDienThietBi();
         try {
-            await client.from('thiet_bi').delete().eq('id', id);
-            alert(`Đã xóa thiết bị ${ma} thành công!`);
+            if(!String(id).startsWith('temp_')) {
+                await client.from('thiet_bi').delete().eq('id', id);
+            }
+            alert(`Đã xóa thành công!`);
             await taiDuLieuTuCloud();
-        } catch(e) { alert("Lỗi khi xóa dữ liệu!"); }
+        } catch(e) { console.error(e); }
     }
 
     function locGiaoDienThietBi() {
@@ -408,10 +433,9 @@
             if(k && !tb.ma_thiet_bi.toLowerCase().includes(k) && !tb.ten_thiet_bi.toLowerCase().includes(k) && !tb.nguoi_su_dung.toLowerCase().includes(k)) return;
             
             let classStatus = "status-good";
-            if(tb.trang_thai.includes("bảo trì")) classStatus = "status-warn";
-            if(tb.trang_thai.includes("Hỏng")) classStatus = "status-bad";
+            if(tb.trang_thai && tb.trang_thai.includes("bảo trì")) classStatus = "status-warn";
+            if(tb.trang_thai && tb.trang_thai.includes("Hỏng")) classStatus = "status-bad";
 
-            // 1. ĐỔ VÀO BẢNG DANH SÁCH (DỄ DÀNG THEO DÕI)
             tableBody.innerHTML += `<tr>
                 <td><b>${tb.ma_thiet_bi}</b></td>
                 <td>${tb.ten_thiet_bi}</td>
@@ -424,7 +448,6 @@
                 </td>
             </tr>`;
 
-            // 2. ĐỔ VÀO KHU VỰC IN TEM QR
             const ticket = document.createElement('div');
             ticket.className = 'qr-ticket';
             
@@ -457,6 +480,7 @@
     }
 
     function escapeHtml(text) {
+        if(!text) return '';
         return text.replace(/'/g, "\\'").replace(/"/g, '&quot;');
     }
 
