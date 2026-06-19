@@ -38,7 +38,7 @@
         <div class="grid">
             <div style="border: 2px dashed #0076ff; padding: 15px; border-radius: 8px;">
                 <h5>📥 NHẬP DỮ LIỆU TỪ EXCEL KHẢO SÁT CHUẨN:</h5>
-                <p style="font-size: 0.8rem; color: gray; margin-bottom: 5px;">File Excel cần có 2 cột tiêu đề ở dòng đầu tiên là: <strong>name</strong> và <strong>department</strong></p>
+                <p style="font-size: 0.8rem; color: gray; margin-bottom: 5px;">Hệ thống tự động nhận diện các cột: <strong>Họ tên / Name</strong> và <strong>Phòng ban / Department</strong></p>
                 <input type="file" id="excel-file-input" accept=".xlsx, .xls" onchange="nhapExcelHangLoat()">
             </div>
             
@@ -58,7 +58,7 @@
                     <label for="filter-dept">Phân loại theo Phòng Ban</label>
                     <select id="filter-dept" onchange="locDuLieuThongMinh()">
                         <option value="ALL">-- Tất cả phòng ban --</option>
-                        </select>
+                    </select>
                 </div>
             </div>
         </div>
@@ -84,9 +84,9 @@
 
 
     <script>
-        // 1. CẤU HÌNH KẾT NỐI SUPABASE
-        const SUPABASE_URL = "https://your-project.supabase.co"; // 🔴 Thay bằng URL thật của bạn
-        const SUPABASE_KEY = "your-anon-key";                    // 🔴 Thay bằng Key thật của bạn
+        // 1. CẤU HÌNH KẾT NỐI SUPABASE (Đã điền thông tin thật của bạn)
+        const SUPABASE_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co"; 
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ";                    
 
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
             auth: { persistSession: true, autoRefreshToken: true },
@@ -105,7 +105,6 @@
             }
         });
 
-        // Biến toàn cục để lưu trữ dữ liệu gốc tải từ Cloud về (phục vụ cho việc lọc nhanh không cần gọi lại mạng)
         let mangDuLieuGoc = [];
 
         // 2. LOGIC ĐIỀU HƯỚNG CHUYỂN TAB
@@ -126,19 +125,17 @@
             try {
                 tbody.innerHTML = "<tr><td colspan='3'>⏳ Đang tải dữ liệu đám mây ổn định...</td></tr>";
 
+                // Lưu ý: Kiểm tra kĩ tên bảng trên Supabase của bạn. Nếu bạn đặt là "Nhân sự" có dấu, hãy đổi lại dưới đây.
+                // Đoạn này đang gọi bảng 'nhan_su' hoặc 'Nhân sự'. Ta tạm để 'nhan_su' theo chuẩn.
                 const { data, error } = await supabaseClient
-                    .from('nhan_su')
+                    .from('nhan_su') 
                     .select('*')
                     .order('id', { ascending: false });
 
                 if (error) throw error;
 
                 mangDuLieuGoc = data || [];
-                
-                // Cập nhật lại danh sách phòng ban vào ô Dropdown lọc công cụ
                 capNhatBoLocPhongBan(mangDuLieuGoc);
-                
-                // Hiển thị dữ liệu ra bảng
                 hienThiRaBang(mangDuLieuGoc);
 
             } catch (err) {
@@ -161,8 +158,8 @@
             tbody.innerHTML = danhSachHienThi.map(nhanVien => `
                 <tr>
                     <td><code>${nhanVien.id}</code></td>
-                    <td><strong>${nhanVien.name}</strong></td>
-                    <td><mark>${nhanVien.department || 'Chưa phân phòng'}</mark></td>
+                    <td><strong>${nhanVien.name || nhanVien['Họ và Tên'] || ''}</strong></td>
+                    <td><mark>${nhanVien.department || nhanVien['Phòng Ban'] || 'Chưa phân phòng'}</mark></td>
                 </tr>
             `).join('');
         }
@@ -170,105 +167,111 @@
         // 5. TỰ ĐỘNG PHÂN LOẠI DANH SÁCH PHÒNG BAN VÀO DROPDOWN
         function capNhatBoLocPhongBan(data) {
             const selectDept = document.getElementById('filter-dept');
-            const phongBanHienTai = selectDept.value; // Giữ lại lựa chọn hiện tại của user nếu có
+            const phongBanHienTai = selectDept.value;
 
-            // Lấy danh sách các phòng ban duy nhất (Unique) không trùng lặp
             const danhSachPhong = ['ALL'];
             data.forEach(item => {
-                if (item.department && !danhSachPhong.includes(item.department)) {
-                    danhSachPhong.push(item.department);
+                const dept = item.department || item['Phòng Ban'];
+                if (dept && !danhSachPhong.includes(dept)) {
+                    danhSachPhong.push(dept);
                 }
             });
 
-            // Vẽ lại các option cho ô Select
             selectDept.innerHTML = danhSachPhong.map(phong => {
                 if(phong === 'ALL') return `<option value="ALL">-- Tất cả phòng ban --</option>`;
                 return `<option value="${phong}">${phong}</option>`;
             }).join('');
 
-            // Đặt lại giá trị cũ nếu phòng ban đó vẫn tồn tại
             if (danhSachPhong.includes(phongBanHienTai)) {
                 selectDept.value = phongBanHienTai;
             }
         }
 
-        // 6. BỘ LỌC TÌM KIẾM THÔNG MINH (Chạy cực mượt trực tiếp trên bộ nhớ máy)
+        // 6. BỘ LỌC TÌM KIẾM THÔNG MINH
         function locDuLieuThongMinh() {
             const tuKhoaTimKiem = document.getElementById('search-input').value.toLowerCase().trim();
             const phongBanDuocChon = document.getElementById('filter-dept').value;
 
-            // Tiến hành lọc mảng dữ liệu gốc
             const ketQuaLoc = mangDuLieuGoc.filter(nhanVien => {
-                // Điều kiện 1: Kiểm tra phòng ban
-                const khopPhongBan = (phongBanDuocChon === 'ALL') || (nhanVien.department === phongBanDuocChon);
-                
-                // Điều kiện 2: Kiểm tra từ khóa tên (hỗ trợ tìm kiếm không dấu đơn giản bằng cách chuyển chữ thường)
-                const tenNhanVien = nhanVien.name ? nhanVien.name.toLowerCase() : '';
-                const khopTuKhoa = tenNhanVien.includes(tuKhoaTimKiem);
+                const dept = nhanVien.department || nhanVien['Phòng Ban'] || '';
+                const name = nhanVien.name || nhanVien['Họ và Tên'] || '';
+
+                const khopPhongBan = (phongBanDuocChon === 'ALL') || (dept === phongBanDuocChon);
+                const khopTuKhoa = name.toLowerCase().includes(tuKhoaTimKiem);
 
                 return khopPhongBan && khopTuKhoa;
             });
 
-            // Hiển thị kết quả sau lọc lên màn hình
             hienThiRaBang(ketQuaLoc);
         }
 
-        // 7. XỬ LÝ ĐỌC FILE EXCEL VÀ NẠP HÀNG LOẠT LÊN CLOUD
+        // 7. XỬ LÝ ĐỌC FILE EXCEL THÔNG MINH - CHỐNG BẮT LỖI TÊN CỘT
         function nhapExcelHangLoat() {
             const fileInput = document.getElementById('excel-file-input');
             const file = fileInput.files[0];
-            
             if (!file) return;
 
             const reader = new FileReader();
-            
-            // Hàm kích hoạt sau khi trình duyệt đọc xong file cấu trúc mã nhị phân
             reader.onload = async function(e) {
                 try {
                     const dataFile = new Uint8Array(e.target.result);
                     const workbook = XLSX.read(dataFile, { type: 'array' });
-                    
-                    // Lấy sheet đầu tiên trong file Excel làm việc
-                    const firstSheetName = workbook.SheetNames[0];
-                    const worksheet = workbook.Sheets[firstSheetName];
-                    
-                    // Chuyển dữ liệu Sheet thành mảng JSON chuẩn
+                    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
                     const danhSachExcel = XLSX.utils.sheet_to_json(worksheet);
                     
                     if (danhSachExcel.length === 0) {
-                        alert("File Excel trống hoặc sai định dạng!");
+                        alert("File Excel trống!");
                         return;
                     }
 
-                    // Kiểm tra cấu trúc xem có đúng cột `name` không
-                    if (!danhSachExcel[0].hasOwnProperty('name')) {
-                        alert("Lỗi: File Excel bắt buộc phải có cột tiêu đề tên là 'name' ở dòng đầu tiên!");
+                    // THÔNG MINH: Tự động tìm cột chứa tên và phòng ban dựa trên từ khóa phổ biến
+                    const mảngSạchĐẩyLênCloud = danhSachExcel.map(row => {
+                        let detectedName = '';
+                        let detectedDept = 'Chưa phân phòng';
+
+                        // Quét qua các key (tiêu đề cột) của dòng hiện tại
+                        for (let key in row) {
+                            const keyLower = key.toLowerCase().trim();
+                            
+                            // Nếu cột chứa chữ 'name', 'tên', 'họ tên', 'họ và tên' -> lấy làm tên
+                            if (keyLower.includes('name') || keyLower.includes('tên') || keyLower.includes('ho ten')) {
+                                detectedName = row[key];
+                            }
+                            // Nếu cột chứa chữ 'dept', 'phòng', 'phòng ban', 'bộ phận' -> lấy làm phòng ban
+                            if (keyLower.includes('dept') || keyLower.includes('phòng') || keyLower.includes('bo phan') || keyLower.includes('bộ phận')) {
+                                detectedDept = row[key];
+                            }
+                        }
+
+                        return {
+                            name: detectedName ? String(detectedName).trim() : 'Không rõ tên',
+                            department: detectedDept ? String(detectedDept).trim() : 'Chưa phân phòng'
+                        };
+                    });
+
+                    // Lọc bỏ những dòng không quét được tên hợp lệ
+                    const mảngHợpLệ = mảngSạchĐẩyLênCloud.filter(item => item.name !== 'Không rõ tên');
+
+                    if (mảngHợpLệ.length === 0) {
+                        alert("❌ Không tìm thấy cột chứa dữ liệu Tên nhân sự hợp lệ trong file Excel!");
                         return;
                     }
 
-                    // Tiến hành định dạng lại mảng sạch để đẩy lên Supabase
-                    const mảngSạchĐẩyLênCloud = danhSachExcel.map(row => ({
-                        name: row.name ? String(row.name).trim() : 'Không rõ tên',
-                        department: row.department ? String(row.department).trim() : 'Chưa phân phòng'
-                    }));
+                    if(!confirm(`Hệ thống tự động tìm thấy ${mảngHợpLệ.length} nhân sự. Xác nhận nạp hàng loạt lên Cloud?`)) return;
 
-                    if(!confirm(`Hệ thống tìm thấy ${mảngSạchĐẩyLênCloud.length} nhân sự trong file Excel. Xác nhận nạp hàng loạt lên Cloud?`)) return;
-
-                    // Thực hiện lệnh Bulk Insert lên Supabase ổn định
                     const { error } = await supabaseClient
                         .from('nhan_su')
-                        .insert(mảngSạchĐẩyLênCloud);
+                        .insert(mảngHợpLệ);
 
                     if (error) throw error;
 
-                    alert(`🎉 Đã nạp thành công hàng loạt ${mảngSạchĐẩyLênCloud.length} nhân sự từ Excel lên hệ thống đám mây!`);
-                    fileInput.value = ''; // Xóa file ở ô input để có thể chọn lại lần sau
+                    alert(`🎉 Đã nạp thành công hàng loạt ${mảngHợpLệ.length} nhân sự lên Cloud!`);
+                    fileInput.value = '';
 
                 } catch (err) {
                     alert("Lỗi xử lý nạp file dữ liệu: " + err.message);
                 }
             };
-
             reader.readAsArrayBuffer(file);
         }
 
