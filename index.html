@@ -87,7 +87,7 @@
 <div id="main-admin-app" class="container">
     <header>
         <h1>HỆ THỐNG ĐỒNG BỘ TỔNG HỢP: NHÂN SỰ, THIẾT BỊ QR & HỒ SƠ THANH TOÁN CHỨNG TỪ</h1>
-        <p>Phiên bản Vá lỗi Toàn diện - Ép mã đơn vị mặc định Chống rỗng (NOT NULL Constraint)</p>
+        <p>Hệ thống quản trị dữ liệu đám mây chuẩn hóa</p>
     </header>
 
     <div class="nav-tabs">
@@ -264,7 +264,7 @@
                             <th>NNĐH</th>
                             <th>Năm về hưu</th>
                             <th>Mã đơn vị</th>
-                            <th>Năm</th>
+                            <th>Năm khảo sát</th>
                             <th>Năm sinh</th>
                             <th>Giới tính (Nữ)</th>
                             <th>Chức danh công việc</th>
@@ -387,7 +387,9 @@
         return str;
     }
 
-    // ⚡ VÁ LỖI CẤP ĐỘ CAO NHẤT: CHẶN ĐỨNG HOÀN TOÀN LỖI NOT-NULL CONSTRAINT & LỖI KHÓA NGOẠI
+    /* ==========================================
+       🛠️ ĐOẠN ĐƯỢC SỬA: LOGIC NẠP EXCEL CHUẨN CLOUD
+       ========================================== */
     function docVaUploadNhanSuTuExcel(input) {
         const file = input.files[0];
         if(!file) return;
@@ -414,7 +416,6 @@
                     let atv = "", nndh = "", namVeHuu = "", maDonVi = "", nam = "", namSinh = "", nu = "", chucDanh = "";
 
                     for (let key in row) {
-                        // Khử hoàn toàn khoảng trắng dư thừa trong tiêu đề (Ví dụ "Mã  đơn  vị" -> "măđơnvị")
                         let cleanKey = key.replace(/\s+/g, '').trim().toLowerCase();
                         
                         if (cleanKey === "stt") stt = row[key];
@@ -436,7 +437,6 @@
                         let cleanCccd = String(soCccd || '').trim();
                         let cleanMaDonVi = String(maDonVi || '').replace(/\s+/g, '').trim();
                         
-                        // 🛠️ CHỐNG LỖI NOT-NULL: Nếu dòng Excel không có mã đơn vị, ép sang mã mặc định "DV-UNKNOWN"
                         if (cleanMaDonVi === "") {
                             cleanMaDonVi = "DV-UNKNOWN";
                         }
@@ -453,8 +453,8 @@
                                 an_toan_vien: String(atv || ''),
                                 nndh: String(nndh || ''),
                                 nam_ve_huu: formatExcelDate(namVeHuu),
-                                ma_don_vi: cleanMaDonVi, // Đảm bảo luôn có dữ liệu chuỗi, không bao giờ null
-                                nam_khao_sat: formatExcelDate(nam),
+                                ma_don_vi: cleanMaDonVi, 
+                                nam_khao_sat: formatExcelDate(nam), // <--- LUÔN ĐẨY LÊN CỘT CHÍNH XÁC NÀY
                                 nam_sinh: formatExcelDate(namSinh),
                                 gioi_tinh_nu: String(nu || ''),
                                 chuc_danh_cong_viec: String(chucDanh || '')
@@ -468,7 +468,6 @@
                     input.value = ""; return;
                 }
 
-                // 🔄 BƯỚC 1: Đăng ký toàn bộ danh mục mã đơn vị (kể cả DV-UNKNOWN) vào bảng đơn vị trước
                 if (setMaDonViExcel.size > 0) {
                     let mangMaDonVi = Array.from(setMaDonViExcel);
                     let payloadDonVi = mangMaDonVi.map(m => ({
@@ -477,18 +476,15 @@
                     }));
                     
                     const { error: errDonVi } = await client.from('don_vi').upsert(payloadDonVi, { onConflict: 'ma_don_vi' });
-                    if(errDonVi) {
-                        console.error("Lỗi đăng ký danh mục:", errDonVi);
-                    }
+                    if(errDonVi) console.error("Lỗi đăng ký đơn vị:", errDonVi);
                 }
 
-                // 🔄 BƯỚC 2: Đẩy dữ liệu nhân sự lên Đám mây một cách thông suốt
                 const { error: errNhanSu } = await client.from('nhan_su').insert(danhSachUpload);
                 if(errNhanSu) {
                     console.error("Lỗi Supabase:", errNhanSu);
                     alert("🚨 Không thể nạp dữ liệu: \n" + errNhanSu.message);
                 } else {
-                    alert(`🎉 Thành công mỹ mãn! Hệ thống đã nạp ${danhSachUpload.length} nhân sự lên Đám mây mà không gặp bất kỳ trở ngại nào!`);
+                    alert(`🎉 Thành công dứt điểm! Hệ thống đã nạp ${danhSachUpload.length} nhân sự mới lên Cloud thành công!`);
                 }
                 
                 document.getElementById('search-ns').value = "";
