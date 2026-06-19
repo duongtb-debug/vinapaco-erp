@@ -62,7 +62,7 @@
         .table-responsive { overflow-x: auto; background: white; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 25px; }
         table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem; white-space: nowrap; }
         th, td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; vertical-align: middle; }
-        th { background-color: #f8fafc; color: #475569; font-weight: 700; sticky: top; }
+        th { background-color: #f8fafc; color: #475569; font-weight: 700; }
         
         .status-pill { padding: 3px 8px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; display: inline-block; }
         .status-good { background-color: #dcfce7; color: #15803d; }
@@ -91,7 +91,7 @@
         <button class="tab-btn" onclick="switchTab('thiet-bi')">💻 CẤP PHÁT & IN TEM QR THIẾT BỊ</button>
         <button class="tab-btn" onclick="switchTab('sua-chua')">🛠️ THEO DÕI LỊCH SỬ SỬA CHỮA</button>
         <button class="tab-btn" onclick="switchTab('thanh-toan')">💰 QUẢN LÝ THANH TOÁN BẢO TRÌ</button>
-        <button class="tab-btn active" onclick="switchTab('nhan-su')">👤 QUẢN LÝ HỒ SƠ NHÂN SỰ</button>
+        <button class="tab-btn active" onclick="switchTab('nhan-su')">👤 QUẢ lÝ HỒ SƠ NHÂN SỰ</button>
     </div>
 
     <div id="tab-thiet-bi" class="tab-content">
@@ -183,7 +183,7 @@
             <div class="panel-excel">
                 <h3>🟢 NHẬP NHÂN SỰ HÀNG LOẠT (EXCEL)</h3>
                 <p style="font-size: 0.8rem; color:#475569; margin-bottom: 12px; line-height:1.4;">
-                    Hệ thống tự động đọc cấu trúc 14 trường thông tin từ file Excel của bạn (Mã NV, Họ tên, Phòng ban, CCCD, Thường trú...).
+                    Hệ thống tự động đồng bộ 14 trường thông tin từ file Excel của bạn (Mã NV, Họ tên, Phòng ban, CCCD...).
                 </p>
                 <button type="button" class="btn btn-excel-download" onclick="taiExcelMauNhanSu()">📥 Tải File Cấu Trúc Mẫu</button>
                 <div class="form-group" style="margin-top:12px; margin-bottom:0;">
@@ -229,15 +229,17 @@
 </div>
 
 <script>
-    // Thông tin kết nối Supabase của bạn
-    const SUPABASE_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co"; 
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ"; 
+    const SUPABASE_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co".trim(); 
+    
+    // Đã nối chuỗi API Key chuẩn xác trên một dòng và thêm hàm .trim() để lọc bỏ khoảng trắng thừa
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ".trim(); 
     
     let client;
     let CACHE_NHÂN_SỰ = [];
     let isEditingNS = false;
 
     document.addEventListener("DOMContentLoaded", function() {
+        // Khởi tạo kết nối đám mây bảo mật
         client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         taiDuLieuTuCloud();
     });
@@ -259,10 +261,9 @@
                 CACHE_NHÂN_SỰ = resNS.data;
                 locGiaoDienNhanSu();
             }
-        } catch(e) { console.error("Lỗi tải dữ liệu:", e); }
+        } catch(e) { console.error("Lỗi kết nối Cloud:", e); }
     }
 
-    // Tự động ánh xạ thông minh tiêu đề cột từ file Excel của bạn (bất kể viết hoa thường hay dấu cách)
     function dynamicMapKey(rowObj, keys) {
         for (let originalKey in rowObj) {
             const cleanKey = originalKey.toString().toLowerCase().trim().replace(/\s+/g, '');
@@ -273,7 +274,6 @@
         return "";
     }
 
-    // XỬ LÝ IMPORT EXCEL HÀNG LOẠT KHỚP 100% CẤU TRÚC FILE CỦA BẠN
     function xuLyImportExcelNhanSu(input) {
         const file = input.files[0];
         if (!file) return;
@@ -298,7 +298,6 @@
                 for(let i = 0; i < jsonData.length; i++) {
                     const row = jsonData[i];
                     
-                    // Trích xuất chính xác 14 trường thông tin dựa trên file Book1_chuan_hoa của bạn
                     let maNV = dynamicMapKey(row, ["manv", "mãnhânsự", "mãnhânviên"]);
                     let hoTen = dynamicMapKey(row, ["hoten", "họvàtên", "tên"]);
                     let phongBan = dynamicMapKey(row, ["phongban", "bộphận"]);
@@ -314,10 +313,8 @@
                     let hienTai = dynamicMapKey(row, ["địachỉhiệntại", "hientai", "ởhiệntại"]);
                     let trangThai = dynamicMapKey(row, ["trạngthái", "trangthai", "tìnhtrạng"]) || "Đang làm việc";
 
-                    // Kiểm tra trường bắt buộc
                     if (!hoTen) continue; 
 
-                    // Nếu file excel thiếu mã NV, hệ thống tự động sinh mã liên tục
                     if (!maNV) {
                         maNV = `NS-${String(tuSinhMaId).padStart(4, '0')}`;
                         tuSinhMaId++;
@@ -342,12 +339,11 @@
                 }
 
                 if (danhSachUpload.length === 0) {
-                    alert("❌ Không quét được nhân sự nào hợp lệ. Vui lòng kiểm tra lại tiêu đề cột 'Họ và tên'.");
+                    alert("❌ Không quét được nhân sự nào hợp lệ.");
                     input.value = ""; return;
                 }
 
-                if(confirm(`📦 Đã đọc thành công ${danhSachUpload.length} nhân sự với đầy đủ các trường thông tin chi tiết.\nBấm OK để đồng bộ hàng loạt lên Cloud Supabase?`)) {
-                    // Sử dụng Bulk Insert của Supabase để đẩy toàn bộ danh sách lên trong 1 Request duy nhất
+                if(confirm(`📦 Đã đọc thành công ${danhSachUpload.length} nhân sự với 14 trường thông tin.\nBấm OK để đồng bộ lên Cloud?`)) {
                     const { data: insertedData, error } = await client.from('nhan_su').insert(danhSachUpload).select();
                     
                     if (error) {
@@ -367,7 +363,6 @@
         reader.readAsArrayBuffer(file);
     }
 
-    // XỬ LÝ LƯU HOẶC SỬA THỦ CÔNG
     async function xuLyLuuNhanSu(e) {
         e.preventDefault();
         const idDb = document.getElementById('ns-id-db').value;
@@ -434,7 +429,6 @@
         document.getElementById('btn-cancel-ns').style.display = 'none';
     }
 
-    // TÌM KIẾM, LỌC VÀ HIỂN THỊ RA BẢNG DỮ LIỆU
     function locGiaoDienNhanSu() {
         const tbody = document.getElementById('body-ns-table');
         if(!tbody) return; tbody.innerHTML = '';
@@ -445,7 +439,6 @@
         CACHE_NHÂN_SỰ.forEach(ns => {
             if(ns.trang_thai === "Đang làm việc") tongLamViec++;
 
-            // Bộ lọc tìm kiếm thông minh đa trường thông tin
             if(k && !ns.ho_ten.toLowerCase().includes(k) && 
                    !ns.ma_nhan_su.toLowerCase().includes(k) && 
                    !ns.cccd.toLowerCase().includes(k) && 
