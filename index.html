@@ -16,7 +16,7 @@
         }
         body { background-color: #f4f7f6; padding-bottom: 50px; }
         
-        /* Banner Header Chuẩn Ảnh */
+        /* Banner Header Chuẩn Thiết Kế */
         .system-banner {
             background: linear-gradient(135deg, #1e5799 0%, #207cca 40%, #0f4c81 100%);
             color: white;
@@ -95,6 +95,53 @@
         <button id="tab-btn-nhansu" onclick="chuyenTab('page-nhansu', this)">👥 QUẢN LÝ CƠ SỞ NHÂN SỰ</button>
     </div>
 
+    <section id="page-qr" class="tab-page" style="display: none;">
+        <div class="action-card">
+            <h4>Phân hệ Cấp phát & In tem QR Thiết bị</h4>
+            <p>Đang liên kết tới bảng dữ liệu đám mây <code>thiet_bi</code>...</p>
+        </div>
+    </section>
+
+    <section id="page-suachua" class="tab-page" style="display: none;">
+        <div class="action-card">
+            <h4>Phân hệ Theo dõi Lịch sử Sửa chữa</h4>
+            <p>Đang liên kết tới bảng dữ liệu đám mây <code>lich_su_su_a_chua</code> và <code>su_chua</code>...</p>
+        </div>
+    </section>
+
+    <section id="page-thanhtoan" class="tab-page" style="display: none;">
+        <div class="filter-section">
+            <div class="grid" style="align-items: end;">
+                <div style="flex: 2;">
+                    <h4 style="margin-bottom: 10px; color: #0f4c81;">Danh Sách Hồ Sơ Thanh Toán Toàn Hệ Thống</h4>
+                </div>
+                <div>
+                    <button class="sync-btn" onclick="taiDuLieuThanhToan()">🔄 TẢI LẠI HỒ SƠ CLOUD</button>
+                </div>
+            </div>
+        </div>
+
+        <div style="background: white; padding: 15px; border-radius: 6px; box-shadow: 0 4px 6px rgba(0,0,0,0.01);">
+            <figure>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID Hồ Sơ</th>
+                            <th>Tên Hồ Sơ</th>
+                            <th>Phân Loại</th>
+                            <th>Ngày Lập</th>
+                            <th>Tổng Tiền</th>
+                            <th>Minh Chứng</th>
+                        </tr>
+                    </thead>
+                    <tbody id="render-table-thanhtoan">
+                        <tr><td colspan="6" style="color: #64748b;">Đang tải dữ liệu hồ sơ thanh toán...</td></tr>
+                    </tbody>
+                </table>
+            </figure>
+        </div>
+    </section>
+
     <section id="page-nhansu" class="tab-page" style="display: none;">
         <div class="action-card">
             <div class="grid" style="align-items: center;">
@@ -146,19 +193,17 @@
         </div>
     </section>
 
-    <section id="page-qr" class="tab-page" style="display: none;"><div class="action-card"><h4>Phân hệ Cấp phát & In tem QR Thiết bị</h4><p>Đang kết nối tới bảng dữ liệu đám mây...</p></div></section>
-    <section id="page-suachua" class="tab-page" style="display: none;"><div class="action-card"><h4>Phân hệ Theo dõi Lịch sử Sửa chữa</h4><p>Đang kết nối tới bảng dữ liệu đám mây...</p></div></section>
-    <section id="page-thanhtoan" class="tab-page" style="display: none;"><div class="action-card"><h4>Phân hệ Quản lý Thanh toán Bảo trì</h4><p>Đang kết nối tới bảng dữ liệu đám mây...</p></div></section>
-
     <script>
-        // CẤU HÌNH LIÊN KẾT SUPABASE CHUẨN TỪ ẢNH CỦA BẠN
+        // CẤU HÌNH LIÊN KẾT SUPABASE CHUẨN TỪ PROJECT CỦA BẠN
         const CLOUD_URL = "https://obdrnumfvsjsnhwkhfpe.supabase.co";
         const CLOUD_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9iZHJudW1mdnNqc25od2toZnBlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ";
 
         const supabase = window.supabase.createClient(CLOUD_URL, CLOUD_KEY);
         
-        // Tên bảng đồng bộ chính xác theo ảnh cấu trúc API Access
-        const TEN_BANG_CHINH_XAC = "Nhân sự"; 
+        // Khai báo tên các bảng chính xác theo cơ sở dữ liệu thực tế
+        const BANG_NHAN_SU = "Nhân sự"; 
+        const BANG_THANH_TOAN = "ho_so_thanh_toan";
+
         let boNhoDuLieuGoc = [];
 
         // HÀM CHUYỂN TAB GIAO DIỆN
@@ -171,17 +216,47 @@
 
             if (pageId === 'page-nhansu') {
                 taiDuLieuTuSupabase();
+            } else if (pageId === 'page-thanhtoan') {
+                taiDuLieuThanhToan();
             }
         }
 
-        // TẢI DỮ LIỆU THỜI GIAN THỰC TỪ CLOUD
+        // ==================== LOGIC PHÂN HỆ THANH TOÁN BẢO TRÌ ====================
+        async function taiDuLieuThanhToan() {
+            const tbody = document.getElementById('render-table-thanhtoan');
+            try {
+                tbody.innerHTML = "<tr><td colspan='6'>⏳ Đang đồng bộ dữ liệu thanh toán...</td></tr>";
+                let { data, error } = await supabase.from(BANG_THANH_TOAN).select('*').order('created_at', { ascending: false });
+                if (error) throw error;
+
+                if (!data || data.length === 0) {
+                    tbody.innerHTML = "<tr><td colspan='6' style='color: #64748b;'>Không có dữ liệu hồ sơ thanh toán nào.</td></tr>";
+                    return;
+                }
+
+                tbody.innerHTML = data.map(hs => `
+                    <tr>
+                        <td><code>${hs.id}</code></td>
+                        <td style="text-align: left;"><strong>${hs.ten_ho_so || ''}</strong></td>
+                        <td><mark style="background-color: #fff3cd; color: #856404; padding: 2px 6px; border-radius:4px;">${hs.phan_loai || ''}</mark></td>
+                        <td>${hs.ngay_lap ? new Date(hs.ngay_lap).toLocaleDateString('vi-VN') : ''}</td>
+                        <td style="color: #28a745; font-weight: bold;">${hs.tong_tien ? Number(hs.tong_tien).toLocaleString('vi-VN') + ' đ' : '0 đ'}</td>
+                        <td>${hs.link_minh_chung ? `<a href="${hs.link_minh_chung}" target="_blank">📄 Xem tài liệu</a>` : '❌ Trống'}</td>
+                    </tr>
+                `).join('');
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan='6' style='color: red;'>❌ Không tải được bảng thanh toán: ${err.message}</td></tr>`;
+            }
+        }
+
+        // ==================== LOGIC PHÂN HỆ QUẢN LÝ NHÂN SỰ ====================
         async function taiDuLieuTuSupabase() {
             const tbody = document.getElementById('render-table-nhansu');
             try {
                 tbody.innerHTML = "<tr><td colspan='3'>⏳ Đang đồng bộ dữ liệu đám mây...</td></tr>";
                 
                 let { data, error } = await supabase
-                    .from(TEN_BANG_CHINH_XAC)
+                    .from(BANG_NHAN_SU)
                     .select('*')
                     .order('id', { ascending: false });
 
@@ -192,11 +267,10 @@
                 veDuLieuRaBangHtml(boNhoDuLieuGoc);
 
             } catch (err) {
-                tbody.innerHTML = `<tr><td colspan='3' style='color: #cc2424; font-weight: bold;'>❌ Không kết nối được bảng công việc. Lưu ý thêm cột 'name' và 'department' trên Supabase trước. Lỗi: ${err.message}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan='3' style='color: #cc2424; font-weight: bold;'>❌ Lỗi kết nối cấu trúc bảng đám mây. Đảm bảo bảng đã có đủ 2 cột 'name' và 'department' kiểu dữ liệu text. Lỗi: ${err.message}</td></tr>`;
             }
         }
 
-        // VẼ DỮ LIỆU LÊN BẢNG HTML
         function veDuLieuRaBangHtml(danhSachIn) {
             const tbody = document.getElementById('render-table-nhansu');
             document.getElementById('txt-tong-nhansu').innerText = danhSachIn.length;
@@ -215,7 +289,6 @@
             `).join('');
         }
 
-        // TỰ ĐỘNG GOM PHÒNG BAN VÀO BỘ LỌC DROPDOWN
         function khoiTaoDropdownPhongBan(data) {
             const select = document.getElementById('search-dept-select');
             const giaTriHienTai = select.value;
@@ -235,7 +308,6 @@
             if(dsPhong.includes(giaTriHienTai)) select.value = giaTriHienTai;
         }
 
-        // BỘ LỌC TÌM KIẾM THÔNG MINH - GÕ ĐẾN ĐÂU LỌC ĐẾN ĐẤY
         function boLocThongMinhNhanSu() {
             const tuKhoa = document.getElementById('search-name-input').value.toLowerCase().trim();
             const phongChon = document.getElementById('search-dept-select').value;
@@ -249,7 +321,6 @@
             veDuLieuRaBangHtml(ketQua);
         }
 
-        // ĐỌC VÀ ĐẨY FILE EXCEL HÀNG LOẠT LÊN SUPABASE
         function xuLyNapExcelHangLoat() {
             const input = document.getElementById('excel-file-input');
             const file = input.files[0];
@@ -261,8 +332,6 @@
                     const dataBytes = new Uint8Array(e.target.result);
                     const wb = XLSX.read(dataBytes, { type: 'array' });
                     const sheet = wb.Sheets[wb.SheetNames[0]];
-                    
-                    // Ép định dạng mảng đa chiều để lấy chuẩn cột A và B
                     const mangToanBo = XLSX.utils.sheet_to_json(sheet, { header: 1 });
                     
                     if(mangToanBo.length <= 1) {
@@ -271,7 +340,7 @@
                     }
 
                     const mangDayCloud = [];
-                    // Chạy từ dòng index 1 (Dòng số 2 trong file Excel để bỏ qua dòng tiêu đề)
+                    // Chạy từ dòng index 1 để bỏ qua dòng tiêu đề thứ nhất trong Excel
                     for (let i = 1; i < mangToanBo.length; i++) {
                         const row = mangToanBo[i];
                         if(row && row[0]) {
@@ -284,43 +353,41 @@
                     }
 
                     if(mangDayCloud.length === 0) {
-                        alert("Không quét được dữ liệu tên nhân viên ở Cột A!");
+                        alert("Không tìm thấy dữ liệu tên nhân viên hợp lệ tại Cột A!");
                         return;
                     }
 
-                    if(!confirm(`Hệ thống tìm thấy [ ${mangDayCloud.length} ] nhân sự hợp lệ. Đồng ý nạp lên đám mây?`)) return;
+                    if(!confirm(`Quét thành công [ ${mangDayCloud.length} ] nhân sự từ file. Xác nhận nạp lên hệ thống đám mây?`)) return;
 
-                    const { error } = await supabase.from(TEN_BANG_CHINH_XAC).insert(mangDayCloud);
+                    const { error } = await supabase.from(BANG_NHAN_SU).insert(mangDayCloud);
                     if (error) throw error;
 
-                    alert(`🎉 Thành công! Đã nạp đồng bộ ${mangDayCloud.length} nhân sự lên hệ thống.`);
+                    alert(`🎉 Đồng bộ thành công! Đã nạp ${mangDayCloud.length} nhân sự mới.`);
                     input.value = '';
 
                 } catch (err) {
-                    alert("Lỗi đẩy dữ liệu lên Cloud: " + err.message + "\nHãy chắc chắn bạn đã tạo cột 'name' và 'department' trên Supabase.");
+                    alert("Lỗi đẩy dữ liệu lên Cloud: " + err.message + "\nHãy kiểm tra lại cấu hình cột của bảng 'Nhân sự' trên Supabase.");
                 }
             };
             reader.readAsArrayBuffer(file);
         }
 
-        // XÓA SẠCH DỮ LIỆU ĐỂ LÀM MỚI
         async function hanhDongXoaSachCloud() {
-            if(!confirm("⚠️ CẢNH BÁO: Bạn có chắc chắn muốn xóa toàn bộ danh sách nhân sự trên đám mây?")) return;
+            if(!confirm("⚠️ CẢNH BÁO: Hành động này sẽ xóa sạch dữ liệu bảng Nhân sự! Bạn có chắc chắn không?")) return;
             try {
-                const { error } = await supabase.from(TEN_BANG_CHINH_XAC).delete().neq('id', 0);
+                const { error } = await supabase.from(BANG_NHAN_SU).delete().neq('id', 0);
                 if (error) throw error;
-                alert("🎉 Đã dọn dẹp sạch sẽ bảng dữ liệu!");
-            } catch (err) { alert("Lỗi xóa dữ liệu: " + err.message); }
+                alert("🎉 Đã làm sạch toàn bộ dữ liệu nhân sự trên Cloud!");
+            } catch (err) { alert("Lỗi dọn dẹp dữ liệu: " + err.message); }
         }
 
-        // TỰ ĐỘNG LẮNG NGHE ĐỒNG BỘ REALTIME TỪ CLOUD
-        supabase.channel('sync-nhansu-channel')
-            .on('postgres_changes', { event: '*', schema: 'public', table: TEN_BANG_CHINH_XAC }, () => {
-                taiDuLieuTuSupabase();
-            })
+        // ĐỒNG BỘ REALTIME TỪ ĐÁM MÂY TỰ ĐỘNG
+        supabase.channel('global-sync-channel')
+            .on('postgres_changes', { event: '*', schema: 'public', table: BANG_NHAN_SU }, () => { taiDuLieuTuSupabase(); })
+            .on('postgres_changes', { event: '*', schema: 'public', table: BANG_THANH_TOAN }, () => { taiDuLieuThanhToan(); })
             .subscribe();
 
-        // Mặc định khởi động hệ thống nhảy thẳng vào tab Nhân sự để làm việc
+        // Mặc định khởi động nhảy thẳng vào tab phân hệ Quản lý nhân sự
         window.onload = () => {
             const btnNhanSu = document.getElementById('tab-btn-nhansu');
             chuyenTab('page-nhansu', btnNhanSu);
