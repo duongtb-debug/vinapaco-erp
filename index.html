@@ -401,6 +401,7 @@
                 const sheetName = workbook.SheetNames[0];
                 const sheet = workbook.Sheets[sheetName];
                 
+                // Đọc toàn bộ file dưới dạng mảng 2 chiều (hàng & cột) để định vị thông minh
                 const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false }); 
                 if(rows.length === 0) {
                     alert("File Excel trống!"); return;
@@ -413,6 +414,7 @@
                     namSinh: -1, nu: -1, chucDanh: -1
                 };
 
+                // Thuật toán quét thông minh để tìm hàng chứa tiêu đề (Bất kể tiêu đề nằm ở dòng nào)
                 for (let i = 0; i < rows.length; i++) {
                     let row = rows[i];
                     if (!row) continue;
@@ -420,6 +422,7 @@
                     for (let j = 0; j < row.length; j++) {
                         if (!row[j]) continue;
                         let val = String(row[j]).replace(/\s+/g, '').trim().toLowerCase();
+                        
                         if ((val.includes("họ") && val.includes("tên")) || val.includes("hoten") || val.includes("hovaten")) { colMapping.hoTen = j; }
                         else if (val === "stt") { colMapping.stt = j; }
                         else if (val === "tên" || val === "ten") { colMapping.ten = j; }
@@ -435,6 +438,7 @@
                         else if (val.includes("chứcdanh") || val.includes("côngviệc") || val.includes("chucdanh")) { colMapping.chucDanh = j; }
                     }
 
+                    // Nếu tìm được cột Họ tên thì đây chính là dòng tiêu đề bảng
                     if (colMapping.hoTen !== -1) {
                         headerIdx = i;
                         break;
@@ -449,6 +453,7 @@
                 let danhSachUpload = [];
                 let setMaDonViExcel = new Set(); 
 
+                // Tính toán ID tối đa để tự động tăng tiến, không lo sập màn hình
                 let maxId = 0;
                 if (CACHE_NHAN_SU && CACHE_NHAN_SU.length > 0) {
                     for (let i = 0; i < CACHE_NHAN_SU.length; i++) {
@@ -457,6 +462,7 @@
                     }
                 }
 
+                // Duyệt qua dữ liệu bắt đầu từ sau dòng tiêu đề bảng đã quét được
                 for (let i = headerIdx + 1; i < rows.length; i++) {
                     const row = rows[i];
                     if (!row || row.length === 0) continue;
@@ -505,6 +511,7 @@
                     input.value = ""; return;
                 }
 
+                // Tự động kiểm tra và đăng ký mã đơn vị hợp lệ để tránh lỗi ràng buộc khóa ngoại (Foreign Key)
                 if (setMaDonViExcel.size > 0) {
                     let mangMaDonVi = Array.from(setMaDonViExcel);
                     let payloadDonVi = mangMaDonVi.map(m => ({
@@ -790,6 +797,7 @@
         let tongTienDaTT = 0; let tongTienChoDuyet = 0;
 
         CACHE_THANH_TOÁN.forEach((tt, idx) => {
+            // Sử dụng logic mặc định 0 nếu số tiền bị trống hoặc lỗi từ DB
             let soTienNum = Number(tt.so_tien) || 0;
             if(tt.trang_thai === "Đã thanh toán") tongTienDaTT += soTienNum;
             else tongTienChoDuyet += soTienNum;
