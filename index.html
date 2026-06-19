@@ -93,7 +93,7 @@
 <div id="main-admin-app" class="container">
     <header>
         <h1>HỆ THỐNG ĐỒNG BỘ TỔNG HỢP: NHÂN SỰ, THIẾT BỊ QR & HỒ SƠ THANH TOÁN CHỨNG TỪ</h1>
-        <p>Phiên Bản Quản Lý Độc Lập - Đồng Bộ Dữ Liệu Đám Mây & Số Hoá Tài Liệu Minh Chứng</p>
+        <p>Phiên Bản Quản Lý Độc Lập - Đọc Thông Tin Khảo Sát Chuẩn Xác</p>
     </header>
 
     <div class="nav-tabs">
@@ -191,19 +191,19 @@
                 <div class="form-group">
                     <label>Liên kết thiết bị bảo trì:</label>
                     <select id="tt-ma-tb" required>
-                        <option value="">-- Chọn thiết bị để thanh toán --</option>
+                        <option value="">-- Chọn thiết bị --</option>
                     </select>
                 </div>
                 <div class="form-group">
                     <label>Đơn vị sửa chữa:</label>
-                    <input type="text" id="tt-don-vi" placeholder="Nhập tên đơn vị/cửa hàng sửa chữa" required>
+                    <input type="text" id="tt-don-vi" placeholder="Nhập tên đơn vị sửa chữa" required>
                 </div>
                 <div class="form-group">
                     <label>Tổng giá trị thanh toán (VNĐ):</label>
                     <input type="number" id="tt-so-tien" placeholder="Nhập số tiền" required>
                 </div>
                 <div class="form-group">
-                    <label>📁 Đính kèm tài liệu (Phiếu yêu cầu, hóa đơn...):</label>
+                    <label>📁 Đính kèm tài liệu:</label>
                     <input type="file" id="tt-file-dinh-kem" onchange="xuLyChuyenDoiFile(this)">
                     <span id="doc-status-label" style="font-size:0.75rem; color:var(--success-color); font-weight:600; display:none; margin-top:4px;"></span>
                 </div>
@@ -244,7 +244,7 @@
         <div class="panel" style="max-width:100%;">
             <div class="filter-section" style="background: #eff6ff; border: 1px dashed #3b82f6;">
                 <div style="flex: 1;">
-                    <label style="font-weight: bold; color: var(--primary-color); display: block; margin-bottom: 5px;">📥 NHẬP DỮ LIỆU TỪ EXCEL KHẢO SÁT:</label>
+                    <label style="font-weight: bold; color: var(--primary-color); display: block; margin-bottom: 5px;">📥 NHẬP DỮ LIỆU TỪ EXCEL KHẢO SÁT CHUẨN CỘT:</label>
                     <input type="file" id="excel-file-nhap" accept=".xlsx, .xls" onchange="docVaUploadNhanSuTuExcel(this)" style="padding: 8px; background: white; border: 1px solid var(--border-color); border-radius: 6px; width: 100%;">
                 </div>
             </div>
@@ -355,22 +355,31 @@
                 const jsonRows = XLSX.utils.sheet_to_json(sheet);
                 
                 if(jsonRows.length === 0) {
-                    alert("File Excel không có dữ liệu!"); return;
+                    alert("File Excel trống!"); return;
                 }
 
                 let danhSachUpload = [];
-                // Lấy danh sách tên nhân sự đã tồn tại để tránh nạp đè làm lỗi dữ liệu ổn định cũ
                 let danhSachTenCu = CACHE_NHAN_SU.map(n => String(n.ho_ten).toLowerCase().trim());
 
                 jsonRows.forEach(row => {
-                    let hoTen = row["Họ và tên của bạn:"] || row["Họ và tên"] || row["Họ tên"] || Object.values(row)[1];
-                    let gioiTinh = row["Giới tính:"] || row["Giới tính"] || "---";
-                    let namSinh = row["Năm sinh:"] || row["Năm sinh"] || "---";
-                    let boPhan = row["Bộ phận công tác:"] || row["Bộ phận"] || "---";
+                    // THUẬT TOÁN ĐỌC CỘT THÔNG MINH - CHẤP MỌI LOẠI DẤU CÁCH VÀ DẤU HAI CHẤM THỪA
+                    let hoTen = ""; let gioiTinh = "---"; let namSinh = "---"; let boPhan = "---";
+
+                    for (let key in row) {
+                        let cleanKey = key.replace(/:/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+                        if (cleanKey.includes("họ và tên") || cleanKey.includes("ho ten")) {
+                            hoTen = row[key];
+                        } else if (cleanKey.includes("giới tính") || cleanKey.includes("gioi tinh")) {
+                            gioiTinh = row[key];
+                        } else if (cleanKey.includes("năm sinh") || cleanKey.includes("nam sinh")) {
+                            namSinh = row[key];
+                        } else if (cleanKey.includes("bộ phận công tác") || cleanKey.includes("bo phan") || cleanKey.includes("đơn vị")) {
+                            boPhan = row[key];
+                        }
+                    }
 
                     if(hoTen) {
                         let normalizedTen = String(hoTen).trim();
-                        // CHỈ THÊM NẾU TÊN CHƯA TỒN TẠI TRÊN CLOUD
                         if (!danhSachTenCu.includes(normalizedTen.toLowerCase())) {
                             danhSachUpload.push({
                                 ho_ten: normalizedTen,
@@ -383,25 +392,24 @@
                 });
 
                 if(danhSachUpload.length === 0) {
-                    alert("Mọi nhân sự trong File Excel này đều đã tồn tại trên Cloud. Không có dữ liệu mới nào được thêm vào để bảo vệ danh sách ổn định gốc!");
+                    alert("Dữ liệu nhân sự trùng khớp hoàn toàn với Cloud! Hệ thống đã tự động giữ nguyên dữ liệu ổn định cũ.");
                     input.value = "";
+                    locGiaoDienNhanSu();
                     return;
                 }
 
-                alert(`🔄 Phát hiện thêm ${danhSachUpload.length} nhân sự mới. Đang nạp đồng bộ an toàn lên Cloud Supabase...`);
+                alert(`🚀 Tìm thấy ${danhSachUpload.length} nhân sự mới hợp lệ. Đang nạp đồng bộ lên Cloud...`);
                 const { error } = await client.from('nhan_su').insert(danhSachUpload);
                 if(error) {
-                    console.error(error);
-                    alert("Lỗi khi tải lên Cloud: " + error.message);
+                    alert("Lỗi nạp: " + error.message);
                 } else {
-                    alert("🎉 Đã nhập thành công các nhân sự mới và giữ nguyên dữ liệu gốc ổn định!");
-                    // Xoá từ khoá tìm kiếm để hiển thị lại toàn bộ dữ liệu đầy đủ
+                    alert("🎉 Nạp dữ liệu thành công chuẩn xác 100%!");
                     document.getElementById('search-ns').value = "";
                     input.value = "";
                     await taiDuLieuTuCloud();
                 }
             } catch (err) {
-                alert("Không thể đọc file Excel này. Vui lòng kiểm tra lại cấu trúc file!");
+                alert("Lỗi cấu trúc đọc file!");
                 console.error(err);
             }
         };
@@ -430,7 +438,7 @@
     function doDuLieuVaoSelectThanhToan() {
         const select = document.getElementById('tt-ma-tb');
         if(!select) return;
-        select.innerHTML = '<option value="">-- Chọn thiết bị để thanh toán --</option>';
+        select.innerHTML = '<option value="">-- Chọn thiết bị --</option>';
         CACHE_THIẾT_BỊ.forEach(tb => {
             select.innerHTML += `<option value="${tb.ma_thiet_bi}">${tb.ma_thiet_bi} - ${tb.ten_thiet_bi}</option>`;
         });
@@ -741,7 +749,6 @@
         XLSX.writeFile(wb, `Bao_Cao_Chi_Phi_Sua_Chua_2026.xlsx`);
     }
 
-    // Hàm bổ trợ phòng chống lỗi vỡ chuỗi dữ liệu trong JavaScript HTML Injection
     function escapeHtml(text) { return text ? text.replace(/'/g, "\\'").replace(/"/g, '&quot;') : ''; }
 </script>
 </body>
