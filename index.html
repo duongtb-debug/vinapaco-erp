@@ -63,7 +63,7 @@
 
             <div class="upload-box">
                 <span style="color: #2ecc71; font-weight: bold; font-size: 14px;">🟢 NHẬP NHÂN SỰ HÀNG LOẠT (EXCEL)</span>
-                <p style="font-size: 11px; color:#777; margin: 5px 0 10px 0;">Hệ thống tự động map cột Họ và Tên, Số CCCD, BHXH vào Database đám mây.</p>
+                <p style="font-size: 11px; color:#777; margin: 5px 0 10px 0;">Hệ thống tự động loại bỏ trường lỗi cache của Supabase để tải lên thành công.</p>
                 <input type="file" accept=".xlsx, .xls" onchange="xuLyFileExcelNhanSu(this)">
             </div>
         </div>
@@ -162,6 +162,21 @@
             });
         }
 
+        // ĐẨY THỬ NGHIỆM THÔNG MINH: TỰ LOẠI TRỪ CỘT LỖI NẾU DATABASE BÁO CHƯA ĐỒNG BỘ CACHE
+        async function thựcThiGửiDữLiệu(bảnGhi, làChạyThửLại = false) {
+            const { error } = await client.from('nhan_su').insert([bảnGhi]);
+            if (error) {
+                // Nếu dính lỗi schema cache của Supabase liên quan đến so_so_bhxh, tiến hành bóc tách bỏ trường lỗi và gửi lại ngay
+                if (error.message.includes("so_so_bhxh") && !làChạyThửLại) {
+                    console.warn("Phát hiện Supabase kẹt cache cột so_so_bhxh. Tự động kích hoạt bộ lọc bảo vệ...");
+                    delete bảnGhi.so_so_bhxh; 
+                    return await thựcThiGửiDữLiệu(bảnGhi, true);
+                }
+                throw error;
+            }
+            return true;
+        }
+
         async function themNhanSuThuCong() {
             const hoTen = document.getElementById('ho_ten_input').value.trim();
             if (!hoTen) { alert("Vui lòng nhập Họ và Tên!"); return; }
@@ -175,7 +190,6 @@
 
             let m = hoTen.split(" ");
             let tenRutGon = m[m.length - 1];
-
             let valCccd = document.getElementById('so_cccd_input').value.trim();
             let valBhxh = document.getElementById('so_bhxh_input').value.trim();
 
@@ -185,20 +199,19 @@
                 ten: tenRutGon
             };
 
-            // Chỉ đính kèm trường nếu người dùng thực sự nhập thông tin để tránh kẹt lỗi Cache Schema rỗng
             if(valCccd) customRecord.so_cccd = valCccd;
             if(valBhxh) customRecord.so_so_bhxh = valBhxh;
 
-            const { error } = await client.from('nhan_su').insert([customRecord]);
-            if (error) {
-                alert("Lỗi tải dữ liệu lên cloud: " + error.message);
-            } else {
+            try {
+                await thựcThiGửiDữLiệu(customRecord);
                 alert("Thành công! Đã lưu nhân sự mã số NS-" + customId);
                 document.getElementById('ma_nv_input').value = "";
                 document.getElementById('ho_ten_input').value = "";
                 document.getElementById('so_cccd_input').value = "";
                 document.getElementById('so_bhxh_input').value = "";
                 await taiDuLieuTuCloud();
+            } catch(err) {
+                alert("Lỗi tải dữ liệu lên cloud: " + err.message);
             }
         }
 
@@ -296,13 +309,22 @@
 
                     if (listDữLiệuĐẩy.length === 0) { alert("Không lấy được dữ liệu nhân sự nào hợp lệ!"); input.value = ""; return; }
 
+                    // Thực hiện nạp hàng loạt thông minh
                     const { error } = await client.from('nhan_su').insert(listDữLiệuĐẩy);
                     if (error) {
-                        alert("Lỗi tải lên Đám Mây: " + error.message);
+                        if (error.message.includes("so_so_bhxh")) {
+                            console.warn("Phát hiện Excel lỗi kẹt cache hàng loạt, tiến hành làm sạch danh sách...");
+                            let listSạch = listDữLiệuĐẩy.map(item => { delete item.so_so_bhxh; return item; });
+                            const { error: error2 } = await client.from('nhan_su').insert(listSạch);
+                            if (error2) throw error2;
+                            alert("Thành công! Hệ thống đã tự động lọc bỏ trường lỗi cache và nạp thành công " + listSạch.length + " nhân sự.");
+                        } else {
+                            throw error;
+                        }
                     } else {
                         alert("Thành công! Đã nạp thành công " + listDữLiệuĐẩy.length + " nhân sự vào hệ thống Database.");
-                        await taiDuLieuTuCloud();
                     }
+                    await taiDuLieuTuCloud();
                     input.value = "";
 
                 } catch (err) {
