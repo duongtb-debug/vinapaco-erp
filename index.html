@@ -6,7 +6,7 @@
     <title>Hệ Thống Quản Trị Nhân Sự & Thiết Bị Toàn Diện</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
@@ -31,7 +31,7 @@
         
         .container { max-width: 100%; margin: 25px auto; padding: 0 30px; display: flex; gap: 30px; }
         .sidebar { flex: 1; min-width: 380px; display: flex; flex-direction: column; gap: 25px; }
-        .sidebar-card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 166px rgba(0,0,0,0.05); border: 1px solid rgba(0,0,0,0.05); }
+        .sidebar-card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.05); border: 1px solid rgba(0,0,0,0.05); }
         .sidebar-card h3 { margin: 0 0 20px 0; font-size: 18px; color: var(--primary-color); border-bottom: 2px solid #edf2f7; padding-bottom: 12px; text-transform: uppercase; display: flex; align-items: center; gap: 10px; }
         
         .form-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; position: relative; }
@@ -85,163 +85,188 @@
         .suggestion-item .sub-info { font-size: 13px; color: #6c757d; margin-top: 3px; display: flex; gap: 15px; }
         code { font-family: 'Courier New', Courier, monospace; font-weight: bold; color: #212529; font-size: 15px; background: #f1f3f5; padding: 2px 6px; border-radius: 4px; }
         
-        /* Định dạng ô chứa QR bảo đảm cân chỉnh giữa hoàn hảo */
-        .qr-container { width: 70px; height: 70px; margin: 0 auto; background: #fff; padding: 3px; border: 1px solid #e2e8f0; border-radius: 6px; display: flex; align-items: center; justify-content: center; }
-        .qr-container img { width: 100% !important; height: 100% !important; display: block; }
+        /* Cấu trúc hiển thị ô chứa QR Canvas */
+        .qr-wrapper { width: 75px; height: 75px; margin: 0 auto; background: #fff; padding: 4px; border: 1px solid #e2e8f0; border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+        .qr-wrapper canvas { width: 100% !important; height: 100% !important; display: block; }
+
+        /* Giao diện xem thông tin cơ động khi quét mã QR trên điện thoại */
+        #passport_view { display: none; max-width: 500px; margin: 30px auto; padding: 20px; background: white; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); border-top: 8px solid var(--primary-color); }
+        .passport-header { text-align: center; margin-bottom: 25px; border-bottom: 2px dashed #edf2f7; padding-bottom: 15px; }
+        .passport-title { font-size: 20px; font-weight: 800; color: #1a2530; text-transform: uppercase; margin: 5px 0; }
+        .passport-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f1f5f9; font-size: 15px; }
+        .passport-label { color: #64748b; font-weight: 600; }
+        .passport-value { color: #1e293b; font-weight: 700; text-align: right; }
     </style>
 </head>
 <body>
 
-    <div class="header">
-        <div>
-            <h1>Hệ Thống Quản Trị Nhân Sự & Thiết Bị Toàn Diện</h1>
-            <p>Phiên bản nâng cấp: Sinh mã QR Engine nội bộ, bảo mật và ổn định tuyệt đối</p>
+    <div id="main_app_layout">
+        <div class="header">
+            <div>
+                <h1>Hệ Thống Quản Trị Nhân Sự & Thiết Bị Toàn Diện</h1>
+                <p>Phiên bản Quốc tế: QR Code Deep Link - Quét tự động nhận diện thông tin</p>
+            </div>
+            <div style="font-size: 16px; font-weight: 600; background: rgba(255,255,255,0.2); padding: 10px 20px; border-radius: 30px;">
+                <i class="fa-solid fa-qrcode"></i> QR Engine: QRious Canvas
+            </div>
         </div>
-        <div style="font-size: 16px; font-weight: 600; background: rgba(255,255,255,0.2); padding: 10px 20px; border-radius: 30px;">
-            <i class="fa-solid fa-shield-halved"></i> Không cần Internet vẫn chạy tốt
+
+        <div class="nav-tabs">
+            <div class="nav-tab active" id="tab_hoso" onclick="chuyenTabHeThong('hoso')"><i class="fa-solid fa-user-tie"></i> Danh bạ nhân sự chuẩn hóa</div>
+            <div class="nav-tab" id="tab_thietbi" onclick="chuyenTabHeThong('thietbi')"><i class="fa-solid fa-laptop-code"></i> Quản lý cấp phát tài sản</div>
+        </div>
+
+        <div class="container">
+            <div class="sidebar">
+                <div id="side_hoso" style="display: block;">
+                    <div class="sidebar-card">
+                        <h3><i class="fa-solid fa-file-csv"></i> Nhập dữ liệu từ Excel</h3>
+                        <input type="file" id="excel_file_input" accept=".xlsx, .xls, .csv" style="display: none;" onchange="xuLyFileExcelNhanSu(this)">
+                        <button class="btn-primary" style="width: 100%; margin-bottom: 15px;" onclick="document.getElementById('excel_file_input').click()">
+                            <i class="fa-solid fa-file-import"></i> TẢI FILE EXCEL MỚI LÊN
+                        </button>
+                        <button class="btn-danger" style="width: 100%;" onclick="xoaToanBoDuLieuCloud()">
+                            <i class="fa-solid fa-trash-can"></i> XÓA TOÀN BỘ KHO TRÊN CLOUD
+                        </button>
+                    </div>
+                </div>
+
+                <div id="side_thietbi" style="display: none;">
+                    <div class="sidebar-card">
+                        <h3><i class="fa-solid fa-exchange-alt"></i> Cấp phát thiết bị mới</h3>
+                        <div class="form-group">
+                            <label>Bước 1: Chọn Mã đơn vị phòng ban</label>
+                            <select id="form_filter_dv_ns" class="form-control" onchange="thayDoiBoLocDonViCapPhat()" style="background-color: #fdfdfd; font-weight: 600; color: var(--primary-color);">
+                                <option value="ALL">-- Tất cả đơn vị --</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label id="lbl_nhan_su_nhan">Bước 2: Nhân sự nhận thiết bị (*)</label>
+                            <div id="wrapper_search_ns" style="display: block; position: relative;">
+                                <input type="text" id="form_search_ns" class="form-control" placeholder="Gõ tên, số BHXH hoặc CCCD để tìm..." oninput="goiYAnSinhNhanSuThongMinh(this)" autocomplete="off">
+                                <div id="suggestions_box" class="suggestions-box"></div>
+                            </div>
+                            <div id="wrapper_select_ns" style="display: none;">
+                                <select id="form_select_ns_direct" class="form-control" style="font-weight: 500;"></select>
+                            </div>
+                            <input type="hidden" id="form_selected_ns_id">
+                        </div>
+                        <div class="form-group">
+                            <label>Tên thiết bị bàn giao (*)</label>
+                            <input type="text" id="form_ten_tb" class="form-control" placeholder="Ví dụ: Laptop Dell Latitude, Máy in HP...">
+                        </div>
+                        <div class="form-group">
+                            <label>Mã định danh thiết bị (S/N)</label>
+                            <input type="text" id="form_ma_tb" class="form-control" placeholder="Hệ thống tự tạo mã nếu để trống">
+                        </div>
+                        <div class="form-group">
+                            <label>Tình trạng / Trạng thái thiết bị (*)</label>
+                            <select id="form_trang_thai_tb" class="form-control" style="font-weight: 600; color: #2c3e50;">
+                                <option value="Mới 100%">✨ Mới 100%</option>
+                                <option value="Đang sử dụng tốt" selected>✅ Đang sử dụng tốt</option>
+                                <option value="Đang sửa chữa">🛠️ Đang sửa chữa</option>
+                                <option value="Lỗi / Hỏng">❌ Lỗi / Hỏng</option>
+                                <option value="Cần thanh lý">⚠️ Cần thanh lý</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Ghi chú bổ sung</label>
+                            <input type="text" id="form_ghi_chu" class="form-control" placeholder="Cấu hình, linh kiện đi kèm nếu có...">
+                        </div>
+                        <button class="btn-primary" style="width: 100%;" onclick="thucHienCapPhatThietBi()"><i class="fa-solid fa-check"></i> HOÀN TẤT BÀN GIAO TÀI SẢN</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="main-content">
+                <div class="stats-grid">
+                    <div class="stat-card"><div class="stat-label">Tổng số nhân sự</div><div class="stat-value" id="stat_tong">0</div></div>
+                    <div class="stat-card nam"><div class="stat-label">Nhân sự Nam</div><div class="stat-value" id="stat_nam">0</div></div>
+                    <div class="stat-card nu"><div class="stat-label">Nhân sự Nữ</div><div class="stat-value" id="stat_nu">0</div></div>
+                    <div class="stat-card dv"><div class="stat-label">Tổng thiết bị đã cấp</div><div class="stat-value" id="stat_tb" style="color:#9b59b6;">0</div></div>
+                </div>
+
+                <div id="sec_hoso" class="app-section" style="display: flex;">
+                    <div class="data-card">
+                        <div class="filter-toolbar">
+                            <input type="text" id="txt_tim_ns" class="search-bar" placeholder="Tìm kiếm nhanh họ tên nhân sự..." oninput="renderBangNhanSu()">
+                            <select id="select_don_vi_ns" class="select-filter" onchange="renderBangNhanSu()">
+                                <option value="ALL">-- Lọc theo Đơn vị --</option>
+                            </select>
+                        </div>
+                        <div class="table-responsive">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th style="width: 60px;">STT</th>
+                                        <th style="min-width: 180px;">Họ và tên</th>
+                                        <th style="width: 80px;">Tên</th>
+                                        <th style="min-width: 120px;">Số sổ BHXH</th>
+                                        <th style="min-width: 130px;">Số CCCD</th>
+                                        <th>An toàn viên</th>
+                                        <th>NNĐH</th>
+                                        <th>Năm về hưu</th>
+                                        <th>Mã đơn vị</th>
+                                        <th>Năm</th>
+                                        <th>Năm sinh</th>
+                                        <th style="width: 90px; text-align: center;">Giới tính</th>
+                                        <th style="min-width: 280px;">Chức danh công việc</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="nhan_su_table_body">
+                                    <tr><td colspan="13" style="text-align: center; color: #868e96; padding: 30px;">Hệ thống đang sẵn sàng, vui lòng nạp file Excel...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="sec_thietbi" class="app-section" style="display: none;">
+                    <div class="data-card">
+                        <div class="filter-toolbar">
+                            <input type="text" id="txt_tim_tb" class="search-bar" placeholder="Tìm tên tài sản, mã tài sản hoặc người quản lý..." oninput="renderBangThietBi()">
+                            <select id="select_don_vi_tb" class="select-filter" onchange="renderBangThietBi()">
+                                <option value="ALL">-- Lọc theo Đơn vị nhận --</option>
+                            </select>
+                        </div>
+                        <div class="table-responsive">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th style="text-align: center; width: 110px;">Mã QR Quốc Tế</th>
+                                        <th>Mã Thiết Bị (S/N)</th>
+                                        <th>Tên Thiết Bị Tài Sản</th>
+                                        <th>Người Đang Quản Lý</th>
+                                        <th>Đơn Vị Phòng Ban</th>
+                                        <th>Ngày Bàn Giao</th>
+                                        <th>Tình Trạng</th>
+                                        <th>Ghi Chú Bổ Sung</th>
+                                        <th style="width: 100px; text-align: center;">Thao Tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="thiet_bi_table_body">
+                                    <tr><td colspan="9" style="text-align: center; color: #868e96; padding: 30px;">Kho tài sản trống.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <div class="nav-tabs">
-        <div class="nav-tab active" id="tab_hoso" onclick="chuyenTabHeThong('hoso')"><i class="fa-solid fa-user-tie"></i> Danh bạ nhân sự chuẩn hóa</div>
-        <div class="nav-tab" id="tab_thietbi" onclick="chuyenTabHeThong('thietbi')"><i class="fa-solid fa-laptop-code"></i> Quản lý cấp phát tài sản</div>
-    </div>
-
-    <div class="container">
-        <div class="sidebar">
-            <div id="side_hoso" style="display: block;">
-                <div class="sidebar-card">
-                    <h3><i class="fa-solid fa-file-csv"></i> Nhập dữ liệu từ Excel</h3>
-                    <input type="file" id="excel_file_input" accept=".xlsx, .xls, .csv" style="display: none;" onchange="xuLyFileExcelNhanSu(this)">
-                    <button class="btn-primary" style="width: 100%; margin-bottom: 15px;" onclick="document.getElementById('excel_file_input').click()">
-                        <i class="fa-solid fa-file-import"></i> TẢI FILE EXCEL MỚI LÊN
-                    </button>
-                    <button class="btn-danger" style="width: 100%;" onclick="xoaToanBoDuLieuCloud()">
-                        <i class="fa-solid fa-trash-can"></i> XÓA TOÀN BỘ KHO TRÊN CLOUD
-                    </button>
-                </div>
-            </div>
-
-            <div id="side_thietbi" style="display: none;">
-                <div class="sidebar-card">
-                    <h3><i class="fa-solid fa-exchange-alt"></i> Cấp phát thiết bị mới</h3>
-                    <div class="form-group">
-                        <label>Bước 1: Chọn Mã đơn vị phòng ban</label>
-                        <select id="form_filter_dv_ns" class="form-control" onchange="thayDoiBoLocDonViCapPhat()" style="background-color: #fdfdfd; font-weight: 600; color: var(--primary-color);">
-                            <option value="ALL">-- Tất cả đơn vị --</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label id="lbl_nhan_su_nhan">Bước 2: Nhân sự nhận thiết bị (*)</label>
-                        <div id="wrapper_search_ns" style="display: block; position: relative;">
-                            <input type="text" id="form_search_ns" class="form-control" placeholder="Gõ tên, số BHXH hoặc CCCD để tìm..." oninput="goiYAnSinhNhanSuThongMinh(this)" autocomplete="off">
-                            <div id="suggestions_box" class="suggestions-box"></div>
-                        </div>
-                        <div id="wrapper_select_ns" style="display: none;">
-                            <select id="form_select_ns_direct" class="form-control" style="font-weight: 500;"></select>
-                        </div>
-                        <input type="hidden" id="form_selected_ns_id">
-                    </div>
-                    <div class="form-group">
-                        <label>Tên thiết bị bàn giao (*)</label>
-                        <input type="text" id="form_ten_tb" class="form-control" placeholder="Ví dụ: Laptop Dell Latitude, Máy in HP...">
-                    </div>
-                    <div class="form-group">
-                        <label>Mã định danh thiết bị (S/N)</label>
-                        <input type="text" id="form_ma_tb" class="form-control" placeholder="Hệ thống tự tạo mã nếu để trống">
-                    </div>
-                    <div class="form-group">
-                        <label>Tình trạng / Trạng thái thiết bị (*)</label>
-                        <select id="form_trang_thai_tb" class="form-control" style="font-weight: 600; color: #2c3e50;">
-                            <option value="Mới 100%">✨ Mới 100%</option>
-                            <option value="Đang sử dụng tốt" selected>✅ Đang sử dụng tốt</option>
-                            <option value="Đang sửa chữa">🛠️ Đang sửa chữa</option>
-                            <option value="Lỗi / Hỏng">❌ Lỗi / Hỏng</option>
-                            <option value="Cần thanh lý">⚠️ Cần thanh lý</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Ghi chú bổ sung</label>
-                        <input type="text" id="form_ghi_chu" class="form-control" placeholder="Cấu hình, linh kiện đi kèm nếu có...">
-                    </div>
-                    <button class="btn-primary" style="width: 100%;" onclick="thucHienCapPhatThietBi()"><i class="fa-solid fa-check"></i> HOÀN TẤT BÀN GIAO TÀI SẢN</button>
-                </div>
-            </div>
+    <div id="passport_view">
+        <div class="passport-header">
+            <i class="fa-solid fa-shield-cat" style="font-size: 40px; color: var(--primary-color);"></i>
+            <div class="passport-title">Thông Tin Tài Sản Thiết Bị</div>
+            <span style="color: #64748b; font-size: 13px;">Hệ Thống Xác Minh Số Hóa Quốc Tế</span>
         </div>
-
-        <div class="main-content">
-            <div class="stats-grid">
-                <div class="stat-card"><div class="stat-label">Tổng số nhân sự</div><div class="stat-value" id="stat_tong">0</div></div>
-                <div class="stat-card nam"><div class="stat-label">Nhân sự Nam</div><div class="stat-value" id="stat_nam">0</div></div>
-                <div class="stat-card nu"><div class="stat-label">Nhân sự Nữ</div><div class="stat-value" id="stat_nu">0</div></div>
-                <div class="stat-card dv"><div class="stat-label">Tổng thiết bị đã cấp</div><div class="stat-value" id="stat_tb" style="color:#9b59b6;">0</div></div>
+        <div id="passport_details">
             </div>
-
-            <div id="sec_hoso" class="app-section" style="display: flex;">
-                <div class="data-card">
-                    <div class="filter-toolbar">
-                        <input type="text" id="txt_tim_ns" class="search-bar" placeholder="Tìm kiếm nhanh họ tên nhân sự..." oninput="renderBangNhanSu()">
-                        <select id="select_don_vi_ns" class="select-filter" onchange="renderBangNhanSu()">
-                            <option value="ALL">-- Lọc theo Đơn vị --</option>
-                        </select>
-                    </div>
-                    <div class="table-responsive">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th style="width: 60px;">STT</th>
-                                    <th style="min-width: 180px;">Họ và tên</th>
-                                    <th style="width: 80px;">Tên</th>
-                                    <th style="min-width: 120px;">Số sổ BHXH</th>
-                                    <th style="min-width: 130px;">Số CCCD</th>
-                                    <th>An toàn viên</th>
-                                    <th>NNĐH</th>
-                                    <th>Năm về hưu</th>
-                                    <th>Mã đơn vị</th>
-                                    <th>Năm</th>
-                                    <th>Năm sinh</th>
-                                    <th style="width: 90px; text-align: center;">Giới tính</th>
-                                    <th style="min-width: 280px;">Chức danh công việc</th>
-                                </tr>
-                            </thead>
-                            <tbody id="nhan_su_table_body">
-                                <tr><td colspan="13" style="text-align: center; color: #868e96; padding: 30px;">Hệ thống đang sẵn sàng, vui lòng nạp file Excel...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <div id="sec_thietbi" class="app-section" style="display: none;">
-                <div class="data-card">
-                    <div class="filter-toolbar">
-                        <input type="text" id="txt_tim_tb" class="search-bar" placeholder="Tìm tên tài sản, mã tài sản hoặc người quản lý..." oninput="renderBangThietBi()">
-                        <select id="select_don_vi_tb" class="select-filter" onchange="renderBangThietBi()">
-                            <option value="ALL">-- Lọc theo Đơn vị nhận --</option>
-                        </select>
-                    </div>
-                    <div class="table-responsive">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th style="text-align: center; width: 110px;">Mã QR</th>
-                                    <th>Mã Thiết Bị (S/N)</th>
-                                    <th>Tên Thiết Bị Tài Sản</th>
-                                    <th>Người Đang Quản Lý</th>
-                                    <th>Đơn Vị Phòng Ban</th>
-                                    <th>Ngày Bàn Giao</th>
-                                    <th>Tình Trạng</th>
-                                    <th>Ghi Chú Bổ Sung</th>
-                                    <th style="width: 100px; text-align: center;">Thao Tác</th>
-                                </tr>
-                            </thead>
-                            <tbody id="thiet_bi_table_body">
-                                <tr><td colspan="9" style="text-align: center; color: #868e96; padding: 30px;">Kho tài sản trống.</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
+        <div style="margin-top: 25px; text-align: center;">
+            <button class="btn-primary" style="width:100%; padding: 12px;" onclick="window.location.href = window.location.origin + window.location.pathname">
+                <i class="fa-solid fa-house"></i> Truy cập Hệ thống chính
+            </button>
         </div>
     </div>
 
@@ -253,6 +278,19 @@
         let CACHE_THIET_BI = [];
 
         window.onload = async function() {
+            // KIỂM TRA ĐIỀU HƯỚNG QUÉT MÃ QR TỪ ĐIỆN THOẠI
+            const urlParams = new URLSearchParams(window.location.search);
+            const assetCode = urlParams.get('view_asset');
+
+            if (assetCode) {
+                // Nếu URL có chứa tham số quét QR, ẩn app quản trị đi và kích hoạt chế độ xem hộ chiếu thiết bị
+                document.getElementById('main_app_layout').style.display = 'none';
+                document.getElementById('passport_view').style.display = 'block';
+                await hienThiHoChieuThietBiQuetQR(assetCode);
+                return;
+            }
+
+            // Giao diện quản lý thông thường
             await taiDuLieuHeThong();
             
             document.addEventListener('click', function(e) {
@@ -263,6 +301,32 @@
                 }
             });
         };
+
+        // Hàm xử lý hiển thị độc lập khi quét QR
+        async function hienThiHoChieuThietBiQuetQR(code) {
+            const container = document.getElementById('passport_details');
+            container.innerHTML = `<div style="text-align:center; padding:20px; color:#64748b;"><i class="fa-solid fa-spinner fa-spin"></i> Đang truy xuất nguồn gốc tài sản...</div>`;
+            
+            try {
+                const { data, error } = await client.from('cap_phat_thiet_bi').select('*').eq('ma_thiet_bi', code.toUpperCase()).single();
+                if (error || !data) {
+                    container.innerHTML = `<div style="text-align:center; padding:20px; color:var(--danger-color); font-weight:bold;"><i class="fa-solid fa-triangle-exclamation"></i> Mã tài sản [${code}] không tồn tại trên hệ thống dữ liệu quốc gia!</div>`;
+                    return;
+                }
+
+                container.innerHTML = `
+                    <div class="passport-row"><span class="passport-label">Mã định danh (S/N):</span><span class="passport-value" style="color:var(--primary-color); background:#edf2f7; padding:2px 6px; border-radius:4px;">${data.ma_thiet_bi}</span></div>
+                    <div class="passport-row"><span class="passport-label">Tên thiết bị:</span><span class="passport-value">${data.ten_thiet_bi}</span></div>
+                    <div class="passport-row"><span class="passport-label">Người quản lý:</span><span class="passport-value"><i class="fa-solid fa-user-shield"></i> ${data.ten_nhan_vien}</span></div>
+                    <div class="passport-row"><span class="passport-label">Phòng ban/Đơn vị:</span><span class="passport-value">${data.ma_don_vi}</span></div>
+                    <div class="passport-row"><span class="passport-label">Ngày bàn giao:</span><span class="passport-value">${new Date(data.created_at).toLocaleDateString('vi-VN')}</span></div>
+                    <div class="passport-row"><span class="passport-label">Tình trạng máy:</span><span class="passport-value" style="color:#137333; font-weight:bold;">${data.trang_thai || 'Đang dùng tốt'}</span></div>
+                    <div class="passport-row" style="border-bottom:none;"><span class="passport-label">Ghi chú kèm theo:</span><span class="passport-value" style="font-style:italic; color:#64748b;">${data.ghi_chu || 'Không có ghi chú'}</span></div>
+                `;
+            } catch (e) {
+                container.innerHTML = `<div style="text-align:center; padding:20px; color:var(--danger-color);">Lỗi kết nối Cloud: ${e.message}</div>`;
+            }
+        }
 
         async function taiDuLieuHeThong() {
             try {
@@ -433,7 +497,7 @@
             return "status-tot";
         }
 
-        // ĐÃ SỬA: Tối ưu quy trình sinh QR sau khi cây DOM đã hoàn thành render bảng dữ liệu
+        // TÁI CẤU TRÚC: MODULE SINH QR CODE ĐẠT CHUẨN QUỐC TẾ URL-BASED BẰNG CANVAS (QRIOUS)
         function renderBangThietBi() {
             const tbody = document.getElementById('thiet_bi_table_body');
             const searchVal = document.getElementById('txt_tim_tb').value.toLowerCase().trim();
@@ -457,12 +521,14 @@
             let htmlString = "";
             dataFilter.forEach((tb) => {
                 let statusClass = traVeClassBadgeTrangThai(tb.trang_thai);
-                let qrContainerId = `qr_box_${tb.id}`;
+                let canvasId = `canvas_qr_${tb.id}`;
 
                 htmlString += `
                     <tr>
                         <td style="vertical-align: middle; text-align: center;">
-                            <div id="${qrContainerId}" class="qr-container"></div>
+                            <div class="qr-wrapper">
+                                <canvas id="${canvasId}"></canvas>
+                            </div>
                         </td>
                         <td style="vertical-align: middle;"><mark><b>${tb.ma_thiet_bi}</b></mark></td>
                         <td style="vertical-align: middle;"><strong style="color:#2c3e50;">${tb.ten_thiet_bi}</strong></td>
@@ -478,23 +544,22 @@
                 `;
             });
 
-            // Gán đồng loạt vào innerHTML trước để trình duyệt khởi tạo phần tử DOM
             tbody.innerHTML = htmlString;
 
-            // Sau khi phần tử div đã tồn tại thật trên giao diện, tiến hành gọi thư viện vẽ mã QR Code
+            // VẼ TRỰC TIẾP LÊN CANVAS - KHÔNG LO TRÌNH DUYỆT CHƯA LOAD XONG DOM
             dataFilter.forEach((tb) => {
-                let qrContainerId = `qr_box_${tb.id}`;
-                let containerTarget = document.getElementById(qrContainerId);
-                let rawText = `Ma: ${tb.ma_thiet_bi} | TB: ${tb.ten_thiet_bi} | Nhan: ${tb.ten_nhan_vien} | DV: ${tb.ma_don_vi}`;
+                let canvasId = `canvas_qr_${tb.id}`;
+                let canvasElement = document.getElementById(canvasId);
                 
-                if (containerTarget) {
-                    new QRCode(containerTarget, {
-                        text: rawText,
-                        width: 64,
-                        height: 64,
-                        colorDark : "#000000",
-                        colorLight : "#ffffff",
-                        correctLevel : QRCode.CorrectLevel.M
+                // ĐƯỜNG LINK QUỐC TẾ: Tự động trỏ về đúng domain/máy của bạn + mã tra cứu tài sản riêng biệt
+                let deepLinkUrl = window.location.origin + window.location.pathname + `?view_asset=${tb.ma_thiet_bi}`;
+
+                if (canvasElement) {
+                    new QRious({
+                        element: canvasElement,
+                        value: deepLinkUrl,
+                        size: 150, // Độ phân giải thực của ảnh QR sắc nét hơn khi quét
+                        level: 'H' // Khả năng sửa lỗi cấp độ cao nhất (bị rách hay mờ 30% vẫn quét tốt)
                     });
                 }
             });
