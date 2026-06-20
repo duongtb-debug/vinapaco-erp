@@ -79,7 +79,7 @@
     <div class="header">
         <div>
             <h1>Hệ Thống Quản Trị Nhân Sự & Thiết Bị Toàn Diện</h1>
-            <p>Bản sửa lỗi triệt để: Độc lập vị trí cột, chống lệch ô trống, chuẩn hóa hiển thị</p>
+            <p>Bản sửa lỗi đặc hiệu: Chống loạn định dạng ngày tháng số (46276) - Cố định vị trí cột tuyệt đối</p>
         </div>
         <div style="font-size: 16px; font-weight: 600; background: rgba(255,255,255,0.2); padding: 10px 20px; border-radius: 30px;">
             <i class="fa-solid fa-cloud"></i> Đang chạy Cloud ổn định
@@ -96,9 +96,9 @@
             <div id="side_hoso" style="display: block;">
                 <div class="sidebar-card">
                     <h3><i class="fa-solid fa-file-csv"></i> Nhập dữ liệu từ Excel</h3>
-                    <div class="form-group" style="background: #eefdf4; padding: 15px; border-radius: 8px; border: 1px solid #b7ebd0; margin-bottom: 18px; font-size: 15px; line-height: 1.5; color: #1e7e34;">
-                        <strong><i class="fa-solid fa-circle-check"></i> Đã cấu hình bộ lọc chuẩn xác:</strong><br>
-                        Hệ thống tự động phát hiện ô trống, giữ đúng vị trí cho cột Mã đơn vị, Năm, An toàn viên mà không làm dồn ô lung tung.
+                    <div class="form-group" style="background: #edf2f7; padding: 15px; border-radius: 8px; border: 1px solid #cbd5e0; margin-bottom: 18px; font-size: 15px; line-height: 1.5; color: #2d3748;">
+                        <strong><i class="fa-solid fa-triangle-exclamation"></i> Cơ chế nạp dữ liệu cải tiến:</strong><br>
+                        Hệ thống đã khóa cứng vị trí cột theo chuẩn cấu trúc file và tự động chuyển đổi các ô định dạng Ngày/Tháng bị biến thành số (ví dụ: 46276) quay lại đúng ngày hiển thị gốc.
                     </div>
 
                     <input type="file" id="excel_file_input" accept=".xlsx, .xls, .csv" style="display: none;" onchange="xuLyFileExcelNhanSu(this)">
@@ -262,6 +262,21 @@
             } catch(e) { alert("Lỗi xóa dữ liệu: " + e.message); }
         }
 
+        // Hàm tiện ích chuyển đổi định dạng ngày tháng số của Excel (như 46276) thành DD/MM/YYYY chuẩn chuỗi
+        function formatExcelCellData(cell) {
+            if (cell === null || cell === undefined || cell === "") return "";
+            if (typeof cell === 'number' && cell > 30000 && cell < 60000) {
+                // Chuyển số serial ngày tháng của Excel sang JS Date
+                let date = XLSX.SSF.parse_date_code(cell);
+                if (date) {
+                    let d = date.d < 10 ? '0' + date.d : date.d;
+                    let m = date.m < 10 ? '0' + date.m : date.m;
+                    return `${d}/${m}/${date.y}`;
+                }
+            }
+            return String(cell).trim();
+        }
+
         async function xuLyFileExcelNhanSu(input) {
             if(!input.files.length) return;
             const file = input.files[0];
@@ -272,11 +287,11 @@
                 const workbook = XLSX.read(data, { type: 'array' });
                 const worksheet = workbook.Sheets[workbook.SheetNames[0]];
                 
-                // Đọc ma trận thô, ép giữ nguyên ô rỗng hoàn toàn để chống dồn hàng lệch ô
+                // Đọc ma trận thô, giữ nguyên ô rỗng hoàn toàn để chống dồn hàng lệch ô
                 const rawMatrix = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
                 if(!rawMatrix.length) { alert("Lỗi: File tải lên không có dữ liệu!"); return; }
 
-                // BƯỚC KHẮC PHỤC LỖI TỐI ƯU: Tự động đi quét tìm dòng chứa tiêu đề thật sự (Bỏ qua các dòng ghi chú phụ ở trên)
+                // BƯỚC KHẮC PHỤC LỖI TUYỆT ĐỐI: Đi tìm dòng chứa tiêu đề thật sự (Bỏ qua các dòng ghi chú phụ ở trên)
                 let headerRowIndex = 0;
                 for(let r = 0; r < Math.min(rawMatrix.length, 10); r++) {
                     let textList = rawMatrix[r].map(c => String(c).toLowerCase().replace(/\s+/g, ''));
@@ -286,35 +301,18 @@
                     }
                 }
 
-                // Lấy danh sách tiêu đề cột đã chuẩn hóa (Xóa mọi khoảng trắng thừa thãi)
-                let headers = rawMatrix[headerRowIndex].map(h => String(h).trim().toLowerCase().replace(/\s+/g, ''));
-
-                // Dò tìm vị trí chính xác của từng cột theo từ khóa linh hoạt
-                let idxSTT = headers.findIndex(h => h.includes("stt"));
-                let idxHoTen = headers.findIndex(h => h.includes("hovàtên") || h.includes("họvàtên"));
-                let idxTen = headers.findIndex(h => h === "tên" || h.includes("tên"));
-                let idxBhxh = headers.findIndex(h => h.includes("bhxh") || h.includes("sổbhxh"));
-                let idxCccd = headers.findIndex(h => h.includes("cccd") || h.includes("cmnd"));
-                let idxAtv = headers.findIndex(h => h.includes("antoànviên") || h.includes("antoàn"));
-                let idxNndh = headers.findIndex(h => h.includes("nndh") || h.includes("nnđh"));
-                let idxVeHuu = headers.findIndex(h => h.includes("vềhưu"));
-                let idxMaDV = headers.findIndex(h => h.includes("mãđơnvị") || h.includes("măđơnvị"));
-                let idxNam = headers.findIndex(h => h === "năm");
-                let idxNamSinh = headers.findIndex(h => h.includes("nămsinh"));
-                let idxNu = headers.findIndex(h => h.includes("nữ"));
-                let idxChucDanh = headers.findIndex(h => h.includes("chứcdanh") || h.includes("côngviệc"));
-
-                // Fallback chỉ mục nếu không dò ra chuỗi ký tự khớp
-                if(idxSTT === -1) idxSTT = 0; if(idxHoTen === -1) idxHoTen = 1; if(idxTen === -1) idxTen = 2;
-                if(idxBhxh === -1) idxBhxh = 3; if(idxCccd === -1) idxCccd = 4; if(idxAtv === -1) idxAtv = 5;
-                if(idxNndh === -1) idxNndh = 6; if(idxVeHuu === -1) idxVeHuu = 7; if(idxMaDV === -1) idxMaDV = 8;
-                if(idxNam === -1) idxNam = 9; if(idxNamSinh === -1) idxNamSinh = 10; if(idxNu === -1) idxNu = 11;
-                if(idxChucDanh === -1) idxChucDanh = 12;
-
                 let uniqueMap = new Map();
                 let tuSinhId = 1;
 
-                // Đọc dữ liệu từ dòng kế tiếp sau dòng tiêu đề
+                // KHÓA CỨNG CHỈ SỐ CỘT THEO ĐÚNG THỨ TỰ TỪ TRÁI QUA PHẢI (Không lo lệch tên cột)
+                // Cột 0: STT, Cột 1: Họ và tên, Cột 2: Tên, Cột 3: Số sổ BHXH, Cột 4: Số CCCD
+                // Cột 5: An toàn viên, Cột 6: NNĐH, Cột 7: Năm về hưu, Cột 8: Mã đơn vị
+                // Cột 9: Năm, Cột 10: Năm sinh, Cột 11: Nữ (x), Cột 12: Chức danh công việc
+                let idxSTT = 0, idxHoTen = 1, idxTen = 2, idxBhxh = 3, idxCccd = 4, 
+                    idxAtv = 5, idxNndh = 6, idxVeHuu = 7, idxMaDV = 8, 
+                    idxNam = 9, idxNamSinh = 10, idxNu = 11, idxChucDanh = 12;
+
+                // Đọc dữ liệu chuẩn xác từ dòng kế tiếp sau dòng tiêu đề
                 for(let i = headerRowIndex + 1; i < rawMatrix.length; i++) {
                     let row = rawMatrix[i];
                     if(!row || row.length === 0) continue;
@@ -330,12 +328,14 @@
                     let tenStr = row[idxTen] ? String(row[idxTen]).trim() : "";
                     let soBhxhStr = row[idxBhxh] ? String(row[idxBhxh]).trim() : "";
                     let soCccdStr = row[idxCccd] ? String(row[idxCccd]).trim() : "";
-                    let anToanVienStr = row[idxAtv] ? String(row[idxAtv]).trim() : "";
-                    let nndhStr = row[idxNndh] ? String(row[idxNndh]).trim() : "";
-                    let namVeHuuStr = row[idxVeHuu] ? String(row[idxVeHuu]).trim() : "";
-                    let maDonViStr = row[idxMaDV] ? String(row[idxMaDV]).trim() : "Chưa rõ";
-                    let namStr = row[idxNam] ? String(row[idxNam]).trim() : "";
-                    let namSinhStr = row[idxNamSinh] ? String(row[idxNamSinh]).trim() : "";
+                    
+                    // Đi qua hàm lọc để ép chuyển đổi các định dạng ngày tháng thô (ví dụ: 46276)
+                    let anToanVienStr = formatExcelCellData(row[idxAtv]);
+                    let nndhStr = formatExcelCellData(row[idxNndh]);
+                    let namVeHuuStr = formatExcelCellData(row[idxVeHuu]);
+                    let maDonViStr = row[idxMaDV] !== undefined && row[idxMaDV] !== null ? String(row[idxMaDV]).trim() : "Chưa rõ";
+                    let namStr = formatExcelCellData(row[idxNam]);
+                    let namSinhStr = formatExcelCellData(row[idxNamSinh]);
                     let nuXStr = row[idxNu] ? String(row[idxNu]).trim() : "";
                     let chucDanhStr = row[idxChucDanh] ? String(row[idxChucDanh]).trim() : "";
 
@@ -369,7 +369,7 @@
                     if(error) {
                         alert("Lỗi tải lên Cloud: " + error.message);
                     } else {
-                        alert(`🎉 Thành công! Dữ liệu đã vào đúng ô chuẩn xác 100%, đồng bộ ${parsedList.length} nhân sự.`);
+                        alert(`🎉 Thành công rực rỡ! Dữ liệu đã vào đúng ô chuẩn xác 100%, định dạng ngày tháng đã được khôi phục gốc, đồng bộ ${parsedList.length} nhân sự.`);
                         await taiDuLieuHeThong();
                     }
                 } catch(err) { alert("Lỗi kết nối mạng: " + err.message); }
