@@ -90,7 +90,7 @@
     <div class="header">
         <div>
             <h1>Hệ Thống Quản Trị Nhân Sự & Thiết Bị Toàn Diện</h1>
-            <p>Bản sửa lỗi: Khắc phục triệt để đồng bộ render mã QR</p>
+            <p>Bản sửa lỗi tối ưu: Sử dụng ID duy nhất (Unique DB ID) cấp phát mã QR</p>
         </div>
         <div style="font-size: 16px; font-weight: 600; background: rgba(255,255,255,0.2); padding: 10px 20px; border-radius: 30px;">
             <i class="fa-solid fa-laptop-code"></i> Tự động hóa quy trình cấp phát
@@ -425,7 +425,7 @@
             return "status-tot";
         }
 
-        // SỬA ĐỔI HÀM RENDER CHÍNH XÁC: ĐẢM BẢO QUY TRÌNH DỰNG DOM RỒI MỚI VẼ QR
+        // ĐÃ FIX TOÀN DIỆN: SỬ DỤNG ID UNIQUE CỦA DATABASE ĐỂ KHÔNG BỊ LOẠN PHẦN TỬ
         function renderBangThietBi() {
             const tbody = document.getElementById('thiet_bi_table_body');
             const searchVal = document.getElementById('txt_tim_tb').value.toLowerCase().trim();
@@ -445,13 +445,15 @@
                 return;
             }
 
-            dataFilter.forEach((tb, idx) => {
+            dataFilter.forEach((tb) => {
                 let tr = document.createElement('tr');
-                let qrId = `qr_canvas_item_${idx}`;
+                let qrId = `qr_db_id_${tb.id}`; // Sử dụng ID duy nhất tuyệt đối từ database
                 let statusClass = traVeClassBadgeTrangThai(tb.trang_thai);
                 
                 tr.innerHTML = `
-                    <td style="vertical-align: middle;"><div style="display:flex;justify-content:center;width:75px;height:75px;margin:0 auto;" id="${qrId}"></div></td>
+                    <td style="vertical-align: middle; text-align: center;">
+                        <div style="display: inline-block; width: 75px; height: 75px; background: #fafafa;" id="${qrId}"></div>
+                    </td>
                     <td style="vertical-align: middle;"><mark><b>${tb.ma_thiet_bi}</b></mark></td>
                     <td style="vertical-align: middle;"><strong style="color:#2c3e50;">${tb.ten_thiet_bi}</strong></td>
                     <td style="vertical-align: middle;"><i class="fa-solid fa-user-check" style="color:var(--success-color); font-size:14px; margin-right:4px;"></i> <b>${tb.ten_nhan_vien}</b></td>
@@ -465,26 +467,25 @@
                 `;
                 tbody.appendChild(tr);
 
-                // Đồng bộ vẽ QR ngay lập tức sau 50ms khi dòng TR đã bám chặt vào bảng DOM
+                // Sử dụng setTimeout ngắn kết hợp chuỗi liền dòng (|) ngăn lỗi Unicode thư viện
                 setTimeout(() => {
                     let targetBox = document.getElementById(qrId);
-                    if(targetBox && targetBox.innerHTML === "") {
-                        let textQrThongMinh = 
-                            `=== THÔNG TIN THIẾT BỊ ===\n` +
-                            `- Mã thiết bị: ${tb.ma_thiet_bi}\n` +
-                            `- Tên thiết bị: ${tb.ten_thiet_bi}\n` +
-                            `- Người quản lý: ${tb.ten_nhan_vien}\n` +
-                            `- Đơn vị: ${tb.ma_don_vi}\n` +
-                            `- Tình trạng: ${tb.trang_thai || 'Đang sử dụng tốt'}`;
+                    if(targetBox) {
+                        targetBox.innerHTML = ""; // Dọn sạch vùng chứa
+                        let textQrLienMach = `MA_TB: ${tb.ma_thiet_bi} | TEN: ${tb.ten_thiet_bi} | NGUOI_NHAN: ${tb.ten_nhan_vien} | DV: ${tb.ma_don_vi} | TTRANG: ${tb.trang_thai || 'Tot'}`;
                         
-                        new QRCode(targetBox, {
-                            text: textQrThongMinh,
-                            width: 75,
-                            height: 75,
-                            correctLevel: QRCode.CorrectLevel.M
-                        });
+                        try {
+                            new QRCode(targetBox, {
+                                text: textQrLienMach,
+                                width: 75,
+                                height: 75,
+                                correctLevel: QRCode.CorrectLevel.L // Giảm độ nén để phù hợp với độ dài text tiếng Việt
+                            });
+                        } catch (e) {
+                            console.error("Lỗi thư viện QRCode tại phần tử: ", qrId, e);
+                        }
                     }
-                }, 50);
+                }, 60);
             });
         }
 
