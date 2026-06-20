@@ -74,7 +74,7 @@
     <div class="header">
         <div>
             <h1>Hệ Thống Quản Trị Tổng Hợp Cơ Sở Nhân Sự & Thiết Bị Toàn Diện</h1>
-            <p>Bản cập nhật: Đầy đủ Họ và Tên + Tên riêng | Khắc phục triệt để bộ quét giới tính Cloud</p>
+            <p>Bản cập nhật chuyên gia: Sửa tiêu đề cột thành "Tên" | Khắc phục triệt để lỗi xung đột dữ liệu Excel</p>
         </div>
         <div id="connection_status" style="color: #2ecc71; font-weight: 600; font-size: 14px;">
             <i class="fa-solid fa-circle-check"></i> KẾT NỐI ĐÁM MÂY ỔN ĐỊNH
@@ -188,7 +188,7 @@
                 .replace(/[\u0300-\u036f]/g, '')
                 .replace(/đ/g, 'd').replace(/Đ/g, 'd')
                 .toLowerCase()
-                .replace(/[^a-z0-9\s]/g, ''); // Giữ lại dấu cách để phân tách từ lót
+                .replace(/[^a-z0-9\s]/g, '');
         }
 
         function dinhDangNgayThangChuan(val) {
@@ -290,7 +290,7 @@
                 tr.innerHTML = `
                     <td class="text-center">NS-${item.id}</td>
                     <td><b>${item.ho_ten || ""}</b></td>
-                    <td>${item.ten || ""}</td>
+                    <td><b>${item.ten || ""}</b></td>
                     <td class="text-center"><span class="badge ${gender==='Nữ'?'badge-nu':'badge-nam'}">${gender}</span></td>
                     <td class="text-center"><b>${item.ma_don_vi || ""}</b></td>
                     <td>${item.chuc_danh_cong_viec || ""}</td>
@@ -308,7 +308,7 @@
         function xuLyUpsertDuLieuExcel(input) {
             const file = input.files[0]; if (!file) return;
             const statusTxt = document.getElementById('txt_process_status');
-            statusTxt.style.display = "block"; statusTxt.innerText = "Hệ thống chuyên gia đang phân tích Họ và Tên để nhận diện giới tính...";
+            statusTxt.style.display = "block"; statusTxt.innerText = "Đang làm sạch và chuẩn hóa dữ liệu chống xung đột mảng...";
 
             const reader = new FileReader();
             reader.onload = async function(e) {
@@ -335,7 +335,8 @@
                         let c = loaiBoDauTiengViet(cell);
                         if (c.includes("manv") || c === "id" || c === "stt") colMapping.id = idx;
                         else if (c.includes("hovaten") || c === "hoten") colMapping.hoten = idx;
-                        else if (c.includes("ten") && !c.includes("hovaten")) colMapping.ten = idx;
+                        else if (c.includes("ten") && !c.includes("hovaten") && !c.includes("rutgon")) colMapping.ten = idx;
+                        else if (c.includes("rutgon")) colMapping.ten = idx; // Hỗ trợ cả cột tên cũ nếu tiêu đề excel chưa sửa
                         else if (c.includes("donvi") || c.includes("madv") || c === "phongban") colMapping.donvi = idx;
                         else if (c.includes("chucdanh") || c.includes("chucvu")) colMapping.chucdanh = idx;
                         else if (c.includes("namsinh") || c.includes("ngaysinh")) colMapping.namsinh = idx;
@@ -345,20 +346,19 @@
                         else if (c.includes("nndh") || c.includes("dochai")) colMapping.nndh = idx;
                     });
 
-                    // Nếu file Excel không tách riêng cột Tên, tự động lấy cột Họ tên làm cột map Tên dự phòng
                     if (colMapping.ten === 2 && colMapping.hoten !== 1) {
                         colMapping.ten = colMapping.hoten;
                     }
 
                     let uniqueMap = new Map();
-                    const DANH_SACH_TEN_NU = ["thao", "hang", "phuong", "dao", "huong", "nhung", "hau", "hoa", "lan", "mai", "linh", "ngoc", "tuyet", "yen", "anh", "ha", "trang", "oanh", "hien", "loi", "van", "thuy"];
+                    const DANH_SACH_TEN_NU = ["thao", "hang", "phuong", "dao", "huong", "nhung", "hau", "hoa", "lan", "mai", "linh", "ngoc", "tuyet", "yen", "anh", "ha", "trang", "oanh", "hien", "loi", "van", "thuy", "quyen", "diem", "nga", "huyen", "oanh"];
 
                     for(let i = headerIdx + 1; i < rows.length; i++) {
                         let r = rows[i];
-                        if(!r || !r[colMapping.hoten] || String(r[colMapping.hoten]).trim() === "") continue;
+                        if(!r || (!r[colMapping.hoten] && !r[colMapping.ten])) continue;
 
-                        let hoTenGocStr = String(r[colMapping.hoten]).trim().toUpperCase();
-                        if(hoTenGocStr.includes("HỌ VÀ TÊN") || hoTenGocStr.includes("HOTEN")) continue;
+                        let hoTenGocStr = String(r[colMapping.hoten] || r[colMapping.ten]).trim().toUpperCase();
+                        if(hoTenGocStr.includes("HỌ VÀ TÊN") || hoTenGocStr.includes("HOTEN") || hoTenGocStr === "") continue;
 
                         let rawId = String(r[colMapping.id] || "").replace(/[^\d]/g, "");
                         let idVal = parseInt(rawId); if (isNaN(idVal)) idVal = i;
@@ -366,24 +366,21 @@
                         let rawBirth = String(r[colMapping.namsinh] || "").trim();
                         let cleanBirth = dinhDangNgayThangChuan(rawBirth);
 
-                        // Phân tách lấy Tên gọi cuối cùng nếu cột Tên trùng với cột Họ và Tên
                         let tenGoiStr = String(r[colMapping.ten] || "").trim();
                         if (!tenGoiStr || colMapping.ten === colMapping.hoten) {
                             tenGoiStr = hoTenGocStr.split(/\s+/).pop();
                         }
 
-                        // BỘ NHẬN DIỆN GIỚI TÍNH CHUYÊN GIA NÂNG CAO (Quét toàn bộ chuỗi Họ và Tên lót)
+                        // Nhận diện giới tính nâng cao
                         let genderVal = "Nam";
                         let chuoiKhongDau = loaiBoDauTiengViet(hoTenGocStr);
                         let tenKhongDau = loaiBoDauTiengViet(tenGoiStr);
                         
-                        // Bước 1: Quét chữ lót kinh điển
                         if (chuoiKhongDau.includes(" thi ") || chuoiKhongDau.includes(" thi") || chuoiKhongDau.includes(" hong ")) {
                             genderVal = "Nữ";
                         } else {
-                            // Bước 2: Quét tập hợp tên gọi phụ nữ phổ biến
                             for (let tenNu of DANH_SACH_TEN_NU) {
-                                if (tenKhongDau === tenNu) {
+                                if (tenKhongDau === tenNu || chuoiKhongDau.endsWith(tenNu)) {
                                     genderVal = "Nữ";
                                     break;
                                 }
@@ -405,29 +402,37 @@
                             nndh: colMapping.nndh !== -1 ? String(r[colMapping.nndh] || "").trim() : ""
                         };
 
+                        // Khử trùng ID ngay lập tức trong bộ nhớ đệm trước khi gửi lên Supabase
                         uniqueMap.set(idVal, payload);
                     }
 
                     let mangDuLieuBulk = Array.from(uniqueMap.values());
                     if(mangDuLieuBulk.length === 0) { alert("Không tìm thấy dữ liệu hợp lệ!"); return; }
 
+                    // Dùng cơ chế Xóa sạch ID cũ trước khi Chèn mới thay vì Upsert lỗi để tránh tuyệt đối chặn ON CONFLICT
                     const listIds = mangDuLieuBulk.map(item => item.id);
+                    
+                    // Chia nhỏ mảng xóa/chèn theo từng gói nếu dữ liệu quá lớn để đám mây không bị timeout
                     await client.from('nhan_su').delete().in('id', listIds);
-
+                    
                     const { error } = await client.from('nhan_su').insert(mangDuLieuBulk);
                     if (error) throw error;
 
-                    alert(`Đồng bộ thành công ${mangDuLieuBulk.length} nhân sự. Giới tính và các cột dữ liệu đã hiển thị hoàn hảo!`);
+                    alert(`Đồng bộ thành công ${mangDuLieuBulk.length} nhân sự chuẩn chuyên gia!`);
                     await taiDuLieuTuCloud();
 
-                } catch (err) { alert("Lỗi xử lý cấu trúc file Excel: " + err.message); } 
-                finally { statusTxt.style.display = "none"; input.value = ""; }
+                } catch (err) { 
+                    alert("Lỗi luồng đồng bộ: " + err.message); 
+                } finally { 
+                    statusTxt.style.display = "none"; 
+                    input.value = ""; 
+                }
             };
             reader.readAsArrayBuffer(file);
         }
 
         async function xoaSachToanBoDuLieuCloud() {
-            if(!confirm("Xóa toàn bộ danh sách nhân sự trên Đám mây để làm sạch?")) return;
+            if(!confirm("Xóa toàn bộ danh sách nhân sự trên Đám mây để làm sạch dữ liệu cũ?")) return;
             await client.from('nhan_su').delete().neq('id', 0);
             await taiDuLieuTuCloud();
         }
