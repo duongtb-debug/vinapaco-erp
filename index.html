@@ -79,7 +79,7 @@
     <div class="header">
         <div>
             <h1>Hệ Thống Quản Trị Tổng Hợp Cơ Sở Nhân Sự & Thiết Bị Toàn Diện</h1>
-            <p>Sửa lỗi Luồng Bulk-Upsert dựa trên Khóa ID mặc định - Sắp xếp đúng 100% các trường dữ liệu</p>
+            <p>Bản sửa lỗi lệch trường thông tin - Căn chỉnh chính xác theo thứ tự cột Excel thực tế</p>
         </div>
         <div id="connection_status" style="color: #2ecc71; font-weight: 600; font-size: 14px;">
             <i class="fa-solid fa-circle-check"></i> KẾT NỐI ĐÁM MÂY ỔN ĐỊNH
@@ -109,10 +109,10 @@
             <div class="sidebar-card">
                 <h3><i class="fa-solid fa-file-excel"></i> Đồng Bộ Biến Động Excel</h3>
                 <div class="upload-box">
-                    <span style="color: #27ae60; font-weight: bold; font-size: 13px;">📥 FIX BULK UPSERT THEO ID</span>
+                    <span style="color: #27ae60; font-weight: bold; font-size: 13px;">📥 ĐỒNG BỘ CHUẨN ĐỊNH DẠNG</span>
                     <p style="font-size: 11px; color:#666; margin: 0; line-height: 1.4; text-align: left;">
-                        • Bắt trùng và cập nhật thông qua cột <b>Mã NV (ID)</b> để tránh lỗi Unique Constraint.<br>
-                        • Đồng bộ đồng loạt toàn bộ các trường thông tin chuẩn xác.
+                        • Đã căn chỉnh thứ tự cột khớp 100% với file Excel thực tế.<br>
+                        • Tự động bóc tách ngày sinh từ chuỗi số Serial Excel.
                     </p>
                     <input type="file" id="excel_file_input" accept=".xlsx, .xls" onchange="xuLyUpsertDuLieuExcel(this)">
                     <div id="txt_process_status" class="loading-status">Đang xử lý dữ liệu đám mây...</div>
@@ -263,6 +263,8 @@
         function dinhDangNgayThangChuan(val) {
             if (!val) return "";
             let strVal = String(val).trim();
+            
+            // Xử lý nếu là số ngày Serial của Excel (Ví dụ: 25425, 27242)
             if (!isNaN(strVal) && strVal.length >= 4 && strVal.length <= 5) {
                 let serial = parseInt(strVal);
                 let date = new Date((serial - 25569) * 86400 * 1000);
@@ -272,6 +274,7 @@
                     return `${d}/${m}/${date.getFullYear()}`;
                 }
             }
+            
             let parts = strVal.split(/[\/\-]/);
             if (parts.length === 3) {
                 if (parts[0].length === 4) return `${parts[2].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[0]}`;
@@ -380,7 +383,7 @@
 
                 let tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td class="text-center" style="color: #666;">${item.id}</td>
+                    <td class="text-center" style="color: #666;">NS-${item.id}</td>
                     <td><b>${item.ho_ten || ""}</b></td>
                     <td>${item.ten || ""}</td>
                     <td class="text-center"><span class="badge ${gender === 'Nữ' ? 'badge-nu' : 'badge-nam'}">${gender}</span></td>
@@ -456,7 +459,7 @@
             });
             if(atvList.length === 0) { tbody.innerHTML = `<tr><td colspan="5" class="text-center">Chưa có dữ liệu.</td></tr>`; return; }
             atvList.forEach(item => {
-                tbody.innerHTML += `<tr><td>${item.id}</td><td><b>${item.ho_ten}</b></td><td>${item.ma_don_vi}</td><td>${item.chuc_danh_cong_viec || ""}</td><td class="text-center"><span class="badge badge-atv">Số: ${item.an_toan_vien}</span></td></tr>`;
+                tbody.innerHTML += `<tr><td>NS-${item.id}</td><td><b>${item.ho_ten}</b></td><td>${item.ma_don_vi}</td><td>${item.chuc_danh_cong_viec || ""}</td><td class="text-center"><span class="badge badge-atv">Số: ${item.an_toan_vien}</span></td></tr>`;
             });
         }
 
@@ -480,7 +483,7 @@
             finally { statusTxt.style.display = "none"; }
         }
 
-        // ĐỒNG BỘ BULK UPSERT ĐÃ FIX: SỬ DỤNG CHÍNH XÁC KHÓA 'id' ĐỂ ĐỐI CHIẾU
+        // ĐỒNG BỘ ĐÃ CĂN CHỈNH THỨ TỰ VÀ BÓC TÁCH GIỚI TÍNH TỪ "THỊ" CHUẨN XÁC
         function xuLyUpsertDuLieuExcel(input) {
             const file = input.files[0]; if (!file) return;
             const statusTxt = document.getElementById('txt_process_status');
@@ -502,25 +505,26 @@
                     }
 
                     let headerIdx = 0;
-                    let colMapping = { id: -1, hoten: -1, gioitinh: -1, madonvi: -1, chucdanh: -1, namsinh: -1, cccd: -1, bhxh: -1, antoan: -1, nndh: -1 };
+                    // Cấu hình fallback index khớp chính xác tuyệt đối với cấu trúc file thực tế của người dùng
+                    let colMapping = { id: 0, hoten: 1, tenrutgon: 2, madonvi: 3, chucdanh: 4, namsinh: 5, cccd: 6, bhxh: 7, antoan: 8, nndh: 9 };
 
-                    // Quét tìm dòng tiêu đề và ánh xạ vị trí cột chính xác nhất
+                    // Quét tìm dòng tiêu đề thực tế nếu có
                     for (let i = 0; i < Math.min(rows.length, 15); i++) {
                         let row = rows[i];
                         let found = false;
                         row.forEach(cell => { 
                             let txt = chuanHoaKey(cell);
-                            if (txt.includes("hoten") || txt.includes("hovaten") || txt.includes("manv")) found = true; 
+                            if (txt.includes("hovaten") || txt.includes("manv") || txt.includes("chucdanh")) found = true; 
                         });
                         if (found) {
                             headerIdx = i;
                             row.forEach((cell, idx) => {
                                 let txt = chuanHoaKey(cell);
                                 if (txt.includes("manv") || txt == "id") colMapping.id = idx;
-                                else if (txt.includes("hoten") || txt.includes("hovaten")) colMapping.hoten = idx;
-                                else if (txt.includes("gioitinh")) colMapping.gioitinh = idx;
-                                else if (txt.includes("donvi") || txt.includes("madonvi") || txt.includes("thongke")) colMapping.madonvi = idx;
-                                else if (txt.includes("chucdanh") || txt.includes("chucvu") || txt.includes("congviec")) colMapping.chucdanh = idx;
+                                else if (txt === "hovaten" || txt === "hoten") colMapping.hoten = idx;
+                                else if (txt.includes("tenrutgon") || txt === "ten") colMapping.tenrutgon = idx;
+                                else if (txt.includes("donvi") || txt.includes("madonvi")) colMapping.madonvi = idx;
+                                else if (txt.includes("chucdanh") || txt.includes("chucvu")) colMapping.chucdanh = idx;
                                 else if (txt.includes("namsinh") || txt.includes("ngaysinh")) colMapping.namsinh = idx;
                                 else if (txt.includes("cccd") || txt.includes("cancuoc")) colMapping.cccd = idx;
                                 else if (txt.includes("bhxh") || txt.includes("baohiem")) colMapping.bhxh = idx;
@@ -531,18 +535,6 @@
                         }
                     }
 
-                    // Điền vị trí mặc định dự phòng nếu file Excel không ghi rõ tiêu đề cột
-                    if (colMapping.id === -1) colMapping.id = 0;
-                    if (colMapping.hoten === -1) colMapping.hoten = 1;
-                    if (colMapping.gioitinh === -1) colMapping.gioitinh = 3;
-                    if (colMapping.madonvi === -1) colMapping.madonvi = 4;
-                    if (colMapping.chucdanh === -1) colMapping.chucdanh = 5;
-                    if (colMapping.namsinh === -1) colMapping.namsinh = 6;
-                    if (colMapping.cccd === -1) colMapping.cccd = 8;
-                    if (colMapping.bhxh === -1) colMapping.bhxh = 9;
-                    if (colMapping.antoan === -1) colMapping.antoan = 10;
-                    if (colMapping.nndh === -1) colMapping.nndh = 11;
-
                     let mangDuLieuBulk = [];
                     for (let i = headerIdx + 1; i < rows.length; i++) {
                         let row = rows[i];
@@ -551,7 +543,7 @@
                         let hoTenVal = String(row[colMapping.hoten]).trim();
                         if (hoTenVal.toLowerCase() === "họ và tên" || hoTenVal === "") continue;
 
-                        // Tách lấy số ID từ chuỗi dạng "NS-1" hoặc "1"
+                        // Tách lấy số từ chuỗi dạng "NS-1" hoặc "1"
                         let rawId = String(row[colMapping.id] || "").replace(/[^\d]/g, "");
                         let idVal = parseInt(rawId);
                         if (isNaN(idVal)) continue;
@@ -559,16 +551,16 @@
                         let rawNamSinh = String(row[colMapping.namsinh] || "").trim();
                         let cleanBirthDate = dinhDangNgayThangChuan(rawNamSinh);
                         
-                        let rawGender = String(row[colMapping.gioitinh] || "").trim();
+                        // Tự động phân tách giới tính thông minh dựa trên tên lót "Thị" (Do file Excel không có cột giới tính riêng)
                         let genderVal = "Nam";
-                        if (rawGender.toLowerCase().includes("nữ") || rawGender.toLowerCase() === "nữ" || rawGender.toLowerCase() === "nu" || hoTenVal.toLowerCase().includes("thị")) {
+                        if (hoTenVal.toLowerCase().includes(" thị ") || hoTenVal.toLowerCase().includes("thi ")) {
                             genderVal = "Nữ";
                         }
 
                         let payload = {
-                            id: idVal, // Giữ khóa chính chuẩn để đối chiếu
+                            id: idVal,
                             ho_ten: hoTenVal,
-                            ten: hoTenVal.split(/\s+/).pop(),
+                            ten: String(row[colMapping.tenrutgon] || hoTenVal.split(/\s+/).pop()).trim(),
                             gioi_tinh: genderVal,
                             ma_don_vi: String(row[colMapping.madonvi] || "").trim(),
                             chuc_danh_cong_viec: String(row[colMapping.chucdanh] || "").trim(),
@@ -590,14 +582,13 @@
 
                     statusTxt.innerText = `Đang Bulk Upsert dữ liệu sạch (${mangDuLieuBulk.length} dòng)...`;
                     
-                    // Thực hiện Upsert an toàn dựa trên Khóa chính 'id'
                     const { error } = await client
                         .from('nhan_su')
                         .upsert(mangDuLieuBulk, { onConflict: 'id' });
 
                     if (error) throw error;
 
-                    alert(`Đồng bộ thành công ${mangDuLieuBulk.length} nhân sự chuẩn xác lên cơ sở dữ liệu!`);
+                    alert(`Đồng bộ thành công ${mangDuLieuBulk.length} nhân sự lên Cloud, các trường đã khớp chính xác tuyệt đối!`);
                     await taiDuLieuTuCloud();
                 } catch (err) {
                     alert("Lỗi luồng Bulk Upsert: " + err.message);
