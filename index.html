@@ -79,10 +79,10 @@
     <div class="header">
         <div>
             <h1>Hệ Thống Quản Trị Nhân Sự & Thiết Bị Toàn Diện</h1>
-            <p>Bản sửa đổi Chống ghi đè ID: Giữ vững thông tin anh Nguyễn Thế Anh STT 1 và Mã đơn vị 1</p>
+            <p>Bản sửa đổi: Cột Năm tự động trích xuất 4 số cuối của năm sinh</p>
         </div>
         <div style="font-size: 16px; font-weight: 600; background: rgba(255,255,255,0.2); padding: 10px 20px; border-radius: 30px;">
-            <i class="fa-solid fa-cloud"></i> Đồng bộ không ghi đè dữ liệu
+            <i class="fa-solid fa-cloud"></i> Đồng bộ chuẩn hóa dữ liệu năm sinh
         </div>
     </div>
 
@@ -97,10 +97,9 @@
                 <div class="sidebar-card">
                     <h3><i class="fa-solid fa-file-csv"></i> Nhập dữ liệu từ Excel</h3>
                     <div class="form-group" style="background: #eef2f7; padding: 15px; border-radius: 8px; border: 1px solid #ced4da; margin-bottom: 18px; font-size: 15px; line-height: 1.5; color: #333;">
-                        <strong><i class="fa-solid fa-shield-halved"></i> Đã sửa lỗi Nuốt/Ghi đè nhân sự:</strong><br>
-                        - Tách biệt hoàn toàn số thứ tự Excel khỏi Khóa chính cơ sở dữ liệu.<br>
-                        - Đảm bảo các nhân sự có STT = 1 (như anh <b>Nguyễn Thế Anh</b>) không bao giờ bị ghi đè.<br>
-                        - Nhận diện đủ 100% cột An toàn viên và Mã đơn vị.
+                        <strong><i class="fa-solid fa-calendar-check"></i> Cập nhật quy tắc trích xuất cột Năm:</strong><br>
+                        - Cột <b>Năm</b> sẽ hiển thị chính xác 4 số cuối của năm sinh gốc từ file.<br>
+                        - Giữ vững thông tin anh Nguyễn Thế Anh (Mã đơn vị 1, STT 1).
                     </div>
 
                     <input type="file" id="excel_file_input" accept=".xlsx, .xls, .csv" style="display: none;" onchange="xuLyFileExcelNhanSu(this)">
@@ -227,7 +226,6 @@
 
         async function taiDuLieuHeThong() {
             try {
-                // Tải dữ liệu sắp xếp theo cột ID tự sinh trên hệ thống Cloud để không làm đảo lộn thứ tự hiển thị
                 const resNs = await client.from('nhan_su').select('id, ho_ten, ten, so_bhxh, so_cccd, an_toan_vien, nndh, nam_ve_huu, ma_don_vi, nam, nam_sinh, gioi_tinh, chuc_danh_cong_viec').order('id', { ascending: true });
                 CACHE_NHAN_SU = resNs.data || [];
                 const resTb = await client.from('cap_phat_thiet_bi').select('*').order('created_at', { ascending: false });
@@ -307,7 +305,7 @@
                 if(!rawData.length) { alert("Lỗi: File tải lên trống rỗng!"); return; }
 
                 let finalUploadList = [];
-                let trackingCloudId = 1; // Khóa chính tự tăng độc lập hoàn toàn, không lấy cột STT đè lên nữa
+                let trackingCloudId = 1; 
 
                 for(let i = 0; i < rawData.length; i++) {
                     let row = rawData[i];
@@ -320,7 +318,6 @@
                         }
                     });
 
-                    // Định vị linh hoạt cột Họ Tên
                     let hoTenKey = Object.keys(cleanRow).find(k => k.includes("hovaten") || k.includes("hoten"));
                     let hoTenStr = hoTenKey ? String(cleanRow[hoTenKey]).trim() : "";
                     
@@ -331,10 +328,8 @@
                         }
                     }
 
-                    // Loại trừ dòng tiêu đề thừa hoặc dòng rỗng
                     if(!hoTenStr || hoTenStr === "undefined" || hoTenStr.toLowerCase().includes("họ và tên") || hoTenStr === "") continue;
 
-                    // Giữ lại số thứ tự hiển thị thô gốc từ file Excel
                     let sttKey = Object.keys(cleanRow).find(k => k === "stt" || k === "manv");
                     let rawSttVal = sttKey ? cleanRawCell(cleanRow[sttKey]) : String(trackingCloudId);
 
@@ -364,17 +359,21 @@
                     let nndhStr = nndhKey ? cleanRawCell(cleanRow[nndhKey]) : "";
                     let namVeHuuStr = veHuuKey ? cleanRawCell(cleanRow[veHuuKey]) : "";
                     
-                    // Trích xuất mã đơn vị chính xác bảo toàn giá trị 1
                     let maDonViStr = "1"; 
                     if (maDVKey && cleanRow[maDVKey] !== undefined && cleanRow[maDVKey] !== null) {
                         let rawVal = String(cleanRow[maDVKey]).trim();
                         if (rawVal !== "") maDonViStr = rawVal;
                     }
                     
-                    let namStr = namKey ? cleanRawCell(cleanRow[namKey]) : "";
                     let rawNamSinh = namSinhKey ? cleanRawCell(cleanRow[namSinhKey]) : "";
                     let namSinhStr = formatExcelDate(rawNamSinh);
                     
+                    // Logic xử lý trường Năm: Cắt lấy 4 số cuối của chuỗi ngày tháng năm sinh (ví dụ: 1969)
+                    let namTrichXuat = "2026";
+                    if(namSinhStr && namSinhStr.length >= 4) {
+                        namTrichXuat = namSinhStr.slice(-4);
+                    }
+
                     let nuXStr = nuKey ? cleanRawCell(cleanRow[nuKey]) : "";
                     let chucDanhStr = chucDanhKey ? cleanRawCell(cleanRow[chucDanhKey]) : "";
 
@@ -383,7 +382,6 @@
                         gioiTinh = "Nữ";
                     }
 
-                    // Đổ dữ liệu vào mảng nạp với ID độc lập tăng dần không lo đụng hàng
                     finalUploadList.push({
                         id: trackingCloudId, 
                         ho_ten: hoTenStr,
@@ -393,28 +391,28 @@
                         an_toan_vien: anToanVienStr,
                         nndh: nndhStr,
                         nam_ve_huu: namVeHuuStr,
-                        ma_don_vi: maDonViStr, // Ghi nhận chuẩn mã đơn vị 1
-                        nam: rawSttVal,        // Lưu tạm STT gốc từ Excel vào trường "nam" để hiển thị chính xác lên bảng
+                        ma_don_vi: maDonViStr, 
+                        nam: namTrichXuat,       // Đưa 4 số cuối của năm sinh vào đây
                         nam_sinh: namSinhStr,
                         gioi_tinh: gioiTinh,
-                        chuc_danh_cong_viec: chucDanhStr
+                        chuc_danh_cong_viec: chucDanhStr,
+                        so_so_bhxh: rawSttVal    // Mượn tạm trường không dùng tới để lưu trữ Số thứ tự gốc Excel
                     });
 
                     trackingCloudId++;
                 }
 
-                if(finalUploadList.length === 0) { alert("Không bóc tách được dữ liệu nhân sự hợp lệ."); return; }
+                if(finalUploadList.length === 0) { alert("Không tìm thấy hàng dữ liệu nhân sự hợp lệ."); return; }
 
                 try {
-                    // Thực hiện nạp hàng loạt lên Cloud an toàn 100%
                     const { error } = await client.from('nhan_su').upsert(finalUploadList, { onConflict: 'id' });
                     if(error) {
-                        alert("Lỗi tải lên dữ liệu: " + error.message);
+                        alert("Lỗi tải dữ liệu lên Cloud: " + error.message);
                     } else {
-                        alert(`🎉 Tuyệt vời! Đã nạp thành công và đồng bộ trọn vẹn ${finalUploadList.length} nhân sự lên Cloud. Anh Nguyễn Thế Anh đã xuất hiện cố định trong hệ thống!`);
+                        alert(`🎉 Thành công! Đã đồng bộ ${finalUploadList.length} nhân sự lên Cloud. Cột "Năm" đã được cập nhật thành 4 số cuối của năm sinh.`);
                         await taiDuLieuHeThong();
                     }
-                } catch(err) { alert("Lỗi kết nối mạng: " + err.message); }
+                } catch(err) { alert("Lỗi đường truyền mạng: " + err.message); }
             };
             reader.readAsArrayBuffer(file);
             input.value = "";
@@ -442,18 +440,18 @@
 
             let queryData = CACHE_NHAN_SU.filter(ns => {
                 if(filterDv !== "ALL" && String(ns.ma_don_vi).trim() !== filterDv) return false;
-                return !searchVal || String(ns.ho_ten).toLowerCase().includes(searchVal) || String(ns.nam).includes(searchVal);
+                return !searchVal || String(ns.ho_ten).toLowerCase().includes(searchVal) || String(ns.so_so_bhxh).includes(searchVal);
             });
 
             if(!queryData.length) {
-                tbody.innerHTML = `<tr><td colspan="13" style="text-align:center; color: #868e96; padding: 20px;">Không tìm thấy dữ liệu trùng khớp.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="13" style="text-align:center; color: #868e96; padding: 20px;">Không tìm thấy dữ liệu nhân sự trùng khớp.</td></tr>`;
                 return;
             }
 
             queryData.forEach(ns => {
                 let tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td style="text-align:center;"><b>${ns.nam || ns.id}</b></td>
+                    <td style="text-align:center;"><b>${ns.so_so_bhxh || ns.id}</b></td>
                     <td><strong style="color: #2b3a4a;">${ns.ho_ten}</strong></td>
                     <td style="text-align:center;">${ns.ten || ''}</td>
                     <td><code>${ns.so_bhxh || ''}</code></td>
@@ -462,7 +460,7 @@
                     <td style="text-align:center;">${ns.nndh ? `<span class="badge badge-info">${ns.nndh}</span>` : ''}</td>
                     <td style="text-align:center;">${ns.nam_ve_huu || ''}</td>
                     <td style="text-align:center;"><span class="badge badge-info" style="background:#eef2f7; color:#495057;">${ns.ma_don_vi}</span></td>
-                    <td style="text-align:center;">2026</td>
+                    <td style="text-align:center;"><b>${ns.nam || ''}</b></td>
                     <td style="text-align:center;">${ns.nam_sinh || ''}</td>
                     <td style="text-align:center;"><span class="badge ${ns.gioi_tinh === 'Nữ' ? 'badge-female' : 'badge-male'}">${ns.gioi_tinh}</span></td>
                     <td style="color: #495057; font-weight: 500;">${ns.chuc_danh_cong_viec || ''}</td>
@@ -475,15 +473,15 @@
             const val = input.value.toLowerCase().trim();
             const box = document.getElementById('suggestions_box');
             if(!val) { box.style.display = "none"; return; }
-            let match = CACHE_NHAN_SU.filter(ns => String(ns.ho_ten).toLowerCase().includes(val) || String(ns.nam).includes(val)).slice(0, 5);
+            let match = CACHE_NHAN_SU.filter(ns => String(ns.ho_ten).toLowerCase().includes(val) || String(ns.so_so_bhxh).includes(val)).slice(0, 5);
             if(match.length === 0) { box.innerHTML = "<div class='suggestion-item' style='color:#e74c3c;font-weight:600;'>Không tìm thấy nhân sự</div>"; box.style.display = "block"; return; }
             box.innerHTML = "";
             match.forEach(ns => {
                 let div = document.createElement('div');
                 div.className = "suggestion-item";
-                div.innerHTML = `<b>${ns.ho_ten}</b> (STT: ${ns.nam || ns.id})`;
+                div.innerHTML = `<b>${ns.ho_ten}</b> (STT: ${ns.so_so_bhxh || ns.id})`;
                 div.onclick = function() {
-                    document.getElementById('form_search_ns').value = `${ns.ho_ten} (${ns.nam || ns.id})`;
+                    document.getElementById('form_search_ns').value = `${ns.ho_ten} (${ns.so_so_bhxh || ns.id})`;
                     document.getElementById('form_selected_ns_id').value = ns.id;
                     box.style.display = "none";
                 };
@@ -533,7 +531,7 @@
             const tenTb = document.getElementById('form_ten_tb').value.trim();
             let maTb = document.getElementById('form_ma_tb').value.trim();
             const ghiChu = document.getElementById('form_ghi_chu').value.trim();
-            if(!nsId || !tenTb) { alert("Vui lòng điền đủ thông tin người nhận và tài sản!"); return; }
+            if(!nsId || !tenTb) { alert("Vui lòng điền đủ thông tin người nhận và tên tài sản!"); return; }
             if(!maTb) maTb = "EQ-" + Date.now().toString().slice(-7);
             const ns = CACHE_NHAN_SU.find(x => x.id == nsId);
 
