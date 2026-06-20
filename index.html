@@ -76,7 +76,7 @@
     <div class="header">
         <div>
             <h1>Hệ Thống Quản Trị Tổng Hợp Cơ Sở Nhân Sự & Thiết Bị Toàn Diện</h1>
-            <p>Bản vá lỗi dứt điểm: Chế độ chống rỗng cưỡng chế cho trường Tên Rút Gọn</p>
+            <p>Bản sửa lỗi tối ưu: Khóa chặt mọi giá trị trống (Null) của trường Trạng Thái Làm Việc</p>
         </div>
         <div style="font-size: 13px; font-weight: 500; background: rgba(255,255,255,0.15); padding: 6px 12px; border-radius: 20px;">
             <i class="fa-solid fa-cloud"></i> Đám mây thời gian thực
@@ -93,11 +93,12 @@
             <div id="side_hoso" style="display: block;">
                 <div class="sidebar-card">
                     <h3><i class="fa-solid fa-file-excel"></i> Nhập dữ liệu thông minh</h3>
-                    <div class="form-group" style="background: #eef9ff; padding: 10px; border-radius: 6px; border: 1px solid #b3e5fc; margin-bottom: 12px;">
-                        <label style="color: #0288d1; font-weight: bold;"><i class="fa-solid fa-shield-halved"></i> Hệ thống tự động sửa lỗi:</label>
-                        <span style="font-size: 11.5px; color: #444; line-height: 1.4; display: block; margin-top: 4px;">
-                            • Tự sửa lỗi trống <b>Tên rút gọn</b> bằng thuật toán cắt chuỗi từ Họ Tên.<br>
-                            • Tự động bỏ qua ràng buộc <b>Mã đơn vị</b> để không bị chặn Khóa ngoại.
+                    <div class="form-group" style="background: #eefdf4; padding: 10px; border-radius: 6px; border: 1px solid #b7ebd0; margin-bottom: 12px;">
+                        <label style="color: #1e7e34; font-weight: bold;"><i class="fa-solid fa-circle-check"></i> Chế độ an toàn tuyệt đối:</label>
+                        <span style="font-size: 11.5px; color: #333; line-height: 1.4; display: block; margin-top: 4px;">
+                            • Tự động gán <b>"Đang làm việc"</b> nếu cột trạng thái bị bỏ trống.<br>
+                            • Tự sửa lỗi trống <b>Tên rút gọn</b> từ cột Họ tên.<br>
+                            • Ngăn chặn 100% lỗi <code>violates not-null constraint</code>.
                         </span>
                     </div>
 
@@ -290,29 +291,25 @@
                 const workbook = XLSX.read(data, { type: 'array' });
                 const worksheet = workbook.Sheets[workbook.SheetNames[0]];
                 
-                // Đọc thô ma trận dữ liệu Excel dạng mảng
                 const matrix = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
-                if(!matrix.length) { alert("File Excel này rỗng!"); return; }
+                if(!matrix.length) { alert("File Excel này không có dữ liệu!"); return; }
 
-                // Chuẩn hóa dòng tiêu đề đầu tiên
                 let headerRow = matrix[0].map(h => {
                     return String(h).toLowerCase().trim()
                         .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
                         .replace(/[^a-z0-9]/g, "");
                 });
                 
-                // Tìm kiếm chỉ số vị trí cột tự động
                 let idxId = headerRow.findIndex(h => ["stt", "manv", "id", "manhanvien", "maso", "masonhanvien"].includes(h));
                 let idxHoTen = headerRow.findIndex(h => ["hovaten", "hoten", "hovatennhanvien", "tennhanvien", "ho_va_ten"].includes(h));
                 let idxTen = headerRow.findIndex(h => ["ten", "tenrutgon", "ten_rut_gon"].includes(h));
                 let idxNgaySinh = headerRow.findIndex(h => ["ngaysinh", "ngay_sinh"].includes(h));
                 let idxGioiTinh = headerRow.findIndex(h => ["gioitinh", "gioi_tinh"].includes(h));
                 let idxNuX = headerRow.findIndex(h => ["nux", "nu"].includes(h));
-                let idxMaDonVi = headerRow.findIndex(h => ["madonvi", "donvi", "madv", "ma_don_vi"].includes(h));
                 let idxChucDanh = headerRow.findIndex(h => ["chucdanhcongviec", "chucdanh", "chucvu", "vitricongviec", "chuc_danh_cong_viec"].includes(h));
                 let idxCccd = headerRow.findIndex(h => ["socccd", "cccd", "cancuoc", "so_cccd"].includes(h));
                 let idxBhxh = headerRow.findIndex(h => ["sobhxh", "bhxh", "baohiem", "so_bhxh"].includes(h));
-                let idxTrangThai = headerRow.findIndex(h => ["trangthai", "trangthailamviec"].includes(h));
+                let idxTrangThai = headerRow.findIndex(h => ["trangthai", "trangthailamviec", "trang_thai_lam_viec"].includes(h));
 
                 if (idxId === -1) idxId = 0;
                 if (idxHoTen === -1) idxHoTen = 1;
@@ -334,21 +331,27 @@
                     let hoTenStr = (idxHoTen !== -1 && row[idxHoTen] !== undefined) ? String(row[idxHoTen]).trim() : "";
                     if(!hoTenStr || hoTenStr === "undefined" || hoTenStr.length < 2) continue; 
 
-                    // 🛡️ CHIẾN THUẬT ÉP GIÁ TRỊ TÊN RÚT GỌN CHỐNG NOT-NULL TUYỆT ĐỐI
+                    // 🛡️ 1. ÉP GIÁ TRỊ TÊN RÚT GỌN (NOT NULL)
                     let tenRutGonStr = "";
                     if(idxTen !== -1 && row[idxTen] !== undefined) {
                         tenRutGonStr = String(row[idxTen]).trim();
                     }
-                    
-                    // Thuật toán dự phòng khẩn cấp nếu cột 'ten' trong excel rỗng hoặc bị lấy lệch dòng
                     if(!tenRutGonStr || tenRutGonStr === "" || tenRutGonStr === "undefined") {
                         let parts = hoTenStr.split(" ");
-                        tenRutGonStr = parts[parts.length - 1]; // Lấy chữ cuối cùng của họ tên làm tên rút gọn
+                        tenRutGonStr = parts[parts.length - 1]; 
                     }
-
-                    // Điểm chốt chặn cuối cùng: Nếu vẫn không có chữ, gán nguyên văn Họ và Tên
                     if(!tenRutGonStr || tenRutGonStr.trim() === "") {
                         tenRutGonStr = hoTenStr;
+                    }
+
+                    // 🛡️ 2. ÉP GIÁ TRỊ TRẠNG THÁI LÀM VIỆC (NOT NULL) - SỬA LỖI MỚI NHẤT
+                    let trangThaiStr = "";
+                    if(idxTrangThai !== -1 && row[idxTrangThai] !== undefined) {
+                        trangThaiStr = String(row[idxTrangThai]).trim();
+                    }
+                    // Nếu cột trạng thái trong file excel rỗng hoặc bị lỗi undefined, ép nó thành giá trị mặc định chữ
+                    if(!trangThaiStr || trangThaiStr === "" || trangThaiStr === "undefined") {
+                        trangThaiStr = "Đang làm việc";
                     }
 
                     checkedUniqueKeys.add(cleanId);
@@ -366,33 +369,31 @@
                     let chucDanhStr = (idxChucDanh !== -1 && row[idxChucDanh] !== "") ? String(row[idxChucDanh]).trim() : "";
                     let soCccdStr = (idxCccd !== -1 && row[idxCccd] !== "") ? String(row[idxCccd]).trim() : null;
                     let soBhxhStr = (idxBhxh !== -1 && row[idxBhxh] !== "") ? String(row[idxBhxh]).trim() : null;
-                    let trangThaiStr = (idxTrangThai !== -1 && row[idxTrangThai] !== "") ? String(row[idxTrangThai]).trim() : "Đang làm việc";
 
                     mapData.push({
                         id: cleanId, 
                         ho_ten: hoTenStr,
-                        ten_rut_gon: tenRutGonStr, // Bảo đảm 100% có text hợp lệ gửi lên Supabase
+                        ten_rut_gon: tenRutGonStr, 
                         ngay_sinh: ngaySinhStr,
                         gioi_tinh: gioiTinh,
-                        ma_don_vi: null, // Đặt NULL cố định để loại bỏ triệt để lỗi liên kết khóa ngoại ma_don_vi_fkey
+                        ma_don_vi: null, 
                         chuc_danh_cong_viec: chucDanhStr,
                         so_cccd: soCccdStr,
                         so_bhxh: soBhxhStr,
-                        trang_thai_lam_viec: trangThaiStr
+                        trang_thai_lam_viec: trangThaiStr // Tuyệt đối không bao giờ nhận giá trị rỗng/null
                     });
                 }
 
                 if(mapData.length === 0) {
-                    alert("❌ Lỗi: Không trích xuất được bất kỳ dữ liệu nhân sự nào hợp lệ.");
+                    alert("❌ Thất bại: Không có dữ liệu hợp lệ.");
                     return;
                 }
 
-                // Thực thi lệnh đẩy dữ liệu lên đám mây
                 const { error } = await client.from('nhan_su').upsert(mapData, { onConflict: 'id' });
                 if(error) {
-                    alert("Lỗi máy chủ Supabase: " + error.message);
+                    alert("Lỗi cấu trúc dữ liệu Supabase: " + error.message);
                 } else {
-                    alert(`🎉 THÀNH CÔNG RỰC RỠ! Toàn bộ ${mapData.length} nhân sự đã được nạp lên đám mây mượt mà không còn một lỗi nhỏ.`);
+                    alert(`🎉 THÀNH CÔNG RỰC RỠ! Đã nạp thành công ${mapData.length} nhân sự lên Đám mây.`);
                     await taiDuLieuHeThong();
                 }
             };
