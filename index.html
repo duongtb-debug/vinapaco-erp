@@ -86,7 +86,6 @@
         .qr-wrapper { width: 75px; height: 75px; margin: 0 auto; background: #fff; padding: 4px; border: 1px solid #e2e8f0; border-radius: 6px; display: flex; align-items: center; justify-content: center; }
         .qr-wrapper canvas { width: 100% !important; height: 100% !important; display: block; }
 
-        /* LIVE PREVIEW WORK ORDER STYLES */
         .preview-container { border: 2px dashed #b4c6e7; padding: 25px; background-color: #fff; border-radius: 8px; margin-top: 20px; position: relative; box-shadow: inset 0 0 10px rgba(0,0,0,0.02); }
         .preview-title-tag { position: absolute; top: -12px; left: 20px; background: var(--primary-color); color: white; padding: 2px 12px; font-size: 13px; font-weight: bold; border-radius: 20px; }
         
@@ -108,8 +107,9 @@
 
         @media print {
             body * { visibility: hidden; }
-            .wo-ticket, .wo-ticket * { visibility: visible; }
-            .wo-ticket { position: absolute; left: 0; top: 0; width: 100%; border: none; }
+            .preview-container, .preview-container * { visibility: visible; }
+            .preview-container { position: absolute; left: 0; top: 0; width: 100%; border: none; }
+            .btn-primary { display: none !important; }
         }
     </style>
 </head>
@@ -157,7 +157,7 @@
                         <div class="form-group">
                             <label id="lbl_nhan_su_nhan">Bước 2: Nhân sự nhận thiết bị (*)</label>
                             <div id="wrapper_search_ns" style="display: block; position: relative;">
-                                <input type="text" id="form_search_ns" class="form-control" placeholder="Gõ tên để tìm..." oninput="goiYAnSinhNhanSuThongMinh(this)" autocomplete="off">
+                                <input type="text" id="form_search_ns" class="form-control" placeholder="Gõ tên, số BHXH hoặc CCCD để tìm..." oninput="goiYAnSinhNhanSuThongMinh(this)" autocomplete="off">
                                 <div id="suggestions_box" class="suggestions-box"></div>
                             </div>
                             <div id="wrapper_select_ns" style="display: none;">
@@ -167,11 +167,11 @@
                         </div>
                         <div class="form-group">
                             <label>Tên thiết bị bàn giao (*)</label>
-                            <input type="text" id="form_ten_tb" class="form-control" placeholder="Ví dụ: Laptop Dell Latitude...">
+                            <input type="text" id="form_ten_tb" class="form-control" placeholder="Ví dụ: Laptop Dell Latitude, Máy in HP...">
                         </div>
                         <div class="form-group">
                             <label>Mã định danh thiết bị (S/N)</label>
-                            <input type="text" id="form_ma_tb" class="form-control" placeholder="Hệ thống tự tạo nếu trống">
+                            <input type="text" id="form_ma_tb" class="form-control" placeholder="Hệ thống tự tạo mã nếu để trống">
                         </div>
                         <div class="form-group">
                             <label>Tình trạng / Trạng thái thiết bị (*)</label>
@@ -185,7 +185,7 @@
                         </div>
                         <div class="form-group">
                             <label>Ghi chú bổ sung</label>
-                            <input type="text" id="form_ghi_chu" class="form-control">
+                            <input type="text" id="form_ghi_chu" class="form-control" placeholder="Cấu hình, linh kiện đi kèm nếu có...">
                         </div>
                         <button class="btn-primary" style="width: 100%;" onclick="thucHienCapPhatThietBi()"><i class="fa-solid fa-check"></i> HOÀN TẤT BÀN GIAO</button>
                     </div>
@@ -262,14 +262,14 @@
                 <div id="sec_thietbi" class="app-section" style="display: none;">
                     <div class="data-card">
                         <div class="filter-toolbar">
-                            <input type="text" id="txt_tim_tb" class="search-bar" placeholder="Tìm tên tài sản, mã tài sản..." oninput="renderBangThietBi()">
+                            <input type="text" id="txt_tim_tb" class="search-bar" placeholder="Tìm tên tài sản, mã tài sản hoặc người quản lý..." oninput="renderBangThietBi()">
                             <select id="select_don_vi_tb" class="select-filter" onchange="renderBangThietBi()"></select>
                         </div>
                         <div class="table-responsive">
                             <table>
                                 <thead>
                                     <tr>
-                                        <th style="text-align: center; width: 110px;">Mã QR Quốc Tế</th><th>Mã Thiết Bị (S/N)</th><th>Tên Thiết Bị Tài Sản</th><th>Người Đang Quản Lý</th><th>Đơn Vị Phòng Ban</th><th>Ngày Bàn Giao</th><th>Tình Trạng</th><th>Ghi Chú Bổ Sung</th><th style="width: 100px; text-align: center;">Thao Tác</th>
+                                        <th style="text-align: center; width: 110px;">Mã QR</th><th>Mã Thiết Bị (S/N)</th><th>Tên Thiết Bị Tài Sản</th><th>Người Đang Quản Lý</th><th>Đơn Vị Phòng Ban</th><th>Ngày Bàn Giao</th><th>Tình Trạng</th><th>Ghi Chú Bổ Sung</th><th style="width: 100px; text-align: center;">Thao Tác</th>
                                     </tr>
                                 </thead>
                                 <tbody id="thiet_bi_table_body"></tbody>
@@ -388,10 +388,9 @@
             document.addEventListener('click', function(e) {
                 const box = document.getElementById('suggestions_box');
                 const sInput = document.getElementById('form_search_ns');
-                if(box && e.target !== box && e.target !== sInput) {box.style.display = 'none';}
+                if(box && e.target !== box && e.target !== sInput) { box.style.display = 'none'; }
             });
             
-            // Random mã ticket id ảo cho form xem trước bắt mắt
             document.getElementById('p_ticket_id').innerText = Math.floor(100000 + Math.random() * 900000);
         };
 
@@ -424,321 +423,4 @@
                 CACHE_NHAN_SU = resNs.data || [];
                 
                 const resTb = await client.from('cap_phat_thiet_bi').select('*').order('created_at', { ascending: false });
-                CACHE_THIET_BI = resTb.data || [];
-
-                const resSua = await client.from('lich_su_sua_chua').select('*').order('ngay_sua', { ascending: false });
-                CACHE_SUA_CHUA = resSua.data || [];
-                
-                khoiTaoDropdownDonVi();
-                capNhatTheThongKe();
-                renderBangNhanSu();
-                renderBangThietBi();
-                renderBangSuaChua();
-                napDropdownToanBoThietBi();
-            } catch(err) { console.error("Lỗi đồng bộ hệ thống:", err); }
-        }
-
-        function khoiTaoDropdownDonVi() {
-            const selectNs = document.getElementById('select_don_vi_ns');
-            const selectSideTb = document.getElementById('form_filter_dv_ns');
-            const selectFilterTb = document.getElementById('select_don_vi_tb');
-            
-            let elements = [selectNs, selectSideTb, selectFilterTb].filter(el => el !== null);
-            elements.forEach(el => {
-                let textRoot = el.id === 'form_filter_dv_ns' ? '-- Tất cả đơn vị --' : (el.id === 'select_don_vi_tb' ? '-- Lọc theo Đơn vị nhận --' : '-- Lọc theo Đơn vị --');
-                el.innerHTML = `<option value="ALL">${textRoot}</option>`;
-            });
-
-            let sets = new Set();
-            CACHE_NHAN_SU.forEach(x => { if(x.ma_don_vi) sets.add(String(x.ma_don_vi).trim()); });
-            Array.from(sets).sort((a,b) => a.localeCompare(b, undefined, {numeric: true})).forEach(dv => { 
-                elements.forEach(el => { el.add(new Option(dv, dv)); });
-            });
-        }
-
-        // CẢI TIẾN: Liên kết đồng bộ toàn bộ thiết bị trong mục cấp phát tài sản
-        function napDropdownToanBoThietBi() {
-            const selectSua = document.getElementById('form_sua_ma_tb');
-            if(!selectSua) return;
-            selectSua.innerHTML = `<option value="">-- Chọn thiết bị từ kho tài sản --</option>`;
-            
-            CACHE_THIET_BI.forEach(tb => {
-                let opt = new Option(`[${tb.ma_thiet_bi}] ${tb.ten_thiet_bi} (Quản lý: ${tb.ten_nhan_vien})`, tb.ma_thiet_bi);
-                selectSua.add(opt);
-            });
-        }
-
-        // CẢI TIẾN: Hàm render trực tiếp thông tin lên Form Xem Trước Work Order
-        function capNhatLivePreviewCard() {
-            const maTb = document.getElementById('form_sua_ma_tb').value;
-            const nguoiYc = document.getElementById('form_sua_nguoi_yc').value.trim();
-            const noiDung = document.getElementById('form_sua_loi').value.trim();
-            const donViSua = document.getElementById('form_sua_don_vi').value.trim();
-            const chiPhi = document.getElementById('form_sua_chi_phi').value;
-            const tienDo = document.getElementById('form_sua_tien_do').value;
-
-            const tbGoc = CACHE_THIET_BI.find(x => x.ma_thiet_bi === maTb);
-
-            document.getElementById('p_ma_tb').innerText = maTb || '---';
-            document.getElementById('p_ten_tb').innerText = tbGoc ? tbGoc.ten_thiet_bi : '---';
-            document.getElementById('p_don_vi_goc').innerText = tbGoc ? tbGoc.ma_don_vi : '---';
-            document.getElementById('p_nguoi_yc').innerText = nguoiYc || (tbGoc ? tbGoc.ten_nhan_vien : '---');
-            document.getElementById('p_doi_tac').innerText = donViSua || 'Nội bộ công ty';
-            document.getElementById('p_chi_phi').innerText = chiPhi ? Number(chiPhi).toLocaleString('vi-VN') + ' đ' : '0 đ';
-            document.getElementById('p_noi_dung_hong').innerText = noiDung || 'Chưa điền mô tả lỗi...';
-            document.getElementById('p_tien_do').innerText = tienDo;
-
-            // Đổi nhãn con dấu theo trạng thái phiếu
-            const stamp = document.getElementById('preview_wo_stamp');
-            stamp.innerText = tienDo === 'Đã sửa xong' ? 'APPROVED' : (tienDo === 'Không thể sửa' ? 'REJECTED' : 'PENDING');
-            stamp.style.color = tienDo === 'Đã sửa xong' ? '#2ecc71' : (tienDo === 'Không thể sửa' ? '#e74c3c' : '#f39c12');
-            stamp.style.borderColor = stamp.style.color;
-        }
-
-        async function thucHienGhiNhanSuaChua() {
-            const maTb = document.getElementById('form_sua_ma_tb').value;
-            const nguoiYc = document.getElementById('form_sua_nguoi_yc').value.trim();
-            const noiDung = document.getElementById('form_sua_loi').value.trim();
-            const donViSua = document.getElementById('form_sua_don_vi').value.trim() || "Nội bộ";
-            const chiPhi = document.getElementById('form_sua_chi_phi').value || 0;
-            const tienDo = document.getElementById('form_sua_tien_do').value;
-
-            if(!maTb || !noiDung) { alert("Vui lòng chọn thiết bị và nhập nội dung hỏng hóc!"); return; }
-            const tbGốc = CACHE_THIET_BI.find(x => x.ma_thiet_bi === maTb);
-
-            let payload = {
-                ma_thiet_bi: maTb,
-                ten_thiet_bi: tbGốc ? tbGốc.ten_thiet_bi : "Tài sản",
-                nguoi_yeu_cau: nguoiYc || (tbGốc ? tbGốc.ten_nhan_vien : "Phòng máy"),
-                don_vi_sua: donViSua,
-                chi_phi: parseFloat(chiPhi),
-                tinh_trang_sua: tienDo,
-                noi_dung_hong: noiDung,
-                ngay_hoan_thanh: tienDo === "Đã sửa xong" ? new Date().toISOString().split('T')[0] : null
-            };
-
-            const { error: err1 } = await client.from('lich_su_sua_chua').insert([payload]);
-            
-            let trangThaiDongBo = "Đang sửa chữa";
-            if (tienDo === "Đã sửa xong") trangThaiDongBo = "Đang sử dụng tốt";
-            if (tienDo === "Không thể sửa") trangThaiDongBo = "Cần thanh lý";
-            if (tienDo === "Chờ sửa chữa") trangThaiDongBo = "Lỗi / Hỏng";
-            
-            await client.from('cap_phat_thiet_bi').update({ trang_thai: trangThaiDongBo }).eq('ma_thiet_bi', maTb);
-
-            if(!err1) {
-                alert("🎉 Đẩy phiếu lệnh sửa chữa (Work Order) lên Cloud thành công!");
-                document.getElementById('form_sua_loi').value = "";
-                document.getElementById('form_sua_nguoi_yc').value = "";
-                document.getElementById('form_sua_don_vi').value = "";
-                document.getElementById('form_sua_chi_phi').value = "0";
-                document.getElementById('p_ticket_id').innerText = Math.floor(100000 + Math.random() * 900000);
-                await taiDu LieuHeThong();
-                capNhatLivePreviewCard();
-            } else { alert("Lỗi: " + err1.message); }
-        }
-
-        function renderBangSuaChua() {
-            const tbody = document.getElementById('sua_chua_table_body');
-            const searchVal = document.getElementById('txt_tim_sua').value.toLowerCase().trim();
-            const filterTienDo = document.getElementById('select_loc_sua').value;
-            if(!tbody) return; tbody.innerHTML = "";
-
-            let dataFilter = CACHE_SUA_CHUA.filter(x => {
-                if(filterTienDo !== "ALL" && x.tinh_trang_sua !== filterTienDo) return false;
-                return !searchVal || String(x.ma_thiet_bi).toLowerCase().includes(searchVal) || String(x.noi_dung_hong).toLowerCase().includes(searchVal);
-            });
-
-            if(!dataFilter.length) {
-                tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; color:#aaa; padding:20px;">Không tìm thấy phiếu yêu cầu nào.</td></tr>`;
-                return;
-            }
-
-            dataFilter.forEach((x, index) => {
-                let row = document.createElement('tr');
-                row.innerHTML = `
-                    <td style="text-align:center;">${index + 1}</td>
-                    <td><mark><b>${x.ma_thiet_bi}</b></mark></td>
-                    <td><b>${x.ten_thiet_bi}</b></td>
-                    <td>${x.nguoi_yeu_cau || ''}</td>
-                    <td style="color:var(--danger-color); font-weight:600;">${x.noi_dung_hong}</td>
-                    <td>${x.don_vi_sua}</td>
-                    <td><b style="color:#27ae60;">${Number(x.chi_phi).toLocaleString('vi-VN')} đ</b></td>
-                    <td>${new Date(x.ngay_sua).toLocaleDateString('vi-VN')}</td>
-                    <td><span class="status-badge ${x.tinh_trang_sua==='Đã sửa xong'?'status-tot':(x.tinh_trang_sua==='Đang sửa chữa'?'status-suachua':'status-loi')}">${x.tinh_trang_sua}</span></td>
-                    <td style="text-align:center;"><button class="btn-danger" style="padding:4px 8px; font-size:12px;" onclick="xoaLichSuSuaChua(${x.id})"><i class="fa-solid fa-trash"></i> Xóa</button></td>
-                `;
-                tbody.appendChild(row);
-            });
-        }
-
-        async function xoaLichSuSuaChua(id) {
-            if(!confirm("Xóa dòng phiếu lịch sử này?")) return;
-            await client.from('lich_su_sua_chua').delete().eq('id', id);
-            await taiDuLieuHeThong();
-        }
-
-        function renderBangThietBi() {
-            const tbody = document.getElementById('thiet_bi_table_body');
-            const searchVal = document.getElementById('txt_tim_tb').value.toLowerCase().trim();
-            const filterDv = document.getElementById('select_don_vi_tb').value;
-            if(!tbody) return; tbody.innerHTML = "";
-
-            let dataFilter = CACHE_THIET_BI.filter(tb => {
-                if(filterDv !== "ALL" && String(tb.ma_don_vi).trim() !== filterDv) return false;
-                return !searchVal || String(tb.ten_thiet_bi).toLowerCase().includes(searchVal) || String(tb.ma_thiet_bi).toLowerCase().includes(searchVal);
-            });
-
-            dataFilter.forEach((tb) => {
-                let canvasId = `canvas_qr_${tb.id}`;
-                let tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td style="text-align:center;"><div class="qr-wrapper"><canvas id="${canvasId}"></canvas></div></td>
-                    <td><mark><b>${tb.ma_thiet_bi}</b></mark></td>
-                    <td><strong style="color:#2c3e50;">${tb.ten_thiet_bi}</strong></td>
-                    <td><b>${tb.ten_nhan_vien}</b></td>
-                    <td><span class="badge badge-info">${tb.ma_don_vi}</span></td>
-                    <td>${new Date(tb.created_at).toLocaleDateString('vi-VN')}</td>
-                    <td><span class="status-badge ${tb.trang_thai==='Lỗi / Hỏng'?'status-loi':(tb.trang_thai==='Đang sửa chữa'?'status-suachua':'status-tot')}">${tb.trang_thai || 'Đang sử dụng tốt'}</span></td>
-                    <td><small>${tb.ghi_chu || ''}</small></td>
-                    <td style="text-align:center;"><button class="btn-danger" style="padding:6px 12px;" onclick="xoaThietBiPhanPhoi(${tb.id})">Thu hồi</button></td>
-                `;
-                tbody.appendChild(tr);
-
-                let canvasElement = document.getElementById(canvasId);
-                let deepLinkUrl = window.location.origin + window.location.pathname + `?view_asset=${tb.ma_thiet_bi}`;
-                if (canvasElement) { new QRious({ element: canvasElement, value: deepLinkUrl, size: 120, level: 'M' }); }
-            });
-        }
-
-        function renderBangNhanSu() {
-            const tbody = document.getElementById('nhan_su_table_body');
-            const searchVal = document.getElementById('txt_tim_ns').value.toLowerCase().trim();
-            const filterDv = document.getElementById('select_don_vi_ns').value;
-            if(!tbody) return; tbody.innerHTML = "";
-            let queryData = CACHE_NHAN_SU.filter(ns => {
-                if(filterDv !== "ALL" && String(ns.ma_don_vi).trim() !== filterDv) return false;
-                return !searchVal || String(ns.ho_ten).toLowerCase().includes(searchVal);
-            });
-            queryData.forEach((ns, index) => {
-                let tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td style="text-align:center;"><b>${index + 1}</b></td><td><strong>${ns.ho_ten}</strong></td><td>${ns.ten || ''}</td><td><code>${ns.so_bhxh || ''}</code></td><td><code>${ns.so_cccd || ''}</code></td><td>${ns.an_toan_vien ? `<span class="badge badge-warn">${ns.an_toan_vien}</span>` : ''}</td><td>${ns.nndh ? `<span class="badge badge-info">${ns.nndh}</span>` : ''}</td><td>${ns.nam_ve_huu || ''}</td><td><span class="badge badge-info">${ns.ma_don_vi}</span></td><td><b>${ns.nam || ''}</b></td><td>${ns.nam_sinh || ''}</td><td><span class="badge ${ns.gioi_tinh === 'Nữ' ? 'badge-female' : 'badge-male'}">${ns.gioi_tinh}</span></td><td>${ns.chuc_danh_cong_viec || ''}</td>
-                `;
-                tbody.appendChild(tr);
-            });
-        }
-
-        function capNhatTheThongKe() {
-            if(document.getElementById('stat_tong')) document.getElementById('stat_tong').innerText = CACHE_NHAN_SU.length;
-            if(document.getElementById('stat_nam')) document.getElementById('stat_nam').innerText = CACHE_NHAN_SU.filter(x => String(x.gioi_tinh).toLowerCase() === 'nam').length;
-            if(document.getElementById('stat_nu')) document.getElementById('stat_nu').innerText = CACHE_NHAN_SU.filter(x => String(x.gioi_tinh).toLowerCase() === 'nữ').length;
-            if(document.getElementById('stat_tb')) document.getElementById('stat_tb').innerText = CACHE_THIET_BI.length;
-        }
-
-        function thayDoiBoLocDonViCapPhat() {
-            const dvSelectVal = document.getElementById('form_filter_dv_ns').value;
-            const lblNhanSu = document.getElementById('lbl_nhan_su_nhan');
-            const wrapSearch = document.getElementById('wrapper_search_ns');
-            const wrapSelect = document.getElementById('wrapper_select_ns');
-            const selectDirect = document.getElementById('form_select_ns_direct');
-            
-            document.getElementById('form_selected_ns_id').value = "";
-            document.getElementById('form_search_ns').value = "";
-
-            if (dvSelectVal === "ALL") {
-                lblNhanSu.innerHTML = "Bước 2: Tìm kiếm nhân sự nhận thiết bị (*)";
-                wrapSearch.style.display = "block"; wrapSelect.style.display = "none";
-            } else {
-                lblNhanSu.innerHTML = `Bước 2: Chọn nhân sự thuộc Đơn vị [${dvSelectVal}] (*)`;
-                wrapSearch.style.display = "none"; wrapSelect.style.display = "block";
-                selectDirect.innerHTML = '<option value="">-- Bấm vào đây để chọn người nhận --</option>';
-                let nhanSuThuocDonVi = CACHE_NHAN_SU.filter(ns => String(ns.ma_don_vi).trim() === dvSelectVal);
-                nhanSuThuocDonVi.forEach(ns => { selectDirect.add(new Option(`${ns.ho_ten}`, ns.id)); });
-            }
-        }
-
-        function goiYAnSinhNhanSuThongMinh(input) {
-            const val = input.value.toLowerCase().trim();
-            const box = document.getElementById('suggestions_box');
-            if(!val) { box.style.display = "none"; return; }
-            let match = CACHE_NHAN_SU.filter(ns => String(ns.ho_ten).toLowerCase().includes(val)).slice(0, 5);
-            box.innerHTML = "";
-            match.forEach(ns => {
-                let div = document.createElement('div');
-                div.className = "suggestion-item"; div.innerHTML = `<b>${ns.ho_ten}</b> - ĐV: ${ns.ma_don_vi}`;
-                div.onclick = function() {
-                    input.value = ns.ho_ten; document.getElementById('form_selected_ns_id').value = ns.id; box.style.display = "none";
-                };
-                box.appendChild(div);
-            });
-            box.style.display = "block";
-        }
-
-        async function thucHienCapPhatThietBi() {
-            const dvSelectVal = document.getElementById('form_filter_dv_ns').value;
-            let finalNsId = dvSelectVal === "ALL" ? document.getElementById('form_selected_ns_id').value : document.getElementById('form_select_ns_direct').value;
-            const tenTb = document.getElementById('form_ten_tb').value.trim();
-            let maTb = document.getElementById('form_ma_tb').value.trim();
-            const trangThai = document.getElementById('form_trang_thai_tb').value;
-            const ghiChu = document.getElementById('form_ghi_chu').value.trim();
-            
-            if(!finalNsId || !tenTb) { alert("Thiếu thông tin bắt buộc!"); return; }
-            if(!maTb) maTb = "EQ-" + Date.now().toString().slice(-7);
-            const ns = CACHE_NHAN_SU.find(x => x.id == finalNsId);
-
-            let payload = { nhan_su_id: parseInt(finalNsId), ten_nhan_vien: ns.ho_ten, ma_don_vi: ns.ma_don_vi, ten_thiet_bi: tenTb, ma_thiet_bi: maTb.toUpperCase(), trang_thai: trangThai, ghi_chu: ghiChu };
-            const { error } = await client.from('cap_phat_thiet_bi').insert([payload]);
-            if(!error) { alert("Bàn giao thành công!"); await taiDuLieuHeThong(); chuyenTabHeThong('thietbi'); }
-        }
-
-        async function xoaThietBiPhanPhoi(id) {
-            if(confirm("Thu hồi tài sản này?")) { await client.from('cap_phat_thiet_bi').delete().eq('id', id); await taiDuLieuHeThong(); }
-        }
-
-        async function xoaToanBoDuLieuCloud() {
-            if(confirm("Xóa toàn bộ kho nhân sự trên Cloud?")) { await client.from('nhan_su').delete().gt('id', 0); await taiDuLieuHeThong(); }
-        }
-
-        function xoaDauTieuDeExcel(str) { return str ? str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[\s]+/g, '') : ""; }
-
-        async function xuLyFileExcelNhanSu(input) {
-            if(!input.files.length) return;
-            const reader = new FileReader();
-            reader.onload = async function(e) {
-                const workbook = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
-                const rawData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { defval: "" });
-                let finalUploadList = [];
-                rawData.forEach((row, i) => {
-                    let cleanRow = {}; Object.keys(row).forEach(k => cleanRow[xoaDauTieuDeExcel(k)] = row[k]);
-                    let hoTenKey = Object.keys(cleanRow).find(k => k.includes("hoten"));
-                    if(hoTenKey && cleanRow[hoTenKey]) {
-                        finalUploadList.push({
-                            id: i + 1, ho_ten: cleanRow[hoTenKey], ten: cleanRow['ten'] || "", so_bhxh: String(cleanRow['sobhxh']||""), so_cccd: String(cleanRow['socccd']||""),
-                            ma_don_vi: String(cleanRow['madonvi']||"1"), nam: "2026", nam_sinh: String(cleanRow['namsinh']||""), gioi_tinh: "Nam", chuc_danh_cong_viec: cleanRow['chucdanh']||""
-                        });
-                    }
-                });
-                await client.from('nhan_su').upsert(finalUploadList, { onConflict: 'id' });
-                alert("Nạp thành công!"); await taiDuLieuHeThong();
-            };
-            reader.readAsArrayBuffer(input.files[0]);
-        }
-
-        function chuyenTabHeThong(tab) {
-            document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.app-section').forEach(el => el.style.display = 'none');
-            
-            document.getElementById('tab_' + tab).classList.add('active');
-            document.getElementById('sec_' + tab).style.display = 'flex';
-            
-            document.getElementById('side_hoso').style.display = tab === 'hoso' ? 'block' : 'none';
-            document.getElementById('side_thietbi').style.display = tab === 'thietbi' ? 'block' : 'none';
-            document.getElementById('side_suachua').style.display = tab === 'suachua' ? 'block' : 'none';
-
-            if (tab === 'thietbi') renderBangThietBi();
-            if (tab === 'suachua') { renderBangSuaChua(); capNhatLivePreviewCard(); }
-        }
-    </script>
-</body>
-</html>
+                CACHE_THIET_BI = resTb.
