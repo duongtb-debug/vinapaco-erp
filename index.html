@@ -43,9 +43,13 @@
         .filter-count { background: #eee; padding: 2px 7px; border-radius: 10px; font-size: 11px; color: #666; }
         .filter-item.active .filter-count { background: var(--primary-color); color: white; }
 
-        .upload-box { border: 2px dashed var(--success-color); padding: 15px; text-align: center; border-radius: 8px; background-color: #f9fffb; }
-        .upload-box input { display: block; margin: 10px auto 0 auto; font-size: 12px; }
-        .loading-status { font-weight: bold; color: #e67e22; margin-top: 10px; font-size: 12px; display: none; }
+        .upload-box { border: 2px dashed var(--success-color); padding: 15px; text-align: center; border-radius: 8px; background-color: #f9fffb; display: flex; flex-direction: column; gap: 10px; }
+        .upload-box input { display: block; margin: 5px auto 0 auto; font-size: 12px; }
+        .loading-status { font-weight: bold; color: #e67e22; margin-top: 5px; font-size: 12px; display: none; }
+
+        /* Nút chức năng xóa */
+        .btn-danger { background-color: var(--danger-color); color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 12px; display: flex; align-items: center; justify-content: center; gap: 6px; transition: background 0.2s; width: 100%; box-sizing: border-box; }
+        .btn-danger:hover { background-color: #c0392b; }
 
         /* KHÔNG GIAN HIỂN THỊ CHÍNH */
         .main-content { flex: 4; display: flex; flex-direction: column; gap: 20px; overflow: hidden; }
@@ -119,8 +123,13 @@
             <div class="sidebar-card">
                 <h3><i class="fa-solid fa-file-excel"></i> Đồng Bộ Biến Động Excel</h3>
                 <div class="upload-box">
-                    <span style="color: #27ae60; font-weight: bold; font-size: 13px;">📥 LOGIC UPSERT THEO QUY ĐỊNH</span>
-                    <p style="font-size: 11px; color:#666; margin: 5px 0 10px 0; line-height: 1.4;">Lấy đúng số định danh An toàn viên từ Excel đưa thẳng lên cơ sở dữ liệu đám mây.</p>
+                    <span style="color: #27ae60; font-weight: bold; font-size: 13px;">📥 QUẢN LÝ DỮ LIỆU ĐÁM MÂY</span>
+                    <p style="font-size: 11px; color:#666; margin: 0; line-height: 1.4;">Xóa dữ liệu cũ trước khi nạp file mới để tránh lỗi cộng dồn nhân sự.</p>
+                    
+                    <button class="btn-danger" onclick="xoaSachDu LieuCloud()"><i class="fa-solid fa-trash-can"></i> Xóa Toàn Bộ Dữ Liệu Cũ</button>
+                    
+                    <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 5px 0;">
+                    
                     <input type="file" id="excel_file_input" accept=".xlsx, .xls" onchange="xuLyUpsertDuLieuExcel(this)">
                     <div id="txt_process_status" class="loading-status">Đang xử lý dữ liệu đám mây...</div>
                 </div>
@@ -310,6 +319,30 @@
             }
         }
 
+        // HÀM XÓA SẠCH DỮ LIỆU TRÊN CLOUD TRƯỚC KHI NẠP MỚI
+        async function xoaSachDuLieuCloud() {
+            if (!confirm("⚠️ CẢNH BÁO HỆ THỐNG:\nHành động này sẽ xóa TOÀN BỘ nhân sự hiện có trên hệ thống đám mây để chuẩn bị nạp mới.\nBạn có chắc chắn muốn xóa không?")) {
+                return;
+            }
+            
+            const statusTxt = document.getElementById('txt_process_status');
+            statusTxt.style.display = "block"; 
+            statusTxt.innerText = "Đang xóa sạch dữ liệu cũ trên Cloud...";
+
+            try {
+                // Thực hiện xóa diện rộng (điều kiện gte id = 0 để bao quát toàn bộ bảng)
+                const { error } = await client.from('nhan_su').delete().gte('id', 0);
+                if (error) throw error;
+                
+                alert("Đã làm sạch toàn bộ kho dữ liệu thành công! Hãy chọn file Excel mới để nạp vào.");
+                await taiDuLieuTuCloud();
+            } catch (err) {
+                alert("Lỗi khi xóa dữ liệu cũ: " + err.message);
+            } finally {
+                statusTxt.style.display = "none";
+            }
+        }
+
         function SuaLoiThongKeVaRenderBoLoc() {
             let tong = CACHE_NHAN_SU.length;
             let nam = 0, nu = 0;
@@ -374,7 +407,7 @@
             });
 
             if (filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="12" class="text-center" style="color: #999;">Không có kết quả.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="12" class="text-center" style="color: #999;">Không có kết quả hoặc dữ liệu trống.</td></tr>`;
                 return;
             }
 
@@ -384,7 +417,6 @@
                 let gender = (g === "nữ" || g === "nu" || g.includes("nữ")) ? "Nữ" : "Nam";
                 let fullRetirementDate = tinhNgayVeHuuDayDu(fullBirthDate, gender);
 
-                // LẤY ĐÚNG SỐ CỦA AN TOÀN VIÊN THEO QUY ĐỊNH CỦA TỔNG CÔNG TY
                 let atvCell = "";
                 let atvRaw = String(item.an_toan_vien || "").trim();
                 if (atvRaw !== "" && atvRaw !== "0") {
@@ -461,7 +493,6 @@
             });
         }
 
-        // PHÂN HỆ MẠNG LƯỚI ATV: HIỂN THỊ ĐÚNG SỐ THEO QUY ĐỊNH
         function renderPhanHeATV() {
             const tbody = document.getElementById('atv_table_body');
             if(!tbody) return; tbody.innerHTML = "";
@@ -562,7 +593,7 @@
                             nam: cleanBirthDate,
                             so_cccd: cccdVal || null,
                             so_bhxh: String(row[colMapping.bhxh] || "").trim() || null,
-                            an_toan_vien: String(row[colMapping.antoan] || "").trim(), // LƯU GIỮ NGUYÊN SỐ ĐỊNH DANH GỐC
+                            an_toan_vien: String(row[colMapping.antoan] || "").trim(),
                             nndh: String(row[colMapping.nndh] || "").trim()
                         };
 
