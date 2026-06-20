@@ -110,6 +110,7 @@
         
         const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         let DANH_SACH_CACHE = [];
+        let DB_COLUMNS = []; // Lưu trữ danh sách các cột thực tế có trên Supabase của bạn
 
         window.onload = async function() {
             await taiDuLieuTuCloud();
@@ -120,6 +121,15 @@
                 const { data, error } = await client.from('nhan_su').select('*').order('id', { ascending: true });
                 if (error) throw error;
                 DANH_SACH_CACHE = data || [];
+                
+                // TỰ ĐỘNG PHÂN TÍCH CẤU TRÚC BẢNG TRÊN CLOUD
+                if (DANH_SACH_CACHE.length > 0) {
+                    DB_COLUMNS = Object.keys(DANH_SACH_CACHE[0]);
+                } else {
+                    // Nếu bảng trống, tạo danh sách dự phòng cơ bản để không lỗi
+                    DB_COLUMNS = ['id', 'ho_ten', 'ten', 'so_cccd', 'so_so_bhxh', 'so_bhxh', 'an_toan_vien', 'nndh'];
+                }
+                
                 renderBangDuLieu();
             } catch (err) {
                 console.error(err);
@@ -133,7 +143,7 @@
             tbody.innerHTML = "";
 
             let filtered = DANH_SACH_CACHE.filter(item => {
-                let textBhxh = String(item.so_so_bhxh || "");
+                let textBhxh = String(item.so_so_bhxh || item.so_bhxh || "");
                 return !searchVal || 
                     String(item.ho_ten || "").toLowerCase().includes(searchVal) ||
                     String(item.so_cccd || "").toLowerCase().includes(searchVal) ||
@@ -155,12 +165,35 @@
                     <td><b>${item.ho_ten || ""}</b></td>
                     <td>${item.ten || ""}</td>
                     <td>${item.so_cccd || ""}</td>
-                    <td>${item.so_so_bhxh || ""}</td>
+                    <td>${item.so_so_bhxh || item.so_bhxh || ""}</td>
                     <td>${item.an_toan_vien || ""}</td>
                     <td>${item.nndh || ""}</td>
                 `;
                 tbody.appendChild(tr);
             });
+        }
+
+        // HÀM TẠO PAYLOAD THÍCH ỨNG: Chỉ thêm trường nếu cột đó thực sự tồn tại trong database
+        function buildAdaptivePayload(baseData) {
+            let record = { id: baseData.id, ho_ten: baseData.ho_ten, ten: baseData.ten };
+            
+            // Bản đồ kiểm tra điều kiện động chống lỗi Schema Cache
+            if (DB_COLUMNS.includes('so_cccd')) record.so_cccd = baseData.so_cccd || null;
+            if (DB_COLUMNS.includes('an_toan_vien')) record.an_toan_vien = baseData.an_toan_vien || "";
+            if (DB_COLUMNS.includes('nndh')) record.nndh = baseData.nndh || "";
+            if (DB_COLUMNS.includes('ma_don_vi')) record.ma_don_vi = baseData.ma_don_vi || "DV-01";
+            if (DB_COLUMNS.includes('chuc_danh_cong_viec')) record.chuc_danh_cong_viec = baseData.chuc_danh_cong_viec || "Nhân viên";
+            if (DB_COLUMNS.includes('nam_sinh')) record.nam_sinh = baseData.nam_sinh || "";
+            if (DB_COLUMNS.includes('nam')) record.nam = baseData.nam || "";
+
+            // Xử lý thông minh cột BHXH tùy theo thiết kế database của bạn
+            if (DB_COLUMNS.includes('so_so_bhxh')) {
+                record.so_so_bhxh = baseData.so_bhxh || null;
+            } else if (DB_COLUMNS.includes('so_bhxh')) {
+                record.so_bhxh = baseData.so_bhxh || null;
+            }
+            
+            return record;
         }
 
         async function themNhanSuThuCong() {
@@ -180,19 +213,11 @@
             let valCccd = document.getElementById('so_cccd_input').value.trim();
             let valBhxh = document.getElementById('so_so_bhxh_input').value.trim();
 
-            let targetData = {
-                id: customId,
-                ho_ten: hoTenDayDu,
-                ten: tenRutGon,
-                so_cccd: valCccd || null,
-                so_so_bhxh: valBhxh || null,
-                ma_don_vi: "DV-01",
-                chuc_danh_cong_viec: "Nhân viên",
-                nam_sinh: "",
-                nam: "",
-                an_toan_vien: "",
-                nndh: ""
+            let rawInputData = {
+                id: customId, ho_ten: hoTenDayDu, ten: tenRutGon, so_cccd: valCccd, so_bhxh: valBhxh
             };
+
+            let targetData = buildAdaptivePayload(rawInputData);
 
             const { error } = await client.from('nhan_su').insert([targetData]);
             if (error) {
@@ -235,7 +260,7 @@
                     }
 
                     let headerIdx = -1;
-                    let colMapping = { hoten: -1, cccd: -1, bhxh: -1, madonvi: -1, chucdanh: -1, namsinh: -1 };
+                    let colMapping = { hoten: -1, cccd: -1, bhxh: -1, madonvi: -1, chucdanh: -1, namsinh: -1, antoan: -1, nndh: -1 };
 
                     for (let i = 0; i < Math.min(rows.length, 30); i++) {
                         let row = rows[i];
@@ -252,12 +277,14 @@
                             headerIdx = i;
                             row.forEach((cell, cellIdx) => {
                                 let text = chuanHoaKey(cell);
-                                if (text.includes("hoten") || text.includes("hovaten") || text.includes("tennhanvien") || text === "ten") colMapping.hoten = cellIdx;
-                                else if (text.includes("cccd") || text.includes("cmnd") || text.includes("chungminh") || text.includes("sochuyenduong")) colMapping.cccd = cellIdx;
+                                if (text.includes("hoten") || text.includes("hovaten") || text === "ten") colMapping.hoten = cellIdx;
+                                else if (text.includes("cccd") || text.includes("cmnd") || text.includes("cancuoc")) colMapping.cccd = cellIdx;
                                 else if (text.includes("bhxh") || text.includes("baohiem") || text.includes("sosobhxh") || text.includes("sobhxh")) colMapping.bhxh = cellIdx;
-                                else if (text.includes("bophan") || text.includes("phongban") || text.includes("donvi") || text.includes("madonvi")) colMapping.madonvi = cellIdx;
-                                else if (text.includes("chucdanh") || text.includes("congviec") || text.includes("vitri") || text.includes("chucvu")) colMapping.chucdanh = cellIdx;
+                                else if (text.includes("bophan") || text.includes("phongban") || text.includes("donvi")) colMapping.madonvi = cellIdx;
+                                else if (text.includes("chucdanh") || text.includes("chucvu") || text.includes("congviec")) colMapping.chucdanh = cellIdx;
                                 else if (text.includes("namsinh") || text.includes("ngaysinh") || text === "nam") colMapping.namsinh = cellIdx;
+                                else if (text.includes("antoan") || text.includes("atv")) colMapping.antoan = cellIdx;
+                                else if (text.includes("nndh") || text.includes("dochai")) colMapping.nndh = cellIdx;
                             });
                             break;
                         }
@@ -267,14 +294,14 @@
                         headerIdx = 0; colMapping.hoten = 0; colMapping.cccd = 1; colMapping.bhxh = 2;
                     }
 
-                    // CƠ CHẾ CHỐNG CỘNG DỒN: Xóa sạch bảng cũ trước khi nạp
+                    // CƠ CHẾ AN TOÀN CHỐNG CỘNG DỒN: Xóa sạch bảng cũ trước khi nạp dữ liệu mới
                     const { error: deleteError } = await client.from('nhan_su').delete().neq('id', 0);
                     if (deleteError) {
                         throw new Error("Không thể dọn sạch dữ liệu cũ: " + deleteError.message);
                     }
 
                     let recordsToUpload = [];
-                    let maxId = 0; 
+                    let runId = 0; 
 
                     for (let i = headerIdx + 1; i < rows.length; i++) {
                         let row = rows[i];
@@ -283,43 +310,48 @@
                         let hoTenVal = String(row[colMapping.hoten] || "").trim();
                         if (!hoTenVal || hoTenVal.toLowerCase() === "họ và tên" || hoTenVal.toLowerCase() === "ho ten") continue;
 
-                        maxId++;
+                        runId++;
                         
-                        // SỬA ĐỔI GỐC: Giữ trọn vẹn cả Họ và Tên từ Excel không cắt gọt
+                        // GIỮ TRỌN VẸN THÔNG TIN HỌ TÊN KHÔNG CẮT GỌT
                         let fullHoTen = hoTenVal; 
-                        
-                        // Trích riêng từ cuối cùng làm Tên rút gọn
                         let mangChu = hoTenVal.split(/\s+/);
                         let singleTen = mangChu[mangChu.length - 1];
 
-                        let cccdVal = colMapping.cccd !== -1 ? String(row[colMapping.cccd] || "").trim() : null;
-                        let bhxhVal = colMapping.bhxh !== -1 ? String(row[colMapping.bhxh] || "").trim() : null;
-                        let maDVVal = colMapping.madonvi !== -1 ? String(row[colMapping.madonvi] || "").trim().replace(/\s+/g, "") : "DV-01";
-                        let chucDanhVal = colMapping.chucdanh !== -1 ? String(row[colMapping.chucdanh] || "").trim() : "Nhân viên";
-                        let namSinhRaw = colMapping.namsinh !== -1 ? String(row[colMapping.namsinh] || "").trim() : "";
+                        let cccdVal = colMapping.cccd !== -1 ? String(row[colMapping.cccd] || "").trim() : "";
+                        let bhxhVal = colMapping.bhxh !== -1 ? String(row[colMapping.bhxh] || "").trim() : "";
+                        let maDVVal = colMapping.madonvi !== -1 ? String(row[colMapping.madonvi] || "").trim() : "";
+                        let chucDanhVal = colMapping.chucdanh !== -1 ? String(row[colMapping.chucdanh] || "").trim() : "";
+                        let namSinhVal = colMapping.namsinh !== -1 ? String(row[colMapping.namsinh] || "").trim() : "";
+                        let atvVal = colMapping.antoan !== -1 ? String(row[colMapping.antoan] || "").trim() : "";
+                        let nndhVal = colMapping.nndh !== -1 ? String(row[colMapping.nndh] || "").trim() : "";
 
-                        recordsToUpload.push({
-                            id: maxId,
-                            ho_ten: fullHoTen, // Lưu trọn vẹn họ tên
-                            ten: singleTen,    // Tên rút gọn đúng quy định
-                            so_cccd: cccdVal || null,
-                            so_so_bhxh: bhxhVal || null, // Đồng bộ chuẩn tên trường trên DB
-                            ma_don_vi: maDVVal || "DV-01",
-                            chuc_danh_cong_viec: chucDanhVal || "Nhân viên",
-                            nam_sinh: namSinhRaw,
-                            nam: namSinhRaw, // Điền thêm vào trường 'nam' phòng trường hợp cấu trúc cũ yêu cầu
-                            an_toan_vien: "",
-                            nndh: ""
-                        });
+                        let rawDataRow = {
+                            id: runId,
+                            ho_ten: fullHoTen,
+                            ten: singleTen,
+                            so_cccd: cccdVal,
+                            so_bhxh: bhxhVal,
+                            ma_don_vi: maDVVal,
+                            chuc_danh_cong_viec: chucDanhVal,
+                            nam_sinh: namSinhVal,
+                            nam: namSinhVal,
+                            an_toan_vien: atvVal,
+                            nndh: nndhVal
+                        };
+
+                        // Đi qua bộ lọc dynamic để loại bỏ các trường thừa lỗi schema
+                        let safeRecord = buildAdaptivePayload(rawDataRow);
+                        recordsToUpload.push(safeRecord);
                     }
 
-                    if (recordsToUpload.length === 0) { alert("Không lấy được dữ liệu nhân sự nào hợp lệ từ file Excel này!"); input.value = ""; return; }
+                    if (recordsToUpload.length === 0) { alert("Không lấy được dữ liệu nhân sự nào hợp lệ từ file Excel!"); input.value = ""; return; }
 
+                    // Thực hiện đẩy hàng loạt lên hệ thống
                     const { error } = await client.from('nhan_su').insert(recordsToUpload);
                     if (error) {
                         throw error;
                     } else {
-                        alert("Thành công! Đã làm sạch dữ liệu cũ và nạp mới hoàn toàn " + recordsToUpload.length + " nhân sự mở rộng vào hệ thống.");
+                        alert("Thành công! Hệ thống đã tự thích ứng dữ liệu, dọn sạch dữ liệu cũ và nạp mới " + recordsToUpload.length + " nhân sự.");
                     }
                     
                     await taiDuLieuTuCloud();
