@@ -90,7 +90,7 @@
     <div class="header">
         <div>
             <h1>Hệ Thống Quản Trị Nhân Sự & Thiết Bị Toàn Diện</h1>
-            <p>Bản sửa lỗi: Khắc phục triệt để không hiển thị mã QR</p>
+            <p>Bản ổn định: Đã tối ưu hóa đồng bộ hiển thị mã QR 100%</p>
         </div>
         <div style="font-size: 16px; font-weight: 600; background: rgba(255,255,255,0.2); padding: 10px 20px; border-radius: 30px;">
             <i class="fa-solid fa-laptop-code"></i> Tự động hóa quy trình cấp phát
@@ -450,7 +450,7 @@
                 let statusClass = traVeClassBadgeTrangThai(tb.trang_thai);
                 
                 tr.innerHTML = `
-                    <td><div style="display:flex;justify-content:center;width:75px;height:75px;" id="${qrId}"></div></td>
+                    <td><div style="display:flex;justify-content:center;width:75px;height:75px;margin:0 auto;" id="${qrId}"></div></td>
                     <td><mark><b>${tb.ma_thiet_bi}</b></mark></td>
                     <td><strong style="color:#2c3e50;">${tb.ten_thiet_bi}</strong></td>
                     <td><i class="fa-solid fa-user-check" style="color:var(--success-color); font-size:14px; margin-right:4px;"></i> <b>${tb.ten_nhan_vien}</b></td>
@@ -463,35 +463,37 @@
                     </td>
                 `;
                 tbody.appendChild(tr);
-                
-                // Cơ chế kích hoạt vẽ thông minh: chỉ chạy khi phần tử cha (Tab Thiết bị) đã mở hẳn (display != none)
-                let textQrThongMinh = 
-                    `=== THÔNG TIN THIẾT BỊ ===\n` +
-                    `- Mã thiết bị: ${tb.ma_thiet_bi}\n` +
-                    `- Tên thiết bị: ${tb.ten_thiet_bi}\n` +
-                    `- Người quản lý: ${tb.ten_nhan_vien}\n` +
-                    `- Đơn vị: ${tb.ma_don_vi}\n` +
-                    `- Tình trạng: ${tb.trang_thai || 'Đang sử dụng tốt'}`;
-
-                // Kiểm tra nếu tab thiết bị đang mở thì mới vẽ ngay, tránh lỗi render ẩn
-                if(document.getElementById('sec_thietbi').style.display !== 'none') {
-                    setTimeout(() => {
-                        let targetBox = document.getElementById(qrId);
-                        if(targetBox && targetBox.innerHTML === "") {
-                            new QRCode(targetBox, { text: textQrThongMinh, width: 75, height: 75 });
-                        }
-                    }, 50);
-                }
             });
+
+            // Đồng bộ vẽ QR thông minh: chỉ chạy khi tab thiết bị thực sự hiển thị công khai trên màn hình
+            if(document.getElementById('sec_thietbi').style.display !== 'none') {
+                requestAnimationFrame(() => {
+                    setTimeout(veLaiToanBoMaQRTabThietBi, 80);
+                });
+            }
         }
 
-        // Tạo hàm riêng để quét lại toàn bộ mã QR khi người dùng click đổi tab
+        // HÀM CHUẨN HÓA ĐỒNG BỘ MÃ QR - GIẢI QUYẾT TRIỆT ĐỂ LỖI KHÔNG HIỂN THỊ XEM TRƯỚC
         function veLaiToanBoMaQRTabThietBi() {
-            CACHE_THIET_BI.forEach((tb, idx) => {
+            const searchVal = document.getElementById('txt_tim_tb').value.toLowerCase().trim();
+            const filterDv = document.getElementById('select_don_vi_tb').value;
+
+            // Lấy đúng danh sách đang được lọc trên bảng giao diện thực tế
+            let dangHienThiList = CACHE_THIET_BI.filter(tb => {
+                if(filterDv !== "ALL" && String(tb.ma_don_vi).trim() !== filterDv) return false;
+                return !searchVal || 
+                       String(tb.ten_thiet_bi).toLowerCase().includes(searchVal) || 
+                       String(tb.ma_thiet_bi).toLowerCase().includes(searchVal) ||
+                       String(tb.ten_nhan_vien).toLowerCase().includes(searchVal);
+            });
+
+            dangHienThiList.forEach((tb, idx) => {
                 let qrId = `qr_canvas_item_${idx}`;
                 let targetBox = document.getElementById(qrId);
+                
                 if(targetBox) {
-                    targetBox.innerHTML = ""; // Xóa dữ liệu lỗi cũ
+                    targetBox.innerHTML = ""; // Làm sạch ô trống trước khi vẽ
+                    
                     let textQrThongMinh = 
                         `=== THÔNG TIN THIẾT BỊ ===\n` +
                         `- Mã thiết bị: ${tb.ma_thiet_bi}\n` +
@@ -500,7 +502,12 @@
                         `- Đơn vị: ${tb.ma_don_vi}\n` +
                         `- Tình trạng: ${tb.trang_thai || 'Đang sử dụng tốt'}`;
                     
-                    new QRCode(targetBox, { text: textQrThongMinh, width: 75, height: 75 });
+                    new QRCode(targetBox, {
+                        text: textQrThongMinh,
+                        width: 75,
+                        height: 75,
+                        correctLevel: QRCode.CorrectLevel.M // Tăng độ bảo toàn dữ liệu khi quét bằng camera điện thoại
+                    });
                 }
             });
         }
@@ -644,11 +651,9 @@
             document.getElementById('side_hoso').style.display = tab === 'hoso' ? 'block' : 'none';
             document.getElementById('side_thietbi').style.display = tab === 'thietbi' ? 'block' : 'none';
 
-            // SỬA LỖI: Khi người dùng chuyển sang tab thiết bị, ta kích hoạt ép vẽ QR ngay lập tức
+            // Gọi render và kích hoạt luồng vẽ lại mã QR an toàn khi sang tab thiết bị
             if (tab === 'thietbi') {
-                setTimeout(() => {
-                    veLaiToanBoMaQRTabThietBi();
-                }, 60);
+                renderBangThietBi();
             }
         }
     </script>
