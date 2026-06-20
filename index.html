@@ -57,7 +57,7 @@
             </div>
             <div class="form-group">
                 <label>Số BHXH:</label>
-                <input type="text" id="so_bhxh_input" placeholder="Nhập số sổ bảo hiểm xã hội...">
+                <input type="text" id="so_so_bhxh_input" placeholder="Nhập số sổ bảo hiểm xã hội...">
             </div>
             <button class="btn-submit" onclick="themNhanSuThuCong()">👤 LƯU HỒ SƠ THỦ CÔNG</button>
 
@@ -110,7 +110,6 @@
         
         const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         let DANH_SACH_CACHE = [];
-        let DB_COLUMNS = []; 
 
         window.onload = async function() {
             await taiDuLieuTuCloud();
@@ -121,13 +120,6 @@
                 const { data, error } = await client.from('nhan_su').select('*').order('id', { ascending: true });
                 if (error) throw error;
                 DANH_SACH_CACHE = data || [];
-                
-                if (DANH_SACH_CACHE.length > 0) {
-                    DB_COLUMNS = Object.keys(DANH_SACH_CACHE[0]);
-                } else {
-                    DB_COLUMNS = ['id', 'ho_ten', 'ten', 'so_cccd', 'so_so_bhxh', 'an_toan_vien', 'nndh'];
-                }
-                
                 renderBangDuLieu();
             } catch (err) {
                 console.error(err);
@@ -141,7 +133,7 @@
             tbody.innerHTML = "";
 
             let filtered = DANH_SACH_CACHE.filter(item => {
-                let textBhxh = String(item.so_so_bhxh || item.so_bhxh || "");
+                let textBhxh = String(item.so_so_bhxh || "");
                 return !searchVal || 
                     String(item.ho_ten || "").toLowerCase().includes(searchVal) ||
                     String(item.so_cccd || "").toLowerCase().includes(searchVal) ||
@@ -163,27 +155,12 @@
                     <td><b>${item.ho_ten || ""}</b></td>
                     <td>${item.ten || ""}</td>
                     <td>${item.so_cccd || ""}</td>
-                    <td>${item.so_so_bhxh || item.so_bhxh || ""}</td>
+                    <td>${item.so_so_bhxh || ""}</td>
                     <td>${item.an_toan_vien || ""}</td>
                     <td>${item.nndh || ""}</td>
                 `;
                 tbody.appendChild(tr);
             });
-        }
-
-        function buildAdaptivePayload(id, fullHoTen, singleTen, cccd, bhxh, atv, nndh) {
-            let record = { id: id, ho_ten: fullHoTen, ten: singleTen };
-            
-            if (DB_COLUMNS.includes('so_cccd')) record.so_cccd = cccd || null;
-            if (DB_COLUMNS.includes('an_toan_vien')) record.an_toan_vien = atv || null;
-            if (DB_COLUMNS.includes('nndh')) record.nndh = nndh || null;
-            
-            if (DB_COLUMNS.includes('so_so_bhxh')) {
-                record.so_so_bhxh = bhxh || null;
-            } else {
-                record.so_bhxh = bhxh || null;
-            }
-            return record;
         }
 
         async function themNhanSuThuCong() {
@@ -201,9 +178,17 @@
             let tenRutGon = chuoiTu[chuoiTu.length - 1];
             
             let valCccd = document.getElementById('so_cccd_input').value.trim();
-            let valBhxh = document.getElementById('so_bhxh_input').value.trim();
+            let valBhxh = document.getElementById('so_so_bhxh_input').value.trim();
 
-            let targetData = buildAdaptivePayload(customId, hoTenDayDu, tenRutGon, valCccd, valBhxh, "", "");
+            let targetData = {
+                id: customId,
+                ho_ten: hoTenDayDu,
+                ten: tenRutGon,
+                so_cccd: valCccd || null,
+                so_so_bhxh: valBhxh || null,
+                an_toan_vien: "",
+                nndh: ""
+            };
 
             const { error } = await client.from('nhan_su').insert([targetData]);
             if (error) {
@@ -213,7 +198,7 @@
                 document.getElementById('ma_nv_input').value = "";
                 document.getElementById('ho_ten_input').value = "";
                 document.getElementById('so_cccd_input').value = "";
-                document.getElementById('so_bhxh_input').value = "";
+                document.getElementById('so_so_bhxh_input').value = "";
                 await taiDuLieuTuCloud();
             }
         }
@@ -246,7 +231,7 @@
                     }
 
                     let headerRowIndex = -1;
-                    let mapCột = { ho_ten: -1, so_cccd: -1, so_bhxh: -1, an_toan_vien: -1, nndh: -1 };
+                    let mapCột = { ho_ten: -1, so_cccd: -1, so_so_bhxh: -1, an_toan_vien: -1, nndh: -1 };
 
                     for (let i = 0; i < Math.min(rows.length, 30); i++) {
                         let row = rows[i];
@@ -265,7 +250,7 @@
                                 let txt = khauHaoChu(cell);
                                 if (txt.includes("hoten") || txt.includes("hovaten") || txt === "ten") mapCột.ho_ten = idx;
                                 else if (txt.includes("cccd") || txt.includes("cmnd") || txt.includes("cancuoc")) mapCột.so_cccd = idx;
-                                else if (txt.includes("bhxh") || txt.includes("baohiem") || txt.includes("sosobhxh") || txt.includes("sobhxh")) mapCột.so_bhxh = idx;
+                                else if (txt.includes("bhxh") || txt.includes("baohiem") || txt.includes("sosobhxh") || txt.includes("sobhxh")) mapCột.so_so_bhxh = idx;
                                 else if (txt.includes("antoanvien") || txt.includes("atv")) mapCột.an_toan_vien = idx;
                                 else if (txt.includes("nndh") || txt.includes("dochai")) mapCột.nndh = idx;
                             });
@@ -274,11 +259,10 @@
                     }
 
                     if (headerRowIndex === -1 || mapCột.ho_ten === -1) {
-                        headerRowIndex = 0; mapCột.ho_ten = 0; mapCột.so_cccd = 1; mapCột.so_bhxh = 2;
+                        headerRowIndex = 0; mapCột.ho_ten = 0; mapCột.so_cccd = 1; mapCột.so_so_bhxh = 2;
                     }
 
                     // CƠ CHẾ BẢO VỆ CHỐNG CỘNG DỒN: Xóa sạch bảng cũ trên database trước khi lặp tạo id mới
-                    // Lệnh xóa Supabase: delete().neq('id', 0) nghĩa là xóa tất cả những dòng có id khác 0
                     const { error: deleteError } = await client.from('nhan_su').delete().neq('id', 0);
                     if (deleteError) {
                         throw new Error("Không thể dọn sạch dữ liệu cũ: " + deleteError.message);
@@ -300,12 +284,19 @@
                         let valTenRutGon = mangChu[mangChu.length - 1];
 
                         let valCccd = mapCột.so_cccd !== -1 ? String(row[mapCột.so_cccd] || "").trim() : "";
-                        let valBhxh = mapCột.so_bhxh !== -1 ? String(row[mapCột.so_bhxh] || "").trim() : "";
+                        let valBhxh = mapCột.so_so_bhxh !== -1 ? String(row[mapCột.so_so_bhxh] || "").trim() : "";
                         let valAtv = mapCột.an_toan_vien !== -1 ? String(row[mapCột.an_toan_vien] || "").trim() : "";
                         let valNndh = mapCột.nndh !== -1 ? String(row[mapCột.nndh] || "").trim() : "";
 
-                        let safeRecord = buildAdaptivePayload(runId, valHoTenDayDu, valTenRutGon, valCccd, valBhxh, valAtv, valNndh);
-                        listDữLiệuĐẩy.push(safeRecord);
+                        listDữLiệuĐẩy.push({
+                            id: runId,
+                            ho_ten: valHoTenDayDu,
+                            ten: valTenRutGon,
+                            so_cccd: valCccd || null,
+                            so_so_bhxh: valBhxh || null,
+                            an_toan_vien: valAtv || null,
+                            nndh: valNndh || null
+                        });
                     }
 
                     if (listDữLiệuĐẩy.length === 0) { alert("Không tìm thấy nhân viên nào để nạp!"); input.value = ""; return; }
