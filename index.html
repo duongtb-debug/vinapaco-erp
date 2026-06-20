@@ -1,123 +1,329 @@
-function docVaUploadNhanSuTuExcel(input) {
-    const file = input.files[0];
-    if(!file) return;
-    const reader = new FileReader();
-    reader.onload = async function(e) {
-        try {
-            const data = new Uint8Array(e.target.result);
-            const workbook = XLSX.read(data, { type: 'array' });
-            const sheet = workbook.Sheets[workbook.SheetNames[0]];
-            const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
-            if (rows.length === 0) { alert("File Excel trống!"); return; }
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ Thống Đồng Bộ Tổng Hợp</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f6f9; }
+        .header { background-color: #1e56a0; color: white; text-align: center; padding: 20px; }
+        .header h1 { margin: 0; font-size: 24px; text-transform: uppercase; }
+        .header p { margin: 5px 0 0 0; font-size: 14px; opacity: 0.8; }
+        .container { max-width: 1200px; margin: 20px auto; padding: 0 20px; display: flex; gap: 20px; }
+        .sidebar { flex: 1; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .main-content { flex: 3; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 14px; }
+        .form-group input, .form-group select { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        .btn { background-color: #a14bf6; color: white; border: none; padding: 10px 15px; width: 100%; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .btn:hover { background-color: #8832df; }
+        .upload-box { border: 2px dashed #2ecc71; padding: 20px; text-align: center; border-radius: 8px; background-color: #f9fffb; margin-top: 20px; }
+        .upload-box input { display: block; margin: 10px auto; }
+        .stats-container { display: flex; gap: 20px; margin-bottom: 20px; }
+        .stat-card { flex: 1; padding: 15px; border-radius: 8px; border-left: 5px solid; background: #f8f9fa; }
+        .stat-card.total { border-left-color: #a14bf6; }
+        .stat-card.working { border-left-color: #2ecc71; }
+        .stat-card h3 { margin: 0; font-size: 12px; text-transform: uppercase; color: #666; }
+        .stat-card p { margin: 5px 0 0 0; font-size: 24px; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        table th, table td { border: 1px solid #ddd; padding: 10px; text-align: left; font-size: 14px; }
+        table th { background-color: #f8f9fa; }
+        .search-bar { width: 100%; padding: 10px; box-sizing: border-box; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 4px; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>Hệ Thống Đồng Bộ Tổng Hợp: Nhân Sự, Thiết Bị QR & Quản Lý Tài Liệu Chứng Từ</h1>
+        <p>Quản Lý Tài Sản Thiết Bị Độc Lập - Lưu Trữ Hồ Sơ Hoá Phục Vụ Thanh Quyết Toán</p>
+    </div>
+
+    <div class="container">
+        <div class="sidebar">
+            <h3>HỒ SƠ THÔNG TIN NHÂN VIÊN</h3>
+            <div class="form-group">
+                <label>Mã Nhân Sự (*):</label>
+                <input type="text" id="ma_nv" value="NS-0001">
+            </div>
+            <div class="form-group">
+                <label>Họ và Tên (*):</label>
+                <input type="text" id="ho_ten">
+            </div>
+            <div class="form-group">
+                <label>Phòng Ban / Đơn Vị:</label>
+                <input type="text" id="phong_ban">
+            </div>
+            <div class="form-group">
+                <label>Vị Trí Công Việc:</label>
+                <input type="text" id="chuc_vu">
+            </div>
+            <div class="form-group">
+                <label>Giới Tính:</label>
+                <select id="gioi_tinh">
+                    <option value="Nam">Nam</option>
+                    <option value="Nữ">Nữ</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Ngày Sinh:</label>
+                <input type="date" id="ngay_sinh">
+            </div>
+            <div class="form-group">
+                <label>Số CCCD:</label>
+                <input type="text" id="so_cccd">
+            </div>
+            <div class="form-group">
+                <label>Số BHXH:</label>
+                <input type="text" id="so_bhxh_input">
+            </div>
+            <button class="btn" onclick="themThuCong()">👤 LƯU HỒ SƠ THỦ CÔNG</button>
+
+            <div class="upload-box">
+                <span style="color: #2ecc71; font-weight: bold;">🟢 NHẬP NHÂN SỰ HÀNG LOẠT (EXCEL)</span>
+                <p style="font-size: 11px; color:#666; margin: 5px 0;">Hệ thống tự động nhận diện và làm sạch định dạng dữ liệu từ file Excel của bạn.</p>
+                <input type="file" id="excel_file" accept=".xlsx, .xls" onchange="docVaUploadNhanSuTuExcel(this)">
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="stats-container">
+                <div class="stat-card total">
+                    <h3>Tổng nhân sự hệ thống</h3>
+                    <p id="total_ns">0</p>
+                </div>
+                <div class="stat-card working">
+                    <h3>Đang làm việc</h3>
+                    <p id="working_ns">0</p>
+                </div>
+            </div>
+
+            <h3>DANH SÁCH CHI TIẾT HỒ SƠ NHÂN SỰ</h3>
+            <input type="text" id="search_input" class="search-bar" placeholder="Tìm nhanh theo Tên, Mã NV, Số CCCD hoặc Phòng ban..." oninput="hienThiDuLieu()">
             
-            // Hàm xóa dấu tiếng Việt và ký tự đặc biệt để so khớp chính xác tuyệt đối
-            function chuanHoaKey(k) {
-                if (!k) return "";
-                let str = k.toString().toLowerCase().trim();
-                str = str.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g, "a");
-                str = str.replace(/è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ/g, "e");
-                str = str.replace(/ì|í|ị|ỉ|ĩ/g, "i");
-                str = str.replace(/ò|ó|ọ|ỏ|õ|ô|ồ|ố|ộ|ổ|ỗ|ơ|ờ|ớ|ợ|ở|ỡ/g, "o");
-                str = str.replace(/ù|ú|ụ|ủ|ũ|ư|ừ|ứ|ự|ử|ữ/g, "u");
-                str = str.replace(/ỳ|ý|ỵ|ỷ|ỹ/g, "y");
-                str = str.replace(/đ/g, "d");
-                return str.replace(/\s+/g, '').replace(/[^a-z0-9]/g, '');
+            <table>
+                <thead>
+                    <tr>
+                        <th>Mã NV</th>
+                        <th>Họ và Tên</th>
+                        <th>Phòng Ban</th>
+                        <th>Vị Trí Công Việc</th>
+                        <th>Giới Tính</th>
+                        <th>Ngày Sinh</th>
+                        <th>Số CCCD</th>
+                        <th>Số BHXH</th>
+                    </tr>
+                </thead>
+                <tbody id="table_body">
+                    <tr>
+                        <td colspan="8" style="text-align: center; color: #999;">Không có dữ liệu nhân sự trên Cloud.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // CẤU HÌNH SUPABASE (Vui lòng điền URL và KEY thực tế của bạn vào đây nếu chưa có)
+        const SUPABASE_URL = "https://YOUR_SUPABASE_URL.supabase.co"; 
+        const SUPABASE_KEY = "YOUR_SUPABASE_ANON_KEY";
+        const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let CACHE_NHAN_SU = [];
+
+        // 1. HÀM TẢI DỮ LIỆU TỪ CLOUD VỀ
+        async function taiDuLieuTuCloud() {
+            try {
+                const { data, error } = await client.from('nhan_su').select('*');
+                if (error) throw error;
+                CACHE_NHAN_SU = data || [];
+                hienThiDuLieu();
+            } catch (err) {
+                console.error("Lỗi tải dữ liệu:", err.message);
             }
-            
-            let headerIdx = -1;
-            let colMapping = { hoten: -1, cccd: -1, bhxh: -1, madonvi: -1, chucdanh: -1, namsinh: -1 };
-            
-            // Nâng số dòng quét tìm tiêu đề từ 10 lên 30 dòng để tránh file có header quá dài
-            for (let i = 0; i < Math.min(rows.length, 30); i++) {
-                let row = rows[i];
-                if (!row) continue;
-                let foundHeader = false;
-                
-                row.forEach((cell) => {
-                    let text = chuanHoaKey(cell);
-                    // Mở rộng bộ từ khóa nhận diện cột Họ Tên
-                    if (text.includes("hoten") || text.includes("hovaten") || text.includes("tennhanvien") || text.includes("canbo") || text === "ten") {
-                        foundHeader = true;
-                    }
-                });
-                
-                if (foundHeader) {
-                    headerIdx = i;
-                    row.forEach((cell, cellIdx) => {
-                        let text = chuanHoaKey(cell);
-                        if (text.includes("hoten") || text.includes("hovaten") || text.includes("tennhanvien") || text === "ten") colMapping.hoten = cellIdx;
-                        else if (text.includes("cccd") || text.includes("cmnd") || text.includes("chungminh") || text.includes("sochuyenduong")) colMapping.cccd = cellIdx;
-                        else if (text.includes("bhxh") || text.includes("baohiem") || text.includes("sosobhxh")) colMapping.bhxh = cellIdx;
-                        else if (text.includes("madonvi") || text.includes("bophan") || text.includes("phongban") || text.includes("donvi")) colMapping.madonvi = cellIdx;
-                        else if (text.includes("chucdanh") || text.includes("congviec") || text.includes("vitri") || text.includes("chucvu")) colMapping.chucdanh = cellIdx;
-                        else if (text.includes("namsinh") || text.includes("ngaysinh") || text === "nam") colMapping.namsinh = cellIdx;
-                    });
-                    break;
-                }
-            }
-            
-            // BẪY LỖI DỰ PHÒNG: Nếu quét thông minh vẫn trượt, ép buộc lấy luôn Cột số 1 (Cột B) hoặc Cột số 0 (Cột A) làm Họ Tên
-            if (headerIdx === -1 || colMapping.hoten === -1) {
-                console.log("Không tìm thấy tiêu đề chuẩn, kích hoạt chế độ đọc ép buộc cột...");
-                headerIdx = 0; // Giả định dữ liệu bắt đầu từ dòng 1 hoặc 2
-                colMapping.hoten = 1; // Mặc định cột 2 (Cột B) là Họ tên
-                colMapping.cccd = 2;  // Mặc định cột C là CCCD
-                colMapping.bhxh = 3;  // Mặc định cột D là BHXH
-            }
-            
-            let maxId = 0;
-            if (CACHE_NHAN_SU && CACHE_NHAN_SU.length > 0) {
-                CACHE_NHAN_SU.forEach(ns => { if (parseInt(ns.id) > maxId) maxId = parseInt(ns.id); });
-            }
-            
-            let recordsToUpload = [];
-            
-            for (let i = headerIdx + 1; i < rows.length; i++) {
-                let row = rows[i];
-                if (!row || row.length === 0) continue;
-                
-                let hoTenVal = String(row[colMapping.hoten] || "").trim();
-                // Bỏ qua dòng trống hoặc dòng lặp lại chữ tiêu đề
-                if (!hoTenVal || hoTenVal.toLowerCase() === "họ và tên" || hoTenVal.toLowerCase() === "ho ten") continue;
-                
-                let cccdVal = colMapping.cccd !== -1 ? String(row[colMapping.cccd] || "").trim() : null;
-                let bhxhVal = colMapping.bhxh !== -1 ? String(row[colMapping.bhxh] || "").trim() : null;
-                let maDVVal = colMapping.madonvi !== -1 ? String(row[colMapping.madonvi] || "").trim().replace(/\s+/g, '') : "DV-01";
-                let chucDanhVal = colMapping.chucdanh !== -1 ? String(row[colMapping.chucdanh] || "").trim() : "Nhân viên";
-                let namSinhRaw = colMapping.namsinh !== -1 ? String(row[colMapping.namsinh] || "").trim() : "";
-                let namSinhVal = (typeof formatExcelDate === "function") ? formatExcelDate(namSinhRaw) : namSinhRaw;
-                
-                maxId++;
-                
-                recordsToUpload.push({
-                    id: maxId,
-                    ho_ten: hoTenVal,
-                    so_cccd: cccdVal,
-                    so_bhxh: bhxhVal,
-                    ma_don_vi: maDVVal,
-                    chuc_danh_cong_viec: chucDanhVal,
-                    nam_sinh: namSinhVal,
-                    nam: namSinhVal // Điền thêm vào trường 'nam' phòng trường hợp cấu trúc cũ yêu cầu
-                });
-            }
-            
-            if (recordsToUpload.length === 0) {
-                alert("Không lấy được dữ liệu nhân sự nào hợp lệ từ file Excel này!");
-                input.value = ""; return;
-            }
-            
-            // Tiến hành gửi lên Supabase
-            const { error } = await client.from('nhan_su').insert(recordsToUpload);
-            if (error) {
-                alert("Lỗi tải lên Cloud: " + error.message);
-            } else {
-                alert("Thành công! Đã nạp thành công " + recordsToUpload.length + " nhân sự lên hệ thống.");
-            }
-            input.value = "";
-            await taiDuLieuTuCloud(false);
-        } catch (err) {
-            alert("Lỗi xử lý tệp Excel: " + err.message);
         }
-    };
-    reader.readAsArrayBuffer(file);
-}
+
+        // 2. HÀM HIỂN THỊ DỮ LIỆU LÊN GIAO DIỆN & TÌM KIẾM
+        function hienThiDuLieu() {
+            const tbody = document.getElementById('table_body');
+            const keyword = document.getElementById('search_input').value.toLowerCase().trim();
+            tbody.innerHTML = "";
+
+            let filtered = CACHE_NHAN_SU.filter(item => {
+                return !keyword || 
+                    String(item.ho_ten || "").toLowerCase().includes(keyword) ||
+                    String(item.id || "").toLowerCase().includes(keyword) ||
+                    String(item.so_cccd || "").toLowerCase().includes(keyword) ||
+                    String(item.ma_don_vi || "").toLowerCase().includes(keyword);
+            });
+
+            document.getElementById('total_ns').innerText = CACHE_NHAN_SU.length;
+            document.getElementById('working_ns').innerText = CACHE_NHAN_SU.length; // Giả định bằng tổng số
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: #999;">Không tìm thấy nhân sự phù hợp.</td></tr>`;
+                return;
+            }
+
+            filtered.forEach(item => {
+                let tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>NS-${item.id}</td>
+                    <td><b>${item.ho_ten || ""}</b></td>
+                    <td>${item.ma_don_vi || ""}</td>
+                    <td>${item.chuc_danh_cong_viec || "Nhân viên"}</td>
+                    <td>${item.gioi_tinh_nu ? "Nữ" : "Nam"}</td>
+                    <td>${item.nam_sinh || ""}</td>
+                    <td>${item.so_cccd || ""}</td>
+                    <td>${item.so_bhxh || ""}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // 3. HÀM THÊM THỦ CÔNG
+        async function themThuCong() {
+            let maxId = 0;
+            CACHE_NHAN_SU.forEach(ns => { if (parseInt(ns.id) > maxId) maxId = parseInt(ns.id); });
+            maxId++;
+
+            let record = {
+                id: maxId,
+                ho_ten: document.getElementById('ho_ten').value.trim(),
+                ma_don_vi: document.getElementById('phong_ban').value.trim() || "DV-01",
+                chuc_danh_cong_viec: document.getElementById('chuc_vu').value.trim() || "Nhân viên",
+                nam_sinh: document.getElementById('ngay_sinh').value,
+                nam: document.getElementById('ngay_sinh').value,
+                so_cccd: document.getElementById('so_cccd').value.trim(),
+                so_bhxh: document.getElementById('so_bhxh_input').value.trim(),
+                gioi_tinh_nu: document.getElementById('gioi_tinh').value === "Nữ" ? "x" : ""
+            };
+
+            if(!record.ho_ten) { alert("Vui lòng điền Họ và Tên!"); return; }
+
+            const { error } = await client.from('nhan_su').insert([record]);
+            if (error) { alert("Lỗi lưu Cloud: " + error.message); } 
+            else { alert("Thêm thủ công thành công!"); taiDuLieuTuCloud(); }
+        }
+
+        // 4. CHÌA KHÓA VÀNG: HÀM ĐỌC VÀ NẠP EXCEL THÔNG MINH (ĐÃ KHỬ LỖI TIÊU ĐỀ)
+        function docVaUploadNhanSuTuExcel(input) {
+            const file = input.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+                    if (rows.length === 0) { alert("File Excel trống!"); return; }
+                    
+                    // Hàm chuẩn hóa tiếng Việt để quét cột
+                    function chuanHoaKey(k) {
+                        if (!k) return "";
+                        let str = k.toString().toLowerCase().trim();
+                        str = str.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g, "a");
+                        str = str.replace(/è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ/g, "e");
+                        str = str.replace(/ì|í|ị|ỉ|ĩ/g, "i");
+                        str = str.replace(/ò|ó|ọ|ỏ|õ|ô|ồ|ố|ộ|ổ|ỗ|ơ|ờ|ớ|ợ|ở|ỡ/g, "o");
+                        str = str.replace(/ù|ú|ụ|ủ|ũ|ư|ừ|ứ|ự|ử|ữ/g, "u");
+                        str = str.replace(/ỳ|ý|ỵ|ỷ|ỹ/g, "y");
+                        str = str.replace(/đ/g, "d");
+                        return str.replace(/\s+/g, '').replace(/[^a-z0-9]/g, '');
+                    }
+                    
+                    let headerIdx = -1;
+                    let colMapping = { hoten: -1, cccd: -1, bhxh: -1, madonvi: -1, chucdanh: -1, namsinh: -1 };
+                    
+                    // Quét 30 dòng đầu tìm tiêu đề
+                    for (let i = 0; i < Math.min(rows.length, 30); i++) {
+                        let row = rows[i];
+                        if (!row) continue;
+                        let foundHeader = false;
+                        
+                        row.forEach((cell) => {
+                            let text = chuanHoaKey(cell);
+                            if (text.includes("hoten") || text.includes("hovaten") || text.includes("tennhanvien") || text === "ten") {
+                                foundHeader = true;
+                            }
+                        });
+                        
+                        if (foundHeader) {
+                            headerIdx = i;
+                            row.forEach((cell, cellIdx) => {
+                                let text = chuanHoaKey(cell);
+                                if (text.includes("hoten") || text.includes("hovaten") || text.includes("tennhanvien") || text === "ten") colMapping.hoten = cellIdx;
+                                else if (text.includes("cccd") || text.includes("cmnd") || text.includes("sochuyenduong")) colMapping.cccd = cellIdx;
+                                else if (text.includes("bhxh") || text.includes("baohiem") || text.includes("sosobhxh")) colMapping.bhxh = cellIdx;
+                                else if (text.includes("madonvi") || text.includes("phongban") || text.includes("donvi")) colMapping.madonvi = cellIdx;
+                                else if (text.includes("chucdanh") || text.includes("congviec") || text.includes("chucvu")) colMapping.chucdanh = cellIdx;
+                                else if (text.includes("namsinh") || text.includes("ngaysinh") || text === "nam") colMapping.namsinh = cellIdx;
+                            });
+                            break;
+                        }
+                    }
+                    
+                    // CHẾ ĐỘ DỰ PHÒNG: Nếu file Excel không viết đúng tiêu đề, ép buộc nhận dạng cột tự động
+                    if (headerIdx === -1 || colMapping.hoten === -1) {
+                        console.log("Kích hoạt chế độ đọc ép buộc cột mặc định...");
+                        headerIdx = 0; 
+                        colMapping.hoten = 1; // Cột B
+                        colMapping.cccd = 2;  // Cột C
+                        colMapping.bhxh = 3;  // Cột D
+                    }
+                    
+                    let maxId = 0;
+                    CACHE_NHAN_SU.forEach(ns => { if (parseInt(ns.id) > maxId) maxId = parseInt(ns.id); });
+                    
+                    let recordsToUpload = [];
+                    for (let i = headerIdx + 1; i < rows.length; i++) {
+                        let row = rows[i];
+                        if (!row || row.length === 0) continue;
+                        
+                        let hoTenVal = String(row[colMapping.hoten] || "").trim();
+                        if (!hoTenVal || hoTenVal.toLowerCase() === "họ và tên" || hoTenVal.toLowerCase() === "ho ten") continue;
+                        
+                        let cccdVal = colMapping.cccd !== -1 ? String(row[colMapping.cccd] || "").trim() : null;
+                        let bhxhVal = colMapping.bhxh !== -1 ? String(row[colMapping.bhxh] || "").trim() : null;
+                        let maDVVal = colMapping.madonvi !== -1 ? String(row[colMapping.madonvi] || "").trim() : "DV-01";
+                        let chucDanhVal = colMapping.chucdanh !== -1 ? String(row[colMapping.chucdanh] || "").trim() : "Nhân viên";
+                        let namSinhRaw = colMapping.namsinh !== -1 ? String(row[colMapping.namsinh] || "").trim() : "";
+                        
+                        maxId++;
+                        recordsToUpload.push({
+                            id: maxId,
+                            ho_ten: hoTenVal,
+                            so_cccd: cccdVal,
+                            so_bhxh: bhxhVal,
+                            ma_don_vi: maDVVal,
+                            chuc_danh_cong_viec: chucDanhVal,
+                            nam_sinh: namSinhRaw,
+                            nam: namSinhRaw // Đẩy đồng thời vào cột 'nam' để chiều lòng cache schema cũ của Supabase
+                        });
+                    }
+                    
+                    if (recordsToUpload.length === 0) { alert("Không lấy được dữ liệu hợp lệ!"); input.value = ""; return; }
+                    
+                    // Đẩy lên Supabase
+                    const { error } = await client.from('nhan_su').insert(recordsToUpload);
+                    if (error) {
+                        alert("Lỗi tải lên Cloud: " + error.message + "\n\n(Lưu ý: Hãy đảm bảo bạn đã chạy mã SQL thêm cột 'nam' và 'so_bhxh' trên Supabase Dashboard)");
+                    } else {
+                        alert("Thành công! Đã nạp thành công " + recordsToUpload.length + " nhân sự lên hệ thống.");
+                        await taiDuLieuTuCloud();
+                    }
+                    input.value = "";
+                } catch (err) {
+                    alert("Lỗi hệ thống: " + err.message);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // Tự động tải dữ liệu khi vừa mở trang
+        window.onload = taiDuLieuTuCloud;
+    </script>
+</body>
+</html>
