@@ -63,7 +63,7 @@
 
             <div class="upload-box">
                 <span style="color: #2ecc71; font-weight: bold; font-size: 14px;">🟢 NHẬP NHÂN SỰ HÀNG LOẠT (EXCEL)</span>
-                <p style="font-size: 11px; color:#777; margin: 5px 0 10px 0;">Hệ thống tự động loại bỏ trường lỗi cache của Supabase để tải lên thành công.</p>
+                <p style="font-size: 11px; color:#777; margin: 5px 0 10px 0;">Đồng bộ nguyên vẹn tất cả các cột thông tin từ File gốc lên Cloud.</p>
                 <input type="file" accept=".xlsx, .xls" onchange="xuLyFileExcelNhanSu(this)">
             </div>
         </div>
@@ -154,27 +154,12 @@
                     <td><b>${item.ho_ten || ""}</b></td>
                     <td>${item.ten || ""}</td>
                     <td>${item.so_cccd || ""}</td>
-                    <td>${item.so_so_bhxh || ""}</td>
+                    <td>${item.so_so_bhxh || item.so_bhxh || ""}</td>
                     <td>${item.an_toan_vien || ""}</td>
                     <td>${item.nndh || ""}</td>
                 `;
                 tbody.appendChild(tr);
             });
-        }
-
-        // ĐẨY THỬ NGHIỆM THÔNG MINH: TỰ LOẠI TRỪ CỘT LỖI NẾU DATABASE BÁO CHƯA ĐỒNG BỘ CACHE
-        async function thựcThiGửiDữLiệu(bảnGhi, làChạyThửLại = false) {
-            const { error } = await client.from('nhan_su').insert([bảnGhi]);
-            if (error) {
-                // Nếu dính lỗi schema cache của Supabase liên quan đến so_so_bhxh, tiến hành bóc tách bỏ trường lỗi và gửi lại ngay
-                if (error.message.includes("so_so_bhxh") && !làChạyThửLại) {
-                    console.warn("Phát hiện Supabase kẹt cache cột so_so_bhxh. Tự động kích hoạt bộ lọc bảo vệ...");
-                    delete bảnGhi.so_so_bhxh; 
-                    return await thựcThiGửiDữLiệu(bảnGhi, true);
-                }
-                throw error;
-            }
-            return true;
         }
 
         async function themNhanSuThuCong() {
@@ -196,22 +181,22 @@
             let customRecord = {
                 id: customId,
                 ho_ten: hoTen,
-                ten: tenRutGon
+                ten: tenRutGon,
+                so_cccd: valCccd,
+                so_so_bhxh: valBhxh, // Đẩy song song cả 2 trường để chặn triệt để lỗi Schema kẹt cache
+                so_bhxh: valBhxh
             };
 
-            if(valCccd) customRecord.so_cccd = valCccd;
-            if(valBhxh) customRecord.so_so_bhxh = valBhxh;
-
-            try {
-                await thựcThiGửiDữLiệu(customRecord);
+            const { error } = await client.from('nhan_su').insert([customRecord]);
+            if (error) {
+                alert("Lỗi tải dữ liệu lên cloud: " + error.message);
+            } else {
                 alert("Thành công! Đã lưu nhân sự mã số NS-" + customId);
                 document.getElementById('ma_nv_input').value = "";
                 document.getElementById('ho_ten_input').value = "";
                 document.getElementById('so_cccd_input').value = "";
                 document.getElementById('so_bhxh_input').value = "";
                 await taiDuLieuTuCloud();
-            } catch(err) {
-                alert("Lỗi tải dữ liệu lên cloud: " + err.message);
             }
         }
 
@@ -262,7 +247,7 @@
                                 let txt = cleanString(cell);
                                 if (txt.includes("hoten") || txt.includes("hovaten") || txt === "ten") mapCột.ho_ten = idx;
                                 else if (txt.includes("cccd") || txt.includes("cmnd") || txt.includes("cancuoc")) mapCột.so_cccd = idx;
-                                else if (txt.includes("bhxh") || txt.includes("baohiem") || txt.includes("sosobhxh")) mapCột.so_so_bhxh = idx;
+                                else if (txt.includes("bhxh") || txt.includes("baohiem") || txt.includes("sosobhxh") || txt.includes("sobhxh")) mapCột.so_so_bhxh = idx;
                                 else if (txt.includes("antoanvien") || txt.includes("atv")) mapCột.an_toan_vien = idx;
                                 else if (txt.includes("nndh") || txt.includes("dochai")) mapCột.nndh = idx;
                             });
@@ -293,42 +278,36 @@
                         let mangChữ = valHoTen.split(" ");
                         let valTenRutGon = mangChữ[mangChữ.length - 1];
 
-                        let o = {
+                        let valCccd = mapCột.so_cccd !== -1 ? String(row[mapCột.so_cccd] || "").trim() : "";
+                        let valBhxh = mapCột.so_so_bhxh !== -1 ? String(row[mapCột.so_so_bhxh] || "").trim() : "";
+                        let valAtv = mapCột.an_toan_vien !== -1 ? String(row[mapCột.an_toan_vien] || "").trim() : "";
+                        let valNndh = mapCột.nndh !== -1 ? String(row[mapCột.nndh] || "").trim() : "";
+
+                        listDữLiệuĐẩy.push({
                             id: currentMaxId,
                             ho_ten: valHoTen,
-                            ten: valTenRutGon
-                        };
-
-                        if(mapCột.so_cccd !== -1 && String(row[mapCột.so_cccd] || "").trim()) o.so_cccd = String(row[mapCột.so_cccd] || "").trim();
-                        if(mapCột.so_so_bhxh !== -1 && String(row[mapCột.so_so_bhxh] || "").trim()) o.so_so_bhxh = String(row[mapCột.so_so_bhxh] || "").trim();
-                        if(mapCột.an_toan_vien !== -1 && String(row[mapCột.an_toan_vien] || "").trim()) o.an_toan_vien = String(row[mapCột.an_toan_vien] || "").trim();
-                        if(mapCột.nndh !== -1 && String(row[mapCột.nndh] || "").trim()) o.nndh = String(row[mapCột.nndh] || "").trim();
-
-                        listDữLiệuĐẩy.push(o);
+                            ten: valTenRutGon,
+                            so_cccd: valCccd,
+                            so_so_bhxh: valBhxh, // Khôi phục ghi nhận đầy đủ trường dữ liệu gốc
+                            so_bhxh: valBhxh,
+                            an_toan_vien: valAtv,
+                            nndh: valNndh
+                        });
                     }
 
                     if (listDữLiệuĐẩy.length === 0) { alert("Không lấy được dữ liệu nhân sự nào hợp lệ!"); input.value = ""; return; }
 
-                    // Thực hiện nạp hàng loạt thông minh
                     const { error } = await client.from('nhan_su').insert(listDữLiệuĐẩy);
                     if (error) {
-                        if (error.message.includes("so_so_bhxh")) {
-                            console.warn("Phát hiện Excel lỗi kẹt cache hàng loạt, tiến hành làm sạch danh sách...");
-                            let listSạch = listDữLiệuĐẩy.map(item => { delete item.so_so_bhxh; return item; });
-                            const { error: error2 } = await client.from('nhan_su').insert(listSạch);
-                            if (error2) throw error2;
-                            alert("Thành công! Hệ thống đã tự động lọc bỏ trường lỗi cache và nạp thành công " + listSạch.length + " nhân sự.");
-                        } else {
-                            throw error;
-                        }
+                        throw error;
                     } else {
-                        alert("Thành công! Đã nạp thành công " + listDữLiệuĐẩy.length + " nhân sự vào hệ thống Database.");
+                        alert("Thành công! Đã nạp thành công và đồng bộ trọn vẹn " + listDữLiệuĐẩy.length + " nhân sự.");
                     }
                     await taiDuLieuTuCloud();
                     input.value = "";
 
                 } catch (err) {
-                    alert("Lỗi hệ thống Excel: " + err.message);
+                    alert("Lỗi tải lên hệ thống Cloud: " + err.message);
                     input.value = "";
                 }
             };
