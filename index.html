@@ -95,7 +95,7 @@
     <div class="header">
         <div>
             <h1>Hệ Thống Quản Trị Tổng Hợp Cơ Sở Nhân Sự & Thiết Bị Toàn Diện</h1>
-            <p>Phiên bản chuyên gia: Khôi phục toàn bộ trường dữ liệu nhân sự gốc và tích hợp Quản lý cấp phát QR</p>
+            <p>Bản cập nhật thông minh: Tự động map tên cột chuẩn hóa từ tệp tin tải lên</p>
         </div>
         <div style="font-size: 13px; font-weight: 500; background: rgba(255,255,255,0.15); padding: 6px 12px; border-radius: 20px;">
             <i class="fa-solid fa-cloud"></i> Đám mây thời gian thực
@@ -108,15 +108,14 @@
     </div>
 
     <div class="container">
-        
         <div class="sidebar">
             <div id="side_hoso" style="display: block;">
                 <div class="sidebar-card">
                     <h3><i class="fa-solid fa-file-excel"></i> Nhập dữ liệu thông minh</h3>
-                    <p style="font-size: 12px; color: #666; margin: 0 0 10px 0;">Hệ thống tự động đồng bộ hóa thông minh dựa trên Mã NV để tránh trùng lặp dữ liệu Excel.</p>
-                    <input type="file" id="excel_file_input" accept=".xlsx, .xls" style="display: none;" onchange="xuLyFileExcelNhanSu(this)">
+                    <p style="font-size: 12px; color: #666; margin: 0 0 10px 0;">Đoạn mã mới đã hỗ trợ cả tiêu đề tiếng Việt có dấu và dạng chữ thường chuẩn hóa snake_case.</p>
+                    <input type="file" id="excel_file_input" accept=".xlsx, .xls, .csv" style="display: none;" onchange="xuLyFileExcelNhanSu(this)">
                     <button class="btn-primary" style="width: 100%;" onclick="document.getElementById('excel_file_input').click()">
-                        <i class="fa-solid fa-cloud-arrow-up"></i> TẢI FILE EXCEL LÊN CLOUD
+                        <i class="fa-solid fa-cloud-arrow-up"></i> TẢI FILE EXCEL / CSV LÊN
                     </button>
                 </div>
             </div>
@@ -154,7 +153,6 @@
         </div>
 
         <div class="main-content">
-            
             <div class="stats-grid">
                 <div class="stat-card"><div class="stat-label">Tổng số nhân sự</div><div class="stat-value" id="stat_tong">0</div></div>
                 <div class="stat-card nam"><div class="stat-label">Nhân sự Nam</div><div class="stat-value" id="stat_nam">0</div></div>
@@ -182,14 +180,12 @@
                                     <th>Mã Đơn Vị</th>
                                     <th>Chức Danh Công Việc</th>
                                     <th>Số CCCD</th>
-                                    <th>Ngày cấp CCCD</th>
-                                    <th>Nơi cấp CCCD</th>
                                     <th>Số BHXH</th>
                                     <th>Trạng Thái</th>
                                 </tr>
                             </thead>
                             <tbody id="nhan_su_table_body">
-                                <tr><td colspan="12" style="text-align: center;">Đang tải dữ liệu hồ sơ từ Cloud...</td></tr>
+                                <tr><td colspan="10" style="text-align: center;">Đang tải dữ liệu hồ sơ từ Cloud...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -231,7 +227,6 @@
                     </div>
                 </div>
             </div>
-
         </div>
     </div>
 
@@ -251,11 +246,9 @@
 
         async function taiDuLieuHeThong() {
             try {
-                // Tải hồ sơ nhân sự (gồm toàn bộ các trường)
                 const resNs = await client.from('nhan_su').select('*').order('id', { ascending: true });
                 CACHE_NHAN_SU = resNs.data || [];
                 
-                // Tải danh mục thiết bị QR
                 const resTb = await client.from('cap_phat_thiet_bi').select('*').order('created_at', { ascending: false });
                 CACHE_THIET_BI = resTb.data || [];
                 
@@ -284,15 +277,15 @@
 
         function capNhatTheThongKe() {
             document.getElementById('stat_tong').innerText = CACHE_NHAN_SU.length;
-            document.getElementById('stat_nam').innerText = CACHE_NHAN_SU.filter(x => x.gioi_tinh === 'Nam' || x.gioi_tinh === 'nam').length;
-            document.getElementById('stat_nu').innerText = CACHE_NHAN_SU.filter(x => x.gioi_tinh === 'Nữ' || x.gioi_tinh === 'nữ').length;
+            document.getElementById('stat_nam').innerText = CACHE_NHAN_SU.filter(x => String(x.gioi_tinh).toLowerCase() === 'nam' || String(x.gioi_tinh).toLowerCase() === 'x' && !x.nu_x).length;
+            document.getElementById('stat_nu').innerText = CACHE_NHAN_SU.filter(x => String(x.gioi_tinh).toLowerCase() === 'nữ' || String(x.gioi_tinh).toUpperCase() === 'X').length;
             
             let donViSet = new Set();
             CACHE_NHAN_SU.forEach(x => { if(x.ma_don_vi) donViSet.add(x.ma_don_vi); });
             document.getElementById('stat_dv').innerText = donViSet.size;
         }
 
-        // ĐỒNG BỘ FILE EXCEL ĐA TRƯỜNG THÔNG TIN KHÔNG LỖI TRÙNG LẶP
+        // ĐỒNG BỘ THÔNG MINH - TỰ ĐỘNG ĐỌC MỌI KIỂU TÊN CỘT TRONG FILE EXCEL/CSV CỦA BẠN
         async function xuLyFileExcelNhanSu(input) {
             if(!input.files.length) return;
             const file = input.files[0];
@@ -304,44 +297,56 @@
                 const worksheet = workbook.Sheets[workbook.SheetNames[0]];
                 const rawJson = XLSX.utils.sheet_to_json(worksheet);
 
-                if(!rawJson.length) { alert("File Excel không có dữ liệu!"); return; }
+                if(!rawJson.length) { alert("File không có dữ liệu!"); return; }
 
                 let mapData = [];
                 let checkedUniqueKeys = new Set();
 
                 rawJson.forEach(row => {
-                    let idVal = row["Mã NV"] || row["ID"] || row["id"] || row["Mã nhân viên"];
+                    // Tự động map: Mã nhân viên lấy từ 'stt' hoặc 'Mã NV' hoặc 'id'
+                    let idVal = row["stt"] || row["Mã NV"] || row["ID"] || row["id"] || row["Mã nhân viên"];
+                    
                     if(idVal) {
                         let cleanId = parseInt(String(idVal).replace(/[^0-9]/g, ''));
                         
-                        // Khử trùng ngay trong file tải lên
                         if(!checkedUniqueKeys.has(cleanId)) {
                             checkedUniqueKeys.add(cleanId);
                             
+                            // Tự động map giới tính từ cột nu_x (nếu có X thì là Nữ, ngược lại là Nam)
+                            let gioiTinh = "Nam";
+                            if(row["Giới tính"] || row["Giới Tính"]) {
+                                gioiTinh = row["Giới tính"] || row["Giới Tính"];
+                            } else if (String(row["nu_x"]).toUpperCase() === "X") {
+                                gioiTinh = "Nữ";
+                            }
+
                             mapData.push({
                                 id: cleanId,
-                                ho_ten: row["Họ và Tên"] || row["Họ tên"] || "Không rõ",
-                                ten_rut_gon: row["Tên rút gọn"] || row["Tên"] || "",
-                                ngay_sinh: row["Ngày sinh"] || row["Ngày Sinh"] || null,
-                                gioi_tinh: row["Giới tính"] || row["Giới Tính"] || "Nam",
-                                ma_don_vi: String(row["Mã Đơn Vị"] || row["Đơn vị"] || "").trim(),
-                                chuc_danh_cong_viec: row["Chức Danh Công Việc"] || row["Chức danh"] || "",
-                                so_cccd: row["Số CCCD"] || row["CCCD"] ? String(row["Số CCCD"] || row["CCCD"]).trim() : null,
-                                ngay_cay_cccd: row["Ngày cấp CCCD"] || row["Ngày cấp"] || null,
-                                noi_cap_cccd: row["Nơi cấp CCCD"] || row["Nơi cấp"] || "",
-                                so_bhxh: row["Số BHXH"] ? String(row["Số BHXH"]).trim() : null,
-                                trang_thai_lam_viec: row["Trạng thái làm việc"] || row["Trạng thái"] || "Đang làm việc"
+                                ho_ten: row["ho_va_ten"] || row["Họ và Tên"] || row["Họ tên"] || "Không rõ",
+                                ten_rut_gon: row["ten"] || row["Tên rút gọn"] || row["Tên"] || "",
+                                ngay_sinh: row["ngay_sinh"] || row["Ngày sinh"] || row["Ngày Sinh"] || null,
+                                gioi_tinh: gioiTinh,
+                                ma_don_vi: String(row["ma_don_vi"] || row["Mã Đơn Vị"] || row["Đơn vị"] || "").trim(),
+                                chuc_danh_cong_viec: row["chuc_danh_cong_viec"] || row["Chức Danh Công Việc"] || row["Chức danh"] || "",
+                                so_cccd: row["so_cccd"] || row["Số CCCD"] || row["CCCD"] ? String(row["so_cccd"] || row["Số CCCD"] || row["CCCD"]).trim() : null,
+                                so_bhxh: row["so_bhxh"] || row["Số BHXH"] ? String(row["so_bhxh"] || row["Số BHXH"]).trim() : null,
+                                trang_thai_lam_viec: row["trang_thai"] || row["Trạng thái làm việc"] || "Đang làm việc"
                             });
                         }
                     }
                 });
+
+                if(mapData.length === 0) {
+                    alert("Không tìm thấy cấu trúc Mã nhân viên/STT hợp lệ để xử lý!");
+                    return;
+                }
 
                 // Gửi lệnh Bulk Upsert an toàn lên Cloud
                 const { error } = await client.from('nhan_su').upsert(mapData, { onConflict: 'id' });
                 if(error) {
                     alert("Lỗi đồng bộ: " + error.message);
                 } else {
-                    alert(`Đồng bộ thành công ${mapData.length} hồ sơ nhân sự đầy đủ thông tin lên hệ thống!`);
+                    alert(`Đồng bộ thành công ${mapData.length} hồ sơ nhân sự chuẩn từ file lên hệ thống!`);
                     await taiDuLieuHeThong();
                 }
             };
@@ -349,7 +354,6 @@
             input.value = "";
         }
 
-        // CHUYỂN PHÂN HỆ MƯỢT MÀ, KHÔNG DÙNG ALERT
         function chuyenTabHeThong(tab) {
             document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.app-section').forEach(el => el.style.display = 'none');
@@ -366,7 +370,6 @@
             }
         }
 
-        // RENDER BẢNG NHÂN SỰ ĐẦY ĐỦ CÁC CỘT THÔNG TIN GỐC
         function renderBangNhanSu() {
             const tbody = document.getElementById('nhan_su_table_body');
             const searchVal = document.getElementById('txt_tim_ns').value.toLowerCase().trim();
@@ -382,7 +385,7 @@
             });
 
             if(!queryData.length) {
-                tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;">Không tìm thấy nhân sự phù hợp tiêu chí lọc.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;">Không tìm thấy nhân sự phù hợp tiêu chí lọc.</td></tr>`;
                 return;
             }
 
@@ -397,8 +400,6 @@
                     <td><span class="badge" style="background:#f1f2f6; color:#2f3542;">${ns.ma_don_vi || ''}</span></td>
                     <td>${ns.chuc_danh_cong_viec || ''}</td>
                     <td><code>${ns.so_cccd || ''}</code></td>
-                    <td style="text-align:center;">${ns.ngay_cay_cccd || ''}</td>
-                    <td>${ns.noi_cap_cccd || ''}</td>
                     <td>${ns.so_bhxh || ''}</td>
                     <td style="text-align:center;"><span class="badge badge-success">${ns.trang_thai_lam_viec || 'Đang làm việc'}</span></td>
                 `;
@@ -406,7 +407,6 @@
             });
         }
 
-        // BỘ LỌC ĐỘNG TÌM KIẾM NHÂN SỰ ĐỂ CẤP PHÁT THIẾT BỊ QR
         function goiYAnSinhNhanSu(input) {
             const val = input.value.toLowerCase().trim();
             const box = document.getElementById('suggestions_box');
@@ -439,7 +439,6 @@
             box.style.display = "block";
         }
 
-        // CÁC HÀM XỬ LÝ PHÂN HỆ THIẾT BỊ QR
         function locTrangThaiThietBi(status) {
             FILTER_TRANG_THAI_TB = status;
             document.querySelectorAll('.btn-pill').forEach(btn => btn.classList.remove('active'));
@@ -550,7 +549,6 @@
             }
         }
 
-        // CAMERA QUÉT QR
         function kichHoatCameraScanner() {
             const readerEl = document.getElementById('reader');
             if (readerEl.style.display === "block") {
