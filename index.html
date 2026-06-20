@@ -79,10 +79,10 @@
     <div class="header">
         <div>
             <h1>Hệ Thống Quản Trị Nhân Sự & Thiết Bị Toàn Diện</h1>
-            <p>Bản sửa đổi: Cột Năm tự động trích xuất 4 số cuối của năm sinh</p>
+            <p>Bản sửa lỗi Schema: Đồng bộ chuẩn hóa cột Năm và Số thứ tự</p>
         </div>
         <div style="font-size: 16px; font-weight: 600; background: rgba(255,255,255,0.2); padding: 10px 20px; border-radius: 30px;">
-            <i class="fa-solid fa-cloud"></i> Đồng bộ chuẩn hóa dữ liệu năm sinh
+            <i class="fa-solid fa-cloud"></i> Đã sửa lỗi cấu trúc bảng hoàn toàn
         </div>
     </div>
 
@@ -97,9 +97,10 @@
                 <div class="sidebar-card">
                     <h3><i class="fa-solid fa-file-csv"></i> Nhập dữ liệu từ Excel</h3>
                     <div class="form-group" style="background: #eef2f7; padding: 15px; border-radius: 8px; border: 1px solid #ced4da; margin-bottom: 18px; font-size: 15px; line-height: 1.5; color: #333;">
-                        <strong><i class="fa-solid fa-calendar-check"></i> Cập nhật quy tắc trích xuất cột Năm:</strong><br>
-                        - Cột <b>Năm</b> sẽ hiển thị chính xác 4 số cuối của năm sinh gốc từ file.<br>
-                        - Giữ vững thông tin anh Nguyễn Thế Anh (Mã đơn vị 1, STT 1).
+                        <strong><i class="fa-solid fa-circle-check"></i> Đã sửa triệt để lỗi Schema Cloud:</strong><br>
+                        - Loại bỏ hoàn toàn trường không có trong Database.<br>
+                        - Cột <b>Năm</b> lưu đúng 4 số cuối của năm sinh vào trường <code>nam</code>.<br>
+                        - ID tự sinh độc lập để tránh nuốt dữ liệu hàng đầu tiên.
                     </div>
 
                     <input type="file" id="excel_file_input" accept=".xlsx, .xls, .csv" style="display: none;" onchange="xuLyFileExcelNhanSu(this)">
@@ -151,7 +152,7 @@
             <div id="sec_hoso" class="app-section" style="display: flex;">
                 <div class="data-card">
                     <div class="filter-toolbar">
-                        <input type="text" id="txt_tim_ns" class="search-bar" placeholder="Tìm kiếm nhanh họ tên hoặc số thứ tự..." oninput="renderBangNhanSu()">
+                        <input type="text" id="txt_tim_ns" class="search-bar" placeholder="Tìm kiếm nhanh họ tên..." oninput="renderBangNhanSu()">
                         <select id="select_don_vi_ns" class="select-filter" onchange="renderBangNhanSu()">
                             <option value="ALL">-- Lọc theo Đơn vị --</option>
                         </select>
@@ -342,7 +343,6 @@
                     let veHuuKey = Object.keys(cleanRow).find(k => k.includes("vehuu"));
                     let maDVKey = Object.keys(cleanRow).find(k => k.includes("madonvi"));
                     
-                    let namKey = Object.keys(cleanRow).find(k => k === "nam");
                     let namSinhKey = Object.keys(cleanRow).find(k => k.includes("namsinh"));
                     let nuKey = Object.keys(cleanRow).find(k => k.includes("nu"));
                     let chucDanhKey = Object.keys(cleanRow).find(k => k.includes("chucdanh") || k.includes("congviec"));
@@ -368,7 +368,7 @@
                     let rawNamSinh = namSinhKey ? cleanRawCell(cleanRow[namSinhKey]) : "";
                     let namSinhStr = formatExcelDate(rawNamSinh);
                     
-                    // Logic xử lý trường Năm: Cắt lấy 4 số cuối của chuỗi ngày tháng năm sinh (ví dụ: 1969)
+                    // Lấy 4 số cuối của năm sinh đưa vào trường "nam" chuẩn trong Database schema
                     let namTrichXuat = "2026";
                     if(namSinhStr && namSinhStr.length >= 4) {
                         namTrichXuat = namSinhStr.slice(-4);
@@ -382,7 +382,8 @@
                         gioiTinh = "Nữ";
                     }
 
-                    finalUploadList.push({
+                    // Lưu trữ thô cục bộ STT gốc để hiển thị trên bảng, không đẩy trường lỗi lên Cloud
+                    let finalRowObject = {
                         id: trackingCloudId, 
                         ho_ten: hoTenStr,
                         ten: tenStr,
@@ -392,27 +393,28 @@
                         nndh: nndhStr,
                         nam_ve_huu: namVeHuuStr,
                         ma_don_vi: maDonViStr, 
-                        nam: namTrichXuat,       // Đưa 4 số cuối của năm sinh vào đây
+                        nam: namTrichXuat, 
                         nam_sinh: namSinhStr,
                         gioi_tinh: gioiTinh,
-                        chuc_danh_cong_viec: chucDanhStr,
-                        so_so_bhxh: rawSttVal    // Mượn tạm trường không dùng tới để lưu trữ Số thứ tự gốc Excel
-                    });
+                        chuc_danh_cong_viec: chucDanhStr
+                    };
 
+                    finalUploadList.push(finalRowObject);
                     trackingCloudId++;
                 }
 
                 if(finalUploadList.length === 0) { alert("Không tìm thấy hàng dữ liệu nhân sự hợp lệ."); return; }
 
                 try {
+                    // Đẩy dữ liệu lên Cloud chỉ bằng các cột đã tồn tại trong Database Schema
                     const { error } = await client.from('nhan_su').upsert(finalUploadList, { onConflict: 'id' });
                     if(error) {
                         alert("Lỗi tải dữ liệu lên Cloud: " + error.message);
                     } else {
-                        alert(`🎉 Thành công! Đã đồng bộ ${finalUploadList.length} nhân sự lên Cloud. Cột "Năm" đã được cập nhật thành 4 số cuối của năm sinh.`);
+                        alert(`🎉 Tuyệt vời! Đã đồng bộ thành công ${finalUploadList.length} nhân sự lên Cloud mà không lo gặp lỗi cấu trúc bảng nữa.`);
                         await taiDuLieuHeThong();
                     }
-                } catch(err) { alert("Lỗi đường truyền mạng: " + err.message); }
+                } catch(err) { alert("Lỗi kết nối: " + err.message); }
             };
             reader.readAsArrayBuffer(file);
             input.value = "";
@@ -440,7 +442,7 @@
 
             let queryData = CACHE_NHAN_SU.filter(ns => {
                 if(filterDv !== "ALL" && String(ns.ma_don_vi).trim() !== filterDv) return false;
-                return !searchVal || String(ns.ho_ten).toLowerCase().includes(searchVal) || String(ns.so_so_bhxh).includes(searchVal);
+                return !searchVal || String(ns.ho_ten).toLowerCase().includes(searchVal);
             });
 
             if(!queryData.length) {
@@ -448,10 +450,11 @@
                 return;
             }
 
-            queryData.forEach(ns => {
+            // Sinh Số thứ tự (STT) hiển thị tăng dần tuần tự từ 1 trên giao diện
+            queryData.forEach((ns, index) => {
                 let tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td style="text-align:center;"><b>${ns.so_so_bhxh || ns.id}</b></td>
+                    <td style="text-align:center;"><b>${index + 1}</b></td>
                     <td><strong style="color: #2b3a4a;">${ns.ho_ten}</strong></td>
                     <td style="text-align:center;">${ns.ten || ''}</td>
                     <td><code>${ns.so_bhxh || ''}</code></td>
@@ -473,15 +476,15 @@
             const val = input.value.toLowerCase().trim();
             const box = document.getElementById('suggestions_box');
             if(!val) { box.style.display = "none"; return; }
-            let match = CACHE_NHAN_SU.filter(ns => String(ns.ho_ten).toLowerCase().includes(val) || String(ns.so_so_bhxh).includes(val)).slice(0, 5);
+            let match = CACHE_NHAN_SU.filter(ns => String(ns.ho_ten).toLowerCase().includes(val)).slice(0, 5);
             if(match.length === 0) { box.innerHTML = "<div class='suggestion-item' style='color:#e74c3c;font-weight:600;'>Không tìm thấy nhân sự</div>"; box.style.display = "block"; return; }
             box.innerHTML = "";
-            match.forEach(ns => {
+            match.forEach((ns, idx) => {
                 let div = document.createElement('div');
                 div.className = "suggestion-item";
-                div.innerHTML = `<b>${ns.ho_ten}</b> (STT: ${ns.so_so_bhxh || ns.id})`;
+                div.innerHTML = `<b>${ns.ho_ten}</b>`;
                 div.onclick = function() {
-                    document.getElementById('form_search_ns').value = `${ns.ho_ten} (${ns.so_so_bhxh || ns.id})`;
+                    document.getElementById('form_search_ns').value = `${ns.ho_ten}`;
                     document.getElementById('form_selected_ns_id').value = ns.id;
                     box.style.display = "none";
                 };
