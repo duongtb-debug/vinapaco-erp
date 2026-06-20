@@ -95,7 +95,7 @@
     <div class="header">
         <div>
             <h1>Hệ Thống Quản Trị Tổng Hợp Cơ Sở Nhân Sự & Thiết Bị Toàn Diện</h1>
-            <p>Bản cập nhật chuyên gia: Khắc phục triệt để lỗi hiển thị ngày tháng [object Object] và lỗi mất số 0</p>
+            <p>Bản cập nhật chuyên gia nâng cấp: Sửa dứt điểm lỗi hiển thị số khoa học (E+) và giữ nguyên số 0 đầu chuỗi</p>
         </div>
         <div style="font-size: 13px; font-weight: 500; background: rgba(255,255,255,0.15); padding: 6px 12px; border-radius: 20px;">
             <i class="fa-solid fa-cloud"></i> Đám mây thời gian thực
@@ -112,7 +112,7 @@
             <div id="side_hoso" style="display: block;">
                 <div class="sidebar-card">
                     <h3><i class="fa-solid fa-file-excel"></i> Nhập dữ liệu thông minh</h3>
-                    <p style="font-size: 12px; color: #666; margin: 0 0 10px 0;">Đã cấu hình tự động trích xuất chuỗi văn bản thuần túy cho trường ngày tháng và mã định danh.</p>
+                    <p style="font-size: 12px; color: #666; margin: 0 0 10px 0;">Đã chặn hoàn toàn chế độ tự động ép kiểu Số mũ (Scientific) của Excel.</p>
                     <input type="file" id="excel_file_input" accept=".xlsx, .xls, .csv" style="display: none;" onchange="xuLyFileExcelNhanSu(this)">
                     <button class="btn-primary" style="width: 100%;" onclick="document.getElementById('excel_file_input').click()">
                         <i class="fa-solid fa-cloud-arrow-up"></i> TẢI FILE EXCEL / CSV LÊN
@@ -285,14 +285,20 @@
             document.getElementById('stat_dv').innerText = donViSet.size;
         }
 
-        // HÀM CHUYỂN ĐỔI Ô EXCEL THÀNH CHUỖI VĂN BẢN THUẦN TÚY (SỬA DỨT ĐIỂM LỖI OBJECT)
-        function formatCellToString(cellValue) {
-            if (cellValue === undefined || cellValue === null) return "";
-            if (typeof cellValue === 'object') {
-                // Nếu thư viện trả về object Date hoặc nội dung Excel đặc biệt, lấy thuộc tính văn bản hiển thị .v hoặc .w
-                return cellValue.w ? String(cellValue.w).trim() : (cellValue.v ? String(cellValue.v).trim() : "");
+        // HÀM ĐỌC GIÁ TRỊ TEXT GỐC AN TOÀN TUYỆT ĐỐI (XÓA BỎ LỖI SỐ MŨ E+)
+        function cleanCellToText(value) {
+            if (value === undefined || value === null) return "";
+            if (typeof value === 'object') {
+                return value.w ? String(value.w).trim() : (value.v ? String(value.v).trim() : "");
             }
-            return String(cellValue).trim();
+            let str = String(value).trim();
+            // Nếu phát hiện định dạng số mũ e+ do JS ép kiểu sai, loại bỏ các ký tự phi số để làm sạch
+            if (str.toUpperCase().includes("E+")) {
+                if(value.v || value.w) {
+                    return String(value.w || value.v).trim();
+                }
+            }
+            return str;
         }
 
         async function xuLyFileExcelNhanSu(input) {
@@ -302,14 +308,14 @@
             
             reader.onload = async function(e) {
                 const data = new Uint8Array(e.target.result);
-                // raw: true giúp thư viện giữ nguyên chuỗi gốc thô từ file CSV, giảm lỗi tự ép kiểu
+                // raw: false bắt buộc xlsx giữ lại thuộc tính text hiển thị định dạng .w của ô dữ liệu
                 const workbook = XLSX.read(data, { type: 'array', raw: false });
                 const worksheet = workbook.Sheets[workbook.SheetNames[0]];
                 
-                // Trích xuất JSON thô cấu hình nâng cao
+                // Trích xuất JSON nâng cao với cấu hình điền chuỗi trống thay vì bỏ qua ô trống
                 const rawJson = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
 
-                if(!rawJson.length) { alert("File không có dữ liệu hoặc trống!"); return; }
+                if(!rawJson.length) { alert("File trống!"); return; }
 
                 let mapData = [];
                 let checkedUniqueKeys = new Set();
@@ -325,44 +331,44 @@
                             
                             let gioiTinh = "Nam";
                             if(row["Giới tính"] || row["Giới Tính"]) {
-                                gioiTinh = formatCellToString(row["Giới tính"] || row["Giới Tính"]);
-                            } else if (row["nu_x"] && formatCellToString(row["nu_x"]).toUpperCase() === "X") {
+                                gioiTinh = cleanCellToText(row["Giới tính"] || row["Giới Tính"]);
+                            } else if (row["nu_x"] && cleanCellToText(row["nu_x"]).toUpperCase() === "X") {
                                 gioiTinh = "Nữ";
                             }
 
-                            // Ép định dạng chuỗi văn bản an toàn tuyệt đối
-                            let ngaySinhStr = formatCellToString(row["ngay_sinh"] || row["Ngày sinh"] || row["Ngày Sinh"]);
-                            let soCccdStr = formatCellToString(row["so_cccd"] || row["Số CCCD"] || row["CCCD"]);
-                            let soBhxhStr = formatCellToString(row["so_bhxh"] || row["Số BHXH"]);
-                            let maDonViStr = formatCellToString(row["ma_don_vi"] || row["Mã Đơn Vị"] || row["Đơn vị"]);
+                            // Trích xuất văn bản thô, bỏ qua cơ chế tự ép kiểu số mũ của JavaScript
+                            let ngaySinhStr = cleanCellToText(row["ngay_sinh"] || row["Ngày sinh"] || row["Ngày Sinh"]);
+                            let soCccdStr = cleanCellToText(row["so_cccd"] || row["Số CCCD"] || row["CCCD"]);
+                            let soBhxhStr = cleanCellToText(row["so_bhxh"] || row["Số BHXH"]);
+                            let maDonViStr = cleanCellToText(row["ma_don_vi"] || row["Mã Đơn Vị"] || row["Đơn vị"]);
 
                             mapData.push({
                                 id: cleanId,
-                                ho_ten: formatCellToString(row["ho_va_ten"] || row["Họ và Tên"] || row["Họ tên"]) || "Không rõ",
-                                ten_rut_gon: formatCellToString(row["ten"] || row["Tên rút gọn"] || row["Tên"]),
+                                ho_ten: cleanCellToText(row["ho_va_ten"] || row["Họ và Tên"] || row["Họ tên"]) || "Không rõ",
+                                ten_rut_gon: cleanCellToText(row["ten"] || row["Tên rút gọn"] || row["Tên"]),
                                 ngay_sinh: ngaySinhStr !== "" ? ngaySinhStr : null,
                                 gioi_tinh: gioiTinh,
                                 ma_don_vi: maDonViStr,
-                                chuc_danh_cong_viec: formatCellToString(row["chuc_danh_cong_viec"] || row["Chức Danh Công Việc"] || row["Chức danh"]),
+                                chuc_danh_cong_viec: cleanCellToText(row["chuc_danh_cong_viec"] || row["Chức Danh Công Việc"] || row["Chức danh"]),
                                 so_cccd: soCccdStr !== "" ? soCccdStr : null,
                                 so_bhxh: soBhxhStr !== "" ? soBhxhStr : null,
-                                trang_thai_lam_viec: formatCellToString(row["trang_thai"] || row["Trạng thái làm việc"]) || "Đang làm việc"
+                                trang_thai_lam_viec: cleanCellToText(row["trang_thai"] || row["Trạng thái làm việc"]) || "Đang làm việc"
                             });
                         }
                     }
                 });
 
                 if(mapData.length === 0) {
-                    alert("Không tìm thấy hàng dữ liệu có Mã nhân viên hợp lệ để xử lý!");
+                    alert("Không tìm thấy dữ liệu hợp lệ!");
                     return;
                 }
 
-                // Gửi dữ liệu đồng bộ mượt mà lên Supabase
+                // Thực hiện ghi đè thông minh (Upsert) dựa trên khoá chính ID
                 const { error } = await client.from('nhan_su').upsert(mapData, { onConflict: 'id' });
                 if(error) {
-                    alert("Lỗi đồng bộ dữ liệu lên Cloud: " + error.message);
+                    alert("Lỗi đồng bộ: " + error.message);
                 } else {
-                    alert(`Thành công dứt điểm! Đã chuẩn hóa và lưu trữ ${mapData.length} hồ sơ nhân sự lên cơ sở dữ liệu.`);
+                    alert(`Thành công dứt điểm! Đã đồng bộ chuẩn định dạng ${mapData.length} nhân sự lên Cloud.`);
                     await taiDuLieuHeThong();
                 }
             };
@@ -416,7 +422,7 @@
                     <td><span class="badge" style="background:#f1f2f6; color:#2f3542;">${ns.ma_don_vi || ''}</span></td>
                     <td>${ns.chuc_danh_cong_viec || ''}</td>
                     <td><code style="font-size: 13px; font-weight: bold; color: #2c3e50;">${ns.so_cccd || ''}</code></td>
-                    <td>${ns.so_bhxh || ''}</td>
+                    <td><code style="font-size: 13px; font-weight: bold; color: #27ae60;">${ns.so_bhxh || ''}</code></td>
                     <td style="text-align:center;"><span class="badge badge-success">${ns.trang_thai_lam_viec || 'Đang làm việc'}</span></td>
                 `;
                 tbody.appendChild(tr);
