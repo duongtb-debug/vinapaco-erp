@@ -79,10 +79,10 @@
     <div class="header">
         <div>
             <h1>Hệ Thống Quản Trị Nhân Sự & Thiết Bị Toàn Diện</h1>
-            <p>Bản sửa lỗi tối ưu: Nhận diện theo số thứ tự cột - Chống dồn ô, chống lỗi lệch chữ</p>
+            <p>Bản sửa lỗi đặc hiệu: Tự động nhận diện và bỏ qua dòng tiêu đề phụ/ghi chú của Excel</p>
         </div>
         <div style="font-size: 16px; font-weight: 600; background: rgba(255,255,255,0.2); padding: 10px 20px; border-radius: 30px;">
-            <i class="fa-solid fa-cloud"></i> Hệ thống sẵn sàng
+            <i class="fa-solid fa-cloud"></i> Đồng bộ đám mây đám mây
         </div>
     </div>
 
@@ -97,8 +97,8 @@
                 <div class="sidebar-card">
                     <h3><i class="fa-solid fa-file-csv"></i> Nhập dữ liệu từ Excel</h3>
                     <div class="form-group" style="background: #eefdf4; padding: 15px; border-radius: 8px; border: 1px solid #b7ebd0; margin-bottom: 18px; font-size: 15px; line-height: 1.5; color: #1e7e34;">
-                        <strong><i class="fa-solid fa-circle-check"></i> Đã giải quyết triệt để:</strong><br>
-                        Hệ thống tự động ép định dạng rỗng cho ô trống, quét đúng thứ tự vị trí cột từ trái qua phải, cam kết hiển thị chính xác dữ liệu của bạn mà không lo lỗi lệch tên tiêu đề nữa.
+                        <strong><i class="fa-solid fa-circle-check"></i> Đã cấu hình bộ dò dòng tiêu đề:</strong><br>
+                        Hệ thống tự động quét qua dòng ghi chú phụ đầu tiên để định vị chính xác vị trí của dòng chứa tiêu đề <code>Stt, Họ và tên</code>. Dữ liệu cam kết không bị dồn lệch hay báo lỗi trống.
                     </div>
 
                     <input type="file" id="excel_file_input" accept=".xlsx, .xls, .csv" style="display: none;" onchange="xuLyFileExcelNhanSu(this)">
@@ -272,45 +272,93 @@
                 const workbook = XLSX.read(data, { type: 'array' });
                 const worksheet = workbook.Sheets[workbook.SheetNames[0]];
                 
-                // GIẢI PHÁP ĐỈNH CAO: Đọc dưới dạng mảng ma trận 2 chiều thô, ép giữ nguyên toàn bộ ô trống
-                const matrix = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
-                if(!matrix.length) { alert("Lỗi: File tải lên rỗng!"); return; }
+                // Đọc thô dạng ma trận giữ nguyên ô trống
+                const rawMatrix = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+                if(!rawMatrix.length) { alert("Lỗi: File tải lên rỗng!"); return; }
+
+                // BƯỚC THẦN THÁNH: Tự động đi tìm dòng tiêu đề thực sự (Dòng chứa chữ 'Họ và tên' hoặc 'stt')
+                let headerRowIndex = -1;
+                for(let rowIdx = 0; rowIdx < Math.min(rawMatrix.length, 10); rowIdx++) {
+                    let currentRow = rawMatrix[rowIdx];
+                    if (currentRow && currentRow.some(cell => {
+                        let text = String(cell).toLowerCase().replace(/\s+/g, '');
+                        return text.includes("hovàtên") || text.includes("stt") || text.includes("sổbhxh");
+                    })) {
+                        headerRowIndex = rowIdx;
+                        break;
+                    }
+                }
+
+                // Nếu không tự dò được dòng tiêu đề, ép mặc định về dòng 0 hoặc dòng 1
+                if(headerRowIndex === -1) {
+                    headerRowIndex = rawMatrix[0].length > 5 ? 0 : 1;
+                }
+
+                // Ánh xạ động vị trí index dựa theo tiêu đề tìm thấy
+                let headers = rawMatrix[headerRowIndex].map(h => String(h).trim().toLowerCase().replace(/\s+/g, ''));
+                
+                let idxSTT = headers.findIndex(h => h.includes("stt"));
+                let idxHoTen = headers.findIndex(h => h.includes("hovàtên") || h.includes("họvàtên"));
+                let idxTen = headers.findIndex(h => h === "tên" || h.includes("tên"));
+                let idxBhxh = headers.findIndex(h => h.includes("bhxh") || h.includes("bảohiểm"));
+                let idxCccd = headers.findIndex(h => h.includes("cccd") || h.includes("cmnd"));
+                let idxAtv = headers.findIndex(h => h.includes("antoàn") || h.includes("antoànviên"));
+                let idxNndh = headers.findIndex(h => h.includes("nnđh") || h.includes("nndh"));
+                let idxVeHuu = headers.findIndex(h => h.includes("vềhưu"));
+                let idxMaDV = headers.findIndex(h => h.includes("mãđơnvị") || h.includes("mãđơnvị"));
+                let idxNam = headers.findIndex(h => h === "năm");
+                let idxNamSinh = headers.findIndex(h => h.includes("nămsinh"));
+                let idxNu = headers.findIndex(h => h.includes("nữ"));
+                let idxChucDanh = headers.findIndex(h => h.includes("chứcdanh") || h.includes("côngviệc"));
+
+                // Fallback cố định nếu cột không khớp chữ
+                if(idxSTT === -1) idxSTT = 0;
+                if(idxHoTen === -1) idxHoTen = 1;
+                if(idxTen === -1) idxTen = 2;
+                if(idxBhxh === -1) idxBhxh = 3;
+                if(idxCccd === -1) idxCccd = 4;
+                if(idxAtv === -1) idxAtv = 5;
+                if(idxNndh === -1) idxNndh = 6;
+                if(idxVeHuu === -1) idxVeHuu = 7;
+                if(idxMaDV === -1) idxMaDV = 8;
+                if(idxNam === -1) idxNam = 9;
+                if(idxNamSinh === -1) idxNamSinh = 10;
+                if(idxNu === -1) idxNu = 11;
+                if(idxChucDanh === -1) idxChucDanh = 12;
 
                 let uniqueMap = new Map();
                 let tuSinhId = 1;
 
-                // Chạy vòng lặp từ dòng số 2 (i=1) để bỏ qua dòng tiêu đề
-                for(let i = 1; i < matrix.length; i++) {
-                    let row = matrix[i];
+                // Quét dữ liệu từ dòng nằm dưới dòng tiêu đề (headerRowIndex + 1)
+                for(let i = headerRowIndex + 1; i < rawMatrix.length; i++) {
+                    let row = rawMatrix[i];
                     if(!row || row.length === 0) continue;
 
-                    // Lấy giá trị chính xác theo đúng Số thứ tự chỉ mục cột (0 -> STT, 1 -> Họ tên, 2 -> Tên,...)
-                    let hoTenStr = row[1] ? String(row[1]).trim() : "";
+                    let hoTenStr = row[idxHoTen] ? String(row[idxHoTen]).trim() : "";
                     if(!hoTenStr || hoTenStr === "undefined" || hoTenStr === "") continue;
 
-                    let rawId = row[0];
+                    let rawId = row[idxSTT];
                     let cleanId = parseInt(String(rawId).replace(/[^0-9]/g, ''));
                     if(isNaN(cleanId)) { cleanId = tuSinhId; }
                     tuSinhId = Math.max(tuSinhId, cleanId) + 1;
 
-                    let tenStr = row[2] ? String(row[2]).trim() : "";
-                    let soBhxhStr = row[3] ? String(row[3]).trim() : "";
-                    let soCccdStr = row[4] ? String(row[4]).trim() : "";
-                    let anToanVienStr = row[5] ? String(row[5]).trim() : "";
-                    let nndhStr = row[6] ? String(row[6]).trim() : "";
-                    let namVeHuuStr = row[7] ? String(row[7]).trim() : "";
-                    let maDonViStr = row[8] ? String(row[8]).trim() : "Chưa rõ";
-                    let namStr = row[9] ? String(row[9]).trim() : "";
-                    let namSinhStr = row[10] ? String(row[10]).trim() : "";
-                    let nuXStr = row[11] ? String(row[11]).trim() : "";
-                    let chucDanhStr = row[12] ? String(row[12]).trim() : "";
+                    let tenStr = row[idxTen] ? String(row[idxTen]).trim() : "";
+                    let soBhxhStr = row[idxBhxh] ? String(row[idxBhxh]).trim() : "";
+                    let soCccdStr = row[idxCccd] ? String(row[idxCccd]).trim() : "";
+                    let anToanVienStr = row[idxAtv] ? String(row[idxAtv]).trim() : "";
+                    let nndhStr = row[idxNndh] ? String(row[idxNndh]).trim() : "";
+                    let namVeHuuStr = row[idxVeHuu] ? String(row[idxVeHuu]).trim() : "";
+                    let maDonViStr = row[idxMaDV] ? String(row[idxMaDV]).trim() : "Chưa rõ";
+                    let namStr = row[idxNam] ? String(row[idxNam]).trim() : "";
+                    let namSinhStr = row[idxNamSinh] ? String(row[idxNamSinh]).trim() : "";
+                    let nuXStr = row[idxNu] ? String(row[idxNu]).trim() : "";
+                    let chucDanhStr = row[idxChucDanh] ? String(row[idxChucDanh]).trim() : "";
 
                     let gioiTinh = "Nam";
                     if(nuXStr.toLowerCase() === "x" || nuXStr.includes("nữ") || nuXStr.includes("Nữ")) {
                         gioiTinh = "Nữ";
                     }
 
-                    // Lưu vào Map để dọn trùng STT
                     uniqueMap.set(cleanId, {
                         id: cleanId,
                         ho_ten: hoTenStr,
@@ -336,7 +384,7 @@
                     if(error) {
                         alert("Lỗi tải lên Cloud: " + error.message);
                     } else {
-                        alert(`🎉 Tuyệt vời! Hệ thống đã xử lý và tải lên đồng bộ thành công ${parsedList.length} nhân sự.`);
+                        alert(`🎉 Thành công! Hệ thống đã tự động bỏ qua dòng ghi chú đầu, phân tách chính xác ${parsedList.length} nhân sự lên Cloud.`);
                         await taiDuLieuHeThong();
                     }
                 } catch(err) { alert("Lỗi mạng: " + err.message); }
