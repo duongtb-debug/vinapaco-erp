@@ -105,33 +105,20 @@
     </div>
 
     <script>
-        // ==========================================
-        // ⚠️ ĐIỀN THÔNG TIN SUPABASE CỦA BẠN VÀO ĐÂY
-        // ==========================================
-        const SUPABASE_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co"; // Hãy sửa lại thành link url Supabase thật của bạn (ví dụ: https://xyz.supabase.co)
-        const SUPABASE_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ"; // Dán đoạn mã Key dài của bạn vào đây
+        // ĐÃ KHỞI TẠO ĐẦY ĐỦ THÔNG TIN KẾT NỐI CHÍNH XÁC CỦA BẠN
+        const SUPABASE_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co"; 
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ";
         
-        // Khởi tạo Supabase Client an toàn
-        let client = null;
-        try {
-            if (SUPABASE_URL && !SUPABASE_URL.includes("github.io") && !SUPABASE_KEY.includes("ĐIỀN_ANON_KEY")) {
-                client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-            }
-        } catch(e) { console.error("Lỗi cấu hình Supabase:", e); }
-
+        const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         let DANH_SACH_CACHE = [];
 
-        // Tự động quét và lấy dữ liệu khi bật trang
+        // Tự động tải dữ liệu ngay khi vừa bật ứng dụng web
         window.onload = async function() {
             await taiDuLieuTuCloud();
         };
 
-        // 1. TẢI DỮ LIỆU TỪ SUPABASE CLOUD
+        // 1. TẢI DỮ LIỆU TỪ CLOUD
         async function taiDuLieuTuCloud() {
-            if (!client) {
-                datTrangThaiLoiGiaoDien("Chưa cấu hình Supabase URL hoặc Key chính xác ở trong code script!");
-                return;
-            }
             try {
                 const { data, error } = await client.from('nhan_su').select('*').order('id', { ascending: true });
                 if (error) throw error;
@@ -139,15 +126,11 @@
                 renderBangDuLieu();
             } catch (err) {
                 console.error(err);
-                datTrangThaiLoiGiaoDien("Lỗi kết nối database: " + err.message);
+                document.getElementById('data_table_body').innerHTML = `<tr><td colspan="7" class="text-center" style="color: red; font-weight:bold;">⚠️ Lỗi kết nối database: ${err.message}</td></tr>`;
             }
         }
 
-        function datTrangThaiLoiGiaoDien(msg) {
-            document.getElementById('data_table_body').innerHTML = `<tr><td colspan="7" class="text-center" style="color: red; font-weight:bold;">⚠️ ${msg}</td></tr>`;
-        }
-
-        // 2. HIỂN THỊ DỮ LIỆU VÀ LỌC TÌM KIẾM
+        // 2. HIỂN THỊ DỮ LIỆU LÊN BẢNG & TÌM KIẾM
         function renderBangDuLieu() {
             const tbody = document.getElementById('data_table_body');
             const searchVal = document.getElementById('txt_tim_kiem').value.toLowerCase().trim();
@@ -164,7 +147,7 @@
             document.getElementById('txt_dang_lam_viec').innerText = DANH_SACH_CACHE.length;
 
             if (filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="text-center" style="color: #999; padding: 15px;">Không tìm thấy dữ liệu nhân sự nào.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center" style="color: #999; padding: 15px;">Không tìm thấy dữ liệu nhân sự phù hợp.</td></tr>`;
                 return;
             }
 
@@ -183,11 +166,10 @@
             });
         }
 
-        // 3. THÊM THỦ CÔNG
+        // 3. THÊM NHÂN SỰ THỦ CÔNG KHÔNG BỊ TRÙNG MÃ ID
         async function themNhanSuThuCong() {
-            if (!client) { alert("Vui lòng cấu hình Supabase URL và Key trước!"); return; }
             const hoTen = document.getElementById('ho_ten_input').value.trim();
-            if (!hoTen) { alert("Vui lòng điền Họ và Tên!"); return; }
+            if (!hoTen) { alert("Vui lòng nhập Họ và Tên!"); return; }
 
             let customId = parseInt(document.getElementById('ma_nv_input').value.trim());
             if (isNaN(customId)) {
@@ -196,7 +178,6 @@
                 customId++;
             }
 
-            // Lấy từ cuối cùng làm Tên rút gọn
             let m = hoTen.split(" ");
             let tenRutGon = m[m.length - 1];
 
@@ -205,14 +186,16 @@
                 ho_ten: hoTen,
                 ten: tenRutGon,
                 so_cccd: document.getElementById('so_cccd_input').value.trim() || null,
-                so_so_bhxh: document.getElementById('so_bhxh_input').value.trim() || null
+                so_so_bhxh: document.getElementById('so_bhxh_input').value.trim() || null,
+                an_toan_vien: null,
+                nndh: null
             };
 
             const { error } = await client.from('nhan_su').insert([customRecord]);
             if (error) {
-                alert("Lỗi đám mây: " + error.message);
+                alert("Lỗi tải dữ liệu lên cloud: " + error.message);
             } else {
-                alert("Thành công! Đã thêm nhân sự mã số NS-" + customId);
+                alert("Thành công! Đã lưu nhân sự mã số NS-" + customId);
                 document.getElementById('ho_ten_input').value = "";
                 document.getElementById('so_cccd_input').value = "";
                 document.getElementById('so_bhxh_input').value = "";
@@ -220,9 +203,8 @@
             }
         }
 
-        // 4. HÀM ĐỌC EXCEL BẤT TỬ - ĐỒNG BỘ CHÍNH XÁC THEO HÌNH ẢNH DB THỰC TẾ CỦA BẠN
+        // 4. HÀM ĐỌC EXCEL THÔNG MINH - ÉP KHỬ LỖI KHÔNG ĐỊNH VỊ ĐƯỢC TIÊU ĐỀ
         function xuLyFileExcelNhanSu(input) {
-            if (!client) { alert("Lỗi kết nối: Bạn chưa điền URL hoặc Anon Key của Supabase vào code trang."); input.value=""; return; }
             const file = input.files[0];
             if (!file) return;
 
@@ -234,9 +216,8 @@
                     const sheet = workbook.Sheets[workbook.SheetNames[0]];
                     const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
                     
-                    if (rows.length === 0) { alert("File dữ liệu trống rỗng!"); return; }
+                    if (rows.length === 0) { alert("File dữ liệu trống!"); return; }
 
-                    // Khử dấu tiếng Việt phục vụ quét map tiêu đề cột tự động
                     function cleanString(k) {
                         if (!k) return "";
                         let str = k.toString().toLowerCase().trim();
@@ -253,7 +234,7 @@
                     let headerRowIndex = -1;
                     let mapCột = { ho_ten: -1, so_cccd: -1, so_so_bhxh: -1, an_toan_vien: -1, nndh: -1 };
 
-                    // Tìm hàng tiêu đề trong 30 dòng đầu
+                    // Thuật toán quét thông minh tìm hàng tiêu đề
                     for (let i = 0; i < Math.min(rows.length, 30); i++) {
                         let row = rows[i];
                         if (!row) continue;
@@ -279,15 +260,14 @@
                         }
                     }
 
-                    // CHẾ ĐỘ DỰ PHÒNG THÔNG MINH: Nếu file không có tiêu đề, tự ép gán Cột A = Họ tên, Cột B = CCCD, Cột C = BHXH
+                    // ⚡ BẪY CỨU NGUY DỰ PHÒNG: Nếu file Excel của bạn viết sai tiêu đề hoặc không tìm thấy, ép buộc gán cột mặc định
                     if (headerRowIndex === -1 || mapCột.ho_ten === -1) {
-                        headerRowIndex = 0;
-                        mapCột.ho_ten = 0;  // Cột A
-                        mapCột.so_cccd = 1; // Cột B
-                        mapCột.so_so_bhxh = 2; // Cột C
+                        headerRowIndex = 0; // Giả sử dữ liệu chạy từ hàng đầu tiên hoặc thứ hai
+                        mapCột.ho_ten = 0;  // Mặc định ép Cột thứ nhất (Cột A) là Họ và Tên
+                        mapCột.so_cccd = 1; // Mặc định ép Cột thứ hai (Cột B) là Số CCCD
+                        mapCột.so_so_bhxh = 2; // Mặc định ép Cột thứ ba (Cột C) là Số BHXH
                     }
 
-                    // Khởi tạo mã ID tăng dần tiếp theo
                     let currentMaxId = 0;
                     DANH_SACH_CACHE.forEach(ns => { if (parseInt(ns.id) > currentMaxId) currentMaxId = parseInt(ns.id); });
 
@@ -298,7 +278,6 @@
                         if (!row || row.length === 0) continue;
 
                         let valHoTen = String(row[mapCột.ho_ten] || "").trim();
-                        // Loại bỏ dòng rỗng hoặc dòng lặp tiêu đề
                         if (!valHoTen || valHoTen.toLowerCase() === "họ và tên" || valHoTen.toLowerCase() === "ho ten") continue;
 
                         currentMaxId++;
@@ -316,20 +295,20 @@
                         });
                     }
 
-                    if (listDữLiệuĐẩy.length === 0) { alert("Không quét được dữ liệu nhân sự nào phù hợp!"); input.value = ""; return; }
+                    if (listDữLiệuĐẩy.length === 0) { alert("Không lấy được dữ liệu nhân sự nào hợp lệ!"); input.value = ""; return; }
 
-                    // Thực hiện nạp thẳng lên Cloud
+                    // Thực hiện tải dữ liệu thẳng lên Cloud
                     const { error } = await client.from('nhan_su').insert(listDữLiệuĐẩy);
                     if (error) {
                         alert("Lỗi tải lên Đám Mây: " + error.message);
                     } else {
-                        alert("Thành công! Đã nạp thành công " + listDữLiệuĐẩy.length + " nhân sự vào Database.");
+                        alert("Thành công! Đã nạp thành công " + listDữLiệuĐẩy.length + " nhân sự vào hệ thống Database.");
                         await taiDuLieuTuCloud();
                     }
                     input.value = "";
 
                 } catch (err) {
-                    alert("Lỗi hệ thống: " + err.message);
+                    alert("Lỗi hệ thống Excel: " + err.message);
                     input.value = "";
                 }
             };
