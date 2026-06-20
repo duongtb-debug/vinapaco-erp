@@ -84,10 +84,10 @@
     <div class="header">
         <div>
             <h1>Hệ Thống Quản Trị Nhân Sự & Thiết Bị Toàn Diện</h1>
-            <p>Bản sửa lỗi giao diện: Chống lệch cột CSV - Hiển thị 100% dữ liệu chữ lớn rõ nét</p>
+            <p>Bản vá lỗi: Tự động lọc trùng mã ID / STT khi tải dữ liệu lên Cloud</p>
         </div>
         <div style="font-size: 16px; font-weight: 600; background: rgba(255,255,255,0.2); padding: 10px 20px; border-radius: 30px;">
-            <i class="fa-solid fa-cloud"></i> Đám mây Supabase Đang Chạy
+            <i class="fa-solid fa-cloud"></i> Đang chạy ổn định
         </div>
     </div>
 
@@ -102,8 +102,8 @@
                 <div class="sidebar-card">
                     <h3><i class="fa-solid fa-file-csv"></i> Nhập dữ liệu từ Excel</h3>
                     <div class="form-group" style="background: #eefdf4; padding: 15px; border-radius: 8px; border: 1px solid #b7ebd0; margin-bottom: 18px; font-size: 15px; line-height: 1.5; color: #1e7e34;">
-                        <strong><i class="fa-solid fa-shield-halved"></i> Đã sửa thuật toán đọc dữ liệu:</strong><br>
-                        Hệ thống hiện tại đã sử dụng bộ Parser ma trận của XLSX, đảm bảo các dòng chứa ký tự đặc biệt như dấu phẩy (`,`) hay ngoặc kép (`"`) ở cột Chức danh sẽ <b>không bị lệch cột</b> hay mất hàng nữa.
+                        <strong><i class="fa-solid fa-shield-halved"></i> Đã sửa lỗi ON CONFLICT DO UPDATE:</strong><br>
+                        Hệ thống đã bổ sung bộ lọc thông minh bằng <code>Map()</code> trước khi gửi lên Supabase, tự động gộp các hàng trùng STT trong file Excel để tránh gây lỗi xung đột cơ sở dữ liệu.
                     </div>
 
                     <input type="file" id="excel_file_input" accept=".xlsx, .xls, .csv" style="display: none;" onchange="xuLyFileExcelNhanSu(this)">
@@ -279,11 +279,11 @@
                 const workbook = XLSX.read(data, { type: 'array' });
                 const worksheet = workbook.Sheets[workbook.SheetNames[0]];
                 
-                // Giải pháp cốt lõi: Sử dụng cấu trúc ma trận chuẩn hóa từ XLSX để chống lệch cột khi gặp ký tự dấu phẩy
                 const matrix = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
                 if(!matrix.length) { alert("Lỗi: File tải lên không có dữ liệu!"); return; }
 
-                let parsedList = [];
+                // Sử dụng Map để loại bỏ các phần tử trùng ID (trùng STT) trước khi upsert
+                let uniqueMap = new Map();
                 let tuSinhId = 1;
 
                 for(let i = 1; i < matrix.length; i++) {
@@ -293,7 +293,6 @@
                     let hoTenStr = row[1] ? String(row[1]).trim() : "";
                     if(!hoTenStr || hoTenStr === "undefined" || hoTenStr === "") continue;
 
-                    // Chuẩn hóa và làm sạch ID dòng
                     let rawId = row[0];
                     let cleanId = parseInt(String(rawId).replace(/[^0-9]/g, ''));
                     if(isNaN(cleanId)) {
@@ -313,13 +312,13 @@
                     let nuXStr = row[11] ? String(row[11]).trim() : "";
                     let chucDanhStr = row[12] ? String(row[12]).trim() : "";
 
-                    // Nhận diện giới tính chuẩn xác thông qua trường Nữ(x)
                     let gioiTinh = "Nam";
                     if(nuXStr.toLowerCase() === "x" || nuXStr.includes("nữ") || nuXStr.includes("Nữ")) {
                         gioiTinh = "Nữ";
                     }
 
-                    parsedList.push({
+                    // Đè dữ liệu mới nếu trùng key `cleanId`, đảm bảo mảng gửi đi không có ID nào lặp lại lần thứ 2
+                    uniqueMap.set(cleanId, {
                         id: cleanId,
                         ho_ten: hoTenStr,
                         ten: tenStr,
@@ -336,17 +335,21 @@
                     });
                 }
 
+                // Chuyển cấu trúc Map thành danh sách phẳng (Array) chuẩn hóa
+                let parsedList = Array.from(uniqueMap.values());
+
                 if(parsedList.length === 0) {
                     alert("Không tìm thấy cấu trúc dữ liệu thích hợp.");
                     return;
                 }
 
                 try {
+                    // Thực hiện gửi dữ liệu đã được làm sạch trùng lặp lên Cloud
                     const { error } = await client.from('nhan_su').upsert(parsedList, { onConflict: 'id' });
                     if(error) {
                         alert("Lỗi tải lên Cloud: " + error.message);
                     } else {
-                        alert(`🎉 Hoàn tất! Đã cập nhật chính xác 100% đầy đủ cả ${parsedList.length} nhân viên vào cơ sở dữ liệu.`);
+                        alert(`🎉 Thành công! Đã dọn trùng và đồng bộ chuẩn xác ${parsedList.length} nhân viên vào cơ sở dữ liệu.`);
                         await taiDuLieuHeThong();
                     }
                 } catch(err) {
