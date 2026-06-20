@@ -63,7 +63,7 @@
 
             <div class="upload-box">
                 <span style="color: #2ecc71; font-weight: bold; font-size: 14px;">🟢 NHẬP NHÂN SỰ HÀNG LOẠT (EXCEL)</span>
-                <p style="font-size: 11px; color:#777; margin: 5px 0 10px 0;">Hệ thống tự động phân tách Tên và thích ứng Schema Cache.</p>
+                <p style="font-size: 11px; color:#d35400; margin: 5px 0 10px 0; font-weight: bold;">⚠️ Hệ thống sẽ tự động XÓA SẠCH dữ liệu cũ trước khi nạp mới để tránh cộng dồn!</p>
                 <input type="file" accept=".xlsx, .xls" onchange="docVaUploadNhanSuTuExcel(this)">
             </div>
         </div>
@@ -105,7 +105,6 @@
     </div>
 
     <script>
-        // Cấu hình thông tin kết nối Supabase của bạn
         const SUPABASE_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co"; 
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ";
         
@@ -117,7 +116,6 @@
             await taiDuLieuTuCloud();
         };
 
-        // Hàm tải dữ liệu đồng thời phân tích Schema động từ hàng đầu tiên trả về
         async function taiDuLieuTuCloud() {
             try {
                 const { data, error } = await client.from('nhan_su').select('*').order('id', { ascending: true });
@@ -125,7 +123,6 @@
                 DANH_SACH_CACHE = data || [];
                 
                 if (DANH_SACH_CACHE.length > 0) {
-                    // Lấy toàn bộ các trường (keys) thực tế mà server đang phản hồi để kiểm tra tính tồn tại của cột
                     DB_COLUMNS = Object.keys(DANH_SACH_CACHE[0]);
                 } else {
                     DB_COLUMNS = ['id', 'ho_ten', 'ten', 'so_cccd', 'so_so_bhxh', 'an_toan_vien', 'nndh'];
@@ -174,7 +171,6 @@
             });
         }
 
-        // Khắc phục lỗi bộ nhớ đệm: Tạo một bản ghi thích ứng chuẩn xác dựa trên cột khả dụng
         function buildAdaptivePayload(id, fullHoTen, singleTen, cccd, bhxh, atv, nndh) {
             let record = { id: id, ho_ten: fullHoTen, ten: singleTen };
             
@@ -182,7 +178,6 @@
             if (DB_COLUMNS.includes('an_toan_vien')) record.an_toan_vien = atv || null;
             if (DB_COLUMNS.includes('nndh')) record.nndh = nndh || null;
             
-            // Nếu cache chưa nhận diện 'so_so_bhxh' thì đẩy vào 'so_bhxh' dự phòng và ngược lại
             if (DB_COLUMNS.includes('so_so_bhxh')) {
                 record.so_so_bhxh = bhxh || null;
             } else {
@@ -202,7 +197,6 @@
                 customId++;
             }
 
-            // Tách từ cuối cùng làm Tên rút gọn
             let chuoiTu = hoTenDayDu.split(/\s+/);
             let tenRutGon = chuoiTu[chuoiTu.length - 1];
             
@@ -224,7 +218,6 @@
             }
         }
 
-        // XỬ LÝ ĐỌC FILE EXCEL ĐỒNG BỘ ĐẦY ĐỦ THÔNG TIN
         function docVaUploadNhanSuTuExcel(input) {
             const file = input.files[0];
             if (!file) return;
@@ -239,7 +232,6 @@
                     
                     if (rows.length === 0) { alert("File Excel rỗng!"); return; }
 
-                    // Chuẩn hóa tên cột để dò tìm tiêu đề không phân biệt dấu và khoảng cách
                     function khauHaoChu(k) {
                         if (!k) return "";
                         return k.toString().toLowerCase().trim()
@@ -256,7 +248,6 @@
                     let headerRowIndex = -1;
                     let mapCột = { ho_ten: -1, so_cccd: -1, so_bhxh: -1, an_toan_vien: -1, nndh: -1 };
 
-                    // Dò tìm dòng tiêu đề
                     for (let i = 0; i < Math.min(rows.length, 30); i++) {
                         let row = rows[i];
                         if (!row) continue;
@@ -282,17 +273,20 @@
                         }
                     }
 
-                    // Backup nếu không tìm thấy dòng tiêu đề chuẩn
                     if (headerRowIndex === -1 || mapCột.ho_ten === -1) {
                         headerRowIndex = 0; mapCột.ho_ten = 0; mapCột.so_cccd = 1; mapCột.so_bhxh = 2;
                     }
 
-                    let currentMaxId = 0;
-                    DANH_SACH_CACHE.forEach(ns => { if (parseInt(ns.id) > currentMaxId) currentMaxId = parseInt(ns.id); });
+                    // CƠ CHẾ BẢO VỆ CHỐNG CỘNG DỒN: Xóa sạch bảng cũ trên database trước khi lặp tạo id mới
+                    // Lệnh xóa Supabase: delete().neq('id', 0) nghĩa là xóa tất cả những dòng có id khác 0
+                    const { error: deleteError } = await client.from('nhan_su').delete().neq('id', 0);
+                    if (deleteError) {
+                        throw new Error("Không thể dọn sạch dữ liệu cũ: " + deleteError.message);
+                    }
 
                     let listDữLiệuĐẩy = [];
+                    let runId = 0; // Reset ID bắt đầu chạy từ số 1 chính xác
 
-                    // Vòng lặp duyệt lấy thông tin nhân sự từ file Excel
                     for (let i = headerRowIndex + 1; i < rows.length; i++) {
                         let row = rows[i];
                         if (!row || row.length === 0) continue;
@@ -300,12 +294,8 @@
                         let valHoTenRaw = String(row[mapCột.ho_ten] || "").trim();
                         if (!valHoTenRaw || valHoTenRaw.toLowerCase() === "họ và tên" || valHoTenRaw.toLowerCase() === "ho ten") continue;
 
-                        currentMaxId++;
-                        
-                        // SỬA ĐỔI QUAN TRỌNG: Lấy nguyên vẹn cả Họ và Tên đầy đủ
+                        runId++;
                         let valHoTenDayDu = valHoTenRaw; 
-                        
-                        // Trích xuất riêng Tên rút gọn phục vụ trường 'ten'
                         let mangChu = valHoTenRaw.split(/\s+/);
                         let valTenRutGon = mangChu[mangChu.length - 1];
 
@@ -314,26 +304,24 @@
                         let valAtv = mapCột.an_toan_vien !== -1 ? String(row[mapCột.an_toan_vien] || "").trim() : "";
                         let valNndh = mapCột.nndh !== -1 ? String(row[mapCột.nndh] || "").trim() : "";
 
-                        // Tạo gói data thích ứng thông minh an toàn
-                        let safeRecord = buildAdaptivePayload(currentMaxId, valHoTenDayDu, valTenRutGon, valCccd, valBhxh, valAtv, valNndh);
+                        let safeRecord = buildAdaptivePayload(runId, valHoTenDayDu, valTenRutGon, valCccd, valBhxh, valAtv, valNndh);
                         listDữLiệuĐẩy.push(safeRecord);
                     }
 
-                    if (listDữLiệuĐẩy.length === 0) { alert("Không tìm thấy dữ liệu dòng nhân viên nào hợp lệ để nạp!"); input.value = ""; return; }
+                    if (listDữLiệuĐẩy.length === 0) { alert("Không tìm thấy nhân viên nào để nạp!"); input.value = ""; return; }
 
-                    // Đẩy dữ liệu đồng bộ lên đám mây
                     const { error } = await client.from('nhan_su').insert(listDữLiệuĐẩy);
                     if (error) {
                         throw error;
                     } else {
-                        alert("Thành công! Đã nạp đồng bộ trọn vẹn " + listDữLiệuĐẩy.length + " nhân sự vào hệ thống.");
+                        alert("Thành công! Đã làm sạch dữ liệu cũ và nạp mới hoàn toàn " + listDữLiệuĐẩy.length + " nhân sự.");
                     }
                     
                     await taiDuLieuTuCloud();
                     input.value = "";
 
                 } catch (err) {
-                    alert("Lỗi tải lên Cloud: " + err.message + "\nHệ thống sẽ tự làm mới Schema Cache.");
+                    alert("Lỗi: " + err.message);
                     input.value = "";
                 }
             };
