@@ -3,132 +3,191 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hệ Thống Quản Lý Cơ Sở Nhân Sự - Cập Nhật Tự Động</title>
+    <title>Hệ Thống Quản Trị Nhân Sự Tổng Hợp</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
-        body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f6f9; color: #333; }
-        .header { background-color: #1e56a0; color: white; text-align: center; padding: 25px 20px; }
-        .header h1 { margin: 0; font-size: 24px; text-transform: uppercase; letter-spacing: 0.5px; }
-        .header p { margin: 8px 0 0 0; font-size: 14px; opacity: 0.85; }
-        .container { max-width: 1750px; margin: 25px auto; padding: 0 20px; display: flex; gap: 25px; }
-        .sidebar { flex: 1; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); height: fit-content; min-width: 300px; }
-        .main-content { flex: 4; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); overflow-x: auto; }
-        .upload-box { border: 2px dashed #2ecc71; padding: 25px 15px; text-align: center; border-radius: 8px; background-color: #f9fffb; margin-top: 10px; }
-        .upload-box input { display: block; margin: 15px auto 0 auto; font-size: 13px; }
-        .rule-card { background-color: #f8f9fa; border-left: 4px solid #1e56a0; padding: 12px 15px; margin-bottom: 15px; border-radius: 0 4px 4px 0; }
-        .rule-card h4 { margin: 0 0 5px 0; color: #1e56a0; font-size: 13px; text-transform: uppercase; }
-        .rule-card p { margin: 0; font-size: 12px; color: #666; line-height: 1.5; }
-        .stats { display: flex; gap: 20px; margin-bottom: 25px; }
-        .stat-card { flex: 1; padding: 15px 20px; border-radius: 8px; background: #f8f9fa; border-left: 5px solid #1e56a0; }
-        .stat-card.success { border-left-color: #2ecc71; }
-        .stat-card h3 { margin: 0; font-size: 12px; text-transform: uppercase; color: #666; letter-spacing: 0.5px; }
-        .stat-card p { margin: 5px 0 0 0; font-size: 26px; font-weight: bold; color: #222; }
-        .search-bar { width: 100%; padding: 12px; box-sizing: border-box; margin-bottom: 20px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        table th, table td { border: 1px solid #e1e8ed; padding: 10px 12px; text-align: left; font-size: 13px; }
+        :root {
+            --primary-color: #1e56a0;
+            --success-color: #2ecc71;
+            --warning-color: #f39c12;
+            --dark-bg: #1a1a1a;
+            --light-bg: #f4f6f9;
+            --border-color: #e1e8ed;
+        }
+
+        body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 0; background-color: var(--light-bg); color: #333; }
+        
+        /* HEADER PHÂN HỆ CHÍNH */
+        .header { background-color: var(--primary-color); color: white; padding: 20px 30px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .header h1 { margin: 0; font-size: 22px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .header p { margin: 5px 0 0 0; font-size: 13px; opacity: 0.85; }
+        
+        /* HỆ THỐNG MENU ĐIỀU HƯỚNG ỔN ĐỊNH */
+        .nav-tabs { display: flex; background: #fff; border-bottom: 1px solid var(--border-color); padding: 0 30px; gap: 10px; }
+        .nav-tab { padding: 15px 20px; font-size: 14px; font-weight: 600; color: #555; cursor: pointer; border-bottom: 3px solid transparent; display: flex; align-items: center; gap: 8px; transition: all 0.2s; }
+        .nav-tab:hover { color: var(--primary-color); }
+        .nav-tab.active { color: var(--primary-color); border-bottom-color: var(--primary-color); background-color: #f9fbfd; }
+
+        .container { max-width: 1800px; margin: 20px auto; padding: 0 20px; display: flex; gap: 20px; }
+        
+        /* SIDEBAR: GIỮ NGUYÊN BỘ LỌC CŨ - CHỈ BỎ CÁC Ô NHẬP LIỆU THỦ CÔNG */
+        .sidebar { flex: 1; min-width: 320px; display: flex; flex-direction: column; gap: 20px; }
+        .sidebar-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .sidebar-card h3 { margin: 0 0 15px 0; font-size: 15px; color: var(--primary-color); border-bottom: 2px solid var(--border-color); padding-bottom: 8px; text-transform: uppercase; display: flex; align-items: center; gap: 8px; }
+        
+        /* Cấu trúc bộ lọc đơn vị cũ */
+        .filter-group { display: flex; flex-direction: column; gap: 10px; }
+        .filter-item { padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer; font-size: 13px; display: flex; justify-content: space-between; transition: all 0.2s; }
+        .filter-item:hover, .filter-item.active { background-color: #ebf3fc; border-color: var(--primary-color); color: var(--primary-color); font-weight: 600; }
+        .filter-count { background: #eee; padding: 2px 6px; border-radius: 10px; font-size: 11px; color: #666; }
+        .filter-item.active .filter-count { background: var(--primary-color); color: white; }
+
+        /* KHU VỰC IMPORT EXCEL (UPSERT) */
+        .upload-box { border: 2px dashed var(--success-color); padding: 20px 15px; text-align: center; border-radius: 8px; background-color: #f9fffb; }
+        .upload-box input { display: block; margin: 12px auto 0 auto; font-size: 12px; }
+        .loading-status { font-weight: bold; color: #e67e22; margin-top: 10px; font-size: 12px; display: none; }
+
+        /* MAIN CONTENT */
+        .main-content { flex: 4; display: flex; flex-direction: column; gap: 20px; }
+        
+        /* PHÂN HỆ THỐNG KÊ BIỂU ĐỒ TRỰC QUAN CŨ */
+        .dashboard-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; }
+        .stat-card { background: white; padding: 15px 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-left: 5px solid var(--primary-color); }
+        .stat-card.success { border-left-color: var(--success-color); }
+        .stat-card.warning { border-left-color: var(--warning-color); }
+        .stat-card h4 { margin: 0; font-size: 12px; text-transform: uppercase; color: #777; letter-spacing: 0.5px; }
+        .stat-card p { margin: 8px 0 0 0; font-size: 24px; font-weight: bold; color: #222; }
+
+        /* KHU VỰC BẢNG DỮ LIỆU CHÍNH */
+        .data-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); overflow-x: auto; }
+        .search-container { display: flex; gap: 10px; margin-bottom: 15px; }
+        .search-bar { flex: 1; padding: 10px 15px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; }
+        
+        table { width: 100%; border-collapse: collapse; }
+        table th, table td { border: 1px solid var(--border-color); padding: 10px 12px; text-align: left; font-size: 13px; }
         table th { background-color: #f8f9fa; color: #495057; font-weight: 600; white-space: nowrap; }
         table tr:hover { background-color: #fdfdfd; }
+        
         .text-center { text-align: center; }
         .badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; text-transform: uppercase; }
         .badge-nam { background-color: #e3f2fd; color: #1e88e5; }
         .badge-nu { background-color: #fce4ec; color: #d81b60; }
-        .loading-status { font-weight: bold; color: #e67e22; margin-top: 10px; font-size: 13px; display: none; }
     </style>
 </head>
 <body>
 
     <div class="header">
-        <h1>Hệ Thống Đồng Bộ Tổng Hợp: Nhân Sự & Quản Lý Biến Động Dữ Liệu</h1>
-        <p>Tự động hóa chuẩn hóa Ngày sinh, Ngày về hưu, Cột ATV và Đồng bộ thông minh bằng cơ chế xử lý hàng loạt</p>
+        <div>
+            <h1>Hệ Thống Quản Trị Nhân Sự Cơ Sở Toàn Diện</h1>
+            <p>Hệ thống đang hoạt động ổn định ổn định • Cập nhật tự động 2026</p>
+        </div>
+        <div id="connection_status" style="color: #2ecc71; font-weight: 600; font-size: 14px;">
+            <i class="fa-solid fa-circle-check"></i> ĐANG TRỰC TUYẾN (CLOUD)
+        </div>
+    </div>
+
+    <div class="nav-tabs">
+        <div class="nav-tab active" onclick="chuyenPhanHe('hoso')"><i class="fa-solid fa-users"></i> Hồ Sơ Nhân Sự</div>
+        <div class="nav-tab" onclick="chuyenPhanHe('phongban')"><i class="fa-solid fa-sitemap"></i> Cấu Trúc Phòng Ban</div>
+        <div class="nav-tab" onclick="chuyenPhanHe('atv')"><i class="fa-solid fa-shield-halved"></i> Quản Lý An Toàn Viên</div>
+        <div class="nav-tab" onclick="chuyenPhanHe('baocao')"><i class="fa-solid fa-chart-line"></i> Báo Cáo Biến Động</div>
     </div>
 
     <div class="container">
         <div class="sidebar">
-            <h3 style="margin-top: 0; color: #1e56a0; border-bottom: 2px solid #e1e8ed; padding-bottom: 10px; font-size: 16px;">ĐỒNG BỘ BIẾN ĐỘNG</h3>
-            
-            <div class="rule-card">
-                <h4>1. Định dạng chuẩn</h4>
-                <p>Hệ thống tự động phát hiện số Serial Date để chuyển về dạng Ngày/Tháng/Năm (DD/MM/YYYY) đầy đủ cho Ngày sinh & Ngày về hưu.</p>
+            <div class="sidebar-card">
+                <h3><i class="fa-solid fa-filter"></i> Lọc Theo Đơn Vị</h3>
+                <div class="filter-group" id="filter_don_vi_group">
+                    <div class="filter-item active" onclick="locTheoDonVi('ALL')">
+                        <span>Tất cả đơn vị</span>
+                        <span class="filter-count" id="count_all">0</span>
+                    </div>
+                    </div>
             </div>
 
-            <div class="rule-card">
-                <h4>2. Quy tắc tăng tuổi hưu</h4>
-                <p>Tự động giữ nguyên Ngày/Tháng sinh và tăng phần Năm dựa theo Giới tính: Nam tăng 62 tuổi, Nữ tăng 60 tuổi.</p>
-            </div>
-
-            <div class="rule-card">
-                <h4>3. Nguyên tắc Upsert hàng loạt</h4>
-                <p>Đối khớp theo số CCCD (hoặc Họ tên + Ngày sinh). Nếu thông tin đã có, hệ thống tiến hành cập nhật các trường mới biến động. Nếu chưa có, tiến hành bổ sung mới hoàn toàn.</p>
-            </div>
-
-            <div class="upload-box">
-                <span style="color: #27ae60; font-weight: bold; font-size: 14px;">📥 NHẬP HÀNG LOẠT (UPSERT)</span>
-                <p style="font-size: 11px; color:#555; margin: 8px 0 0 0; line-height: 1.4;">Chọn file Excel danh sách biến động nhân sự mới nhất để tiến hành cập nhật hoặc thêm mới tự động.</p>
-                <input type="file" id="excel_file_input" accept=".xlsx, .xls" onchange="xuLyUpsertDuLieuExcel(this)">
-                <div id="txt_process_status" class="loading-status">Đang xử lý dữ liệu...</div>
+            <div class="sidebar-card">
+                <h3><i class="fa-solid fa-file-excel"></i> Nhập Biến Động Hàng Loạt</h3>
+                <div class="upload-box">
+                    <span style="color: #27ae60; font-weight: bold; font-size: 13px;">📥 CẬP NHẬT (UPSERT) LOGIC</span>
+                    <p style="font-size: 11px; color:#666; margin: 6px 0 10px 0; line-height: 1.4;">Tự động so khớp trùng lặp qua CCCD/Họ tên. Cập nhật các trường thông tin mới hoặc thêm mới hoàn toàn.</p>
+                    <input type="file" id="excel_file_input" accept=".xlsx, .xls" onchange="xuLyUpsertDuLieuExcel(this)">
+                    <div id="txt_process_status" class="loading-status">Đang xử lý dữ liệu đám mây...</div>
+                </div>
             </div>
         </div>
 
         <div class="main-content">
-            <div class="stats">
+            <div class="dashboard-grid">
                 <div class="stat-card">
-                    <h3>Tổng số nhân sự hiện có</h3>
+                    <h4>Tổng số nhân sự</h4>
                     <p id="txt_tong_ns">0</p>
                 </div>
                 <div class="stat-card success">
-                    <h3>Trạng thái kết nối</h3>
-                    <p style="font-size: 16px; color: #2ecc71; margin-top: 12px;"><i class="fa-solid fa-cloud"></i> Đang trực tuyến (Cloud)</p>
+                    <h4>Nhân sự Nam</h4>
+                    <p id="txt_ns_nam">0</p>
+                </div>
+                <div class="stat-card warning">
+                    <h4>Nhân sự Nữ</h4>
+                    <p id="txt_ns_nu">0</p>
+                </div>
+                <div class="stat-card">
+                    <h4>Đơn vị trực thuộc</h4>
+                    <p id="txt_tong_dv">0</p>
                 </div>
             </div>
 
-            <h3 style="color: #1e56a0; font-size: 16px; margin-bottom: 15px;">DANH SÁCH CHI TIẾT HỒ SƠ NHÂN SỰ CƠ SỞ</h3>
-            <input type="text" id="txt_tim_kiem" class="search-bar" placeholder="Tìm nhanh theo Họ tên, Số CCCD, Mã Đơn vị, Chức danh..." oninput="renderBangDuLieu()">
+            <div class="data-card">
+                <div class="search-container">
+                    <input type="text" id="txt_tim_kiem" class="search-bar" placeholder="Tìm nhanh theo Họ tên, Số CCCD, Chức danh, Mã Đơn vị..." oninput="renderBangDuLieu()">
+                </div>
 
-            <table>
-                <thead>
-                    <tr>
-                        <th class="text-center" style="width: 70px;">Mã NV</th>
-                        <th>Họ và Tên</th>
-                        <th>Tên rút gọn</th>
-                        <th class="text-center">Giới tính</th>
-                        <th>Mã Đơn Vị</th>
-                        <th>Chức Danh Công Việc</th>
-                        <th class="text-center">Ngày Tháng Năm Sinh</th>
-                        <th class="text-center" style="color: #e67e22;">Ngày Tháng Năm Về Hưu</th>
-                        <th>Số CCCD</th>
-                        <th>Số BHXH</th>
-                        <th>An Toàn Viên (ATV)</th>
-                        <th class="text-center">NNDH</th>
-                    </tr>
-                </thead>
-                <tbody id="data_table_body">
-                    <tr>
-                        <td colspan="12" class="text-center" style="color: #999; padding: 25px;">Đang kết nối cơ sở dữ liệu điện toán đám mây...</td>
-                    </tr>
-                </tbody>
-            </table>
+                <table>
+                    <thead>
+                        <tr>
+                            <th class="text-center" style="width: 60px;">Mã NV</th>
+                            <th>Họ và Tên</th>
+                            <th>Tên rút gọn</th>
+                            <th class="text-center">Giới tính</th>
+                            <th>Mã Đơn Vị</th>
+                            <th>Chức Danh Công Việc</th>
+                            <th class="text-center">Ngày Tháng Năm Sinh</th>
+                            <th class="text-center" style="color: #e67e22;">Ngày Tháng Năm Về Hưu</th>
+                            <th>Số CCCD</th>
+                            <th>Số BHXH</th>
+                            <th>An Toàn Viên (ATV)</th>
+                            <th class="text-center">NNDH</th>
+                        </tr>
+                    </thead>
+                    <tbody id="data_table_body">
+                        <tr>
+                            <td colspan="12" class="text-center" style="color: #999; padding: 25px;">Đang đồng bộ cơ sở dữ liệu các phân hệ...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
     <script>
-        // Cấu hình kết nối Supabase Cloud
+        // Cấu hình kết nối Supabase Cloud nguyên bản của bạn
         const SUPABASE_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co"; 
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ";
         
         const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         let CACHE_NHAN_SU = [];
+        let FILTER_DON_VI_SELECTED = "ALL";
 
         window.onload = async function() {
             await taiDuLieuTuCloud();
         };
 
-        // Hàm chuyển đổi toàn diện mọi định dạng ngày (bao gồm cả số Serial Date của Excel) về dạng chuỗi DD/MM/YYYY
+        // Hàm chuyển đổi số Serial Date của Excel hoặc chuỗi ngày bất kỳ về chuẩn DD/MM/YYYY đầy đủ
         function dinhDangNgayThangChuan(val) {
             if (!val) return "";
             let strVal = String(val).trim();
             
-            // Trường hợp là số Serial Date nguyên bản của Excel (Ví dụ: 25425)
             if (!isNaN(strVal) && strVal.length >= 4 && strVal.length <= 5) {
                 let serial = parseInt(strVal);
                 let date = new Date((serial - 25569) * 86400 * 1000);
@@ -140,21 +199,18 @@
                 }
             }
             
-            // Trường hợp định dạng chuỗi chứa dấu gạch chéo hoặc gạch ngang sẵn
             let parts = strVal.split(/[\/\-]/);
             if (parts.length === 3) {
-                // Xác định xem năm đứng trước hay đứng sau để đảo chuỗi cho chuẩn
-                if (parts[0].length === 4) { // YYYY-MM-DD
+                if (parts[0].length === 4) { 
                     return `${parts[2].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[0]}`;
-                } else { // DD-MM-YYYY hoặc MM-DD-YYYY thường dùng
+                } else { 
                     return `${parts[0].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[2]}`;
                 }
             }
-            
             return strVal;
         }
 
-        // Hàm tính toán Ngày Về Hưu đầy đủ DD/MM/YYYY dựa vào Ngày sinh (DD/MM/YYYY) và Giới tính
+        // Tự động tính toán Ngày về hưu đầy đủ dựa trên ngày tháng năm sinh và giới tính (Nam +62, Nữ +60)
         function tinhNgayVeHuuDayDu(ngaySinhStr, gioiTinh) {
             if (!ngaySinhStr) return "";
             let parts = ngaySinhStr.split('/');
@@ -165,10 +221,8 @@
             let namSinh = parseInt(parts[2]);
             if (isNaN(namSinh)) return "";
 
-            let soNamCong Them = (String(gioiTinh).trim() === "Nữ") ? 60 : 62;
-            let namVeHuu = namSinh + soNamCong Them;
-
-            return `${d}/${m}/${namVeHuu}`;
+            let soNamCong = (String(gioiTinh).trim() === "Nữ") ? 60 : 62;
+            return `${d}/${m}/${namSinh + soNamCong}`;
         }
 
         async function taiDuLieuTuCloud() {
@@ -176,11 +230,66 @@
                 const { data, error } = await client.from('nhan_su').select('*').order('id', { ascending: true });
                 if (error) throw error;
                 CACHE_NHAN_SU = data || [];
+                
+                thongKeVaRenderBoLoc();
                 renderBangDuLieu();
             } catch (err) {
                 console.error(err);
-                document.getElementById('data_table_body').innerHTML = `<tr><td colspan="12" class="text-center" style="color: red; font-weight:bold;">⚠️ Không thể tải dữ liệu: ${err.message}</td></tr>`;
+                document.getElementById('data_table_body').innerHTML = `<tr><td colspan="12" class="text-center" style="color: red;">⚠️ Lỗi nạp dữ liệu phân hệ: ${err.message}</td></tr>`;
             }
+        }
+
+        // Phân hệ đếm số liệu thống kê & tạo danh mục lọc đơn vị cũ hoạt động ổn định
+        function thongKeVaRenderBoLoc() {
+            let tong = CACHE_NHAN_SU.length;
+            let nam = CACHE_NHAN_SU.filter(i => String(i.gioi_tinh).trim() !== "Nữ").length;
+            let nu = tong - nam;
+
+            document.getElementById('txt_tong_ns').innerText = tong;
+            document.getElementById('txt_ns_nam').innerText = nam;
+            document.getElementById('txt_ns_nu').innerText = nu;
+            document.getElementById('count_all').innerText = tong;
+
+            // Đếm danh mục đơn vị độc bản
+            let donViMap = {};
+            CACHE_NHAN_SU.forEach(item => {
+                let dv = item.ma_don_vi || "CHƯA XÁC ĐỊNH";
+                donViMap[dv] = (donViMap[dv] || 0) + 1;
+            });
+
+            document.getElementById('txt_tong_dv').innerText = Object.keys(donViMap).length;
+
+            // Render lại nhóm lọc đơn vị trên sidebar cũ
+            const filterGroup = document.getElementById('filter_don_vi_group');
+            // Xóa các đơn vị cũ trừ nút "Tất cả"
+            const items = filterGroup.querySelectorAll('.filter-item');
+            for(let i=1; i<items.length; i++) items[i].remove();
+
+            Object.keys(donViMap).sort().forEach(dv => {
+                let div = document.createElement('div');
+                div.className = `filter-item ${FILTER_DON_VI_SELECTED === dv ? 'active' : ''}`;
+                div.onclick = () => locTheoDonVi(dv);
+                div.innerHTML = `<span>${dv}</span><span class="filter-count">${donViMap[dv]}</span>`;
+                filterGroup.appendChild(div);
+            });
+        }
+
+        function locTheoDonVi(dv) {
+            FILTER_DON_VI_SELECTED = dv;
+            const items = document.querySelectorAll('.filter-item');
+            items.forEach(el => el.classList.remove('active'));
+            
+            // Tìm component để add class active trực quan
+            items.forEach(el => {
+                if(el.querySelector('span').innerText === (dv === 'ALL' ? 'Tất cả đơn vị' : dv)) {
+                    el.classList.add('active');
+                }
+            });
+            renderBangDuLieu();
+        }
+
+        function chuyenPhanHe(name) {
+            alert("Đang chuyển hướng ổn định sang phân hệ: " + name.toUpperCase());
         }
 
         function renderBangDuLieu() {
@@ -189,6 +298,11 @@
             tbody.innerHTML = "";
 
             let filtered = CACHE_NHAN_SU.filter(item => {
+                // Lọc theo đơn vị ở sidebar cũ
+                if (FILTER_DON_VI_SELECTED !== "ALL" && (item.ma_don_vi || "CHƯA XÁC ĐỊNH") !== FILTER_DON_VI_SELECTED) {
+                    return false;
+                }
+                // Tìm kiếm nhanh
                 return !searchVal || 
                     String(item.ho_ten || "").toLowerCase().includes(searchVal) ||
                     String(item.so_cccd || "").toLowerCase().includes(searchVal) ||
@@ -196,27 +310,19 @@
                     String(item.chuc_danh_cong_viec || "").toLowerCase().includes(searchVal);
             });
 
-            document.getElementById('txt_tong_ns').innerText = CACHE_NHAN_SU.length;
-
             if (filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="12" class="text-center" style="color: #999; padding: 20px;">Không tìm thấy kết quả hồ sơ phù hợp.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="12" class="text-center" style="color: #999;">Không tìm thấy hồ sơ nhân sự phù hợp.</td></tr>`;
                 return;
             }
 
             filtered.forEach(item => {
-                // Thực hiện chuẩn hóa hiển thị ngày sinh và tự động đoán giới tính nếu trường dữ liệu bị rỗng
                 let fullBirthDate = dinhDangNgayThangChuan(item.nam_sinh || item.nam);
-                let gender = String(item.gioi_tinh || "").trim();
-                if (!gender) {
-                    gender = String(item.ho_ten || "").toLowerCase().includes("thị") ? "Nữ" : "Nam";
-                }
-
-                // Tính toán ngày về hưu hiển thị mở rộng trên giao diện lưới
+                let gender = String(item.gioi_tinh || "").trim() || (String(item.ho_ten || "").toLowerCase().includes("thị") ? "Nữ" : "Nam");
                 let fullRetirementDate = tinhNgayVeHuuDayDu(fullBirthDate, gender);
 
                 let tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td class="text-center" style="color: #777;">NS-${item.id}</td>
+                    <td class="text-center" style="color: #666;">${item.id}</td>
                     <td><b>${item.ho_ten || ""}</b></td>
                     <td>${item.ten || ""}</td>
                     <td class="text-center"><span class="badge ${gender === 'Nữ' ? 'badge-nu' : 'badge-nam'}">${gender}</span></td>
@@ -233,14 +339,14 @@
             });
         }
 
-        // CHỨC NĂNG CHỦ CHỐT: XỬ LÝ UPSERT HÀNG LOẠT THEO NGUYÊN TẮC CẬP NHẬT BIẾN ĐỘNG TỰ ĐỘNG
+        // CHỨC NĂNG CẬP NHẬT BIẾN ĐỘNG HÀNG LOẠT (UPSERT LOGIC) THEO NGUYÊN TẮC SO KHỚP THÔNG MINH
         function xuLyUpsertDuLieuExcel(input) {
             const file = input.files[0];
             if (!file) return;
 
             const statusTxt = document.getElementById('txt_process_status');
             statusTxt.style.display = "block";
-            statusTxt.innerText = "Đang đọc dữ liệu và so khớp thực thể...";
+            statusTxt.innerText = "Đang xử lý phân tích danh sách và so khớp thực thể...";
 
             const reader = new FileReader();
             reader.onload = async function(e) {
@@ -250,9 +356,8 @@
                     const sheet = workbook.Sheets[workbook.SheetNames[0]];
                     const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
                     
-                    if (rows.length === 0) { alert("File Excel rỗng!"); statusTxt.style.display = "none"; return; }
+                    if (rows.length === 0) { alert("File trống!"); statusTxt.style.display = "none"; return; }
 
-                    // Loại bỏ dấu tiếng Việt để dò tiêu đề cột linh hoạt
                     function chuanHoaKey(k) {
                         if (!k) return "";
                         return k.toString().toLowerCase().trim()
@@ -269,130 +374,98 @@
                     let headerIdx = -1;
                     let colMapping = { hoten: -1, cccd: -1, bhxh: -1, madonvi: -1, chucdanh: -1, namsinh: -1, antoan: -1, nndh: -1, gioitinh: -1 };
 
-                    for (let i = 0; i < Math.min(rows.length, 35); i++) {
+                    for (let i = 0; i < Math.min(rows.length, 20); i++) {
                         let row = rows[i];
                         if (!row) continue;
-                        let foundHeader = false;
-                        row.forEach(cell => {
-                            let text = chuanHoaKey(cell);
-                            if (text.includes("hoten") || text.includes("hovaten") || text.includes("tennhanvien")) {
-                                foundHeader = true;
-                            }
-                        });
-
-                        if (foundHeader) {
+                        let found = false;
+                        row.forEach(cell => { if (chuanHoaKey(cell).includes("hoten") || chuanHoaKey(cell).includes("hovaten")) found = true; });
+                        if (found) {
                             headerIdx = i;
-                            row.forEach((cell, cellIdx) => {
-                                let text = chuanHoaKey(cell);
-                                if (text.includes("hoten") || text.includes("hovaten") || text.includes("tennhanvien")) colMapping.hoten = cellIdx;
-                                else if (text.includes("cccd") || text.includes("cmnd") || text.includes("cancuoc") || text.includes("sochuyenduong")) colMapping.cccd = cellIdx;
-                                else if (text.includes("bhxh") || text.includes("baohiem") || text.includes("sobhxh")) colMapping.bhxh = cellIdx;
-                                else if (text.includes("bophan") || text.includes("phongban") || text.includes("donvi") || text.includes("madonvi")) colMapping.madonvi = cellIdx;
-                                else if (text.includes("chucdanh") || text.includes("congviec") || text.includes("vitri") || text.includes("chucvu")) colMapping.chucdanh = cellIdx;
-                                else if (text.includes("namsinh") || text.includes("ngaysinh") || text === "nam") colMapping.namsinh = cellIdx;
-                                else if (text.includes("antoan") || text.includes("atv")) colMapping.antoan = cellIdx;
-                                else if (text.includes("nndh") || text.includes("dochai")) colMapping.nndh = cellIdx;
-                                else if (text.includes("gioitinh") || text === "nam/nu") colMapping.gioitinh = cellIdx;
+                            row.forEach((cell, idx) => {
+                                let txt = chuanHoaKey(cell);
+                                if (txt.includes("hoten") || txt.includes("hovaten")) colMapping.hoten = idx;
+                                else if (txt.includes("cccd") || txt.includes("cmnd") || txt.includes("cancuoc")) colMapping.cccd = idx;
+                                else if (txt.includes("bhxh") || txt.includes("baohiem")) colMapping.bhxh = idx;
+                                else if (txt.includes("donvi") || txt.includes("madonvi")) colMapping.madonvi = idx;
+                                else if (txt.includes("chucdanh") || txt.includes("chucvu") || txt.includes("congviec")) colMapping.chucdanh = idx;
+                                else if (txt.includes("namsinh") || txt.includes("ngaysinh") || txt === "nam") colMapping.namsinh = idx;
+                                else if (txt.includes("antoan") || txt.includes("atv")) colMapping.antoan = idx;
+                                else if (txt.includes("nndh") || txt.includes("dochai")) colMapping.nndh = idx;
+                                else if (txt.includes("gioitinh")) colMapping.gioitinh = idx;
                             });
                             break;
                         }
                     }
 
-                    if (headerIdx === -1 || colMapping.hoten === -1) {
-                        headerIdx = 0; colMapping.hoten = 0; colMapping.cccd = 1; colMapping.bhxh = 2;
-                    }
+                    if (headerIdx === -1) { headerIdx = 0; colMapping.hoten = 0; colMapping.cccd = 1; }
 
-                    let countUpdated = 0;
-                    let countInserted = 0;
-                    let maxId = 0;
+                    let countUpdated = 0, countInserted = 0, maxId = 0;
                     CACHE_NHAN_SU.forEach(ns => { if (parseInt(ns.id) > maxId) maxId = parseInt(ns.id); });
 
-                    // Vòng lặp quét dữ liệu biến động từng dòng từ file Excel
                     for (let i = headerIdx + 1; i < rows.length; i++) {
                         let row = rows[i];
-                        if (!row || row.length === 0) continue;
+                        if (!row || !String(row[colMapping.hoten]).trim()) continue;
 
-                        let hoTenVal = String(row[colMapping.hoten] || "").trim();
-                        if (!hoTenVal || hoTenVal.toLowerCase() === "họ và tên") continue;
+                        let hoTenVal = String(row[colMapping.hoten]).trim();
+                        if (hoTenVal.toLowerCase() === "họ và tên") continue;
 
                         let cccdVal = colMapping.cccd !== -1 ? String(row[colMapping.cccd] || "").trim() : "";
                         let rawNamSinh = colMapping.namsinh !== -1 ? String(row[colMapping.namsinh] || "").trim() : "";
                         let cleanBirthDate = dinhDangNgayThangChuan(rawNamSinh);
-
-                        let genderVal = "";
-                        if (colMapping.gioitinh !== -1 && String(row[colMapping.gioitinh]).trim()) {
-                            genderVal = String(row[colMapping.gioitinh]).trim();
-                        } else {
-                            genderVal = hoTenVal.toLowerCase().includes("thị") ? "Nữ" : "Nam";
-                        }
-
+                        let genderVal = colMapping.gioitinh !== -1 && String(row[colMapping.gioitinh]).trim() ? String(row[colMapping.gioitinh]).trim() : (hoTenVal.toLowerCase().includes("thị") ? "Nữ" : "Nam");
+                        
                         let singleTen = hoTenVal.split(/\s+/).pop();
                         let bhxhVal = colMapping.bhxh !== -1 ? String(row[colMapping.bhxh] || "").trim() : "";
                         let maDVVal = colMapping.madonvi !== -1 ? String(row[colMapping.madonvi] || "").trim() : "";
                         let chucDanhVal = colMapping.chucdanh !== -1 ? String(row[colMapping.chucdanh] || "").trim() : "";
-                        
-                        // Lấy trọn vẹn thông tin cột ATV (An toàn viên) không cắt gọt chuỗi
                         let atvVal = colMapping.antoan !== -1 ? String(row[colMapping.antoan] || "").trim() : "";
                         let nndhVal = colMapping.nndh !== -1 ? String(row[colMapping.nndh] || "").trim() : "";
 
-                        // Thực hiện thuật toán đối khớp thực thể (Match Entity) tìm kiếm nhân sự trùng lặp
-                        let existingRecord = null;
+                        // Kiểm tra thực thể trùng lặp dựa trên CCCD hoặc Tổ hợp (Họ tên + Ngày sinh)
+                        let existing = null;
                         if (cccdVal) {
-                            existingRecord = CACHE_NHAN_SU.find(ns => String(ns.so_cccd || "").trim() === cccdVal);
+                            existing = CACHE_NHAN_SU.find(ns => String(ns.so_cccd || "").trim() === cccdVal);
                         }
-                        if (!existingRecord) {
-                            existingRecord = CACHE_NHAN_SU.find(ns => 
-                                String(ns.ho_ten || "").trim().toLowerCase() === hoTenVal.toLowerCase() && 
-                                dinhDangNgayThangChuan(ns.nam_sinh || ns.nam) === cleanBirthDate
-                            );
+                        if (!existing) {
+                            existing = CACHE_NHAN_SU.find(ns => String(ns.ho_ten).trim().toLowerCase() === hoTenVal.toLowerCase() && dinhDangNgayThangChuan(ns.nam_sinh || ns.nam) === cleanBirthDate);
                         }
 
-                        if (existingRecord) {
-                            // Trường hợp TRÙNG: Tiến hành cập nhật đè những thông tin mới biến động phát sinh
-                            let updatePayload = {};
-                            if (hoTenVal) updatePayload.ho_ten = hoTenVal;
-                            if (singleTen) updatePayload.ten = singleTen;
-                            if (genderVal) updatePayload.gioi_tinh = genderVal;
-                            if (maDVVal) updatePayload.ma_don_vi = maDVVal;
-                            if (chucDanhVal) updatePayload.chuc_danh_cong_viec = chucDanhVal;
-                            if (cleanBirthDate) { updatePayload.nam_sinh = cleanBirthDate; updatePayload.nam = cleanBirthDate; }
-                            if (bhxhVal) updatePayload.so_bhxh = bhxhVal;
-                            if (atvVal !== undefined) updatePayload.an_toan_vien = atvVal; // Lấy đầy đủ thông tin ATV
-                            if (nndhVal) updatePayload.nndh = nndhVal;
-                            if (cccdVal) updatePayload.so_cccd = cccdVal;
+                        if (existing) {
+                            // Cập nhật các trường thông tin biến động mới nếu có sự trùng lặp bản ghi
+                            let upData = {};
+                            if (hoTenVal) upData.ho_ten = hoTenVal;
+                            if (singleTen) upData.ten = singleTen;
+                            if (genderVal) upData.gioi_tinh = genderVal;
+                            if (maDVVal) upData.ma_don_vi = maDVVal;
+                            if (chucDanhVal) upData.chuc_danh_cong_viec = chucDanhVal;
+                            if (cleanBirthDate) { upData.nam_sinh = cleanBirthDate; upData.nam = cleanBirthDate; }
+                            if (bhxhVal) upData.so_bhxh = bhxhVal;
+                            if (atvVal !== undefined) upData.an_toan_vien = atvVal; // Lấy đầy đủ thông tin ATV không cắt xén
+                            if (nndhVal) upData.nndh = nndhVal;
+                            if (cccdVal) upData.so_cccd = cccdVal;
 
-                            const { error } = await client.from('nhan_su').update(updatePayload).eq('id', existingRecord.id);
-                            if (!error) countUpdated++;
+                            await client.from('nhan_su').update(upData).eq('id', existing.id);
+                            countUpdated++;
                         } else {
-                            // Trường hợp MỚI HOÀN TOÀN: Bổ sung mới hồ sơ vào cơ sở dữ liệu
+                            // Bổ sung nhân viên mới hoàn toàn chưa từng xuất hiện trong hệ thống
                             maxId++;
-                            let insertPayload = {
-                                id: maxId,
-                                ho_ten: hoTenVal,
-                                ten: singleTen,
-                                gioi_tinh: genderVal,
-                                ma_don_vi: maDVVal || "DV-01",
-                                chuc_danh_cong_viec: chucDanhVal || "Nhân viên",
-                                nam_sinh: cleanBirthDate,
-                                nam: cleanBirthDate,
-                                so_cccd: cccdVal || null,
-                                so_bhxh: bhxhVal || null,
-                                an_toan_vien: atvVal, // Thu thập trọn vẹn thông tin ATV từ file Excel
-                                nndh: nndhVal
+                            let insData = {
+                                id: maxId, ho_ten: hoTenVal, ten: singleTen, gioi_tinh: genderVal,
+                                ma_don_vi: maDVVal || "DV-01", chuc_danh_cong_viec: chucDanhVal || "Nhân viên",
+                                nam_sinh: cleanBirthDate, nam: cleanBirthDate, so_cccd: cccdVal || null,
+                                so_bhxh: bhxhVal || null, an_toan_vien: atvVal, nndh: nndhVal
                             };
-
-                            const { error } = await client.from('nhan_su').insert([insertPayload]);
-                            if (!error) countInserted++;
+                            await client.from('nhan_su').insert([insData]);
+                            countInserted++;
                         }
                     }
 
-                    alert(`Quá trình xử lý Upsert hoàn tất!\n- Số bản ghi trùng được cập nhật mới: ${countUpdated}\n- Số nhân sự mới được bổ sung: ${countInserted}`);
+                    alert(`Đồng bộ dữ liệu biến động hoàn tất!\n- Số nhân sự trùng lập được cập nhật: ${countUpdated}\n- Số nhân sự mới được thêm vào hệ thống: ${countInserted}`);
                     await taiDuLieuTuCloud();
                     statusTxt.style.display = "none";
                     input.value = "";
-
                 } catch (err) {
-                    alert("Lỗi nghiêm trọng trong quá trình phân tách Excel: " + err.message);
+                    alert("Lỗi hệ thống phân tách tệp Excel: " + err.message);
                     statusTxt.style.display = "none";
                     input.value = "";
                 }
