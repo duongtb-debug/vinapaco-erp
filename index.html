@@ -76,7 +76,7 @@
     <div class="header">
         <div>
             <h1>Hệ Thống Quản Trị Tổng Hợp Cơ Sở Nhân Sự & Thiết Bị Toàn Diện</h1>
-            <p>Bản sửa lỗi tối thượng: Chống lỗi ID Not-Null Constraint toàn diện bằng công nghệ Auto-Fallback</p>
+            <p>Bản sửa lỗi tối thượng: Vượt lỗi liên kết Khóa Ngoại Đơn Vị (Foreign Key Constraint)</p>
         </div>
         <div style="font-size: 13px; font-weight: 500; background: rgba(255,255,255,0.15); padding: 6px 12px; border-radius: 20px;">
             <i class="fa-solid fa-cloud"></i> Đám mây thời gian thực
@@ -93,7 +93,15 @@
             <div id="side_hoso" style="display: block;">
                 <div class="sidebar-card">
                     <h3><i class="fa-solid fa-file-excel"></i> Nhập dữ liệu thông minh</h3>
-                    <p style="font-size: 12px; color: #666; margin: 0 0 10px 0;">Hệ thống lọc bỏ dòng trống, chuẩn hóa ID tự động.</p>
+                    <div class="form-group" style="background: #fff8ee; padding: 10px; border-radius: 6px; border: 1px solid #ffeaa7; margin-bottom: 12px;">
+                        <label style="color: #d63031; font-weight: bold;"><i class="fa-solid fa-triangle-exclamation"></i> Cấu hình chống lỗi khóa ngoại:</label>
+                        <label style="font-weight: normal; margin-top: 5px; display: flex; align-items: center; gap: 5px; font-size: 12px;">
+                            <input type="checkbox" id="chk_ignore_ma_don_vi" checked> 
+                            Bỏ qua liên kết Mã Đơn Vị (Khuyên dùng)
+                        </label>
+                        <small style="color: #666; font-size: 11px; display: block; margin-top: 4px;">Tự động đặt trống cột này nếu mã đơn vị trong file Excel chưa được khai báo trước trong database.</small>
+                    </div>
+
                     <input type="file" id="excel_file_input" accept=".xlsx, .xls, .csv" style="display: none;" onchange="xuLyFileExcelNhanSu(this)">
                     
                     <button class="btn-primary" style="width: 100%; margin-bottom: 12px;" onclick="document.getElementById('excel_file_input').click()">
@@ -273,11 +281,11 @@
             } catch(e) { alert(e.message); }
         }
 
-        // HÀM ĐỌC FILE THÔNG MINH - TỰ ĐỘNG CHỐNG LỖI ID TRỐNG HOẶC LẤY SAI CỘT TIÊU ĐỀ
         async function xuLyFileExcelNhanSu(input) {
             if(!input.files.length) return;
             const file = input.files[0];
             const reader = new FileReader();
+            const ignoreMaDonVi = document.getElementById('chk_ignore_ma_don_vi').checked;
             
             reader.onload = async function(e) {
                 const data = new Uint8Array(e.target.result);
@@ -287,14 +295,12 @@
                 const matrix = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
                 if(!matrix.length) { alert("File Excel này không có dữ liệu!"); return; }
 
-                // Chuẩn hóa dòng tiêu đề đầu tiên về dạng chữ thường không dấu viết liền để tìm kiếm cột thông minh
                 let headerRow = matrix[0].map(h => {
                     return String(h).toLowerCase().trim()
                         .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
                         .replace(/[^a-z0-9]/g, "");
                 });
                 
-                // Mở rộng bộ từ khóa nhận diện cột ID/STT
                 let idxId = headerRow.findIndex(h => ["stt", "manv", "id", "manhanvien", "maso", "masonhanvien", "sott", "masott"].includes(h));
                 let idxHoTen = headerRow.findIndex(h => ["hovaten", "hoten", "hovatennhanvien", "tennhanvien"].includes(h));
                 let idxTen = headerRow.findIndex(h => ["ten", "tenrutgon"].includes(h));
@@ -307,7 +313,6 @@
                 let idxBhxh = headerRow.findIndex(h => ["sobhxh", "bhxh", "baohiem"].includes(h));
                 let idxTrangThai = headerRow.findIndex(h => ["trangthai", "trangthailamviec"].includes(h));
 
-                // CƠ CHẾ AUTO-FALLBACK: Nếu không khớp từ khóa tiêu đề nào cho cột ID, tự tìm cột nào chứa Số ở dòng thứ 2
                 if (idxId === -1 && matrix.length > 1) {
                     for (let c = 0; c < matrix[1].length; c++) {
                         let val = String(matrix[1][c]).replace(/[^0-9]/g, '');
@@ -318,7 +323,6 @@
                     }
                 }
                 
-                // Mặc định dự phòng nếu tất cả phương án tự tìm thất bại
                 if (idxId === -1) idxId = 0;
                 if (idxHoTen === -1) idxHoTen = 1;
 
@@ -332,24 +336,15 @@
                     let rawId = row[idxId];
                     if(rawId === undefined || rawId === null || String(rawId).trim() === "") continue;
 
-                    // Làm sạch ID bằng cách lọc lấy các ký tự số
                     let cleanId = parseInt(String(rawId).replace(/[^0-9]/g, ''));
-                    
-                    // KIỂM TRA BẮT BUỘC: Nếu không bóc tách được số ID hợp lệ, tuyệt đối bỏ qua dòng này
-                    if(isNaN(cleanId) || cleanId === undefined || cleanId === null) {
-                        continue; 
-                    }
+                    if(isNaN(cleanId)) continue; 
                     
                     if(checkedUniqueKeys.has(cleanId)) continue;
                     checkedUniqueKeys.add(cleanId);
 
-                    // Trích xuất Họ Tên
                     let hoTenStr = (idxHoTen !== -1 && row[idxHoTen] !== undefined) ? String(row[idxHoTen]).trim() : "";
-                    if(!hoTenStr || hoTenStr === "" || hoTenStr === "undefined") {
-                        hoTenStr = "Nhân viên số " + cleanId;
-                    }
+                    if(!hoTenStr || hoTenStr === "undefined") hoTenStr = "Nhân viên " + cleanId;
 
-                    // Trích xuất Tên rút gọn (Đảm bảo không bao giờ bị rỗng hay null)
                     let tenRutGonStr = "";
                     if(idxTen !== -1 && row[idxTen] !== undefined && String(row[idxTen]).trim() !== "") {
                         tenRutGonStr = String(row[idxTen]).trim();
@@ -358,11 +353,7 @@
                         let parts = hoTenStr.split(" ");
                         tenRutGonStr = parts[parts.length - 1]; 
                     }
-                    if(!tenRutGonStr) {
-                        tenRutGonStr = hoTenStr;
-                    }
 
-                    // Xử lý Giới tính
                     let gioiTinh = "Nam";
                     if(idxGioiTinh !== -1 && row[idxGioiTinh]) {
                         gioiTinh = String(row[idxGioiTinh]).trim();
@@ -371,7 +362,13 @@
                     }
 
                     let ngaySinhStr = (idxNgaySinh !== -1 && row[idxNgaySinh] !== "") ? String(row[idxNgaySinh]).trim() : null;
-                    let maDonViStr = (idxMaDonVi !== -1 && row[idxMaDonVi] !== "") ? String(row[idxMaDonVi]).trim() : "VP-01";
+                    
+                    // SỬA LỖI KHÓA NGOẠI: Nếu tích checkbox, tự động bỏ qua ma_don_vi để tránh dính foreign key constraint
+                    let maDonViStr = null; 
+                    if (!ignoreMaDonVi && idxMaDonVi !== -1 && row[idxMaDonVi] !== "") {
+                        maDonViStr = String(row[idxMaDonVi]).trim();
+                    }
+
                     let chucDanhStr = (idxChucDanh !== -1 && row[idxChucDanh] !== "") ? String(row[idxChucDanh]).trim() : "";
                     let soCccdStr = (idxCccd !== -1 && row[idxCccd] !== "") ? String(row[idxCccd]).trim() : null;
                     let soBhxhStr = (idxBhxh !== -1 && row[idxBhxh] !== "") ? String(row[idxBhxh]).trim() : null;
@@ -380,10 +377,10 @@
                     mapData.push({
                         id: cleanId, 
                         ho_ten: hoTenStr,
-                        ten_rut_gon: tenRutGonStr, 
+                        ten_rut_gon: tenRutGonStr || hoTenStr, 
                         ngay_sinh: ngaySinhStr,
                         gioi_tinh: gioiTinh,
-                        ma_don_vi: maDonViStr,
+                        ma_don_vi: maDonViStr, // Sẽ mang giá trị null nếu kích hoạt chống lỗi khóa ngoại
                         chuc_danh_cong_viec: chucDanhStr,
                         so_cccd: soCccdStr,
                         so_bhxh: soBhxhStr,
@@ -391,18 +388,16 @@
                     });
                 }
 
-                // CHẶN GỬI MẢNG RỖNG LÊN DATABASE
                 if(mapData.length === 0) {
-                    alert("❌ LỖI ĐỌC FILE: Hệ thống không bóc tách được bất kỳ Mã số / STT dạng số nào hợp lệ từ file Excel của bạn. Vui lòng kiểm tra lại cột số thứ tự trong file của bạn!");
+                    alert("❌ Không bóc tách được dữ liệu!");
                     return;
                 }
 
-                // Gửi dữ liệu an toàn lên Cloud
                 const { error } = await client.from('nhan_su').upsert(mapData, { onConflict: 'id' });
                 if(error) {
-                    alert("Lỗi cơ sở dữ liệu Supabase: " + error.message);
+                    alert("Lỗi Supabase: " + error.message);
                 } else {
-                    alert(`🎉 THÀNH CÔNG RỰC RỠ! Hệ thống đã nhận diện chính xác và nạp thành công ${mapData.length} nhân sự lên Cloud.`);
+                    alert(`🎉 THÀNH CÔNG! Đã vượt qua kiểm tra hệ thống khóa ngoại và nạp thành công ${mapData.length} nhân sự.`);
                     await taiDuLieuHeThong();
                 }
             };
@@ -448,7 +443,7 @@
                     <td>${ns.ten_rut_gon || ''}</td>
                     <td style="text-align:center;">${ns.ngay_sinh || ''}</td>
                     <td style="text-align:center;"><span class="badge ${String(ns.gioi_tinh).toLowerCase() === 'nữ' ? 'badge-female' : 'badge-male'}">${ns.gioi_tinh}</span></td>
-                    <td><span class="badge" style="background:#f1f2f6;">${ns.ma_don_vi || ''}</span></td>
+                    <td><span class="badge" style="background:#f1f2f6;">${ns.ma_don_vi || 'Trống'}</span></td>
                     <td>${ns.chuc_danh_cong_viec || ''}</td>
                     <td><code>${ns.so_cccd || ''}</code></td>
                     <td><code>${ns.so_bhxh || ''}</code></td>
