@@ -76,7 +76,7 @@
     <div class="header">
         <div>
             <h1>Hệ Thống Quản Trị Tổng Hợp Cơ Sở Nhân Sự & Thiết Bị Toàn Diện</h1>
-            <p>Bản sửa lỗi tối ưu: Khóa chặt mọi giá trị trống (Null) của trường Trạng Thái Làm Việc</p>
+            <p>Bản sửa lỗi tối ưu: Đồng bộ hóa chính xác cột [ten] trên Supabase Database</p>
         </div>
         <div style="font-size: 13px; font-weight: 500; background: rgba(255,255,255,0.15); padding: 6px 12px; border-radius: 20px;">
             <i class="fa-solid fa-cloud"></i> Đám mây thời gian thực
@@ -94,11 +94,10 @@
                 <div class="sidebar-card">
                     <h3><i class="fa-solid fa-file-excel"></i> Nhập dữ liệu thông minh</h3>
                     <div class="form-group" style="background: #eefdf4; padding: 10px; border-radius: 6px; border: 1px solid #b7ebd0; margin-bottom: 12px;">
-                        <label style="color: #1e7e34; font-weight: bold;"><i class="fa-solid fa-circle-check"></i> Chế độ an toàn tuyệt đối:</label>
+                        <label style="color: #1e7e34; font-weight: bold;"><i class="fa-solid fa-circle-check"></i> Đã đồng bộ cấu trúc:</label>
                         <span style="font-size: 11.5px; color: #333; line-height: 1.4; display: block; margin-top: 4px;">
-                            • Tự động gán <b>"Đang làm việc"</b> nếu cột trạng thái bị bỏ trống.<br>
-                            • Tự sửa lỗi trống <b>Tên rút gọn</b> từ cột Họ tên.<br>
-                            • Ngăn chặn 100% lỗi <code>violates not-null constraint</code>.
+                            • Đã đổi tên trường gửi lên từ <code>ten_rut_gon</code> thành <code>ten</code> để khớp hoàn toàn với cột sẵn có trong Database của bạn.<br>
+                            • Tự động điền <b>"Đang làm việc"</b> nếu cột trạng thái trong excel trống.
                         </span>
                     </div>
 
@@ -331,25 +330,23 @@
                     let hoTenStr = (idxHoTen !== -1 && row[idxHoTen] !== undefined) ? String(row[idxHoTen]).trim() : "";
                     if(!hoTenStr || hoTenStr === "undefined" || hoTenStr.length < 2) continue; 
 
-                    // 🛡️ 1. ÉP GIÁ TRỊ TÊN RÚT GỌN (NOT NULL)
-                    let tenRutGonStr = "";
+                    // 🛡️ ĐỒNG BỘ: Khớp chính xác cột [ten] trên database của bạn
+                    let tenStr = "";
                     if(idxTen !== -1 && row[idxTen] !== undefined) {
-                        tenRutGonStr = String(row[idxTen]).trim();
+                        tenStr = String(row[idxTen]).trim();
                     }
-                    if(!tenRutGonStr || tenRutGonStr === "" || tenRutGonStr === "undefined") {
+                    if(!tenStr || tenStr === "" || tenStr === "undefined") {
                         let parts = hoTenStr.split(" ");
-                        tenRutGonStr = parts[parts.length - 1]; 
+                        tenStr = parts[parts.length - 1]; 
                     }
-                    if(!tenRutGonStr || tenRutGonStr.trim() === "") {
-                        tenRutGonStr = hoTenStr;
+                    if(!tenStr || tenStr.trim() === "") {
+                        tenStr = hoTenStr;
                     }
 
-                    // 🛡️ 2. ÉP GIÁ TRỊ TRẠNG THÁI LÀM VIỆC (NOT NULL) - SỬA LỖI MỚI NHẤT
                     let trangThaiStr = "";
                     if(idxTrangThai !== -1 && row[idxTrangThai] !== undefined) {
                         trangThaiStr = String(row[idxTrangThai]).trim();
                     }
-                    // Nếu cột trạng thái trong file excel rỗng hoặc bị lỗi undefined, ép nó thành giá trị mặc định chữ
                     if(!trangThaiStr || trangThaiStr === "" || trangThaiStr === "undefined") {
                         trangThaiStr = "Đang làm việc";
                     }
@@ -373,14 +370,14 @@
                     mapData.push({
                         id: cleanId, 
                         ho_ten: hoTenStr,
-                        ten_rut_gon: tenRutGonStr, 
+                        ten: tenStr, // ĐÃ SỬA THÀNH 'ten' ĐỂ KHỚP 100% VỚI DATABASE CỦA BẠN
                         ngay_sinh: ngaySinhStr,
                         gioi_tinh: gioiTinh,
                         ma_don_vi: null, 
                         chuc_danh_cong_viec: chucDanhStr,
                         so_cccd: soCccdStr,
                         so_bhxh: soBhxhStr,
-                        trang_thai_lam_viec: trangThaiStr // Tuyệt đối không bao giờ nhận giá trị rỗng/null
+                        trang_thai_lam_viec: trangThaiStr 
                     });
                 }
 
@@ -436,7 +433,7 @@
                 tr.innerHTML = `
                     <td style="text-align:center;"><b>NS-${ns.id}</b></td>
                     <td><strong>${ns.ho_ten}</strong></td>
-                    <td>${ns.ten_rut_gon || ''}</td>
+                    <td>${ns.ten || ''}</td>
                     <td style="text-align:center;">${ns.ngay_sinh || ''}</td>
                     <td style="text-align:center;"><span class="badge ${String(ns.gioi_tinh).toLowerCase() === 'nữ' ? 'badge-female' : 'badge-male'}">${ns.gioi_tinh}</span></td>
                     <td><span class="badge" style="background:#f1f2f6;">${ns.ma_don_vi || 'Trống'}</span></td>
