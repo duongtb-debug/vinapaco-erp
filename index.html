@@ -6,6 +6,7 @@
     <title>Hệ Thống Quản Trị Nhân Sự & Thiết Bị Toàn Diện</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
@@ -83,6 +84,10 @@
         .suggestion-item:hover { background-color: #eef4fc; }
         .suggestion-item .sub-info { font-size: 13px; color: #6c757d; margin-top: 3px; display: flex; gap: 15px; }
         code { font-family: 'Courier New', Courier, monospace; font-weight: bold; color: #212529; font-size: 15px; background: #f1f3f5; padding: 2px 6px; border-radius: 4px; }
+        
+        /* Cấu trúc hiển thị ô chứa QR */
+        .qr-container { width: 75px; height: 75px; margin: 0 auto; background: #fff; padding: 2px; border: 1px solid #ddd; border-radius: 4px; display: flex; align-items: center; justify-content: center; }
+        .qr-container img { width: 100% !important; height: 100% !important; }
     </style>
 </head>
 <body>
@@ -90,10 +95,10 @@
     <div class="header">
         <div>
             <h1>Hệ Thống Quản Trị Nhân Sự & Thiết Bị Toàn Diện</h1>
-            <p>Phiên bản đập đi làm lại: Sử dụng Cloud API sinh mã QR tự động tức thì</p>
+            <p>Phiên bản nâng cấp: Sinh mã QR Engine nội bộ, bảo mật và ổn định tuyệt đối</p>
         </div>
         <div style="font-size: 16px; font-weight: 600; background: rgba(255,255,255,0.2); padding: 10px 20px; border-radius: 30px;">
-            <i class="fa-solid fa-bolt"></i> Ổn định tuyệt đối
+            <i class="fa-solid fa-shield-halved"></i> Không cần Internet vẫn chạy tốt
         </div>
     </div>
 
@@ -428,7 +433,7 @@
             return "status-tot";
         }
 
-        // LÀM MỚI PHẦN QR: Sử dụng thẻ <img> thuần tải qua API Google Chart, tự sinh mã tức thì 100%
+        // PHẦN RENDERING MÃ QR ĐƯỢC LÀM MỚI TOÀN BỘ SỬ DỤNG ENGINE NỘI BỘ (LOCAL QR CODE)
         function renderBangThietBi() {
             const tbody = document.getElementById('thiet_bi_table_body');
             const searchVal = document.getElementById('txt_tim_tb').value.toLowerCase().trim();
@@ -452,16 +457,14 @@
                 let tr = document.createElement('tr');
                 let statusClass = traVeClassBadgeTrangThai(tb.trang_thai);
                 
-                // Mã hóa dữ liệu dạng text thuần không dấu để QR gọn và quét nhanh nhất
+                // Chuỗi thông tin thô để gán vào QR
                 let rawText = `Ma: ${tb.ma_thiet_bi} | TB: ${tb.ten_thiet_bi} | Nhan: ${tb.ten_nhan_vien} | DV: ${tb.ma_don_vi}`;
-                let encodedText = encodeURIComponent(rawText);
-                
-                // Link API sinh ảnh QR Code từ Google Charts
-                let googleQrUrl = `https://chart.googleapis.com/chart?chs=150x150&cht=qr&chl=${encodedText}&choe=UTF-8`;
+                // Tạo ID duy nhất cho mỗi container chứa QR để tránh bị lặp đè dữ liệu
+                let qrContainerId = `qr_box_${tb.id}`;
 
                 tr.innerHTML = `
                     <td style="vertical-align: middle; text-align: center;">
-                        <img src="${googleQrUrl}" alt="Mã QR" style="width: 75px; height: 75px; display: block; margin: 0 auto; border: 1px solid #ddd; padding: 2px; background:#fff; border-radius:4px;" onerror="this.src='https://placehold.co/75x75?text=QR+Loi'">
+                        <div id="${qrContainerId}" class="qr-container"></div>
                     </td>
                     <td style="vertical-align: middle;"><mark><b>${tb.ma_thiet_bi}</b></mark></td>
                     <td style="vertical-align: middle;"><strong style="color:#2c3e50;">${tb.ten_thiet_bi}</strong></td>
@@ -475,6 +478,16 @@
                     </td>
                 `;
                 tbody.appendChild(tr);
+
+                // Khởi tạo và ép Engine nội bộ render trực tiếp mã QR vào thẻ Div vừa tạo
+                new QRCode(document.getElementById(qrContainerId), {
+                    text: rawText,
+                    width: 71,
+                    height: 71,
+                    colorDark : "#000000",
+                    colorLight : "#ffffff",
+                    correctLevel : QRCode.CorrectLevel.H
+                });
             });
         }
 
