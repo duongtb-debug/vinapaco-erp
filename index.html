@@ -95,7 +95,7 @@
     <div class="header">
         <div>
             <h1>Hệ Thống Quản Trị Tổng Hợp Cơ Sở Nhân Sự & Thiết Bị Toàn Diện</h1>
-            <p>Bản cập nhật thông minh: Tự động map tên cột chuẩn hóa từ tệp tin tải lên</p>
+            <p>Bản cập nhật thông minh: Sửa triệt để lỗi định dạng ngày sinh và tên trường dữ liệu Cloud</p>
         </div>
         <div style="font-size: 13px; font-weight: 500; background: rgba(255,255,255,0.15); padding: 6px 12px; border-radius: 20px;">
             <i class="fa-solid fa-cloud"></i> Đám mây thời gian thực
@@ -112,7 +112,7 @@
             <div id="side_hoso" style="display: block;">
                 <div class="sidebar-card">
                     <h3><i class="fa-solid fa-file-excel"></i> Nhập dữ liệu thông minh</h3>
-                    <p style="font-size: 12px; color: #666; margin: 0 0 10px 0;">Đoạn mã mới đã hỗ trợ cả tiêu đề tiếng Việt có dấu và dạng chữ thường chuẩn hóa snake_case.</p>
+                    <p style="font-size: 12px; color: #666; margin: 0 0 10px 0;">Đoạn mã mới đã xử lý triệt để định dạng Chuỗi văn bản/Số của tệp tin CSV.</p>
                     <input type="file" id="excel_file_input" accept=".xlsx, .xls, .csv" style="display: none;" onchange="xuLyFileExcelNhanSu(this)">
                     <button class="btn-primary" style="width: 100%;" onclick="document.getElementById('excel_file_input').click()">
                         <i class="fa-solid fa-cloud-arrow-up"></i> TẢI FILE EXCEL / CSV LÊN
@@ -277,15 +277,15 @@
 
         function capNhatTheThongKe() {
             document.getElementById('stat_tong').innerText = CACHE_NHAN_SU.length;
-            document.getElementById('stat_nam').innerText = CACHE_NHAN_SU.filter(x => String(x.gioi_tinh).toLowerCase() === 'nam' || String(x.gioi_tinh).toLowerCase() === 'x' && !x.nu_x).length;
-            document.getElementById('stat_nu').innerText = CACHE_NHAN_SU.filter(x => String(x.gioi_tinh).toLowerCase() === 'nữ' || String(x.gioi_tinh).toUpperCase() === 'X').length;
+            document.getElementById('stat_nam').innerText = CACHE_NHAN_SU.filter(x => String(x.gioi_tinh).toLowerCase() === 'nam').length;
+            document.getElementById('stat_nu').innerText = CACHE_NHAN_SU.filter(x => String(x.gioi_tinh).toLowerCase() === 'nữ').length;
             
             let donViSet = new Set();
             CACHE_NHAN_SU.forEach(x => { if(x.ma_don_vi) donViSet.add(x.ma_don_vi); });
             document.getElementById('stat_dv').innerText = donViSet.size;
         }
 
-        // ĐỒNG BỘ THÔNG MINH - TỰ ĐỘNG ĐỌC MỌI KIỂU TÊN CỘT TRONG FILE EXCEL/CSV CỦA BẠN
+        // ĐỒNG BỘ THÔNG MINH - CHUẨN HÓA DỮ LIỆU ĐỂ KHÔNG BỊ BÁO LỖI 0 NHÂN SỰ
         async function xuLyFileExcelNhanSu(input) {
             if(!input.files.length) return;
             const file = input.files[0];
@@ -303,30 +303,34 @@
                 let checkedUniqueKeys = new Set();
 
                 rawJson.forEach(row => {
-                    // Tự động map: Mã nhân viên lấy từ 'stt' hoặc 'Mã NV' hoặc 'id'
                     let idVal = row["stt"] || row["Mã NV"] || row["ID"] || row["id"] || row["Mã nhân viên"];
                     
-                    if(idVal) {
+                    if(idVal !== undefined && idVal !== null) {
                         let cleanId = parseInt(String(idVal).replace(/[^0-9]/g, ''));
                         
-                        if(!checkedUniqueKeys.has(cleanId)) {
+                        if(!isNaN(cleanId) && !checkedUniqueKeys.has(cleanId)) {
                             checkedUniqueKeys.add(cleanId);
                             
-                            // Tự động map giới tính từ cột nu_x (nếu có X thì là Nữ, ngược lại là Nam)
                             let gioiTinh = "Nam";
                             if(row["Giới tính"] || row["Giới Tính"]) {
                                 gioiTinh = row["Giới tính"] || row["Giới Tính"];
-                            } else if (String(row["nu_x"]).toUpperCase() === "X") {
+                            } else if (row["nu_x"] && String(row["nu_x"]).toUpperCase() === "X") {
                                 gioiTinh = "Nữ";
+                            }
+
+                            // Ép kiểu chuỗi an toàn tránh lỗi crash ngày tháng hệ thống
+                            let ngaySinhStr = row["ngay_sinh"] || row["Ngày sinh"] || row["Ngày Sinh"] || null;
+                            if(ngaySinhStr && typeof ngaySinhStr === 'string') {
+                                ngaySinhStr = ngaySinhStr.trim();
                             }
 
                             mapData.push({
                                 id: cleanId,
                                 ho_ten: row["ho_va_ten"] || row["Họ và Tên"] || row["Họ tên"] || "Không rõ",
                                 ten_rut_gon: row["ten"] || row["Tên rút gọn"] || row["Tên"] || "",
-                                ngay_sinh: row["ngay_sinh"] || row["Ngày sinh"] || row["Ngày Sinh"] || null,
+                                ngay_sinh: ngaySinhStr,
                                 gioi_tinh: gioiTinh,
-                                ma_don_vi: String(row["ma_don_vi"] || row["Mã Đơn Vị"] || row["Đơn vị"] || "").trim(),
+                                ma_don_vi: row["ma_don_vi"] ? String(row["ma_don_vi"]).trim() : (row["Mã Đơn Vị"] ? String(row["Mã Đơn Vị"]).trim() : ""),
                                 chuc_danh_cong_viec: row["chuc_danh_cong_viec"] || row["Chức Danh Công Việc"] || row["Chức danh"] || "",
                                 so_cccd: row["so_cccd"] || row["Số CCCD"] || row["CCCD"] ? String(row["so_cccd"] || row["Số CCCD"] || row["CCCD"]).trim() : null,
                                 so_bhxh: row["so_bhxh"] || row["Số BHXH"] ? String(row["so_bhxh"] || row["Số BHXH"]).trim() : null,
@@ -337,16 +341,16 @@
                 });
 
                 if(mapData.length === 0) {
-                    alert("Không tìm thấy cấu trúc Mã nhân viên/STT hợp lệ để xử lý!");
+                    alert("Không tìm thấy hàng dữ liệu nào có cột Mã nhân viên/STT hợp lệ!");
                     return;
                 }
 
-                // Gửi lệnh Bulk Upsert an toàn lên Cloud
+                // Gửi lệnh Bulk Upsert lên Cloud với cấu trúc chuẩn
                 const { error } = await client.from('nhan_su').upsert(mapData, { onConflict: 'id' });
                 if(error) {
-                    alert("Lỗi đồng bộ: " + error.message);
+                    alert("Lỗi đồng bộ Cloud: " + error.message);
                 } else {
-                    alert(`Đồng bộ thành công ${mapData.length} hồ sơ nhân sự chuẩn từ file lên hệ thống!`);
+                    alert(`Thành công! Đã xử lý và đẩy ${mapData.length} hồ sơ nhân sự lên cơ sở dữ liệu.`);
                     await taiDuLieuHeThong();
                 }
             };
@@ -396,7 +400,7 @@
                     <td><strong>${ns.ho_ten}</strong></td>
                     <td>${ns.ten_rut_gon || ''}</td>
                     <td style="text-align:center;">${ns.ngay_sinh || ''}</td>
-                    <td style="text-align:center;"><span class="badge ${ns.gioi_tinh === 'Nữ' || ns.gioi_tinh === 'nữ' ? 'badge-female' : 'badge-male'}">${ns.gioi_tinh}</span></td>
+                    <td style="text-align:center;"><span class="badge ${String(ns.gioi_tinh).toLowerCase() === 'nữ' ? 'badge-female' : 'badge-male'}">${ns.gioi_tinh}</span></td>
                     <td><span class="badge" style="background:#f1f2f6; color:#2f3542;">${ns.ma_don_vi || ''}</span></td>
                     <td>${ns.chuc_danh_cong_viec || ''}</td>
                     <td><code>${ns.so_cccd || ''}</code></td>
@@ -428,7 +432,7 @@
             match.forEach(ns => {
                 let div = document.createElement('div');
                 div.className = "suggestion-item";
-                div.innerHTML = `<i class="fa-solid fa-user-check"></i> <b>${ns.ho_ten}</b> (Mã: NS-${ns.id}) - Phòng: ${ns.ma_don_vi || 'Kinh doanh'}`;
+                div.innerHTML = `<i class="fa-solid fa-user-check"></i> <b>${ns.ho_ten}</b> (Mã: NS-${ns.id}) - Phòng: ${ns.ma_don_vi || 'Hệ thống'}`;
                 div.onclick = function() {
                     document.getElementById('form_search_ns').value = `${ns.ho_ten} (NS-${ns.id})`;
                     document.getElementById('form_selected_ns_id').value = ns.id;
