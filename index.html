@@ -186,6 +186,10 @@
                 ten: tenRutGon,
                 so_cccd: valCccd || null,
                 so_so_bhxh: valBhxh || null,
+                ma_don_vi: "DV-01",
+                chuc_danh_cong_viec: "Nhân viên",
+                nam_sinh: "",
+                nam: "",
                 an_toan_vien: "",
                 nndh: ""
             };
@@ -217,7 +221,7 @@
                     
                     if (rows.length === 0) { alert("File Excel rỗng!"); return; }
 
-                    function khauHaoChu(k) {
+                    function chuanHoaKey(k) {
                         if (!k) return "";
                         return k.toString().toLowerCase().trim()
                             .replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g, "a")
@@ -230,89 +234,99 @@
                             .replace(/\s+/g, '');
                     }
 
-                    let headerRowIndex = -1;
-                    let mapCột = { ho_ten: -1, so_cccd: -1, so_so_bhxh: -1, an_toan_vien: -1, nndh: -1 };
+                    let headerIdx = -1;
+                    let colMapping = { hoten: -1, cccd: -1, bhxh: -1, madonvi: -1, chucdanh: -1, namsinh: -1 };
 
                     for (let i = 0; i < Math.min(rows.length, 30); i++) {
                         let row = rows[i];
                         if (!row) continue;
-                        let hopLe = false;
+                        let foundHeader = false;
                         row.forEach(cell => {
-                            let text = khauHaoChu(cell);
+                            let text = chuanHoaKey(cell);
                             if (text.includes("hoten") || text.includes("hovaten") || text.includes("tennhanvien") || text === "ten") {
-                                hopLe = true;
+                                foundHeader = true;
                             }
                         });
 
-                        if (hopLe) {
-                            headerRowIndex = i;
-                            row.forEach((cell, idx) => {
-                                let txt = khauHaoChu(cell);
-                                if (txt.includes("hoten") || txt.includes("hovaten") || txt === "ten") mapCột.ho_ten = idx;
-                                else if (txt.includes("cccd") || txt.includes("cmnd") || txt.includes("cancuoc")) mapCột.so_cccd = idx;
-                                else if (txt.includes("bhxh") || txt.includes("baohiem") || txt.includes("sosobhxh") || txt.includes("sobhxh")) mapCột.so_so_bhxh = idx;
-                                else if (txt.includes("antoanvien") || txt.includes("atv")) mapCột.an_toan_vien = idx;
-                                else if (txt.includes("nndh") || txt.includes("dochai")) mapCột.nndh = idx;
+                        if (foundHeader) {
+                            headerIdx = i;
+                            row.forEach((cell, cellIdx) => {
+                                let text = chuanHoaKey(cell);
+                                if (text.includes("hoten") || text.includes("hovaten") || text.includes("tennhanvien") || text === "ten") colMapping.hoten = cellIdx;
+                                else if (text.includes("cccd") || text.includes("cmnd") || text.includes("chungminh") || text.includes("sochuyenduong")) colMapping.cccd = cellIdx;
+                                else if (text.includes("bhxh") || text.includes("baohiem") || text.includes("sosobhxh") || text.includes("sobhxh")) colMapping.bhxh = cellIdx;
+                                else if (text.includes("bophan") || text.includes("phongban") || text.includes("donvi") || text.includes("madonvi")) colMapping.madonvi = cellIdx;
+                                else if (text.includes("chucdanh") || text.includes("congviec") || text.includes("vitri") || text.includes("chucvu")) colMapping.chucdanh = cellIdx;
+                                else if (text.includes("namsinh") || text.includes("ngaysinh") || text === "nam") colMapping.namsinh = cellIdx;
                             });
                             break;
                         }
                     }
 
-                    if (headerRowIndex === -1 || mapCột.ho_ten === -1) {
-                        headerRowIndex = 0; mapCột.ho_ten = 0; mapCột.so_cccd = 1; mapCột.so_so_bhxh = 2;
+                    if (headerIdx === -1 || colMapping.hoten === -1) {
+                        headerIdx = 0; colMapping.hoten = 0; colMapping.cccd = 1; colMapping.bhxh = 2;
                     }
 
-                    // CƠ CHẾ BẢO VỆ CHỐNG CỘNG DỒN: Xóa sạch bảng cũ trên database trước khi lặp tạo id mới
+                    // CƠ CHẾ CHỐNG CỘNG DỒN: Xóa sạch bảng cũ trước khi nạp
                     const { error: deleteError } = await client.from('nhan_su').delete().neq('id', 0);
                     if (deleteError) {
                         throw new Error("Không thể dọn sạch dữ liệu cũ: " + deleteError.message);
                     }
 
-                    let listDữLiệuĐẩy = [];
-                    let runId = 0; // Reset ID bắt đầu chạy từ số 1 chính xác
+                    let recordsToUpload = [];
+                    let maxId = 0; 
 
-                    for (let i = headerRowIndex + 1; i < rows.length; i++) {
+                    for (let i = headerIdx + 1; i < rows.length; i++) {
                         let row = rows[i];
                         if (!row || row.length === 0) continue;
 
-                        let valHoTenRaw = String(row[mapCột.ho_ten] || "").trim();
-                        if (!valHoTenRaw || valHoTenRaw.toLowerCase() === "họ và tên" || valHoTenRaw.toLowerCase() === "ho ten") continue;
+                        let hoTenVal = String(row[colMapping.hoten] || "").trim();
+                        if (!hoTenVal || hoTenVal.toLowerCase() === "họ và tên" || hoTenVal.toLowerCase() === "ho ten") continue;
 
-                        runId++;
-                        let valHoTenDayDu = valHoTenRaw; 
-                        let mangChu = valHoTenRaw.split(/\s+/);
-                        let valTenRutGon = mangChu[mangChu.length - 1];
+                        maxId++;
+                        
+                        // SỬA ĐỔI GỐC: Giữ trọn vẹn cả Họ và Tên từ Excel không cắt gọt
+                        let fullHoTen = hoTenVal; 
+                        
+                        // Trích riêng từ cuối cùng làm Tên rút gọn
+                        let mangChu = hoTenVal.split(/\s+/);
+                        let singleTen = mangChu[mangChu.length - 1];
 
-                        let valCccd = mapCột.so_cccd !== -1 ? String(row[mapCột.so_cccd] || "").trim() : "";
-                        let valBhxh = mapCột.so_so_bhxh !== -1 ? String(row[mapCột.so_so_bhxh] || "").trim() : "";
-                        let valAtv = mapCột.an_toan_vien !== -1 ? String(row[mapCột.an_toan_vien] || "").trim() : "";
-                        let valNndh = mapCột.nndh !== -1 ? String(row[mapCột.nndh] || "").trim() : "";
+                        let cccdVal = colMapping.cccd !== -1 ? String(row[colMapping.cccd] || "").trim() : null;
+                        let bhxhVal = colMapping.bhxh !== -1 ? String(row[colMapping.bhxh] || "").trim() : null;
+                        let maDVVal = colMapping.madonvi !== -1 ? String(row[colMapping.madonvi] || "").trim().replace(/\s+/g, "") : "DV-01";
+                        let chucDanhVal = colMapping.chucdanh !== -1 ? String(row[colMapping.chucdanh] || "").trim() : "Nhân viên";
+                        let namSinhRaw = colMapping.namsinh !== -1 ? String(row[colMapping.namsinh] || "").trim() : "";
 
-                        listDữLiệuĐẩy.push({
-                            id: runId,
-                            ho_ten: valHoTenDayDu,
-                            ten: valTenRutGon,
-                            so_cccd: valCccd || null,
-                            so_so_bhxh: valBhxh || null,
-                            an_toan_vien: valAtv || null,
-                            nndh: valNndh || null
+                        recordsToUpload.push({
+                            id: maxId,
+                            ho_ten: fullHoTen, // Lưu trọn vẹn họ tên
+                            ten: singleTen,    // Tên rút gọn đúng quy định
+                            so_cccd: cccdVal || null,
+                            so_so_bhxh: bhxhVal || null, // Đồng bộ chuẩn tên trường trên DB
+                            ma_don_vi: maDVVal || "DV-01",
+                            chuc_danh_cong_viec: chucDanhVal || "Nhân viên",
+                            nam_sinh: namSinhRaw,
+                            nam: namSinhRaw, // Điền thêm vào trường 'nam' phòng trường hợp cấu trúc cũ yêu cầu
+                            an_toan_vien: "",
+                            nndh: ""
                         });
                     }
 
-                    if (listDữLiệuĐẩy.length === 0) { alert("Không tìm thấy nhân viên nào để nạp!"); input.value = ""; return; }
+                    if (recordsToUpload.length === 0) { alert("Không lấy được dữ liệu nhân sự nào hợp lệ từ file Excel này!"); input.value = ""; return; }
 
-                    const { error } = await client.from('nhan_su').insert(listDữLiệuĐẩy);
+                    const { error } = await client.from('nhan_su').insert(recordsToUpload);
                     if (error) {
                         throw error;
                     } else {
-                        alert("Thành công! Đã làm sạch dữ liệu cũ và nạp mới hoàn toàn " + listDữLiệuĐẩy.length + " nhân sự.");
+                        alert("Thành công! Đã làm sạch dữ liệu cũ và nạp mới hoàn toàn " + recordsToUpload.length + " nhân sự mở rộng vào hệ thống.");
                     }
                     
                     await taiDuLieuTuCloud();
                     input.value = "";
 
                 } catch (err) {
-                    alert("Lỗi: " + err.message);
+                    alert("Lỗi xử lý tệp Excel: " + err.message);
                     input.value = "";
                 }
             };
