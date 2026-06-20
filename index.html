@@ -79,7 +79,7 @@
     <div class="header">
         <div>
             <h1>Hệ Thống Quản Trị Nhân Sự & Thiết Bị Toàn Diện</h1>
-            <p>Bản độc quyền sửa lỗi: Đọc chính xác theo tên tiêu đề cột - Không phụ thuộc vị trí</p>
+            <p>Bản sửa đổi tối ưu: Rút gọn 4 số cuối của năm - Sửa triệt để mã đơn vị và hiển thị an toàn viên</p>
         </div>
         <div style="font-size: 16px; font-weight: 600; background: rgba(255,255,255,0.2); padding: 10px 20px; border-radius: 30px;">
             <i class="fa-solid fa-cloud"></i> Đang chạy Cloud ổn định
@@ -97,8 +97,10 @@
                 <div class="sidebar-card">
                     <h3><i class="fa-solid fa-file-csv"></i> Nhập dữ liệu từ Excel</h3>
                     <div class="form-group" style="background: #fff9db; padding: 15px; border-radius: 8px; border: 1px solid #ffe066; margin-bottom: 18px; font-size: 15px; line-height: 1.5; color: #856404;">
-                        <strong><i class="fa-solid fa-bolt"></i> Đã kích hoạt công nghệ Đối Soát Tiêu Đề:</strong><br>
-                        Hệ thống tự động liên kết dữ liệu theo đúng tên cột chữ của Excel. Tuyệt đối không lo bị dồn lệch, nhảy định dạng hay biến ngày tháng thành số (46276).
+                        <strong><i class="fa-solid fa-circle-check"></i> Cập nhật mới nhất:</strong><br>
+                        - Giữ đúng mã đơn vị nguyên bản.<br>
+                        - Trường "Năm" và "Năm sinh" tự động cắt lấy 4 chữ số cuối.<br>
+                        - Đồng bộ định dạng cột An toàn viên và NNĐH.
                     </div>
 
                     <input type="file" id="excel_file_input" accept=".xlsx, .xls, .csv" style="display: none;" onchange="xuLyFileExcelNhanSu(this)">
@@ -262,18 +264,26 @@
             } catch(e) { alert("Lỗi xóa dữ liệu: " + e.message); }
         }
 
-        // Hàm chuyển đổi chuẩn hóa: Nếu là số ngày của Excel thì đổi về ngày tháng chuỗi, nếu không giữ nguyên chuỗi sạch
-        function formatExcelCellData(cell) {
+        // Hàm định dạng ngày tháng và xử lý lấy 4 số cuối của năm
+        function formatExcelCellData(cell, layBonSoCuoi = false) {
             if (cell === null || cell === undefined || cell === "") return "";
+            let resStr = "";
+            
             if (typeof cell === 'number' && cell > 20000 && cell < 60000) {
                 let date = XLSX.SSF.parse_date_code(cell);
                 if (date) {
                     let d = date.d < 10 ? '0' + date.d : date.d;
                     let m = date.m < 10 ? '0' + date.m : date.m;
-                    return `${d}/${m}/${date.y}`;
+                    resStr = `${d}/${m}/${date.y}`;
                 }
+            } else {
+                resStr = String(cell).trim();
             }
-            return String(cell).trim();
+
+            if (layBonSoCuoi && resStr.length >= 4) {
+                return resStr.slice(-4);
+            }
+            return resStr;
         }
 
         async function xuLyFileExcelNhanSu(input) {
@@ -283,42 +293,36 @@
             
             reader.onload = async function(e) {
                 const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, { type: 'array' });
+                // raw: true giúp đọc đúng nguyên bản chuỗi văn bản không bị tự động làm tròn số mất phần thập phân
+                const workbook = XLSX.read(data, { type: 'array', raw: true });
                 const worksheet = workbook.Sheets[workbook.SheetNames[0]];
                 
-                // Đọc dữ liệu thô dạng JSON Object (Mỗi dòng là một object có KEY là tên cột)
                 const rawData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
                 if(!rawData.length) { alert("Lỗi: File tải lên không có dữ liệu!"); return; }
 
                 let uniqueMap = new Map();
                 let tuSinhId = 1;
 
-                // Vòng lặp duyệt từng dòng Excel
                 for(let i = 0; i < rawData.length; i++) {
                     let row = rawData[i];
                     
-                    // Tạo một object mới đã được chuẩn hóa KEY viết thường và loại bỏ tất cả khoảng trắng
                     let cleanRow = {};
                     Object.keys(row).forEach(key => {
                         let cleanKey = String(key).toLowerCase().replace(/\s+/g, '');
                         cleanRow[cleanKey] = row[key];
                     });
 
-                    // Tìm kiếm trường Họ và Tên dựa theo Key sạch
                     let hoTenKey = Object.keys(cleanRow).find(k => k.includes("hovàtên") || k.includes("họvàtên"));
                     let hoTenStr = hoTenKey ? String(cleanRow[hoTenKey]).trim() : "";
                     
-                    // Bỏ qua dòng trống không có tên người
                     if(!hoTenStr || hoTenStr === "undefined" || hoTenStr === "") continue;
 
-                    // Lấy STT làm ID khóa chính
                     let sttKey = Object.keys(cleanRow).find(k => k === "stt");
                     let rawId = sttKey ? cleanRow[sttKey] : "";
                     let cleanId = parseInt(String(rawId).replace(/[^0-9]/g, ''));
                     if(isNaN(cleanId)) { cleanId = tuSinhId; }
                     tuSinhId = Math.max(tuSinhId, cleanId) + 1;
 
-                    // Tìm chính xác dữ liệu dựa theo cụm từ trong tên cột (Bất chấp khoảng trắng đúp hay đơn)
                     let tenKey = Object.keys(cleanRow).find(k => k === "tên");
                     let bhxhKey = Object.keys(cleanRow).find(k => k.includes("bhxh") || k.includes("sổbhxh"));
                     let cccdKey = Object.keys(cleanRow).find(k => k.includes("cccd") || k.includes("cmnd"));
@@ -331,21 +335,26 @@
                     let nuKey = Object.keys(cleanRow).find(k => k.includes("nữ"));
                     let chucDanhKey = Object.keys(cleanRow).find(k => k.includes("chứcdanh") || k.includes("côngviệc"));
 
-                    // Gán và lọc định dạng lỗi ngày tháng (46276) biến lại thành chuỗi ngày tháng nguyên bản
                     let tenStr = tenKey ? String(cleanRow[tenKey]).trim() : "";
                     let soBhxhStr = bhxhKey ? String(cleanRow[bhxhKey]).trim() : "";
                     let soCccdStr = cccdKey ? String(cleanRow[cccdKey]).trim() : "";
                     
-                    let anToanVienStr = atvKey ? formatExcelCellData(cleanRow[atvKey]) : "";
-                    let nndhStr = nndhKey ? formatExcelCellData(cleanRow[nndhKey]) : "";
+                    // Lấy thô hoặc giữ đúng chuỗi của an toàn viên và nndh
+                    let anToanVienStr = atvKey ? String(cleanRow[atvKey]).trim() : "";
+                    let nndhStr = nndhKey ? String(cleanRow[nndhKey]).trim() : "";
+                    
                     let namVeHuuStr = veHuuKey ? formatExcelCellData(cleanRow[veHuuKey]) : "";
-                    let maDonViStr = maDVKey && cleanRow[maDVKey] !== "" ? String(cleanRow[maDVKey]).trim() : "Chưa rõ";
-                    let namStr = namKey ? formatExcelCellData(cleanRow[namKey]) : "";
-                    let namSinhStr = namSinhKey ? formatExcelCellData(cleanRow[namSinhKey]) : "";
+                    
+                    // Giữ nguyên mã đơn vị chuẩn, không bị mất số sau dấu chấm thập phân
+                    let maDonViStr = maDVKey && cleanRow[maDVKey] !== undefined && cleanRow[maDVKey] !== null && cleanRow[maDVKey] !== "" ? String(cleanRow[maDVKey]).trim() : "Chưa rõ";
+                    
+                    // Chỉ lấy đúng 4 số cuối của Năm và Năm Sinh
+                    let namStr = namKey ? formatExcelCellData(cleanRow[namKey], true) : "";
+                    let namSinhStr = namSinhKey ? formatExcelCellData(cleanRow[namSinhKey], true) : "";
+                    
                     let nuXStr = nuKey ? String(cleanRow[nuKey]).trim() : "";
                     let chucDanhStr = chucDanhKey ? String(cleanRow[chucDanhKey]).trim() : "";
 
-                    // Đọc giới tính từ cột Nữ (x)
                     let gioiTinh = "Nam";
                     if(nuXStr.toLowerCase() === "x" || nuXStr.includes("nữ") || nuXStr.includes("Nữ")) {
                         gioiTinh = "Nữ";
@@ -376,7 +385,7 @@
                     if(error) {
                         alert("Lỗi nạp lên Cloud: " + error.message);
                     } else {
-                        alert(`🎉 Thành công tuyệt đối! Bộ lọc thông minh đã dọn sạch định dạng lỗi, đồng bộ ${parsedList.length} nhân sự vào đúng ô 100%.`);
+                        alert(`🎉 Thành công 100%! Đã lọc năm lấy 4 số cuối, giữ chuẩn mã đơn vị và hiển thị an toàn viên.`);
                         await taiDuLieuHeThong();
                     }
                 } catch(err) { alert("Lỗi kết nối mạng: " + err.message); }
