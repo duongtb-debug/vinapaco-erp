@@ -95,7 +95,7 @@
     <div class="header">
         <div>
             <h1>Hệ Thống Quản Trị Tổng Hợp Cơ Sở Nhân Sự & Thiết Bị Toàn Diện</h1>
-            <p>Bản cập nhật chuyên gia nâng cấp: Sửa dứt điểm lỗi hiển thị số khoa học (E+) và giữ nguyên số 0 đầu chuỗi</p>
+            <p>Bản sửa lỗi tối ưu: Tự động sửa lỗi thiếu cột Tên rút gọn, giữ định dạng số BHXH/CCCD nguyên bản</p>
         </div>
         <div style="font-size: 13px; font-weight: 500; background: rgba(255,255,255,0.15); padding: 6px 12px; border-radius: 20px;">
             <i class="fa-solid fa-cloud"></i> Đám mây thời gian thực
@@ -112,7 +112,7 @@
             <div id="side_hoso" style="display: block;">
                 <div class="sidebar-card">
                     <h3><i class="fa-solid fa-file-excel"></i> Nhập dữ liệu thông minh</h3>
-                    <p style="font-size: 12px; color: #666; margin: 0 0 10px 0;">Đã chặn hoàn toàn chế độ tự động ép kiểu Số mũ (Scientific) của Excel.</p>
+                    <p style="font-size: 12px; color: #666; margin: 0 0 10px 0;">Đã cấu hình cơ chế tự động điền Tên nếu file Excel thiếu cột.</p>
                     <input type="file" id="excel_file_input" accept=".xlsx, .xls, .csv" style="display: none;" onchange="xuLyFileExcelNhanSu(this)">
                     <button class="btn-primary" style="width: 100%;" onclick="document.getElementById('excel_file_input').click()">
                         <i class="fa-solid fa-cloud-arrow-up"></i> TẢI FILE EXCEL / CSV LÊN
@@ -285,14 +285,12 @@
             document.getElementById('stat_dv').innerText = donViSet.size;
         }
 
-        // HÀM ĐỌC GIÁ TRỊ TEXT GỐC AN TOÀN TUYỆT ĐỐI (XÓA BỎ LỖI SỐ MŨ E+)
         function cleanCellToText(value) {
             if (value === undefined || value === null) return "";
             if (typeof value === 'object') {
                 return value.w ? String(value.w).trim() : (value.v ? String(value.v).trim() : "");
             }
             let str = String(value).trim();
-            // Nếu phát hiện định dạng số mũ e+ do JS ép kiểu sai, loại bỏ các ký tự phi số để làm sạch
             if (str.toUpperCase().includes("E+")) {
                 if(value.v || value.w) {
                     return String(value.w || value.v).trim();
@@ -308,11 +306,8 @@
             
             reader.onload = async function(e) {
                 const data = new Uint8Array(e.target.result);
-                // raw: false bắt buộc xlsx giữ lại thuộc tính text hiển thị định dạng .w của ô dữ liệu
                 const workbook = XLSX.read(data, { type: 'array', raw: false });
                 const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-                
-                // Trích xuất JSON nâng cao với cấu hình điền chuỗi trống thay vì bỏ qua ô trống
                 const rawJson = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
 
                 if(!rawJson.length) { alert("File trống!"); return; }
@@ -336,7 +331,15 @@
                                 gioiTinh = "Nữ";
                             }
 
-                            // Trích xuất văn bản thô, bỏ qua cơ chế tự ép kiểu số mũ của JavaScript
+                            let hoTenStr = cleanCellToText(row["ho_va_ten"] || row["Họ và Tên"] || row["Họ tên"]) || "Không rõ";
+                            
+                            // GIẢI PHÁP THÔNG MINH: Tự động tìm cột Tên, hoặc tự trích xuất nếu thiếu cột
+                            let tenRutGonStr = cleanCellToText(row["ten"] || row["Tên rút gọn"] || row["Tên"] || row["ten_rut_gon"]);
+                            if (!tenRutGonStr && hoTenStr !== "Không rõ") {
+                                let parts = hoTenStr.split(" ");
+                                tenRutGonStr = parts[parts.length - 1]; // Lấy chữ cuối cùng làm Tên
+                            }
+
                             let ngaySinhStr = cleanCellToText(row["ngay_sinh"] || row["Ngày sinh"] || row["Ngày Sinh"]);
                             let soCccdStr = cleanCellToText(row["so_cccd"] || row["Số CCCD"] || row["CCCD"]);
                             let soBhxhStr = cleanCellToText(row["so_bhxh"] || row["Số BHXH"]);
@@ -344,8 +347,8 @@
 
                             mapData.push({
                                 id: cleanId,
-                                ho_ten: cleanCellToText(row["ho_va_ten"] || row["Họ và Tên"] || row["Họ tên"]) || "Không rõ",
-                                ten_rut_gon: cleanCellToText(row["ten"] || row["Tên rút gọn"] || row["Tên"]),
+                                ho_ten: hoTenStr,
+                                ten_rut_gon: tenRutGonStr,
                                 ngay_sinh: ngaySinhStr !== "" ? ngaySinhStr : null,
                                 gioi_tinh: gioiTinh,
                                 ma_don_vi: maDonViStr,
@@ -363,7 +366,6 @@
                     return;
                 }
 
-                // Thực hiện ghi đè thông minh (Upsert) dựa trên khoá chính ID
                 const { error } = await client.from('nhan_su').upsert(mapData, { onConflict: 'id' });
                 if(error) {
                     alert("Lỗi đồng bộ: " + error.message);
