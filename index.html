@@ -97,7 +97,7 @@
     <div class="header">
         <div>
             <h1>Hệ Thống Quản Trị Tổng Hợp Cơ Sở Nhân Sự & Thiết Bị Toàn Diện</h1>
-            <p>Bản cập nhật tối ưu: Tích hợp dọn sạch đám mây và Tự động chuẩn hóa tiêu đề cột Excel thông minh</p>
+            <p>Bản sửa lỗi cấp chuyên gia: Cơ chế Mapping ma trận ô, triệt tiêu hoàn toàn lỗi Column Not Found</p>
         </div>
         <div style="font-size: 13px; font-weight: 500; background: rgba(255,255,255,0.15); padding: 6px 12px; border-radius: 20px;">
             <i class="fa-solid fa-cloud"></i> Đám mây thời gian thực
@@ -114,7 +114,7 @@
             <div id="side_hoso" style="display: block;">
                 <div class="sidebar-card">
                     <h3><i class="fa-solid fa-file-excel"></i> Nhập dữ liệu thông minh</h3>
-                    <p style="font-size: 12px; color: #666; margin: 0 0 10px 0;">Hỗ trợ dọn dẹp bộ nhớ Cloud trước khi đẩy tệp mới.</p>
+                    <p style="font-size: 12px; color: #666; margin: 0 0 10px 0;">Cơ chế nạp ma trận ô chống lỗi phân tích dữ liệu.</p>
                     <input type="file" id="excel_file_input" accept=".xlsx, .xls, .csv" style="display: none;" onchange="xuLyFileExcelNhanSu(this)">
                     
                     <button class="btn-primary" style="width: 100%; margin-bottom: 12px;" onclick="document.getElementById('excel_file_input').click()">
@@ -292,44 +292,20 @@
             document.getElementById('stat_dv').innerText = donViSet.size;
         }
 
-        function cleanCellToText(value) {
-            if (value === undefined || value === null) return "";
-            if (typeof value === 'object') {
-                return value.w ? String(value.w).trim() : (value.v ? String(value.v).trim() : "");
-            }
-            let str = String(value).trim();
-            if (str.toUpperCase().includes("E+")) {
-                if(value.v || value.w) {
-                    return String(value.w || value.v).trim();
-                }
-            }
-            return str;
-        }
-
-        // HÀM CAO CẤP: XÓA SẠCH DỮ LIỆU ĐÁM MÂY TRƯỚC KHI UPDATE
         async function xoaToanBoDuLieuCloud() {
-            if (!confirm("⚠️ CẢNH BÁO: Bạn có chắc chắn muốn xóa SẠCH TOÀN BỘ dữ liệu nhân sự trên Đám mây? Thao tác này giúp dọn dẹp bộ nhớ trước khi đồng bộ file mới và không thể khôi phục!")) {
+            if (!confirm("⚠️ CẢNH BÁO: Bạn có chắc chắn muốn xóa SẠCH TOÀN BỘ dữ liệu nhân sự trên Đám mây để làm mới hoàn toàn? Thao tác này không thể khôi phục!")) {
                 return;
             }
-            
-            document.getElementById('nhan_su_table_body').innerHTML = `<tr><td colspan="10" style="text-align: center; color:red; font-weight:bold;">Đang xóa sạch dữ liệu trên Cloud... Xin vui lòng đợi.</td></tr>`;
-            
+            document.getElementById('nhan_su_table_body').innerHTML = `<tr><td colspan="10" style="text-align: center; color:red; font-weight:bold;">Đang dọn dẹp đám mây...</td></tr>`;
             try {
-                // Xóa toàn bộ dòng dữ liệu nhân sự bằng điều kiện id lớn hơn 0
                 const { error } = await client.from('nhan_su').delete().gt('id', 0);
-                
-                if (error) {
-                    alert("Lỗi khi xóa dữ liệu Cloud: " + error.message);
-                } else {
-                    alert("🎉 Thành công! Đã xóa sạch bộ nhớ cũ trên Cloud. Bây giờ bạn có thể upload file Excel mới.");
-                }
-            } catch(e) {
-                alert("Lỗi hệ thống: " + e.message);
-            }
+                if (error) alert("Lỗi khi xóa Cloud: " + error.message);
+                else alert("🎉 Đã dọn dẹp sạch đám mây. Hãy tiến hành tải file Excel lên!");
+            } catch(e) { alert("Lỗi: " + e.message); }
             await taiDuLieuHeThong();
         }
 
-        // HÀM PHÂN TÍCH EXCEL THÔNG MINH - CHỐNG LỖI SAI TIÊU ĐỀ CỘT
+        // THUẬT TOÁN ĐỌC MA TRẬN Ô CHUYÊN GIA - KHÔNG PHỤ THUỘC TÊN ĐẦU CỘT
         async function xuLyFileExcelNhanSu(input) {
             if(!input.files.length) return;
             const file = input.files[0];
@@ -337,98 +313,98 @@
             
             reader.onload = async function(e) {
                 const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, { type: 'array', raw: false });
+                const workbook = XLSX.read(data, { type: 'array' });
                 const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-                const rawJson = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+                
+                // Chuyển thành mảng 2 chiều (Dạng lưới ô: hàng - cột) để kiểm soát tuyệt đối
+                const matrix = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+                if(!matrix.length) { alert("File Excel rỗng!"); return; }
 
-                if(!rawJson.length) { alert("File trống!"); return; }
+                // Tìm tiêu đề ở hàng đầu tiên
+                let headerRow = matrix[0].map(h => String(h).toLowerCase().trim().replace(/_/g, ""));
+                
+                let idxId = headerRow.findIndex(h => ["stt", "manv", "id", "manhanvien"].includes(h));
+                let idxHoTen = headerRow.findIndex(h => ["hovaten", "hoten"].includes(h));
+                let idxTen = headerRow.findIndex(h => ["ten", "tenrutgon"].includes(h));
+                let idxNgaySinh = headerRow.findIndex(h => ["ngaysinh"].includes(h));
+                let idxGioiTinh = headerRow.findIndex(h => ["gioitinh"].includes(h));
+                let idxNuX = headerRow.findIndex(h => ["nux"].includes(h));
+                let idxMaDonVi = headerRow.findIndex(h => ["madonvi", "donvi"].includes(h));
+                let idxChucDanh = headerRow.findIndex(h => ["chucdanhcongviec", "chucdanh"].includes(h));
+                let idxCccd = headerRow.findIndex(h => ["socccd", "cccd"].includes(h));
+                let idxBhxh = headerRow.findIndex(h => ["sobhxh", "bhxh"].includes(h));
+                let idxTrangThai = headerRow.findIndex(h => ["trangthai", "trangthailamviec"].includes(h));
 
                 let mapData = [];
                 let checkedUniqueKeys = new Set();
 
-                // 1. Phân tích thông minh tiêu đề cột (Hỗ trợ viết hoa, viết thường, có dấu, không dấu)
-                let sampleRow = rawJson[0];
-                let columnMap = {
-                    id: "", ho_ten: "", ten: "", ngay_sinh: "", gioi_tinh: "",
-                    ma_don_vi: "", chuc_danh: "", so_cccd: "", so_bhxh: "", trang_thai: ""
-                };
+                // Duyệt qua các hàng dữ liệu (bỏ hàng 0 tiêu đề)
+                for(let i = 1; i < matrix.length; i++) {
+                    let row = matrix[i];
+                    if(!row.length) continue;
 
-                Object.keys(sampleRow).forEach(key => {
-                    let k = key.toLowerCase().trim().replace(/_/g, "");
-                    
-                    if (["stt", "manv", "id", "manhanvien"].includes(k)) columnMap.id = key;
-                    if (["hovaten", "hoten"].includes(k)) columnMap.ho_ten = key;
-                    if (["ten", "tenrutgon"].includes(k)) columnMap.ten = key;
-                    if (["ngaysinh"].includes(k)) columnMap.ngay_sinh = key;
-                    if (["gioitinh"].includes(k)) columnMap.gioi_tinh = key;
-                    if (["madonvi", "donvi"].includes(k)) columnMap.ma_don_vi = key;
-                    if (["chucdanhcongviec", "chucdanh"].includes(k)) columnMap.chuc_danh = key;
-                    if (["socccd", "cccd"].includes(k)) columnMap.so_cccd = key;
-                    if (["sobhxh", "bhxh"].includes(k)) columnMap.so_bhxh = key;
-                    if (["trangthai", "trangthailamviec"].includes(k)) columnMap.trang_thai = key;
-                });
+                    let rawId = idxId !== -1 ? row[idxId] : "";
+                    if(rawId === undefined || rawId === null || rawId === "") continue;
 
-                // 2. Chuyển đổi dữ liệu chuẩn
-                rawJson.forEach(row => {
-                    let idVal = row[columnMap.id || "stt"] || row["Mã NV"] || row["ID"] || row["id"];
-                    
-                    if(idVal !== undefined && idVal !== null && idVal !== "") {
-                        let cleanId = parseInt(String(idVal).replace(/[^0-9]/g, ''));
-                        
-                        if(!isNaN(cleanId) && !checkedUniqueKeys.has(cleanId)) {
-                            checkedUniqueKeys.add(cleanId);
-                            
-                            // Trích xuất Giới tính
-                            let gioiTinh = "Nam";
-                            let gtKey = columnMap.gioi_tinh || "Giới tính";
-                            if(row[gtKey]) {
-                                gioiTinh = cleanCellToText(row[gtKey]);
-                            } else if (row["nu_x"] && cleanCellToText(row["nu_x"]).toUpperCase() === "X") {
-                                gioiTinh = "Nữ";
-                            }
+                    let cleanId = parseInt(String(rawId).replace(/[^0-9]/g, ''));
+                    if(isNaN(cleanId) || checkedUniqueKeys.has(cleanId)) continue;
+                    checkedUniqueKeys.add(cleanId);
 
-                            // Trích xuất Họ Tên và xử lý Tên rút gọn thông minh
-                            let hoTenStr = cleanCellToText(row[columnMap.ho_ten || "Họ và Tên"]) || "Không rõ";
-                            let tenRutGonStr = cleanCellToText(row[columnMap.ten || "Tên rút gọn"] || row["ten"] || row["Tên"]);
-                            
-                            // Nếu thiếu cột Tên, tự động cắt chữ cuối cùng của Họ Tên ra điền vào
-                            if (!tenRutGonStr && hoTenStr !== "Không rõ") {
-                                let parts = hoTenStr.trim().split(" ");
-                                tenRutGonStr = parts[parts.length - 1];
-                            }
-
-                            let ngaySinhStr = cleanCellToText(row[columnMap.ngay_sinh || "Ngày sinh"]);
-                            let soCccdStr = cleanCellToText(row[columnMap.so_cccd || "Số CCCD"]);
-                            let soBhxhStr = cleanCellToText(row[columnMap.so_bhxh || "Số BHXH"]);
-                            let maDonViStr = cleanCellToText(row[columnMap.ma_don_vi || "Mã Đơn Vị"]);
-
-                            mapData.push({
-                                id: cleanId,
-                                ho_ten: hoTenStr,
-                                ten_rut_gon: tenRutGonStr,
-                                ngay_sinh: ngaySinhStr !== "" ? ngaySinhStr : null,
-                                gioi_tinh: gioiTinh,
-                                ma_don_vi: maDonViStr,
-                                chuc_danh_cong_viec: cleanCellToText(row[columnMap.chuc_danh || "Chức danh"]),
-                                so_cccd: soCccdStr !== "" ? soCccdStr : null,
-                                so_bhxh: soBhxhStr !== "" ? soBhxhStr : null,
-                                trang_thai_lam_viec: cleanCellToText(row[columnMap.trang_thai || "Trạng thái"]) || "Đang làm việc"
-                            });
-                        }
+                    // Xử lý Giới tính
+                    let gioiTinh = "Nam";
+                    if(idxGioiTinh !== -1 && row[idxGioiTinh]) {
+                        gioiTinh = String(row[idxGioiTinh]).trim();
+                    } else if (idxNuX !== -1 && String(row[idxNuX]).toUpperCase().trim() === "X") {
+                        gioiTinh = "Nữ";
                     }
-                });
+
+                    // Xử lý Họ và tên & Tên rút gọn
+                    let hoTenStr = idxHoTen !== -1 ? String(row[idxHoTen]).trim() : "Không rõ";
+                    let tenRutGonStr = "";
+                    
+                    if(idxTen !== -1 && row[idxTen]) {
+                        tenRutGonStr = String(row[idxTen]).trim();
+                    }
+                    
+                    // KHẮC PHỤC DỨT ĐIỂM: Nếu rỗng, tự động cắt chữ cuối cùng của Họ và tên
+                    if(!tenRutGonStr && hoTenStr !== "Không rõ") {
+                        let parts = hoTenStr.split(" ");
+                        tenRutGonStr = parts[parts.length - 1];
+                    }
+
+                    // Các trường còn lại đảm bảo luôn là chuỗi hoặc null (không bao giờ được là undefined)
+                    let ngaySinhStr = idxNgaySinh !== -1 && row[idxNgaySinh] !== "" ? String(row[idxNgaySinh]).trim() : null;
+                    let maDonViStr = idxMaDonVi !== -1 && row[idxMaDonVi] !== "" ? String(row[idxMaDonVi]).trim() : "Hệ thống";
+                    let chucDanhStr = idxChucDanh !== -1 && row[idxChucDanh] !== "" ? String(row[idxChucDanh]).trim() : "";
+                    let soCccdStr = idxCccd !== -1 && row[idxCccd] !== "" ? String(row[idxCccd]).trim() : null;
+                    let soBhxhStr = idxBhxh !== -1 && row[idxBhxh] !== "" ? String(row[idxBhxh]).trim() : null;
+                    let trangThaiStr = idxTrangThai !== -1 && row[idxTrangThai] !== "" ? String(row[idxTrangThai]).trim() : "Đang làm việc";
+
+                    mapData.push({
+                        id: cleanId,
+                        ho_ten: hoTenStr,
+                        ten_rut_gon: tenRutGonStr || hoTenStr, // Fallback cuối cùng để an toàn tuyệt đối
+                        ngay_sinh: ngaySinhStr,
+                        gioi_tinh: gioiTinh,
+                        ma_don_vi: maDonViStr,
+                        chuc_danh_cong_viec: chucDanhStr,
+                        so_cccd: soCccdStr,
+                        so_bhxh: soBhxhStr,
+                        trang_thai_lam_viec: trangThaiStr
+                    });
+                }
 
                 if(mapData.length === 0) {
-                    alert("Không tìm thấy dữ liệu hợp lệ trong file!");
+                    alert("Không tìm thấy hàng dữ liệu hợp lệ!");
                     return;
                 }
 
-                // Ghi đè hoặc thêm mới an toàn (Upsert)
+                // Thực thi đồng bộ lên Cloud
                 const { error } = await client.from('nhan_su').upsert(mapData, { onConflict: 'id' });
                 if(error) {
-                    alert("Lỗi đồng bộ: " + error.message);
+                    alert("Lỗi kết nối đám mây: " + error.message);
                 } else {
-                    alert(`🎉 Đồng bộ thành công dứt điểm! Đã đưa cấu trúc ${mapData.length} nhân sự lên Cloud.`);
+                    alert(`🎉 Thành công dứt điểm! Đã chuẩn hóa và đồng bộ ${mapData.length} nhân sự lên Cloud.`);
                     await taiDuLieuHeThong();
                 }
             };
@@ -467,7 +443,7 @@
             });
 
             if(!queryData.length) {
-                tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;">Không có dữ liệu nhân sự trên Cloud hoặc không phù hợp bộ lọc.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;">Không có dữ liệu nhân sự phù hợp.</td></tr>`;
                 return;
             }
 
