@@ -47,10 +47,6 @@
         .upload-box input { display: block; margin: 5px auto 0 auto; font-size: 12px; }
         .loading-status { font-weight: bold; color: #e67e22; margin-top: 5px; font-size: 12px; display: none; }
 
-        /* Nút chức năng xóa */
-        .btn-danger { background-color: var(--danger-color); color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 12px; display: flex; align-items: center; justify-content: center; gap: 6px; transition: background 0.2s; width: 100%; box-sizing: border-box; }
-        .btn-danger:hover { background-color: #c0392b; }
-
         /* KHÔNG GIAN HIỂN THỊ CHÍNH */
         .main-content { flex: 4; display: flex; flex-direction: column; gap: 20px; overflow: hidden; }
         
@@ -93,7 +89,7 @@
     <div class="header">
         <div>
             <h1>Hệ Thống Quản Trị Tổng Hợp Cơ Sở Nhân Sự & Thiết Bị Toàn Diện</h1>
-            <p>Phiên bản nâng cấp giữ nguyên định dạng số An toàn viên của Tổng công ty 2026</p>
+            <p>Phiên bản nâng cấp Logic Upsert Thông Minh - Giữ nguyên số An toàn viên</p>
         </div>
         <div id="connection_status" style="color: #2ecc71; font-weight: 600; font-size: 14px;">
             <i class="fa-solid fa-circle-check"></i> KẾT NỐI ĐÁM MÂY ỔN ĐỊNH
@@ -123,13 +119,11 @@
             <div class="sidebar-card">
                 <h3><i class="fa-solid fa-file-excel"></i> Đồng Bộ Biến Động Excel</h3>
                 <div class="upload-box">
-                    <span style="color: #27ae60; font-weight: bold; font-size: 13px;">📥 QUẢN LÝ DỮ LIỆU ĐÁM MÂY</span>
-                    <p style="font-size: 11px; color:#666; margin: 0; line-height: 1.4;">Xóa dữ liệu cũ trước khi nạp file mới để tránh lỗi cộng dồn nhân sự.</p>
-                    
-                    <button class="btn-danger" onclick="xoaSachDu LieuCloud()"><i class="fa-solid fa-trash-can"></i> Xóa Toàn Bộ Dữ Liệu Cũ</button>
-                    
-                    <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 5px 0;">
-                    
+                    <span style="color: #27ae60; font-weight: bold; font-size: 13px;">📥 LOGIC UPSERT THÔNG MINH</span>
+                    <p style="font-size: 11px; color:#666; margin: 0; line-height: 1.4; text-align: left;">
+                        • Hệ thống đối chiếu nhân sự cũ để <b>chỉ cập nhật</b> thông tin thay đổi.<br>
+                        • Nhân sự mới sẽ được <b>thêm vào tự động</b> mà không ảnh hưởng người khác.
+                    </p>
                     <input type="file" id="excel_file_input" accept=".xlsx, .xls" onchange="xuLyUpsertDuLieuExcel(this)">
                     <div id="txt_process_status" class="loading-status">Đang xử lý dữ liệu đám mây...</div>
                 </div>
@@ -319,30 +313,6 @@
             }
         }
 
-        // HÀM XÓA SẠCH DỮ LIỆU TRÊN CLOUD TRƯỚC KHI NẠP MỚI
-        async function xoaSachDuLieuCloud() {
-            if (!confirm("⚠️ CẢNH BÁO HỆ THỐNG:\nHành động này sẽ xóa TOÀN BỘ nhân sự hiện có trên hệ thống đám mây để chuẩn bị nạp mới.\nBạn có chắc chắn muốn xóa không?")) {
-                return;
-            }
-            
-            const statusTxt = document.getElementById('txt_process_status');
-            statusTxt.style.display = "block"; 
-            statusTxt.innerText = "Đang xóa sạch dữ liệu cũ trên Cloud...";
-
-            try {
-                // Thực hiện xóa diện rộng (điều kiện gte id = 0 để bao quát toàn bộ bảng)
-                const { error } = await client.from('nhan_su').delete().gte('id', 0);
-                if (error) throw error;
-                
-                alert("Đã làm sạch toàn bộ kho dữ liệu thành công! Hãy chọn file Excel mới để nạp vào.");
-                await taiDuLieuTuCloud();
-            } catch (err) {
-                alert("Lỗi khi xóa dữ liệu cũ: " + err.message);
-            } finally {
-                statusTxt.style.display = "none";
-            }
-        }
-
         function SuaLoiThongKeVaRenderBoLoc() {
             let tong = CACHE_NHAN_SU.length;
             let nam = 0, nu = 0;
@@ -524,10 +494,11 @@
             document.getElementById('txt_report_nndh').innerHTML = `• Số nhân sự làm việc trong môi trường nặng nhọc, độc hại (NNDH): <b>${nndhCount}</b> lao động.`;
         }
 
+        // LUỒNG XỬ LÝ ĐỒNG BỘ UPSERT THÔNG MINH TUẦN TỰ TRÁNH TRÙNG LẶP DỮ LIỆU
         function xuLyUpsertDuLieuExcel(input) {
             const file = input.files[0]; if (!file) return;
             const statusTxt = document.getElementById('txt_process_status');
-            statusTxt.style.display = "block"; statusTxt.innerText = "Đang đồng bộ thực thể đám mây...";
+            statusTxt.style.display = "block"; statusTxt.innerText = "Đang đọc tệp và phân tích thực thể dữ liệu...";
 
             const reader = new FileReader();
             reader.onload = async function(e) {
@@ -537,7 +508,7 @@
                     const sheet = workbook.Sheets[workbook.SheetNames[0]];
                     const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
                     
-                    if (rows.length === 0) { alert("File Excel rỗng!"); statusTxt.style.display = "none"; return; }
+                    if (rows.length === 0) { alert("File Excel trống!"); statusTxt.style.display = "none"; return; }
 
                     function chuanHoaKey(k) {
                         if (!k) return "";
@@ -569,6 +540,21 @@
                         }
                     }
 
+                    statusTxt.innerText = "Đang lập bảng đối chiếu thực thể đám mây...";
+                    
+                    // Tạo bản đồ Map từ Cache để tăng tốc độ tìm kiếm nhân sự cũ chính xác 100%
+                    let mapsCccd = new Map();
+                    let mapsKeyToHop = new Map();
+                    
+                    CACHE_NHAN_SU.forEach(ns => {
+                        if (ns.so_cccd) {
+                            mapsCccd.set(String(ns.so_cccd).trim(), ns);
+                        }
+                        let dinhDangNgay = dinhDangNgayThangChuan(ns.nam_sinh || ns.nam);
+                        let keyToHop = `${String(ns.ho_ten).trim().toLowerCase()}_${dinhDangNgay}`;
+                        mapsKeyToHop.set(keyToHop, ns);
+                    });
+
                     let countUpdated = 0, countInserted = 0;
 
                     for (let i = headerIdx + 1; i < rows.length; i++) {
@@ -597,20 +583,30 @@
                             nndh: String(row[colMapping.nndh] || "").trim()
                         };
 
+                        // Tiến hành đối chiếu thông minh
                         let existing = null;
-                        if (cccdVal) existing = CACHE_NHAN_SU.find(ns => String(ns.so_cccd || "").trim() === cccdVal);
-                        if (!existing) existing = CACHE_NHAN_SU.find(ns => String(ns.ho_ten).trim().toLowerCase() === hoTenVal.toLowerCase() && dinhDangNgayThangChuan(ns.nam_sinh || ns.nam) === cleanBirthDate);
-
-                        if (existing) {
-                            await client.from('nhan_su').update(payload).eq('id', existing.id);
-                            countUpdated++;
+                        if (cccdVal && mapsCccd.has(cccdVal)) {
+                            existing = mapsCccd.get(cccdVal);
                         } else {
-                            await client.from('nhan_su').insert([payload]);
-                            countInserted++;
+                            let lookupKey = `${hoTenVal.toLowerCase()}_${cleanBirthDate}`;
+                            if (mapsKeyToHop.has(lookupKey)) {
+                                existing = mapsKeyToHop.get(lookupKey);
+                            }
+                        }
+
+                        // Xử lý ghi dữ liệu trực tiếp dựa trên kết quả đối chiếu
+                        if (existing) {
+                            statusTxt.innerText = `Đang cập nhật biến động: ${hoTenVal}...`;
+                            const { error } = await client.from('nhan_su').update(payload).eq('id', existing.id);
+                            if (!error) countUpdated++;
+                        } else {
+                            statusTxt.innerText = `Đang thêm mới nhân sự: ${hoTenVal}...`;
+                            const { error } = await client.from('nhan_su').insert([payload]);
+                            if (!error) countInserted++;
                         }
                     }
 
-                    alert(`Đồng bộ dữ liệu thành công!\n- Số nhân sự cập nhật biến động: ${countUpdated}\n- Số nhân sự cấp mới tài khoản: ${countInserted}`);
+                    alert(`Đồng bộ Upsert hoàn tất thành công!\n- Số nhân sự cũ được cập nhật thông tin mới: ${countUpdated}\n- Số nhân sự mới được thêm vào hệ thống: ${countInserted}\n(Các nhân sự khác không có trong file vẫn giữ nguyên giá trị)`);
                     await taiDuLieuTuCloud();
                 } catch (err) {
                     alert("Lỗi xử lý luồng Excel: " + err.message);
