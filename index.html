@@ -76,7 +76,7 @@
     <div class="header">
         <div>
             <h1>Hệ Thống Quản Trị Tổng Hợp Cơ Sở Nhân Sự & Thiết Bị Toàn Diện</h1>
-            <p>Bản sửa lỗi tối ưu: Đồng bộ hóa chính xác cột [ten] trên Supabase Database</p>
+            <p>Bản sửa lỗi dứt điểm: Tự động gán chữ chống Null cột Trạng thái làm việc</p>
         </div>
         <div style="font-size: 13px; font-weight: 500; background: rgba(255,255,255,0.15); padding: 6px 12px; border-radius: 20px;">
             <i class="fa-solid fa-cloud"></i> Đám mây thời gian thực
@@ -94,10 +94,10 @@
                 <div class="sidebar-card">
                     <h3><i class="fa-solid fa-file-excel"></i> Nhập dữ liệu thông minh</h3>
                     <div class="form-group" style="background: #eefdf4; padding: 10px; border-radius: 6px; border: 1px solid #b7ebd0; margin-bottom: 12px;">
-                        <label style="color: #1e7e34; font-weight: bold;"><i class="fa-solid fa-circle-check"></i> Đã đồng bộ cấu trúc:</label>
+                        <label style="color: #1e7e34; font-weight: bold;"><i class="fa-solid fa-shield-halved"></i> Chế độ khóa giá trị trống:</label>
                         <span style="font-size: 11.5px; color: #333; line-height: 1.4; display: block; margin-top: 4px;">
-                            • Đã đổi tên trường gửi lên từ <code>ten_rut_gon</code> thành <code>ten</code> để khớp hoàn toàn với cột sẵn có trong Database của bạn.<br>
-                            • Tự động điền <b>"Đang làm việc"</b> nếu cột trạng thái trong excel trống.
+                            • Tự động điền chữ <b>"Đang làm việc"</b> nếu cột trạng thái trong file Excel trống hoặc thiếu.<br>
+                            • Đồng bộ cột <code>ten</code> và cột <code>trang_thai_lam_viec</code> chuẩn database.
                         </span>
                     </div>
 
@@ -308,7 +308,7 @@
                 let idxChucDanh = headerRow.findIndex(h => ["chucdanhcongviec", "chucdanh", "chucvu", "vitricongviec", "chuc_danh_cong_viec"].includes(h));
                 let idxCccd = headerRow.findIndex(h => ["socccd", "cccd", "cancuoc", "so_cccd"].includes(h));
                 let idxBhxh = headerRow.findIndex(h => ["sobhxh", "bhxh", "baohiem", "so_bhxh"].includes(h));
-                let idxTrangThai = headerRow.findIndex(h => ["trangthai", "trangthailamviec", "trang_thai_lam_viec"].includes(h));
+                let idxTrangThai = headerRow.findIndex(h => ["trangthai", "trangthailamviec", "trang_thai_lam_viec", "tinhtrang"].includes(h));
 
                 if (idxId === -1) idxId = 0;
                 if (idxHoTen === -1) idxHoTen = 1;
@@ -330,7 +330,6 @@
                     let hoTenStr = (idxHoTen !== -1 && row[idxHoTen] !== undefined) ? String(row[idxHoTen]).trim() : "";
                     if(!hoTenStr || hoTenStr === "undefined" || hoTenStr.length < 2) continue; 
 
-                    // 🛡️ ĐỒNG BỘ: Khớp chính xác cột [ten] trên database của bạn
                     let tenStr = "";
                     if(idxTen !== -1 && row[idxTen] !== undefined) {
                         tenStr = String(row[idxTen]).trim();
@@ -343,11 +342,12 @@
                         tenStr = hoTenStr;
                     }
 
+                    // 🛡️ CHỐNG NULL TUYỆT ĐỐI: Ép cứng chuỗi "Đang làm việc" nếu ô trống hoặc lỗi undefined
                     let trangThaiStr = "";
-                    if(idxTrangThai !== -1 && row[idxTrangThai] !== undefined) {
+                    if(idxTrangThai !== -1 && row[idxTrangThai] !== undefined && row[idxTrangThai] !== null) {
                         trangThaiStr = String(row[idxTrangThai]).trim();
                     }
-                    if(!trangThaiStr || trangThaiStr === "" || trangThaiStr === "undefined") {
+                    if(!trangThaiStr || trangThaiStr === "" || trangThaiStr === "undefined" || trangThaiStr === "null") {
                         trangThaiStr = "Đang làm việc";
                     }
 
@@ -366,18 +366,19 @@
                     let chucDanhStr = (idxChucDanh !== -1 && row[idxChucDanh] !== "") ? String(row[idxChucDanh]).trim() : "";
                     let soCccdStr = (idxCccd !== -1 && row[idxCccd] !== "") ? String(row[idxCccd]).trim() : null;
                     let soBhxhStr = (idxBhxh !== -1 && row[idxBhxh] !== "") ? String(row[idxBhxh]).trim() : null;
+                    let maDonViStr = (headerRow.includes("madonvi") && row[headerRow.indexOf("madonvi")] !== "") ? String(row[headerRow.indexOf("madonvi")]).trim() : null;
 
                     mapData.push({
                         id: cleanId, 
                         ho_ten: hoTenStr,
-                        ten: tenStr, // ĐÃ SỬA THÀNH 'ten' ĐỂ KHỚP 100% VỚI DATABASE CỦA BẠN
+                        ten: tenStr, 
                         ngay_sinh: ngaySinhStr,
                         gioi_tinh: gioiTinh,
-                        ma_don_vi: null, 
+                        ma_don_vi: maDonViStr, 
                         chuc_danh_cong_viec: chucDanhStr,
                         so_cccd: soCccdStr,
                         so_bhxh: soBhxhStr,
-                        trang_thai_lam_viec: trangThaiStr 
+                        trang_thai_lam_viec: trangThaiStr // Luôn luôn là một chuỗi chữ hợp lệ
                     });
                 }
 
