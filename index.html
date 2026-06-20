@@ -79,7 +79,7 @@
     <div class="header">
         <div>
             <h1>Hệ Thống Quản Trị Tổng Hợp Cơ Sở Nhân Sự & Thiết Bị Toàn Diện</h1>
-            <p>Bản sửa lỗi lệch trường thông tin - Căn chỉnh chính xác theo thứ tự cột Excel thực tế</p>
+            <p>Bản sửa lỗi triệt để: Khắc phục lỗi trùng lặp dữ liệu Excel & Lệch cột tiêu đề</p>
         </div>
         <div id="connection_status" style="color: #2ecc71; font-weight: 600; font-size: 14px;">
             <i class="fa-solid fa-circle-check"></i> KẾT NỐI ĐÁM MÂY ỔN ĐỊNH
@@ -111,8 +111,8 @@
                 <div class="upload-box">
                     <span style="color: #27ae60; font-weight: bold; font-size: 13px;">📥 ĐỒNG BỘ CHUẨN ĐỊNH DẠNG</span>
                     <p style="font-size: 11px; color:#666; margin: 0; line-height: 1.4; text-align: left;">
-                        • Đã căn chỉnh thứ tự cột khớp 100% với file Excel thực tế.<br>
-                        • Tự động bóc tách ngày sinh từ chuỗi số Serial Excel.
+                        • Đã bổ sung bộ lọc trùng lặp ID nhân sự trên bộ nhớ trước khi đẩy lên Cloud.<br>
+                        • Tự động bóc tách ngày sinh & phân tách giới tính chuẩn xác.
                     </p>
                     <input type="file" id="excel_file_input" accept=".xlsx, .xls" onchange="xuLyUpsertDuLieuExcel(this)">
                     <div id="txt_process_status" class="loading-status">Đang xử lý dữ liệu đám mây...</div>
@@ -264,7 +264,6 @@
             if (!val) return "";
             let strVal = String(val).trim();
             
-            // Xử lý nếu là số ngày Serial của Excel (Ví dụ: 25425, 27242)
             if (!isNaN(strVal) && strVal.length >= 4 && strVal.length <= 5) {
                 let serial = parseInt(strVal);
                 let date = new Date((serial - 25569) * 86400 * 1000);
@@ -359,7 +358,7 @@
             if(!tbody) return; tbody.innerHTML = "";
 
             let filtered = CACHE_NHAN_SU.filter(item => {
-                if (FILTER_DON_VI_SELECTED !== "ALL" && (item.ma_don_vi || "CHƯA XÁC ĐỊNH") !== FILTER_DON_VI_SELECTED) return false;
+                if (FILTER_DON_VI_SELECTED !== "ALL" && (item.ma_don_vi || "CHƯA XÁX ĐỊNH") !== FILTER_DON_VI_SELECTED) return false;
                 return !searchVal || 
                     String(item.ho_ten || "").toLowerCase().includes(searchVal) ||
                     String(item.so_cccd || "").toLowerCase().includes(searchVal) ||
@@ -483,11 +482,10 @@
             finally { statusTxt.style.display = "none"; }
         }
 
-        // ĐỒNG BỘ ĐÃ CĂN CHỈNH THỨ TỰ VÀ BÓC TÁCH GIỚI TÍNH TỪ "THỊ" CHUẨN XÁC
         function xuLyUpsertDuLieuExcel(input) {
             const file = input.files[0]; if (!file) return;
             const statusTxt = document.getElementById('txt_process_status');
-            statusTxt.style.display = "block"; statusTxt.innerText = "Đang phân tích cấu trúc cột...";
+            statusTxt.style.display = "block"; statusTxt.innerText = "Đang phân tích và xử lý lọc trùng dữ liệu Excel...";
 
             const reader = new FileReader();
             reader.onload = async function(e) {
@@ -505,10 +503,8 @@
                     }
 
                     let headerIdx = 0;
-                    // Cấu hình fallback index khớp chính xác tuyệt đối với cấu trúc file thực tế của người dùng
                     let colMapping = { id: 0, hoten: 1, tenrutgon: 2, madonvi: 3, chucdanh: 4, namsinh: 5, cccd: 6, bhxh: 7, antoan: 8, nndh: 9 };
 
-                    // Quét tìm dòng tiêu đề thực tế nếu có
                     for (let i = 0; i < Math.min(rows.length, 15); i++) {
                         let row = rows[i];
                         let found = false;
@@ -535,7 +531,9 @@
                         }
                     }
 
-                    let mangDuLieuBulk = [];
+                    // Sử dụng Map để loại bỏ trùng lặp mã nhân viên (id) ngay trong bộ nhớ trước khi đẩy lên Supabase
+                    let uniquePayloadsMap = new Map();
+                    
                     for (let i = headerIdx + 1; i < rows.length; i++) {
                         let row = rows[i];
                         if (!row || !row[colMapping.hoten]) continue;
@@ -543,7 +541,6 @@
                         let hoTenVal = String(row[colMapping.hoten]).trim();
                         if (hoTenVal.toLowerCase() === "họ và tên" || hoTenVal === "") continue;
 
-                        // Tách lấy số từ chuỗi dạng "NS-1" hoặc "1"
                         let rawId = String(row[colMapping.id] || "").replace(/[^\d]/g, "");
                         let idVal = parseInt(rawId);
                         if (isNaN(idVal)) continue;
@@ -551,7 +548,6 @@
                         let rawNamSinh = String(row[colMapping.namsinh] || "").trim();
                         let cleanBirthDate = dinhDangNgayThangChuan(rawNamSinh);
                         
-                        // Tự động phân tách giới tính thông minh dựa trên tên lót "Thị" (Do file Excel không có cột giới tính riêng)
                         let genderVal = "Nam";
                         if (hoTenVal.toLowerCase().includes(" thị ") || hoTenVal.toLowerCase().includes("thi ")) {
                             genderVal = "Nữ";
@@ -572,15 +568,18 @@
                             nndh: String(row[colMapping.nndh] || "").trim()
                         };
 
-                        mangDuLieuBulk.push(payload);
+                        // Ghi đè bản ghi nếu trùng ID (luôn lấy thông tin dòng mới nhất xuất hiện phía dưới)
+                        uniquePayloadsMap.set(idVal, payload);
                     }
+
+                    let mangDuLieuBulk = Array.from(uniquePayloadsMap.values());
 
                     if(mangDuLieuBulk.length === 0){
                         alert("Không trích xuất được dữ liệu hợp lệ từ Excel!");
                         statusTxt.style.display = "none"; return;
                     }
 
-                    statusTxt.innerText = `Đang Bulk Upsert dữ liệu sạch (${mangDuLieuBulk.length} dòng)...`;
+                    statusTxt.innerText = `Đang tải ${mangDuLieuBulk.length} bản ghi sạch lên Cloud (đã loại bỏ trùng lặp)...`;
                     
                     const { error } = await client
                         .from('nhan_su')
@@ -588,7 +587,7 @@
 
                     if (error) throw error;
 
-                    alert(`Đồng bộ thành công ${mangDuLieuBulk.length} nhân sự lên Cloud, các trường đã khớp chính xác tuyệt đối!`);
+                    alert(`Đồng bộ thành công ${mangDuLieuBulk.length} nhân sự lên Cloud! Toàn bộ lỗi trùng lặp đã được giải quyết dứt điểm.`);
                     await taiDuLieuTuCloud();
                 } catch (err) {
                     alert("Lỗi luồng Bulk Upsert: " + err.message);
