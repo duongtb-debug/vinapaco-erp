@@ -105,19 +105,16 @@
     </div>
 
     <script>
-        // ĐÃ KHỞI TẠO ĐẦY ĐỦ THÔNG TIN KẾT NỐI CHÍNH XÁC CỦA BẠN
         const SUPABASE_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co"; 
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ";
         
         const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         let DANH_SACH_CACHE = [];
 
-        // Tự động tải dữ liệu ngay khi vừa bật ứng dụng web
         window.onload = async function() {
             await taiDuLieuTuCloud();
         };
 
-        // 1. TẢI DỮ LIỆU TỪ CLOUD
         async function taiDuLieuTuCloud() {
             try {
                 const { data, error } = await client.from('nhan_su').select('*').order('id', { ascending: true });
@@ -130,7 +127,6 @@
             }
         }
 
-        // 2. HIỂN THỊ DỮ LIỆU LÊN BẢNG & TÌM KIẾM
         function renderBangDuLieu() {
             const tbody = document.getElementById('data_table_body');
             const searchVal = document.getElementById('txt_tim_kiem').value.toLowerCase().trim();
@@ -166,7 +162,6 @@
             });
         }
 
-        // 3. THÊM NHÂN SỰ THỦ CÔNG KHÔNG BỊ TRÙNG MÃ ID
         async function themNhanSuThuCong() {
             const hoTen = document.getElementById('ho_ten_input').value.trim();
             if (!hoTen) { alert("Vui lòng nhập Họ và Tên!"); return; }
@@ -181,6 +176,7 @@
             let m = hoTen.split(" ");
             let tenRutGon = m[m.length - 1];
 
+            // ĐÃ ĐỒNG BỘ TÊN TRƯỜNG CHÍNH XÁC: so_so_bhxh thay vì viết nhầm trường cũ
             let customRecord = {
                 id: customId,
                 ho_ten: hoTen,
@@ -196,6 +192,7 @@
                 alert("Lỗi tải dữ liệu lên cloud: " + error.message);
             } else {
                 alert("Thành công! Đã lưu nhân sự mã số NS-" + customId);
+                document.getElementById('ma_nv_input').value = "";
                 document.getElementById('ho_ten_input').value = "";
                 document.getElementById('so_cccd_input').value = "";
                 document.getElementById('so_bhxh_input').value = "";
@@ -203,7 +200,6 @@
             }
         }
 
-        // 4. HÀM ĐỌC EXCEL THÔNG MINH - ÉP KHỬ LỖI KHÔNG ĐỊNH VỊ ĐƯỢC TIÊU ĐỀ
         function xuLyFileExcelNhanSu(input) {
             const file = input.files[0];
             if (!file) return;
@@ -234,7 +230,6 @@
                     let headerRowIndex = -1;
                     let mapCột = { ho_ten: -1, so_cccd: -1, so_so_bhxh: -1, an_toan_vien: -1, nndh: -1 };
 
-                    // Thuật toán quét thông minh tìm hàng tiêu đề
                     for (let i = 0; i < Math.min(rows.length, 30); i++) {
                         let row = rows[i];
                         if (!row) continue;
@@ -260,12 +255,11 @@
                         }
                     }
 
-                    // ⚡ BẪY CỨU NGUY DỰ PHÒNG: Nếu file Excel của bạn viết sai tiêu đề hoặc không tìm thấy, ép buộc gán cột mặc định
                     if (headerRowIndex === -1 || mapCột.ho_ten === -1) {
-                        headerRowIndex = 0; // Giả sử dữ liệu chạy từ hàng đầu tiên hoặc thứ hai
-                        mapCột.ho_ten = 0;  // Mặc định ép Cột thứ nhất (Cột A) là Họ và Tên
-                        mapCột.so_cccd = 1; // Mặc định ép Cột thứ hai (Cột B) là Số CCCD
-                        mapCột.so_so_bhxh = 2; // Mặc định ép Cột thứ ba (Cột C) là Số BHXH
+                        headerRowIndex = 0; 
+                        mapCột.ho_ten = 0;  
+                        mapCột.so_cccd = 1; 
+                        mapCột.so_so_bhxh = 2; 
                     }
 
                     let currentMaxId = 0;
@@ -297,7 +291,6 @@
 
                     if (listDữLiệuĐẩy.length === 0) { alert("Không lấy được dữ liệu nhân sự nào hợp lệ!"); input.value = ""; return; }
 
-                    // Thực hiện tải dữ liệu thẳng lên Cloud
                     const { error } = await client.from('nhan_su').insert(listDữLiệuĐẩy);
                     if (error) {
                         alert("Lỗi tải lên Đám Mây: " + error.message);
