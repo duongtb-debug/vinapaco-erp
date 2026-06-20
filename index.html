@@ -71,7 +71,6 @@
         .badge-info { background-color: #f1f3f5; color: #495057; border: 1px solid #ced4da; }
         .badge-warn { background-color: #fff9db; color: #f08c00; border: 1px solid #ffe066; }
         
-        /* Màu trạng thái thiết bị */
         .status-badge { padding: 5px 12px; border-radius: 20px; font-size: 13px; font-weight: 600; text-align: center; display: inline-block; }
         .status-moi { background-color: #e3fcef; color: #00875a; }
         .status-tot { background-color: #e6f4ea; color: #137333; }
@@ -91,7 +90,7 @@
     <div class="header">
         <div>
             <h1>Hệ Thống Quản Trị Nhân Sự & Thiết Bị Toàn Diện</h1>
-            <p>Bản cập nhật: Nâng cấp hiển thị Mã QR & Thêm Trạng thái thiết bị</p>
+            <p>Bản sửa lỗi: Khắc phục triệt để không hiển thị mã QR</p>
         </div>
         <div style="font-size: 16px; font-weight: 600; background: rgba(255,255,255,0.2); padding: 10px 20px; border-radius: 30px;">
             <i class="fa-solid fa-laptop-code"></i> Tự động hóa quy trình cấp phát
@@ -121,14 +120,12 @@
             <div id="side_thietbi" style="display: none;">
                 <div class="sidebar-card">
                     <h3><i class="fa-solid fa-exchange-alt"></i> Cấp phát thiết bị mới</h3>
-                    
                     <div class="form-group">
                         <label>Bước 1: Chọn Mã đơn vị phòng ban</label>
                         <select id="form_filter_dv_ns" class="form-control" onchange="thayDoiBoLocDonViCapPhat()" style="background-color: #fdfdfd; font-weight: 600; color: var(--primary-color);">
                             <option value="ALL">-- Tất cả đơn vị --</option>
                         </select>
                     </div>
-
                     <div class="form-group">
                         <label id="lbl_nhan_su_nhan">Bước 2: Nhân sự nhận thiết bị (*)</label>
                         <div id="wrapper_search_ns" style="display: block; position: relative;">
@@ -140,7 +137,6 @@
                         </div>
                         <input type="hidden" id="form_selected_ns_id">
                     </div>
-
                     <div class="form-group">
                         <label>Tên thiết bị bàn giao (*)</label>
                         <input type="text" id="form_ten_tb" class="form-control" placeholder="Ví dụ: Laptop Dell Latitude, Máy in HP...">
@@ -149,7 +145,6 @@
                         <label>Mã định danh thiết bị (S/N)</label>
                         <input type="text" id="form_ma_tb" class="form-control" placeholder="Hệ thống tự tạo mã nếu để trống">
                     </div>
-                    
                     <div class="form-group">
                         <label>Tình trạng / Trạng thái thiết bị (*)</label>
                         <select id="form_trang_thai_tb" class="form-control" style="font-weight: 600; color: #2c3e50;">
@@ -160,7 +155,6 @@
                             <option value="Cần thanh lý">⚠️ Cần thanh lý</option>
                         </select>
                     </div>
-
                     <div class="form-group">
                         <label>Ghi chú bổ sung</label>
                         <input type="text" id="form_ghi_chu" class="form-control" placeholder="Cấu hình, linh kiện đi kèm nếu có...">
@@ -456,7 +450,7 @@
                 let statusClass = traVeClassBadgeTrangThai(tb.trang_thai);
                 
                 tr.innerHTML = `
-                    <td><div style="display:flex;justify-content:center;" id="${qrId}"></div></td>
+                    <td><div style="display:flex;justify-content:center;width:75px;height:75px;" id="${qrId}"></div></td>
                     <td><mark><b>${tb.ma_thiet_bi}</b></mark></td>
                     <td><strong style="color:#2c3e50;">${tb.ten_thiet_bi}</strong></td>
                     <td><i class="fa-solid fa-user-check" style="color:var(--success-color); font-size:14px; margin-right:4px;"></i> <b>${tb.ten_nhan_vien}</b></td>
@@ -470,7 +464,7 @@
                 `;
                 tbody.appendChild(tr);
                 
-                // ĐỊNH DẠNG VĂN BẢN HIỂN THỊ TRÊN MÃ QR THÔNG MINH (TRÁNH BỊ GOOGLE GỢI Ý SAI)
+                // Cơ chế kích hoạt vẽ thông minh: chỉ chạy khi phần tử cha (Tab Thiết bị) đã mở hẳn (display != none)
                 let textQrThongMinh = 
                     `=== THÔNG TIN THIẾT BỊ ===\n` +
                     `- Mã thiết bị: ${tb.ma_thiet_bi}\n` +
@@ -479,9 +473,35 @@
                     `- Đơn vị: ${tb.ma_don_vi}\n` +
                     `- Tình trạng: ${tb.trang_thai || 'Đang sử dụng tốt'}`;
 
-                setTimeout(() => {
-                    new QRCode(document.getElementById(qrId), { text: textQrThongMinh, width: 75, height: 75 });
-                }, 40);
+                // Kiểm tra nếu tab thiết bị đang mở thì mới vẽ ngay, tránh lỗi render ẩn
+                if(document.getElementById('sec_thietbi').style.display !== 'none') {
+                    setTimeout(() => {
+                        let targetBox = document.getElementById(qrId);
+                        if(targetBox && targetBox.innerHTML === "") {
+                            new QRCode(targetBox, { text: textQrThongMinh, width: 75, height: 75 });
+                        }
+                    }, 50);
+                }
+            });
+        }
+
+        // Tạo hàm riêng để quét lại toàn bộ mã QR khi người dùng click đổi tab
+        function veLaiToanBoMaQRTabThietBi() {
+            CACHE_THIET_BI.forEach((tb, idx) => {
+                let qrId = `qr_canvas_item_${idx}`;
+                let targetBox = document.getElementById(qrId);
+                if(targetBox) {
+                    targetBox.innerHTML = ""; // Xóa dữ liệu lỗi cũ
+                    let textQrThongMinh = 
+                        `=== THÔNG TIN THIẾT BỊ ===\n` +
+                        `- Mã thiết bị: ${tb.ma_thiet_bi}\n` +
+                        `- Tên thiết bị: ${tb.ten_thiet_bi}\n` +
+                        `- Người quản lý: ${tb.ten_nhan_vien}\n` +
+                        `- Đơn vị: ${tb.ma_don_vi}\n` +
+                        `- Tình trạng: ${tb.trang_thai || 'Đang sử dụng tốt'}`;
+                    
+                    new QRCode(targetBox, { text: textQrThongMinh, width: 75, height: 75 });
+                }
             });
         }
 
@@ -618,10 +638,18 @@
         function chuyenTabHeThong(tab) {
             document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.app-section').forEach(el => el.style.display = 'none');
+            
             document.getElementById('tab_' + tab).classList.add('active');
             document.getElementById('sec_' + tab).style.display = 'flex';
             document.getElementById('side_hoso').style.display = tab === 'hoso' ? 'block' : 'none';
             document.getElementById('side_thietbi').style.display = tab === 'thietbi' ? 'block' : 'none';
+
+            // SỬA LỖI: Khi người dùng chuyển sang tab thiết bị, ta kích hoạt ép vẽ QR ngay lập tức
+            if (tab === 'thietbi') {
+                setTimeout(() => {
+                    veLaiToanBoMaQRTabThietBi();
+                }, 60);
+            }
         }
     </script>
 </body>
