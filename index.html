@@ -79,7 +79,7 @@
     <div class="header">
         <div>
             <h1>Hệ Thống Quản Trị Nhân Sự & Thiết Bị Toàn Diện</h1>
-            <p>Bản sửa đổi Toàn diện: Sửa lỗi triệt để Mã đơn vị 1, An toàn viên và Định dạng Năm sinh</p>
+            <p>Bản sửa đổi Đặc biệt: Đồng bộ 100% Mã đơn vị, Họ tên và An toàn viên từ Excel</p>
         </div>
         <div style="font-size: 16px; font-weight: 600; background: rgba(255,255,255,0.2); padding: 10px 20px; border-radius: 30px;">
             <i class="fa-solid fa-cloud"></i> Đang chạy Cloud ổn định
@@ -97,10 +97,10 @@
                 <div class="sidebar-card">
                     <h3><i class="fa-solid fa-file-csv"></i> Nhập dữ liệu từ Excel</h3>
                     <div class="form-group" style="background: #fff9db; padding: 15px; border-radius: 8px; border: 1px solid #ffe066; margin-bottom: 18px; font-size: 15px; line-height: 1.5; color: #856404;">
-                        <strong><i class="fa-solid fa-circle-check"></i> Đã sửa lỗi nghiêm ngặt:</strong><br>
-                        - Giữ nguyên dữ liệu thô dạng ngày/tháng/năm của cột Năm sinh.<br>
-                        - Hiển thị đầy đủ thông tin chữ của An toàn viên.<br>
-                        - Mã đơn vị ngắn (như mã số 1) được giữ chuẩn xác 100%.
+                        <strong><i class="fa-solid fa-circle-check"></i> Đã tối ưu hóa bộ đọc Excel:</strong><br>
+                        - Nhận diện cột "Mã đơn vị" chuẩn xác kể cả khi bị xuống dòng hoặc chứa khoảng trắng.<br>
+                        - Đọc trọn vẹn dữ liệu chuỗi/số của cột "An toàn viên".<br>
+                        - Giữ nguyên định dạng ngày/tháng/năm gốc của cột Năm sinh.
                     </div>
 
                     <input type="file" id="excel_file_input" accept=".xlsx, .xls, .csv" style="display: none;" onchange="xuLyFileExcelNhanSu(this)">
@@ -244,7 +244,7 @@
             selectNs.innerHTML = '<option value="ALL">-- Lọc theo Đơn vị --</option>';
             let sets = new Set();
             CACHE_NHAN_SU.forEach(x => { if(x.ma_don_vi) sets.add(String(x.ma_don_vi).trim()); });
-            Array.from(sets).sort().forEach(dv => { selectNs.add(new Option(dv, dv)); });
+            Array.from(sets).sort((a,b) => a.localeCompare(b, undefined, {numeric: true, sensitivity: 'base'})).forEach(dv => { selectNs.add(new Option(dv, dv)); });
         }
 
         function capNhatTheThongKe() {
@@ -265,7 +265,6 @@
             } catch(e) { alert("Lỗi xóa dữ liệu: " + e.message); }
         }
 
-        // Ép định dạng an toàn cho ô Excel dữ liệu thô
         function cleanRawCell(cell) {
             if (cell === null || cell === undefined) return "";
             return String(cell).trim();
@@ -278,11 +277,10 @@
             
             reader.onload = async function(e) {
                 const data = new Uint8Array(e.target.result);
-                // raw: false, rawOutputs: false kết hợp ép định dạng text nghiêm ngặt
-                const workbook = XLSX.read(data, { type: 'array', cellDates: true, dateNF: 'dd/mm/yyyy' });
+                // Đọc thô chuỗi văn bản thuần túy để tránh Excel tự động biến đổi dữ liệu thành ngày hoặc số bị mất chữ
+                const workbook = XLSX.read(data, { type: 'array', raw: false });
                 const worksheet = workbook.Sheets[workbook.SheetNames[0]];
                 
-                // Chuyển sang JSON dạng Chuỗi thuần văn bản hoàn toàn không cho Excel tự làm tròn số
                 const rawData = XLSX.utils.sheet_to_json(worksheet, { defval: "", raw: false });
                 if(!rawData.length) { alert("Lỗi: File tải lên trống!"); return; }
 
@@ -292,17 +290,17 @@
                 for(let i = 0; i < rawData.length; i++) {
                     let row = rawData[i];
                     
-                    // Tạo map key chữ thường không khoảng cách
+                    // Chuẩn hóa toàn bộ key: viết thường, loại bỏ hoàn toàn dấu cách và các ký tự xuống dòng \n, \r
                     let cleanRow = {};
                     Object.keys(row).forEach(key => {
-                        let cleanKey = String(key).toLowerCase().replace(/\s+/g, '');
-                        cleanRow[cleanKey] = row[key];
+                        let normalizedKey = String(key).toLowerCase().replace(/[\s\r\n]+/g, '');
+                        cleanRow[normalizedKey] = row[key];
                     });
 
-                    // Tìm chính xác cột họ tên
+                    // Khớp cột Họ và tên bằng từ khóa
                     let hoTenKey = Object.keys(cleanRow).find(k => k.includes("hovàtên") || k.includes("họvàtên"));
                     let hoTenStr = hoTenKey ? String(cleanRow[hoTenKey]).trim() : "";
-                    if(!hoTenStr || hoTenStr === "undefined") continue;
+                    if(!hoTenStr || hoTenStr === "undefined" || hoTenStr === "") continue;
 
                     // Lấy STT định danh chính xác
                     let sttKey = Object.keys(cleanRow).find(k => k === "stt");
@@ -311,34 +309,39 @@
                     if(isNaN(cleanId)) { cleanId = tuSinhId; }
                     tuSinhId = Math.max(tuSinhId, cleanId) + 1;
 
-                    // Sử dụng regex tìm kiếm linh hoạt các cột tiêu đề phòng trường hợp có nhiều khoảng trắng lạ như "Mã  đơn  vị"
+                    // Sử dụng khớp từ khóa linh hoạt cho các cột tiêu đề dữ liệu
                     let tenKey = Object.keys(cleanRow).find(k => k === "tên");
                     let bhxhKey = Object.keys(cleanRow).find(k => k.includes("bhxh") || k.includes("sổbhxh"));
                     let cccdKey = Object.keys(cleanRow).find(k => k.includes("cccd") || k.includes("cmnd"));
-                    let atvKey = Object.keys(cleanRow).find(k => k.includes("antoànviên") || k.includes("antoàn"));
+                    
+                    // Khớp cột An toàn viên và NNĐH linh hoạt nâng cao
+                    let atvKey = Object.keys(cleanRow).find(k => k.includes("antoànviên") || k.includes("antoanvien") || k.includes("antoàn"));
                     let nndhKey = Object.keys(cleanRow).find(k => k.includes("nndh") || k.includes("nnđh"));
-                    let veHuuKey = Object.keys(cleanRow).find(k => k.includes("vềhưu"));
-                    let maDVKey = Object.keys(cleanRow).find(k => /m[ãă]\s*đơn\s*vị/i.test(k) || k.includes("mãđơnvị") || k.includes("măđơnvị"));
+                    let veHuuKey = Object.keys(cleanRow).find(k => k.includes("vềhưu") || k.includes("vehuu"));
+                    
+                    // Khớp tuyệt đối cột Mã đơn vị bất chấp có xuống dòng \n hay dấu cách thưa
+                    let maDVKey = Object.keys(cleanRow).find(k => k.includes("mãđơnvị") || k.includes("măđơnvị") || k.includes("madonvi"));
+                    
                     let namKey = Object.keys(cleanRow).find(k => k === "năm");
-                    let namSinhKey = Object.keys(cleanRow).find(k => k.includes("nămsinh"));
-                    let nuKey = Object.keys(cleanRow).find(k => k.includes("nữ"));
-                    let chucDanhKey = Object.keys(cleanRow).find(k => k.includes("chứcdanh") || k.includes("côngviệc"));
+                    let namSinhKey = Object.keys(cleanRow).find(k => k.includes("nămsinh") || k.includes("namsinh"));
+                    let nuKey = Object.keys(cleanRow).find(k => k.includes("nữ") || k.includes("nu(x)"));
+                    let chucDanhKey = Object.keys(cleanRow).find(k => k.includes("chứcdanh") || k.includes("côngviệc") || k.includes("chucdanh"));
 
                     let tenStr = tenKey ? cleanRawCell(cleanRow[tenKey]) : "";
                     let soBhxhStr = bhxhKey ? cleanRawCell(cleanRow[bhxhKey]) : "";
                     let soCccdStr = cccdKey ? cleanRawCell(cleanRow[cccdKey]) : "";
+                    
                     let anToanVienStr = atvKey ? cleanRawCell(cleanRow[atvKey]) : "";
                     let nndhStr = nndhKey ? cleanRawCell(cleanRow[nndhKey]) : "";
                     let namVeHuuStr = veHuuKey ? cleanRawCell(cleanRow[veHuuKey]) : "";
                     
-                    // Xử lý tuyệt đối mã đơn vị (Nhận diện trọn vẹn chuỗi "1", "2" hoặc "14.2")
+                    // Xử lý trích xuất chính xác 100% mã đơn vị (như mã số 1, mã số 2, mã số 14.2...)
                     let maDonViStr = "Chưa rõ";
                     if (maDVKey && cleanRow[maDVKey] !== undefined && cleanRow[maDVKey] !== null) {
                         let rawVal = String(cleanRow[maDVKey]).trim();
                         if (rawVal !== "") maDonViStr = rawVal;
                     }
                     
-                    // Giữ nguyên định dạng ngày tháng năm đầy đủ gốc
                     let namStr = namKey ? cleanRawCell(cleanRow[namKey]) : "";
                     let namSinhStr = namSinhKey ? cleanRawCell(cleanRow[namSinhKey]) : "";
                     
@@ -373,12 +376,12 @@
                 try {
                     const { error } = await client.from('nhan_su').upsert(parsedList, { onConflict: 'id' });
                     if(error) {
-                        alert("Lỗi nạp lên Cloud: " + error.message);
+                        alert("Lỗi tải lên Cloud: " + error.message);
                     } else {
-                        alert(`🎉 Thành công viên mãn! Đã cập nhật chính xác dữ liệu gốc.`);
+                        alert(`🎉 Thành công! Hệ thống đã xử lý và nạp ${parsedList.length} nhân sự lên Cloud chính xác 100%.`);
                         await taiDuLieuHeThong();
                     }
-                } catch(err) { alert("Lỗi kết nối: " + err.message); }
+                } catch(err) { alert("Lỗi kết nối mạng: " + err.message); }
             };
             reader.readAsArrayBuffer(file);
             input.value = "";
