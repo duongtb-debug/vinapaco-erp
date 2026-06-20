@@ -75,7 +75,7 @@
         .badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
         .badge-nam { background-color: #e3f2fd; color: #1e88e5; }
         .badge-nu { background-color: #fce4ec; color: #d81b60; }
-        .badge-atv { background-color: #e8f8f5; color: #2ecc71; border: 1px solid #2ecc71; }
+        .badge-atv { background-color: #e8f8f5; color: #16a085; border: 1px solid #a3e4d7; display: inline-block; min-width: 25px; text-align: center; }
 
         /* QR GRID CẤP PHÁT THIẾT BỊ */
         .qr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
@@ -88,8 +88,8 @@
 
     <div class="header">
         <div>
-            <h1>Hệ Thống Quản Trị Tổng Hợp Cơ Sở Nhân Sự & Thiết Bị QR</h1>
-            <p>Phiên bản nâng cấp đồng bộ đám mây tự động 2026</p>
+            <h1>Hệ Thống Quản Trị Tổng Hợp Cơ Sở Nhân Sự & Thiết Bị Toàn Diện</h1>
+            <p>Phiên bản nâng cấp giữ nguyên định dạng số An toàn viên của Tổng công ty 2026</p>
         </div>
         <div id="connection_status" style="color: #2ecc71; font-weight: 600; font-size: 14px;">
             <i class="fa-solid fa-circle-check"></i> KẾT NỐI ĐÁM MÂY ỔN ĐỊNH
@@ -119,8 +119,8 @@
             <div class="sidebar-card">
                 <h3><i class="fa-solid fa-file-excel"></i> Đồng Bộ Biến Động Excel</h3>
                 <div class="upload-box">
-                    <span style="color: #27ae60; font-weight: bold; font-size: 13px;">📥 LOGIC UPSERT THÔNG MINH</span>
-                    <p style="font-size: 11px; color:#666; margin: 5px 0 10px 0; line-height: 1.4;">Tự động phân tách tiêu đề, sửa lỗi hiển thị ô An Toàn Viên và lỗi khóa pkey.</p>
+                    <span style="color: #27ae60; font-weight: bold; font-size: 13px;">📥 LOGIC UPSERT THEO QUY ĐỊNH</span>
+                    <p style="font-size: 11px; color:#666; margin: 5px 0 10px 0; line-height: 1.4;">Lấy đúng số định danh An toàn viên từ Excel đưa thẳng lên cơ sở dữ liệu đám mây.</p>
                     <input type="file" id="excel_file_input" accept=".xlsx, .xls" onchange="xuLyUpsertDuLieuExcel(this)">
                     <div id="txt_process_status" class="loading-status">Đang xử lý dữ liệu đám mây...</div>
                 </div>
@@ -213,7 +213,7 @@
                                 <th>Họ và Tên</th>
                                 <th>Mã Đơn Vị</th>
                                 <th>Chức Danh Công Việc</th>
-                                <th class="text-center">Trạng Thái ATV</th>
+                                <th class="text-center">Số Định Danh ATV</th>
                             </tr>
                         </thead>
                         <tbody id="atv_table_body"></tbody>
@@ -384,11 +384,11 @@
                 let gender = (g === "nữ" || g === "nu" || g.includes("nữ")) ? "Nữ" : "Nam";
                 let fullRetirementDate = tinhNgayVeHuuDayDu(fullBirthDate, gender);
 
-                // CHUẨN HÓA LOGIC HIỂN THỊ Ô AN TOÀN VIÊN KHI ĐƯỢC ĐÁNH DẤU LÀ SỐ 1
+                // LẤY ĐÚNG SỐ CỦA AN TOÀN VIÊN THEO QUY ĐỊNH CỦA TỔNG CÔNG TY
                 let atvCell = "";
                 let atvRaw = String(item.an_toan_vien || "").trim();
-                if (atvRaw === "1" || atvRaw.toLowerCase() === "x" || atvRaw.toLowerCase().includes("atv")) {
-                    atvCell = `<span class="badge badge-atv">ATV ✔️</span>`;
+                if (atvRaw !== "" && atvRaw !== "0") {
+                    atvCell = `<span class="badge badge-atv">${atvRaw}</span>`;
                 }
 
                 let tr = document.createElement('tr');
@@ -461,14 +461,14 @@
             });
         }
 
-        // PHÂN HỆ AN TOÀN VIÊN: HIỂN THỊ ĐỦ KHI DỮ LIỆU EXCEL LÀ SỐ 1
+        // PHÂN HỆ MẠNG LƯỚI ATV: HIỂN THỊ ĐÚNG SỐ THEO QUY ĐỊNH
         function renderPhanHeATV() {
             const tbody = document.getElementById('atv_table_body');
             if(!tbody) return; tbody.innerHTML = "";
             
             let atvList = CACHE_NHAN_SU.filter(item => {
                 let check = String(item.an_toan_vien || "").trim();
-                return check === "1" || check.toLowerCase() === "x" || check.toLowerCase().includes("atv");
+                return check !== "" && check !== "0";
             });
 
             if(atvList.length === 0) { 
@@ -482,7 +482,7 @@
                     <td><b>${item.ho_ten}</b></td>
                     <td>${item.ma_don_vi}</td>
                     <td>${item.chuc_danh_cong_viec || ""}</td>
-                    <td class="text-center"><span class="badge" style="background:#e8f8f5; color:#2ecc71;">ĐANG HOẠT ĐỘNG (ATV)</span></td>
+                    <td class="text-center"><span class="badge badge-atv" style="font-size: 13px; padding: 5px 12px;">Số: ${item.an_toan_vien}</span></td>
                 </tr>`;
             });
         }
@@ -562,7 +562,7 @@
                             nam: cleanBirthDate,
                             so_cccd: cccdVal || null,
                             so_bhxh: String(row[colMapping.bhxh] || "").trim() || null,
-                            an_toan_vien: String(row[colMapping.antoan] || "").trim(),
+                            an_toan_vien: String(row[colMapping.antoan] || "").trim(), // LƯU GIỮ NGUYÊN SỐ ĐỊNH DANH GỐC
                             nndh: String(row[colMapping.nndh] || "").trim()
                         };
 
