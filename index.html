@@ -49,7 +49,7 @@
             </div>
             <div class="form-group">
                 <label>Họ và Tên (*):</label>
-                <input type="text" id="ho_ten_input" placeholder="Nhập họ và tên...">
+                <input type="text" id="ho_ten_input" placeholder="Nhập đầy đủ Họ và Tên...">
             </div>
             <div class="form-group">
                 <label>Số CCCD:</label>
@@ -63,8 +63,8 @@
 
             <div class="upload-box">
                 <span style="color: #2ecc71; font-weight: bold; font-size: 14px;">🟢 NHẬP NHÂN SỰ HÀNG LOẠT (EXCEL)</span>
-                <p style="font-size: 11px; color:#777; margin: 5px 0 10px 0;">Hệ thống tự động đồng bộ thích ứng theo Schema thực tế.</p>
-                <input type="file" accept=".xlsx, .xls" onchange="xuLyFileExcelNhanSu(this)">
+                <p style="font-size: 11px; color:#777; margin: 5px 0 10px 0;">Hệ thống tự động phân tách Tên và thích ứng Schema Cache.</p>
+                <input type="file" accept=".xlsx, .xls" onchange="docVaUploadNhanSuTuExcel(this)">
             </div>
         </div>
 
@@ -97,7 +97,7 @@
                 </thead>
                 <tbody id="data_table_body">
                     <tr>
-                        <td colspan="7" class="text-center" style="color: #999; padding: 20px;">Đang tải dữ liệu từ Cloud dữ liệu đám mây...</td>
+                        <td colspan="7" class="text-center" style="color: #999; padding: 20px;">Đang kết nối Cloud để tải dữ liệu cơ sở...</td>
                     </tr>
                 </tbody>
             </table>
@@ -105,35 +105,36 @@
     </div>
 
     <script>
+        // Cấu hình thông tin kết nối Supabase của bạn
         const SUPABASE_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co"; 
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ";
         
         const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         let DANH_SACH_CACHE = [];
-        let DB_COLUMNS = []; // Khởi tạo mảng lưu danh sách các cột thực tế lấy được từ Cloud
+        let DB_COLUMNS = []; 
 
         window.onload = async function() {
             await taiDuLieuTuCloud();
         };
 
+        // Hàm tải dữ liệu đồng thời phân tích Schema động từ hàng đầu tiên trả về
         async function taiDuLieuTuCloud() {
             try {
                 const { data, error } = await client.from('nhan_su').select('*').order('id', { ascending: true });
                 if (error) throw error;
                 DANH_SACH_CACHE = data || [];
                 
-                // Tự động phân tích các thuộc tính thực tế có trong bản ghi để nhận diện Schema thực tế
                 if (DANH_SACH_CACHE.length > 0) {
+                    // Lấy toàn bộ các trường (keys) thực tế mà server đang phản hồi để kiểm tra tính tồn tại của cột
                     DB_COLUMNS = Object.keys(DANH_SACH_CACHE[0]);
                 } else {
-                    // Nếu bảng trống, tạo danh sách dự phòng an toàn không chứa cột lỗi kẹt cache
-                    DB_COLUMNS = ['id', 'ho_ten', 'ten', 'so_cccd', 'an_toan_vien', 'nndh'];
+                    DB_COLUMNS = ['id', 'ho_ten', 'ten', 'so_cccd', 'so_so_bhxh', 'an_toan_vien', 'nndh'];
                 }
                 
                 renderBangDuLieu();
             } catch (err) {
                 console.error(err);
-                document.getElementById('data_table_body').innerHTML = `<tr><td colspan="7" class="text-center" style="color: red; font-weight:bold;">⚠️ Lỗi kết nối database: ${err.message}</td></tr>`;
+                document.getElementById('data_table_body').innerHTML = `<tr><td colspan="7" class="text-center" style="color: red; font-weight:bold;">⚠️ Không thể tải bảng dữ liệu: ${err.message}</td></tr>`;
             }
         }
 
@@ -143,17 +144,18 @@
             tbody.innerHTML = "";
 
             let filtered = DANH_SACH_CACHE.filter(item => {
+                let textBhxh = String(item.so_so_bhxh || item.so_bhxh || "");
                 return !searchVal || 
                     String(item.ho_ten || "").toLowerCase().includes(searchVal) ||
                     String(item.so_cccd || "").toLowerCase().includes(searchVal) ||
-                    String(item.so_so_bhxh || item.so_bhxh || "").toLowerCase().includes(searchVal);
+                    textBhxh.toLowerCase().includes(searchVal);
             });
 
             document.getElementById('txt_tong_ns').innerText = DANH_SACH_CACHE.length;
             document.getElementById('txt_dang_lam_viec').innerText = DANH_SACH_CACHE.length;
 
             if (filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="text-center" style="color: #999; padding: 15px;">Không tìm thấy dữ liệu nhân sự phù hợp.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center" style="color: #999; padding: 15px;">Không tìm thấy nhân viên hợp lệ.</td></tr>`;
                 return;
             }
 
@@ -172,26 +174,26 @@
             });
         }
 
-        // Tạo cấu trúc gửi dữ liệu an toàn dựa trên cột thực tế được Cache chấp thuận
-        function buildSafeRecord(id, hoTen, ten, cccd, bhxh, atv, nndh) {
-            let record = { id: id, ho_ten: hoTen, ten: ten };
+        // Khắc phục lỗi bộ nhớ đệm: Tạo một bản ghi thích ứng chuẩn xác dựa trên cột khả dụng
+        function buildAdaptivePayload(id, fullHoTen, singleTen, cccd, bhxh, atv, nndh) {
+            let record = { id: id, ho_ten: fullHoTen, ten: singleTen };
             
             if (DB_COLUMNS.includes('so_cccd')) record.so_cccd = cccd || null;
             if (DB_COLUMNS.includes('an_toan_vien')) record.an_toan_vien = atv || null;
             if (DB_COLUMNS.includes('nndh')) record.nndh = nndh || null;
             
-            // Khắc phục dứt điểm kẹt Cache: Chỉ điền vào cột được Cloud chấp nhận hiện tại
+            // Nếu cache chưa nhận diện 'so_so_bhxh' thì đẩy vào 'so_bhxh' dự phòng và ngược lại
             if (DB_COLUMNS.includes('so_so_bhxh')) {
                 record.so_so_bhxh = bhxh || null;
-            } else if (DB_COLUMNS.includes('so_bhxh')) {
+            } else {
                 record.so_bhxh = bhxh || null;
             }
             return record;
         }
 
         async function themNhanSuThuCong() {
-            const hoTen = document.getElementById('ho_ten_input').value.trim();
-            if (!hoTen) { alert("Vui lòng nhập Họ và Tên!"); return; }
+            const hoTenDayDu = document.getElementById('ho_ten_input').value.trim();
+            if (!hoTenDayDu) { alert("Vui lòng nhập Họ và Tên!"); return; }
 
             let customId = parseInt(document.getElementById('ma_nv_input').value.trim());
             if (isNaN(customId)) {
@@ -200,18 +202,20 @@
                 customId++;
             }
 
-            let m = hoTen.split(" ");
-            let tenRutGon = m[m.length - 1];
+            // Tách từ cuối cùng làm Tên rút gọn
+            let chuoiTu = hoTenDayDu.split(/\s+/);
+            let tenRutGon = chuoiTu[chuoiTu.length - 1];
+            
             let valCccd = document.getElementById('so_cccd_input').value.trim();
             let valBhxh = document.getElementById('so_bhxh_input').value.trim();
 
-            let safeRecord = buildSafeRecord(customId, hoTen, tenRutGon, valCccd, valBhxh, "", "");
+            let targetData = buildAdaptivePayload(customId, hoTenDayDu, tenRutGon, valCccd, valBhxh, "", "");
 
-            const { error } = await client.from('nhan_su').insert([safeRecord]);
+            const { error } = await client.from('nhan_su').insert([targetData]);
             if (error) {
-                alert("Lỗi tải dữ liệu lên cloud: " + error.message);
+                alert("Lỗi tải lên dữ liệu: " + error.message);
             } else {
-                alert("Thành công! Đã lưu nhân sự mã số NS-" + customId);
+                alert("Đã thêm thành công nhân sự: NS-" + customId);
                 document.getElementById('ma_nv_input').value = "";
                 document.getElementById('ho_ten_input').value = "";
                 document.getElementById('so_cccd_input').value = "";
@@ -220,7 +224,8 @@
             }
         }
 
-        function xuLyFileExcelNhanSu(input) {
+        // XỬ LÝ ĐỌC FILE EXCEL ĐỒNG BỘ ĐẦY ĐỦ THÔNG TIN
+        function docVaUploadNhanSuTuExcel(input) {
             const file = input.files[0];
             if (!file) return;
 
@@ -232,42 +237,44 @@
                     const sheet = workbook.Sheets[workbook.SheetNames[0]];
                     const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
                     
-                    if (rows.length === 0) { alert("File dữ liệu trống!"); return; }
+                    if (rows.length === 0) { alert("File Excel rỗng!"); return; }
 
-                    function cleanString(k) {
+                    // Chuẩn hóa tên cột để dò tìm tiêu đề không phân biệt dấu và khoảng cách
+                    function khauHaoChu(k) {
                         if (!k) return "";
-                        let str = k.toString().toLowerCase().trim();
-                        str = str.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g, "a");
-                        str = str.replace(/è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ/g, "e");
-                        str = str.replace(/ì|í|ị|ỉ|ĩ/g, "i");
-                        str = str.replace(/ò|ó|ọ|ỏ|õ|ô|ồ|ố|ộ|ổ|ỗ|ơ|ờ|ớ|ợ|ở|ỡ/g, "o");
-                        str = str.replace(/ù|ú|ụ|ủ|ũ|ư|ừ|ứ|ự|ử|ữ/g, "u");
-                        str = str.replace(/ỳ|ý|ỵ|ỷ|ỹ/g, "y");
-                        str = str.replace(/đ/g, "d");
-                        return str.replace(/\s+/g, '').replace(/[^a-z0-9]/g, '');
+                        return k.toString().toLowerCase().trim()
+                            .replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g, "a")
+                            .replace(/è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ/g, "e")
+                            .replace(/ì|í|ị|ỉ|ĩ/g, "i")
+                            .replace(/ò|ó|ọ|ỏ|õ|ô|ồ|ố|ộ|ổ|ỗ|ơ|ờ|ớ|ợ|ở|ỡ/g, "o")
+                            .replace(/ù|ú|ụ|ủ|ũ|ư|ừ|ứ|ự|ử|ữ/g, "u")
+                            .replace(/ỳ|ý|ỵ|ỷ|ỹ/g, "y")
+                            .replace(/đ/g, "d")
+                            .replace(/\s+/g, '');
                     }
 
                     let headerRowIndex = -1;
-                    let mapCột = { ho_ten: -1, so_cccd: -1, so_so_bhxh: -1, an_toan_vien: -1, nndh: -1 };
+                    let mapCột = { ho_ten: -1, so_cccd: -1, so_bhxh: -1, an_toan_vien: -1, nndh: -1 };
 
+                    // Dò tìm dòng tiêu đề
                     for (let i = 0; i < Math.min(rows.length, 30); i++) {
                         let row = rows[i];
                         if (!row) continue;
-                        let checkHeader = false;
+                        let hopLe = false;
                         row.forEach(cell => {
-                            let text = cleanString(cell);
+                            let text = khauHaoChu(cell);
                             if (text.includes("hoten") || text.includes("hovaten") || text.includes("tennhanvien") || text === "ten") {
-                                checkHeader = true;
+                                hopLe = true;
                             }
                         });
 
-                        if (checkHeader) {
+                        if (hopLe) {
                             headerRowIndex = i;
                             row.forEach((cell, idx) => {
-                                let txt = cleanString(cell);
+                                let txt = khauHaoChu(cell);
                                 if (txt.includes("hoten") || txt.includes("hovaten") || txt === "ten") mapCột.ho_ten = idx;
                                 else if (txt.includes("cccd") || txt.includes("cmnd") || txt.includes("cancuoc")) mapCột.so_cccd = idx;
-                                else if (txt.includes("bhxh") || txt.includes("baohiem") || txt.includes("sosobhxh") || txt.includes("sobhxh")) mapCột.so_so_bhxh = idx;
+                                else if (txt.includes("bhxh") || txt.includes("baohiem") || txt.includes("sosobhxh") || txt.includes("sobhxh")) mapCột.so_bhxh = idx;
                                 else if (txt.includes("antoanvien") || txt.includes("atv")) mapCột.an_toan_vien = idx;
                                 else if (txt.includes("nndh") || txt.includes("dochai")) mapCột.nndh = idx;
                             });
@@ -275,11 +282,9 @@
                         }
                     }
 
+                    // Backup nếu không tìm thấy dòng tiêu đề chuẩn
                     if (headerRowIndex === -1 || mapCột.ho_ten === -1) {
-                        headerRowIndex = 0; 
-                        mapCột.ho_ten = 0;  
-                        mapCột.so_cccd = 1; 
-                        mapCột.so_so_bhxh = 2; 
+                        headerRowIndex = 0; mapCột.ho_ten = 0; mapCột.so_cccd = 1; mapCột.so_bhxh = 2;
                     }
 
                     let currentMaxId = 0;
@@ -287,39 +292,48 @@
 
                     let listDữLiệuĐẩy = [];
 
+                    // Vòng lặp duyệt lấy thông tin nhân sự từ file Excel
                     for (let i = headerRowIndex + 1; i < rows.length; i++) {
                         let row = rows[i];
                         if (!row || row.length === 0) continue;
 
-                        let valHoTen = String(row[mapCột.ho_ten] || "").trim();
-                        if (!valHoTen || valHoTen.toLowerCase() === "họ và tên" || valHoTen.toLowerCase() === "ho ten") continue;
+                        let valHoTenRaw = String(row[mapCột.ho_ten] || "").trim();
+                        if (!valHoTenRaw || valHoTenRaw.toLowerCase() === "họ và tên" || valHoTenRaw.toLowerCase() === "ho ten") continue;
 
                         currentMaxId++;
-                        let mangChữ = valHoTen.split(" ");
-                        let valTenRutGon = mangChữ[mangChữ.length - 1];
+                        
+                        // SỬA ĐỔI QUAN TRỌNG: Lấy nguyên vẹn cả Họ và Tên đầy đủ
+                        let valHoTenDayDu = valHoTenRaw; 
+                        
+                        // Trích xuất riêng Tên rút gọn phục vụ trường 'ten'
+                        let mangChu = valHoTenRaw.split(/\s+/);
+                        let valTenRutGon = mangChu[mangChu.length - 1];
 
                         let valCccd = mapCột.so_cccd !== -1 ? String(row[mapCột.so_cccd] || "").trim() : "";
-                        let valBhxh = mapCột.so_so_bhxh !== -1 ? String(row[mapCột.so_so_bhxh] || "").trim() : "";
+                        let valBhxh = mapCột.so_bhxh !== -1 ? String(row[mapCột.so_bhxh] || "").trim() : "";
                         let valAtv = mapCột.an_toan_vien !== -1 ? String(row[mapCột.an_toan_vien] || "").trim() : "";
                         let valNndh = mapCột.nndh !== -1 ? String(row[mapCột.nndh] || "").trim() : "";
 
-                        let safeRecord = buildSafeRecord(currentMaxId, valHoTen, valTenRutGon, valCccd, valBhxh, valAtv, valNndh);
+                        // Tạo gói data thích ứng thông minh an toàn
+                        let safeRecord = buildAdaptivePayload(currentMaxId, valHoTenDayDu, valTenRutGon, valCccd, valBhxh, valAtv, valNndh);
                         listDữLiệuĐẩy.push(safeRecord);
                     }
 
-                    if (listDữLiệuĐẩy.length === 0) { alert("Không lấy được dữ liệu nhân sự nào hợp lệ!"); input.value = ""; return; }
+                    if (listDữLiệuĐẩy.length === 0) { alert("Không tìm thấy dữ liệu dòng nhân viên nào hợp lệ để nạp!"); input.value = ""; return; }
 
+                    // Đẩy dữ liệu đồng bộ lên đám mây
                     const { error } = await client.from('nhan_su').insert(listDữLiệuĐẩy);
                     if (error) {
                         throw error;
                     } else {
-                        alert("Thành công! Đã nạp thành công và đồng bộ trọn vẹn " + listDữLiệuĐẩy.length + " nhân sự.");
+                        alert("Thành công! Đã nạp đồng bộ trọn vẹn " + listDữLiệuĐẩy.length + " nhân sự vào hệ thống.");
                     }
+                    
                     await taiDuLieuTuCloud();
                     input.value = "";
 
                 } catch (err) {
-                    alert("Lỗi tải lên hệ thống Cloud: " + err.message);
+                    alert("Lỗi tải lên Cloud: " + err.message + "\nHệ thống sẽ tự làm mới Schema Cache.");
                     input.value = "";
                 }
             };
