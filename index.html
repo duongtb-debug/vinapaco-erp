@@ -76,7 +76,7 @@
     <div class="header">
         <div>
             <h1>Hệ Thống Quản Trị Tổng Hợp Cơ Sở Nhân Sự & Thiết Bị Toàn Diện</h1>
-            <p>Bản sửa lỗi tối thượng: Loại bỏ hoàn toàn dòng trống Excel chống lỗi ID Not-Null Constraint</p>
+            <p>Bản sửa lỗi tối thượng: Chống lỗi ID Not-Null Constraint toàn diện bằng công nghệ Auto-Fallback</p>
         </div>
         <div style="font-size: 13px; font-weight: 500; background: rgba(255,255,255,0.15); padding: 6px 12px; border-radius: 20px;">
             <i class="fa-solid fa-cloud"></i> Đám mây thời gian thực
@@ -93,7 +93,7 @@
             <div id="side_hoso" style="display: block;">
                 <div class="sidebar-card">
                     <h3><i class="fa-solid fa-file-excel"></i> Nhập dữ liệu thông minh</h3>
-                    <p style="font-size: 12px; color: #666; margin: 0 0 10px 0;">Hệ thống lọc bỏ dòng trống, chuẩn hóa ID.</p>
+                    <p style="font-size: 12px; color: #666; margin: 0 0 10px 0;">Hệ thống lọc bỏ dòng trống, chuẩn hóa ID tự động.</p>
                     <input type="file" id="excel_file_input" accept=".xlsx, .xls, .csv" style="display: none;" onchange="xuLyFileExcelNhanSu(this)">
                     
                     <button class="btn-primary" style="width: 100%; margin-bottom: 12px;" onclick="document.getElementById('excel_file_input').click()">
@@ -273,7 +273,7 @@
             } catch(e) { alert(e.message); }
         }
 
-        // HÀM ĐỌC FILE VÀ SỬA LỖI LOẠI BỎ DÒNG TRỐNG CHỐNG LỖI ID NULL CONSTRAINT
+        // HÀM ĐỌC FILE THÔNG MINH - TỰ ĐỘNG CHỐNG LỖI ID TRỐNG HOẶC LẤY SAI CỘT TIÊU ĐỀ
         async function xuLyFileExcelNhanSu(input) {
             if(!input.files.length) return;
             const file = input.files[0];
@@ -285,30 +285,42 @@
                 const worksheet = workbook.Sheets[workbook.SheetNames[0]];
                 
                 const matrix = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
-                if(!matrix.length) { alert("File trống!"); return; }
+                if(!matrix.length) { alert("File Excel này không có dữ liệu!"); return; }
 
-                // Chuẩn hóa dòng tiêu đề đầu tiên
+                // Chuẩn hóa dòng tiêu đề đầu tiên về dạng chữ thường không dấu viết liền để tìm kiếm cột thông minh
                 let headerRow = matrix[0].map(h => {
                     return String(h).toLowerCase().trim()
                         .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
                         .replace(/[^a-z0-9]/g, "");
                 });
                 
-                // Tìm vị trí cột
-                let idxId = headerRow.findIndex(h => ["stt", "manv", "id", "manhanvien"].includes(h));
-                let idxHoTen = headerRow.findIndex(h => ["hovaten", "hoten", "hovatennhanvien"].includes(h));
+                // Mở rộng bộ từ khóa nhận diện cột ID/STT
+                let idxId = headerRow.findIndex(h => ["stt", "manv", "id", "manhanvien", "maso", "masonhanvien", "sott", "masott"].includes(h));
+                let idxHoTen = headerRow.findIndex(h => ["hovaten", "hoten", "hovatennhanvien", "tennhanvien"].includes(h));
                 let idxTen = headerRow.findIndex(h => ["ten", "tenrutgon"].includes(h));
                 let idxNgaySinh = headerRow.findIndex(h => ["ngaysinh"].includes(h));
                 let idxGioiTinh = headerRow.findIndex(h => ["gioitinh"].includes(h));
                 let idxNuX = headerRow.findIndex(h => ["nux", "nu"].includes(h));
                 let idxMaDonVi = headerRow.findIndex(h => ["madonvi", "donvi", "madv"].includes(h));
-                let idxChucDanh = headerRow.findIndex(h => ["chucdanhcongviec", "chucdanh", "chucvu"].includes(h));
+                let idxChucDanh = headerRow.findIndex(h => ["chucdanhcongviec", "chucdanh", "chucvu", "vitricongviec"].includes(h));
                 let idxCccd = headerRow.findIndex(h => ["socccd", "cccd", "cancuoc"].includes(h));
                 let idxBhxh = headerRow.findIndex(h => ["sobhxh", "bhxh", "baohiem"].includes(h));
                 let idxTrangThai = headerRow.findIndex(h => ["trangthai", "trangthailamviec"].includes(h));
 
-                if (idxHoTen === -1) idxHoTen = 1;
+                // CƠ CHẾ AUTO-FALLBACK: Nếu không khớp từ khóa tiêu đề nào cho cột ID, tự tìm cột nào chứa Số ở dòng thứ 2
+                if (idxId === -1 && matrix.length > 1) {
+                    for (let c = 0; c < matrix[1].length; c++) {
+                        let val = String(matrix[1][c]).replace(/[^0-9]/g, '');
+                        if (val !== "" && !isNaN(parseInt(val))) {
+                            idxId = c;
+                            break;
+                        }
+                    }
+                }
+                
+                // Mặc định dự phòng nếu tất cả phương án tự tìm thất bại
                 if (idxId === -1) idxId = 0;
+                if (idxHoTen === -1) idxHoTen = 1;
 
                 let mapData = [];
                 let checkedUniqueKeys = new Set();
@@ -320,10 +332,10 @@
                     let rawId = row[idxId];
                     if(rawId === undefined || rawId === null || String(rawId).trim() === "") continue;
 
-                    // Làm sạch ID, loại bỏ ký tự rác
+                    // Làm sạch ID bằng cách lọc lấy các ký tự số
                     let cleanId = parseInt(String(rawId).replace(/[^0-9]/g, ''));
                     
-                    // CHỐT CHẶN: Nếu không dịch được ra số ID hợp lệ, BỎ QUA dòng này lập tức (Chống lỗi Null ID)
+                    // KIỂM TRA BẮT BUỘC: Nếu không bóc tách được số ID hợp lệ, tuyệt đối bỏ qua dòng này
                     if(isNaN(cleanId) || cleanId === undefined || cleanId === null) {
                         continue; 
                     }
@@ -331,26 +343,26 @@
                     if(checkedUniqueKeys.has(cleanId)) continue;
                     checkedUniqueKeys.add(cleanId);
 
-                    // Lấy họ tên
-                    let hoTenStr = (idxHoTen !== -1 && row[idxHoTen] !== undefined) ? String(row[idxHoTen]).trim() : "Nhân viên " + cleanId;
-                    if(!hoTenStr || hoTenStr === "" || hoTenStr === "undefined") hoTenStr = "Nhân viên " + cleanId;
+                    // Trích xuất Họ Tên
+                    let hoTenStr = (idxHoTen !== -1 && row[idxHoTen] !== undefined) ? String(row[idxHoTen]).trim() : "";
+                    if(!hoTenStr || hoTenStr === "" || hoTenStr === "undefined") {
+                        hoTenStr = "Nhân viên số " + cleanId;
+                    }
 
-                    // Lấy tên rút gọn
+                    // Trích xuất Tên rút gọn (Đảm bảo không bao giờ bị rỗng hay null)
                     let tenRutGonStr = "";
                     if(idxTen !== -1 && row[idxTen] !== undefined && String(row[idxTen]).trim() !== "") {
                         tenRutGonStr = String(row[idxTen]).trim();
                     }
-                    
                     if(!tenRutGonStr || tenRutGonStr === "undefined") {
                         let parts = hoTenStr.split(" ");
                         tenRutGonStr = parts[parts.length - 1]; 
                     }
-                    
                     if(!tenRutGonStr) {
                         tenRutGonStr = hoTenStr;
                     }
 
-                    // Giới tính
+                    // Xử lý Giới tính
                     let gioiTinh = "Nam";
                     if(idxGioiTinh !== -1 && row[idxGioiTinh]) {
                         gioiTinh = String(row[idxGioiTinh]).trim();
@@ -366,7 +378,7 @@
                     let trangThaiStr = (idxTrangThai !== -1 && row[idxTrangThai] !== "") ? String(row[idxTrangThai]).trim() : "Đang làm việc";
 
                     mapData.push({
-                        id: cleanId, // Chắc chắn có số, không bao giờ null
+                        id: cleanId, 
                         ho_ten: hoTenStr,
                         ten_rut_gon: tenRutGonStr, 
                         ngay_sinh: ngaySinhStr,
@@ -379,17 +391,18 @@
                     });
                 }
 
+                // CHẶN GỬI MẢNG RỖNG LÊN DATABASE
                 if(mapData.length === 0) {
-                    alert("Không tìm thấy dữ liệu hợp lệ để nạp! Hãy kiểm tra cột số thứ tự (stt / manv).");
+                    alert("❌ LỖI ĐỌC FILE: Hệ thống không bóc tách được bất kỳ Mã số / STT dạng số nào hợp lệ từ file Excel của bạn. Vui lòng kiểm tra lại cột số thứ tự trong file của bạn!");
                     return;
                 }
 
-                // Đẩy lên database đám mây
+                // Gửi dữ liệu an toàn lên Cloud
                 const { error } = await client.from('nhan_su').upsert(mapData, { onConflict: 'id' });
                 if(error) {
-                    alert("Lỗi cơ sở dữ liệu: " + error.message);
+                    alert("Lỗi cơ sở dữ liệu Supabase: " + error.message);
                 } else {
-                    alert(`🎉 XỬ LÝ DỨT ĐIỂM THÀNH CÔNG! Đã lọc bỏ dòng trống và nạp thành công ${mapData.length} nhân sự lên Cloud.`);
+                    alert(`🎉 THÀNH CÔNG RỰC RỠ! Hệ thống đã nhận diện chính xác và nạp thành công ${mapData.length} nhân sự lên Cloud.`);
                     await taiDuLieuHeThong();
                 }
             };
