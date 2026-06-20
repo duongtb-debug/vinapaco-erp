@@ -63,7 +63,7 @@
 
             <div class="upload-box">
                 <span style="color: #2ecc71; font-weight: bold; font-size: 14px;">🟢 NHẬP NHÂN SỰ HÀNG LOẠT (EXCEL)</span>
-                <p style="font-size: 11px; color:#777; margin: 5px 0 10px 0;">Đồng bộ chuẩn xác cột dữ liệu theo đúng cấu trúc Supabase.</p>
+                <p style="font-size: 11px; color:#777; margin: 5px 0 10px 0;">Hệ thống tự động đồng bộ thích ứng theo Schema thực tế.</p>
                 <input type="file" accept=".xlsx, .xls" onchange="xuLyFileExcelNhanSu(this)">
             </div>
         </div>
@@ -110,6 +110,7 @@
         
         const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         let DANH_SACH_CACHE = [];
+        let DB_COLUMNS = []; // Khởi tạo mảng lưu danh sách các cột thực tế lấy được từ Cloud
 
         window.onload = async function() {
             await taiDuLieuTuCloud();
@@ -120,6 +121,15 @@
                 const { data, error } = await client.from('nhan_su').select('*').order('id', { ascending: true });
                 if (error) throw error;
                 DANH_SACH_CACHE = data || [];
+                
+                // Tự động phân tích các thuộc tính thực tế có trong bản ghi để nhận diện Schema thực tế
+                if (DANH_SACH_CACHE.length > 0) {
+                    DB_COLUMNS = Object.keys(DANH_SACH_CACHE[0]);
+                } else {
+                    // Nếu bảng trống, tạo danh sách dự phòng an toàn không chứa cột lỗi kẹt cache
+                    DB_COLUMNS = ['id', 'ho_ten', 'ten', 'so_cccd', 'an_toan_vien', 'nndh'];
+                }
+                
                 renderBangDuLieu();
             } catch (err) {
                 console.error(err);
@@ -136,7 +146,7 @@
                 return !searchVal || 
                     String(item.ho_ten || "").toLowerCase().includes(searchVal) ||
                     String(item.so_cccd || "").toLowerCase().includes(searchVal) ||
-                    String(item.so_so_bhxh || "").toLowerCase().includes(searchVal);
+                    String(item.so_so_bhxh || item.so_bhxh || "").toLowerCase().includes(searchVal);
             });
 
             document.getElementById('txt_tong_ns').innerText = DANH_SACH_CACHE.length;
@@ -154,12 +164,29 @@
                     <td><b>${item.ho_ten || ""}</b></td>
                     <td>${item.ten || ""}</td>
                     <td>${item.so_cccd || ""}</td>
-                    <td>${item.so_so_bhxh || ""}</td>
+                    <td>${item.so_so_bhxh || item.so_bhxh || ""}</td>
                     <td>${item.an_toan_vien || ""}</td>
                     <td>${item.nndh || ""}</td>
                 `;
                 tbody.appendChild(tr);
             });
+        }
+
+        // Tạo cấu trúc gửi dữ liệu an toàn dựa trên cột thực tế được Cache chấp thuận
+        function buildSafeRecord(id, hoTen, ten, cccd, bhxh, atv, nndh) {
+            let record = { id: id, ho_ten: hoTen, ten: ten };
+            
+            if (DB_COLUMNS.includes('so_cccd')) record.so_cccd = cccd || null;
+            if (DB_COLUMNS.includes('an_toan_vien')) record.an_toan_vien = atv || null;
+            if (DB_COLUMNS.includes('nndh')) record.nndh = nndh || null;
+            
+            // Khắc phục dứt điểm kẹt Cache: Chỉ điền vào cột được Cloud chấp nhận hiện tại
+            if (DB_COLUMNS.includes('so_so_bhxh')) {
+                record.so_so_bhxh = bhxh || null;
+            } else if (DB_COLUMNS.includes('so_bhxh')) {
+                record.so_bhxh = bhxh || null;
+            }
+            return record;
         }
 
         async function themNhanSuThuCong() {
@@ -178,15 +205,9 @@
             let valCccd = document.getElementById('so_cccd_input').value.trim();
             let valBhxh = document.getElementById('so_bhxh_input').value.trim();
 
-            let customRecord = {
-                id: customId,
-                ho_ten: hoTen,
-                ten: tenRutGon,
-                so_cccd: valCccd || null,
-                so_so_bhxh: valBhxh || null // Chuẩn hóa chính xác theo schema database
-            };
+            let safeRecord = buildSafeRecord(customId, hoTen, tenRutGon, valCccd, valBhxh, "", "");
 
-            const { error } = await client.from('nhan_su').insert([customRecord]);
+            const { error } = await client.from('nhan_su').insert([safeRecord]);
             if (error) {
                 alert("Lỗi tải dữ liệu lên cloud: " + error.message);
             } else {
@@ -282,15 +303,8 @@
                         let valAtv = mapCột.an_toan_vien !== -1 ? String(row[mapCột.an_toan_vien] || "").trim() : "";
                         let valNndh = mapCột.nndh !== -1 ? String(row[mapCột.nndh] || "").trim() : "";
 
-                        listDữLiệuĐẩy.push({
-                            id: currentMaxId,
-                            ho_ten: valHoTen,
-                            ten: valTenRutGon,
-                            so_cccd: valCccd || null,
-                            so_so_bhxh: valBhxh || null, // Map chính xác duy nhất vào cột so_so_bhxh thực tế
-                            an_toan_vien: valAtv || null,
-                            nndh: valNndh || null
-                        });
+                        let safeRecord = buildSafeRecord(currentMaxId, valHoTen, valTenRutGon, valCccd, valBhxh, valAtv, valNndh);
+                        listDữLiệuĐẩy.push(safeRecord);
                     }
 
                     if (listDữLiệuĐẩy.length === 0) { alert("Không lấy được dữ liệu nhân sự nào hợp lệ!"); input.value = ""; return; }
