@@ -17,9 +17,11 @@
         .form-group { margin-bottom: 12px; }
         .form-group label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 13px; }
         .form-group input { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
-        .btn-submit { background-color: #9b59b6; color: white; border: none; padding: 10px; width: 100%; border-radius: 4px; cursor: pointer; font-weight: bold; text-transform: uppercase; }
+        .btn-submit { background-color: #9b59b6; color: white; border: none; padding: 10px; width: 100%; border-radius: 4px; cursor: pointer; font-weight: bold; text-transform: uppercase; margin-bottom: 10px; }
         .btn-submit:hover { background-color: #8e44ad; }
-        .upload-box { border: 2px dashed #2ecc71; padding: 15px; text-align: center; border-radius: 8px; background-color: #f9fffb; margin-top: 20px; }
+        .btn-danger { background-color: #e74c3c; color: white; border: none; padding: 10px; width: 100%; border-radius: 4px; cursor: pointer; font-weight: bold; text-transform: uppercase; margin-top: 10px; }
+        .btn-danger:hover { background-color: #c0392b; }
+        .upload-box { border: 2px dashed #2ecc71; padding: 15px; text-align: center; border-radius: 8px; background-color: #f9fffb; margin-top: 15px; }
         .upload-box input { display: block; margin: 10px auto; }
         .stats { display: flex; gap: 20px; margin-bottom: 20px; }
         .stat-card { flex: 1; padding: 15px; border-radius: 8px; background: #f8f9fa; border-left: 5px solid #9b59b6; }
@@ -63,9 +65,11 @@
 
             <div class="upload-box">
                 <span style="color: #2ecc71; font-weight: bold; font-size: 14px;">🟢 NHẬP NHÂN SỰ HÀNG LOẠT (EXCEL)</span>
-                <p style="font-size: 11px; color:#777; margin: 5px 0 10px 0;">Đồng bộ nguyên vẹn tất cả các cột thông tin từ File gốc lên Cloud.</p>
+                <p style="font-size: 11px; color:#777; margin: 5px 0 10px 0;">Hệ thống tự nhận diện cột thông tin thông minh và đồng bộ lên Cloud.</p>
                 <input type="file" accept=".xlsx, .xls" onchange="xuLyFileExcelNhanSu(this)">
             </div>
+
+            <button class="btn-danger" onclick="xoaToanBoNhanSu()">🗑️ XÓA SẠCH ĐỂ NẠP LẠI</button>
         </div>
 
         <div class="main-content">
@@ -115,6 +119,7 @@
             await taiDuLieuTuCloud();
         };
 
+        // 1. TẢI DỮ LIỆU TỪ CLOUD
         async function taiDuLieuTuCloud() {
             try {
                 const { data, error } = await client.from('nhan_su').select('*').order('id', { ascending: true });
@@ -127,6 +132,7 @@
             }
         }
 
+        // 2. HIỂN THỊ DỮ LIỆU LÊN BẢNG
         function renderBangDuLieu() {
             const tbody = document.getElementById('data_table_body');
             const searchVal = document.getElementById('txt_tim_kiem').value.toLowerCase().trim();
@@ -162,6 +168,24 @@
             });
         }
 
+        // 3. TÍNH NĂNG XÓA SẠCH BẢNG ĐỂ NẠP LẠI 
+        async function xoaToanBoNhanSu() {
+            let xacNhan = confirm("⚠️ CẢNH BÁO: Bạn có chắc chắn muốn XÓA TOÀN BỘ danh sách nhân sự hiện tại trên hệ thống để nạp lại mới không?");
+            if (!xacNhan) return;
+
+            try {
+                // Thực hiện xóa mọi dòng dữ liệu có id lớn hơn 0
+                const { error } = await client.from('nhan_su').delete().gt('id', 0);
+                if (error) throw error;
+
+                alert("Đã xóa sạch dữ liệu cũ thành công! Bây giờ bạn có thể nạp file Excel mới.");
+                await taiDuLieuTuCloud();
+            } catch (err) {
+                alert("Lỗi khi xóa dữ liệu: " + err.message);
+            }
+        }
+
+        // 4. THÊM THỦ CÔNG
         async function themNhanSuThuCong() {
             const hoTen = document.getElementById('ho_ten_input').value.trim();
             if (!hoTen) { alert("Vui lòng nhập Họ và Tên!"); return; }
@@ -183,11 +207,11 @@
                 ho_ten: hoTen,
                 ten: tenRutGon,
                 so_cccd: valCccd,
-                so_so_bhxh: valBhxh, // Đẩy song song cả 2 trường để chặn triệt để lỗi Schema kẹt cache
+                so_so_bhxh: valBhxh,
                 so_bhxh: valBhxh
             };
 
-            const { error } = await client.from('nhan_su').insert([customRecord]);
+            const { error } = await client.from('nhan_su').upsert([customRecord]); // Dùng upsert chống trùng lặp
             if (error) {
                 alert("Lỗi tải dữ liệu lên cloud: " + error.message);
             } else {
@@ -200,6 +224,7 @@
             }
         }
 
+        // 5. XỬ LÝ FILE EXCEL - TỰ ĐỘNG CHỐNG CỘNG DỒN LỖI (UPSERT)
         function xuLyFileExcelNhanSu(input) {
             const file = input.files[0];
             if (!file) return;
@@ -288,7 +313,7 @@
                             ho_ten: valHoTen,
                             ten: valTenRutGon,
                             so_cccd: valCccd,
-                            so_so_bhxh: valBhxh, // Khôi phục ghi nhận đầy đủ trường dữ liệu gốc
+                            so_so_bhxh: valBhxh, 
                             so_bhxh: valBhxh,
                             an_toan_vien: valAtv,
                             nndh: valNndh
@@ -297,11 +322,12 @@
 
                     if (listDữLiệuĐẩy.length === 0) { alert("Không lấy được dữ liệu nhân sự nào hợp lệ!"); input.value = ""; return; }
 
-                    const { error } = await client.from('nhan_su').insert(listDữLiệuĐẩy);
+                    // Sử dụng lệnh .upsert() thay vì .insert() để tự động đè/cập nhật nếu bị trùng, chống cộng dồn dữ liệu rác
+                    const { error } = await client.from('nhan_su').upsert(listDữLiệuĐẩy);
                     if (error) {
                         throw error;
                     } else {
-                        alert("Thành công! Đã nạp thành công và đồng bộ trọn vẹn " + listDữLiệuĐẩy.length + " nhân sự.");
+                        alert("Thành công! Đã nạp / Cập nhật ghi đè dữ liệu mới cho " + listDữLiệuĐẩy.length + " nhân sự.");
                     }
                     await taiDuLieuTuCloud();
                     input.value = "";
