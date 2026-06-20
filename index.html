@@ -47,6 +47,9 @@
         .upload-box input { display: block; margin: 5px auto 0 auto; font-size: 12px; }
         .loading-status { font-weight: bold; color: #e67e22; margin-top: 5px; font-size: 12px; display: none; }
 
+        .btn-danger-clear { background-color: var(--danger-color); color: white; border: none; padding: 10px 15px; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer; width: 100%; transition: background 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 5px; }
+        .btn-danger-clear:hover { background-color: #c0392b; }
+
         /* KHÔNG GIAN HIỂN THỊ CHÍNH */
         .main-content { flex: 4; display: flex; flex-direction: column; gap: 20px; overflow: hidden; }
         
@@ -89,7 +92,7 @@
     <div class="header">
         <div>
             <h1>Hệ Thống Quản Trị Tổng Hợp Cơ Sở Nhân Sự & Thiết Bị Toàn Diện</h1>
-            <p>Phiên bản nâng cấp Logic Upsert Thông Minh - Giữ nguyên số An toàn viên</p>
+            <p>Hiển thị đầy đủ Ngày/Tháng/Năm về hưu - Tích hợp nút Xóa sạch & Cơ chế Upsert thông minh</p>
         </div>
         <div id="connection_status" style="color: #2ecc71; font-weight: 600; font-size: 14px;">
             <i class="fa-solid fa-circle-check"></i> KẾT NỐI ĐÁM MÂY ỔN ĐỊNH
@@ -126,6 +129,10 @@
                     </p>
                     <input type="file" id="excel_file_input" accept=".xlsx, .xls" onchange="xuLyUpsertDuLieuExcel(this)">
                     <div id="txt_process_status" class="loading-status">Đang xử lý dữ liệu đám mây...</div>
+                    
+                    <button class="btn-danger-clear" onclick="xoaSachToanBoDuLieuCloud()">
+                        <i class="fa-solid fa-trash-can"></i> XÓA SẠCH DỮ LIỆU ĐÁM MÂY
+                    </button>
                 </div>
             </div>
         </div>
@@ -165,7 +172,7 @@
                                 <th>Mã Đơn Vị</th>
                                 <th>Chức Danh Công Việc</th>
                                 <th class="text-center">Ngày Sinh</th>
-                                <th class="text-center" style="color: #e67e22;">Năm Về Hưu</th>
+                                <th class="text-center" style="color: #e67e22;">Ngày Về Hưu</th>
                                 <th>Số CCCD</th>
                                 <th>Số BHXH</th>
                                 <th class="text-center">An Toàn Viên</th>
@@ -385,6 +392,8 @@
                 let fullBirthDate = dinhDangNgayThangChuan(item.nam_sinh || item.nam);
                 let g = String(item.gioi_tinh || "").trim().toLowerCase();
                 let gender = (g === "nữ" || g === "nu" || g.includes("nữ")) ? "Nữ" : "Nam";
+                
+                // Giữ nguyên hiển thị đầy đủ Ngày/Tháng/Năm về hưu
                 let fullRetirementDate = tinhNgayVeHuuDayDu(fullBirthDate, gender);
 
                 let atvCell = "";
@@ -402,7 +411,7 @@
                     <td class="text-center"><b>${item.ma_don_vi || ""}</b></td>
                     <td>${item.chuc_danh_cong_viec || ""}</td>
                     <td class="text-center">${fullBirthDate}</td>
-                    <td class="text-center" style="color: #e67e22; font-weight: bold;">${fullRetirementDate ? fullRetirementDate.split('/').pop() : ''}</td>
+                    <td class="text-center" style="color: #e67e22; font-weight: bold;">${fullRetirementDate || ""}</td>
                     <td>${item.so_cccd || ""}</td>
                     <td>${item.so_bhxh || ""}</td>
                     <td class="text-center">${atvCell}</td>
@@ -492,6 +501,28 @@
             document.getElementById('txt_report_age').innerHTML = `• Tổng số lao động hiện hữu trên Cloud: <b>${CACHE_NHAN_SU.length}</b> nhân sự.<br>• Độ tuổi trung bình của hệ thống đơn vị trực thuộc: <b>42.5 tuổi</b>.`;
             let nndhCount = CACHE_NHAN_SU.filter(i => i.nndh && String(i.nndh).trim() !== "").length;
             document.getElementById('txt_report_nndh').innerHTML = `• Số nhân sự làm việc trong môi trường nặng nhọc, độc hại (NNDH): <b>${nndhCount}</b> lao động.`;
+        }
+
+        // HÀM XỬ LÝ XÓA SẠCH DỮ LIỆU ĐÁM MÂY KHI CHỦ ĐỘNG RESET
+        async function xoaSachToanBoDuLieuCloud() {
+            const xacNhan = confirm("⚠️ CẢNH BÁO NGUY HIỂM:\nHành động này sẽ xóa SẠCH TOÀN BỘ nhân sự hiện có trên Cloud để làm mới từ đầu.\nBạn có chắc chắn muốn thực hiện không?");
+            if (!xacNhan) return;
+
+            const statusTxt = document.getElementById('txt_process_status');
+            statusTxt.style.display = "block"; statusTxt.innerText = "Đang dọn dẹp cơ sở dữ liệu đám mây...";
+
+            try {
+                // Thực hiện lệnh delete diện rộng với điều kiện luôn đúng để xóa toàn bộ
+                const { error } = await client.from('nhan_su').delete().neq('id', 0);
+                if (error) throw error;
+
+                alert("Đã làm sạch toàn bộ dữ liệu trên Cloud thành công!");
+                await taiDuLieuTuCloud();
+            } catch (err) {
+                alert("Lỗi khi xóa dữ liệu: " + err.message);
+            } finally {
+                statusTxt.style.display = "none";
+            }
         }
 
         // LUỒNG XỬ LÝ ĐỒNG BỘ UPSERT THÔNG MINH TUẦN TỰ TRÁNH TRÙNG LẶP DỮ LIỆU
