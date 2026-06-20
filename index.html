@@ -83,10 +83,10 @@
     <div class="header">
         <div>
             <h1>Hệ Thống Quản Trị Nhân Sự & Thiết Bị Toàn Diện</h1>
-            <p>Phần hành: Quản lý thiết bị tài sản tích hợp tìm kiếm nâng cao gắn liền Đơn vị</p>
+            <p>Bản nâng cấp: Chọn đơn vị tự động liệt kê nhân sự nhận thiết bị</p>
         </div>
         <div style="font-size: 16px; font-weight: 600; background: rgba(255,255,255,0.2); padding: 10px 20px; border-radius: 30px;">
-            <i class="fa-solid fa-laptop-code"></i> Tìm kiếm thông minh đa thông tin
+            <i class="fa-solid fa-laptop-code"></i> Tự động hóa quy trình cấp phát
         </div>
     </div>
 
@@ -100,11 +100,6 @@
             <div id="side_hoso" style="display: block;">
                 <div class="sidebar-card">
                     <h3><i class="fa-solid fa-file-csv"></i> Nhập dữ liệu từ Excel</h3>
-                    <div class="form-group" style="background: #eef2f7; padding: 15px; border-radius: 8px; border: 1px solid #ced4da; margin-bottom: 18px; font-size: 15px; line-height: 1.5; color: #333;">
-                        <strong><i class="fa-solid fa-circle-check"></i> Kho dữ liệu nhân sự đã sẵn sàng:</strong><br>
-                        - Cột <b>Năm</b> hiển thị 4 số cuối của năm sinh gốc.<br>
-                        - Hệ thống tự sinh ID để bảo toàn dữ liệu.
-                    </div>
                     <input type="file" id="excel_file_input" accept=".xlsx, .xls, .csv" style="display: none;" onchange="xuLyFileExcelNhanSu(this)">
                     <button class="btn-primary" style="width: 100%; margin-bottom: 15px;" onclick="document.getElementById('excel_file_input').click()">
                         <i class="fa-solid fa-file-import"></i> TẢI FILE EXCEL MỚI LÊN
@@ -115,21 +110,29 @@
                 </div>
             </div>
 
-            <div id="side_thietbi" style="display: none;">
+            <div id="side_thietbi" style="none;">
                 <div class="sidebar-card">
                     <h3><i class="fa-solid fa-exchange-alt"></i> Cấp phát thiết bị mới</h3>
                     
                     <div class="form-group">
-                        <label>Bộ lọc nhanh theo Đơn vị</label>
-                        <select id="form_filter_dv_ns" class="form-control" onchange="resetOSeachNhanSu()" style="background-color: #fdfdfd; font-weight: 600; color: var(--primary-color);">
+                        <label>Bước 1: Chọn Mã đơn vị phòng ban</label>
+                        <select id="form_filter_dv_ns" class="form-control" onchange="thayDoiBoLocDonViCapPhat()" style="background-color: #fdfdfd; font-weight: 600; color: var(--primary-color);">
                             <option value="ALL">-- Tất cả đơn vị --</option>
                         </select>
                     </div>
 
                     <div class="form-group">
-                        <label>Nhân sự nhận thiết bị (*)</label>
-                        <input type="text" id="form_search_ns" class="form-control" placeholder="Tìm tên, số BHXH, số CCCD..." oninput="goiYAnSinhNhanSuThongMinh(this)" autocomplete="off">
-                        <div id="suggestions_box" class="suggestions-box"></div>
+                        <label id="lbl_nhan_su_nhan">Bước 2: Nhân sự nhận thiết bị (*)</label>
+                        
+                        <div id="wrapper_search_ns" style="display: block; position: relative;">
+                            <input type="text" id="form_search_ns" class="form-control" placeholder="Gõ tên, số BHXH hoặc CCCD để tìm..." oninput="goiYAnSinhNhanSuThongMinh(this)" autocomplete="off">
+                            <div id="suggestions_box" class="suggestions-box"></div>
+                        </div>
+
+                        <div id="wrapper_select_ns" style="display: none;">
+                            <select id="form_select_ns_direct" class="form-control" style="font-weight: 500;"></select>
+                        </div>
+
                         <input type="hidden" id="form_selected_ns_id">
                     </div>
 
@@ -161,7 +164,7 @@
             <div id="sec_hoso" class="app-section" style="display: flex;">
                 <div class="data-card">
                     <div class="filter-toolbar">
-                        <input type="text" id="txt_tim_ns" class="search-bar" placeholder="Tìm kiếm nhanh họ tên..." oninput="renderBangNhanSu()">
+                        <input type="text" id="txt_tim_ns" class="search-bar" placeholder="Tìm kiếm nhanh họ tên nhân sự..." oninput="renderBangNhanSu()">
                         <select id="select_don_vi_ns" class="select-filter" onchange="renderBangNhanSu()">
                             <option value="ALL">-- Lọc theo Đơn vị --</option>
                         </select>
@@ -227,8 +230,6 @@
 
     <script>
         const SUPABASE_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co"; 
-        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInZiRefbW00cnhzZnhqc25naHRhbGFtZGQiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTc4MTE4NTI2OCwiZXhwIjoyMDk2NzYxMjY4fQ.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ";
-        // Khởi tạo Client không đổi
         const client = supabase.createClient(SUPABASE_URL, "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ");
 
         let CACHE_NHAN_SU = [];
@@ -237,7 +238,6 @@
         window.onload = async function() {
             await taiDuLieuHeThong();
             
-            // Đóng hộp thoại tìm kiếm thông minh khi click ra ngoài vùng tìm kiếm
             document.addEventListener('click', function(e) {
                 const box = document.getElementById('suggestions_box');
                 const sInput = document.getElementById('form_search_ns');
@@ -280,42 +280,61 @@
             });
         }
 
-        function capNhatTheThongKe() {
-            if(document.getElementById('stat_tong')) document.getElementById('stat_tong').innerText = CACHE_NHAN_SU.length;
-            if(document.getElementById('stat_nam')) document.getElementById('stat_nam').innerText = CACHE_NHAN_SU.filter(x => String(x.gioi_tinh).toLowerCase() === 'nam').length;
-            if(document.getElementById('stat_nu')) document.getElementById('stat_nu').innerText = CACHE_NHAN_SU.filter(x => String(x.gioi_tinh).toLowerCase() === 'nữ').length;
-            if(document.getElementById('stat_tb')) document.getElementById('stat_tb').innerText = CACHE_THIET_BI.length;
-        }
-
-        function resetOSeachNhanSu() {
-            document.getElementById('form_search_ns').value = "";
+        // TỰ ĐỘNG THAY ĐỔI GIAO DIỆN KHI CHỌN ĐƠN VỊ CỤ THỂ
+        function thayDoiBoLocDonViCapPhat() {
+            const dvSelectVal = document.getElementById('form_filter_dv_ns').value;
+            const lblNhanSu = document.getElementById('lbl_nhan_su_nhan');
+            
+            const wrapSearch = document.getElementById('wrapper_search_ns');
+            const wrapSelect = document.getElementById('wrapper_select_ns');
+            const selectDirect = document.getElementById('form_select_ns_direct');
+            
+            // Khởi tạo lại Id ẩn dữ liệu
             document.getElementById('form_selected_ns_id').value = "";
+            document.getElementById('form_search_ns').value = "";
+
+            if (dvSelectVal === "ALL") {
+                // Nếu chọn tất cả -> Hiện ô tìm kiếm thông minh đa năng
+                lblNhanSu.innerHTML = "Bước 2: Tìm kiếm nhân sự nhận thiết bị (*)";
+                wrapSearch.style.display = "block";
+                wrapSelect.style.display = "none";
+            } else {
+                // Nếu chọn một đơn vị cụ thể (ví dụ 1.1) -> Hiện dropdown ra danh sách bấm chọn luôn
+                lblNhanSu.innerHTML = `Bước 2: Chọn nhân sự thuộc Đơn vị [${dvSelectVal}] (*)`;
+                wrapSearch.style.display = "none";
+                wrapSelect.style.display = "block";
+                
+                // Lọc nhân sự thuộc đơn vị này và đổ trực tiếp vào dropdown
+                selectDirect.innerHTML = '<option value="">-- Bấm vào đây để chọn người nhận --</option>';
+                let nhanSuThuocDonVi = CACHE_NHAN_SU.filter(ns => String(ns.ma_don_vi).trim() === dvSelectVal);
+                
+                if (nhanSuThuocDonVi.length === 0) {
+                    selectDirect.innerHTML = '<option value="">(Không có nhân sự nào ở đơn vị này)</option>';
+                } else {
+                    nhanSuThuocDonVi.forEach(ns => {
+                        let textHienThi = `${ns.ho_ten} ${ns.so_bhxh ? `[BHXH: ${ns.so_bhxh}]` : ''}`;
+                        let opt = new Option(textHienThi, ns.id);
+                        selectDirect.add(opt);
+                    });
+                }
+            }
         }
 
-        // TÌM KIẾM THÔNG MINH ĐA DẠNG & ĐIỀU KIỆN THEO ĐƠN VỊ
+        // TÌM KIẾM THÔNG MINH KHI ĐỂ Ở CHẾ ĐỘ "TẤT CẢ ĐƠN VỊ"
         function goiYAnSinhNhanSuThongMinh(input) {
             const val = input.value.toLowerCase().trim();
             const box = document.getElementById('suggestions_box');
-            const filterDv = document.getElementById('form_filter_dv_ns').value;
-            
             if(!val) { box.style.display = "none"; return; }
             
-            // Lọc dữ liệu theo Đơn vị trước (nếu người dùng chọn một đơn vị cụ thể)
-            let filteredPeople = CACHE_NHAN_SU;
-            if(filterDv !== "ALL") {
-                filteredPeople = CACHE_NHAN_SU.filter(ns => String(ns.ma_don_vi).trim() === filterDv);
-            }
-
-            // Tìm kiếm thông minh đa dạng: Họ tên, Tên, Số sổ BHXH, Số CCCD
-            let match = filteredPeople.filter(ns => {
+            let match = CACHE_NHAN_SU.filter(ns => {
                 return String(ns.ho_ten).toLowerCase().includes(val) || 
                        String(ns.ten).toLowerCase().includes(val) ||
                        String(ns.so_bhxh).includes(val) ||
                        String(ns.so_cccd).includes(val);
-            }).slice(0, 8); // Lấy tối đa 8 gợi ý phù hợp nhất
+            }).slice(0, 8);
 
             if(match.length === 0) { 
-                box.innerHTML = "<div class='suggestion-item' style='color:#e74c3c;font-weight:600;text-align:center;'><i class='fa-solid fa-triangle-exclamation'></i> Không tìm thấy nhân sự phù hợp</div>"; 
+                box.innerHTML = "<div class='suggestion-item' style='color:#e74c3c;font-weight:600;text-align:center;'>Không tìm thấy nhân sự phù hợp</div>"; 
                 box.style.display = "block"; 
                 return; 
             }
@@ -329,7 +348,6 @@
                     <div class="sub-info">
                         <span><i class="fa-solid fa-users-gear"></i> ĐV: <b>${ns.ma_don_vi}</b></span>
                         ${ns.so_bhxh ? `<span><i class="fa-solid fa-id-card"></i> BHXH: ${ns.so_bhxh}</span>` : ''}
-                        ${ns.so_cccd ? `<span><i class="fa-solid fa-address-card"></i> CCCD: ${ns.so_cccd}</span>` : ''}
                     </div>
                 `;
                 div.onclick = function() {
@@ -343,18 +361,26 @@
         }
 
         async function thucHienCapPhatThietBi() {
-            const nsId = document.getElementById('form_selected_ns_id').value;
+            const dvSelectVal = document.getElementById('form_filter_dv_ns').value;
+            let finalNsId = "";
+
+            if (dvSelectVal === "ALL") {
+                finalNsId = document.getElementById('form_selected_ns_id').value;
+            } else {
+                finalNsId = document.getElementById('form_select_ns_direct').value;
+            }
+
             const tenTb = document.getElementById('form_ten_tb').value.trim();
             let maTb = document.getElementById('form_ma_tb').value.trim();
             const ghiChu = document.getElementById('form_ghi_chu').value.trim();
             
-            if(!nsId || !tenTb) { alert("Vui lòng nhập và chọn chính xác nhân sự (từ danh sách gợi ý) và nhập tên tài sản!"); return; }
+            if(!finalNsId || !tenTb) { alert("Vui lòng chọn chính xác nhân sự nhận và điền tên tài sản thiết bị!"); return; }
             if(!maTb) maTb = "EQ-" + Date.now().toString().slice(-7);
             
-            const ns = CACHE_NHAN_SU.find(x => x.id == nsId);
+            const ns = CACHE_NHAN_SU.find(x => x.id == finalNsId);
 
             let payload = {
-                nhan_su_id: parseInt(nsId),
+                nhan_su_id: parseInt(finalNsId),
                 ten_nhan_vien: ns ? ns.ho_ten : "Ẩn danh",
                 ma_don_vi: ns ? ns.ma_don_vi : "KHO",
                 ten_thiet_bi: tenTb,
@@ -365,15 +391,16 @@
 
             const { error } = await client.from('cap_phat_thiet_bi').insert([payload]);
             if(!error) { 
-                alert(`🎉 Bàn giao thiết bị thành công cho anh/chị: ${ns.ho_ten}!`); 
+                alert(`🎉 Bàn giao tài sản thành công cho anh/chị: ${ns.ho_ten}!`); 
                 document.getElementById('form_ten_tb').value = "";
                 document.getElementById('form_ma_tb').value = "";
                 document.getElementById('form_search_ns').value = "";
                 document.getElementById('form_ghi_chu').value = "";
                 document.getElementById('form_selected_ns_id').value = "";
+                if(document.getElementById('form_select_ns_direct')) document.getElementById('form_select_ns_direct').value = "";
                 await taiDuLieuHeThong(); 
             } else {
-                alert("Lỗi cấp phát tài sản: " + error.message);
+                alert("Lỗi cấp phát: " + error.message);
             }
         }
 
@@ -392,7 +419,7 @@
             });
 
             if(!dataFilter.length) {
-                tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color:#868e96; padding: 20px;">Không tìm thấy thiết bị cấp phát nào trùng khớp.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color:#868e96; padding: 20px;">Không tìm thấy thiết bị cấp phát.</td></tr>`;
                 return;
             }
 
@@ -416,12 +443,6 @@
                     new QRCode(document.getElementById(qrId), { text: tb.ma_thiet_bi, width: 60, height: 60 });
                 }, 40);
             });
-        }
-
-        async function xoaThietBiPhanPhoi(id) {
-            if(!confirm("⚠️ Bạn có chắc chắn muốn tiến hành thu hồi thiết bị/tài sản này không?")) return;
-            const { error } = await client.from('cap_phat_thiet_bi').delete().eq('id', id);
-            if(!error) { await taiDuLieuHeThong(); }
         }
 
         function renderBangNhanSu() {
@@ -461,13 +482,26 @@
             });
         }
 
+        function capNhatTheThongKe() {
+            if(document.getElementById('stat_tong')) document.getElementById('stat_tong').innerText = CACHE_NHAN_SU.length;
+            if(document.getElementById('stat_nam')) document.getElementById('stat_nam').innerText = CACHE_NHAN_SU.filter(x => String(x.gioi_tinh).toLowerCase() === 'nam').length;
+            if(document.getElementById('stat_nu')) document.getElementById('stat_nu').innerText = CACHE_NHAN_SU.filter(x => String(x.gioi_tinh).toLowerCase() === 'nữ').length;
+            if(document.getElementById('stat_tb')) document.getElementById('stat_tb').innerText = CACHE_THIET_BI.length;
+        }
+
+        async function xoaThietBiPhanPhoi(id) {
+            if(!confirm("⚠️ Bạn có chắc chắn muốn tiến hành thu hồi thiết bị/tài sản này không?")) return;
+            const { error } = await client.from('cap_phat_thiet_bi').delete().eq('id', id);
+            if(!error) { await taiDuLieuHeThong(); }
+        }
+
         async function xoaToanBoDuLieuCloud() {
-            if (!confirm("⚠️ Bạn có chắc chắn muốn xóa toàn bộ danh sách nhân sự hiện tại trên Cloud không?")) return;
+            if (!confirm("⚠️ Bạn có chắc chắn muốn xóa toàn bộ danh sách nhân sự trên Cloud không?")) return;
             try {
                 await client.from('nhan_su').delete().gt('id', 0);
-                alert("🎉 Đã dọn dẹp trống kho lưu trữ trên Cloud thành công!");
+                alert("🎉 Đã dọn dẹp kho dữ liệu thành công!");
                 await taiDuLieuHeThong();
-            } catch(e) { alert("Lỗi xóa dữ liệu: " + e.message); }
+            } catch(e) { alert("Lỗi: " + e.message); }
         }
 
         function xoaDauTieuDeExcel(str) {
@@ -476,33 +510,28 @@
         }
 
         function cleanRawCell(cell) {
-            if (cell === null || cell === undefined) return "";
-            return String(cell).trim();
+            return cell === null || cell === undefined ? "" : String(cell).trim();
         }
 
         function formatExcelDate(serial) {
             if(!serial || isNaN(serial)) return String(serial).trim();
             let num = parseInt(serial);
             if(num < 20000 || num > 60000) return String(serial).trim();
-            let utc_days  = Math.floor(num - 25569);
-            let utc_value = utc_days * 86400;                                        
-            let date_info = new Date(utc_value * 1000);
+            let date_info = new Date((num - 25569) * 86400 * 1000);
             let d = date_info.getDate();
             let m = date_info.getMonth() + 1;
-            let y = date_info.getFullYear();
-            return `${d < 10 ? '0' + d : d}/${m < 10 ? '0' + m : m}/${y}`;
+            return `${d < 10 ? '0' + d : d}/${m < 10 ? '0' + m : m}/${date_info.getFullYear()}`;
         }
 
         async function xuLyFileExcelNhanSu(input) {
             if(!input.files.length) return;
-            const file = input.files[0];
             const reader = new FileReader();
             reader.onload = async function(e) {
                 const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, { type: 'array', cellDates: true, dateNF: 'dd/mm/yyyy' });
+                const workbook = XLSX.read(data, { type: 'array' });
                 const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-                const rawData = XLSX.utils.sheet_to_json(worksheet, { defval: "", raw: false });
-                if(!rawData.length) { alert("Lỗi: File tải lên trống rỗng!"); return; }
+                const rawData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+                if(!rawData.length) return;
 
                 let finalUploadList = [];
                 let trackingCloudId = 1; 
@@ -510,68 +539,39 @@
                 for(let i = 0; i < rawData.length; i++) {
                     let row = rawData[i];
                     let cleanRow = {};
-                    Object.keys(row).forEach(key => {
-                        let safeKey = xoaDauTieuDeExcel(key);
-                        if(safeKey !== "") cleanRow[safeKey] = row[key];
-                    });
+                    Object.keys(row).forEach(key => { cleanRow[xoaDauTieuDeExcel(key)] = row[key]; });
 
                     let hoTenKey = Object.keys(cleanRow).find(k => k.includes("hovaten") || k.includes("hoten"));
                     let hoTenStr = hoTenKey ? String(cleanRow[hoTenKey]).trim() : "";
-                    if(!hoTenStr || hoTenStr === "undefined" || hoTenStr === "") {
-                        let keys = Object.keys(row);
-                        if(keys.length > 1) hoTenStr = String(row[keys[1]]).trim();
-                    }
-                    if(!hoTenStr || hoTenStr === "undefined" || hoTenStr.toLowerCase().includes("họ và tên") || hoTenStr === "") continue;
+                    if(!hoTenStr || hoTenStr.toLowerCase().includes("họ và tên") || hoTenStr === "") continue;
 
                     let tenKey = Object.keys(cleanRow).find(k => k === "ten");
-                    let bhxhKey = Object.keys(cleanRow).find(k => k.includes("bhxh") || k.includes("sosobhxh"));
-                    let cccdKey = Object.keys(cleanRow).find(k => k.includes("cccd") || k.includes("socccd"));
-                    let atvKey = Object.keys(cleanRow).find(k => k.includes("antoanvien") || k === "atv" || k.includes("antoan"));
-                    let nndhKey = Object.keys(cleanRow).find(k => k.includes("nndh"));
-                    let veHuuKey = Object.keys(cleanRow).find(k => k.includes("vehuu"));
+                    let bhxhKey = Object.keys(cleanRow).find(k => k.includes("bhxh"));
+                    let cccdKey = Object.keys(cleanRow).find(k => k.includes("cccd"));
                     let maDVKey = Object.keys(cleanRow).find(k => k.includes("madonvi"));
                     let namSinhKey = Object.keys(cleanRow).find(k => k.includes("namsinh"));
                     let nuKey = Object.keys(cleanRow).find(k => k.includes("nu"));
                     let chucDanhKey = Object.keys(cleanRow).find(k => k.includes("chucdanh") || k.includes("congviec"));
 
-                    let tenStr = tenKey ? cleanRawCell(cleanRow[tenKey]) : "";
-                    if(!tenStr) {
-                        let mangChu = hoTenStr.split(" ");
-                        tenStr = mangChu[mangChu.length - 1];
-                    }
-                    let soBhxhStr = bhxhKey ? cleanRawCell(cleanRow[bhxhKey]) : "";
-                    let soCccdStr = cccdKey ? cleanRawCell(cleanRow[cccdKey]) : "";
-                    let anToanVienStr = atvKey ? cleanRawCell(cleanRow[atvKey]) : "";
-                    let nndhStr = nndhKey ? cleanRawCell(cleanRow[nndhKey]) : "";
-                    let namVeHuuStr = veHuuKey ? cleanRawCell(cleanRow[veHuuKey]) : "";
-                    let maDonViStr = "1"; 
-                    if (maDVKey && cleanRow[maDVKey] !== undefined && cleanRow[maDVKey] !== null) {
-                        let rawVal = String(cleanRow[maDVKey]).trim();
-                        if (rawVal !== "") maDonViStr = rawVal;
-                    }
-                    let rawNamSinh = namSinhKey ? cleanRawCell(cleanRow[namSinhKey]) : "";
-                    let namSinhStr = formatExcelDate(rawNamSinh);
-                    let namTrichXuat = "2026";
-                    if(namSinhStr && namSinhStr.length >= 4) namTrichXuat = namSinhStr.slice(-4);
-                    let nuXStr = nuKey ? cleanRawCell(cleanRow[nuKey]) : "";
-                    let chucDanhStr = chucDanhKey ? cleanRawCell(cleanRow[chucDanhKey]) : "";
-                    let gioiTinh = "Nam";
-                    if(nuXStr.toLowerCase() === "x" || nuXStr.includes("nữ") || nuXStr.includes("Nữ")) gioiTinh = "Nữ";
+                    let tenStr = tenKey ? cleanRawCell(cleanRow[tenKey]) : hoTenStr.split(" ").pop();
+                    let maDonViStr = maDVKey && cleanRawCell(cleanRow[maDVKey]) !== "" ? cleanRawCell(cleanRow[maDVKey]) : "1";
+                    let namSinhStr = formatExcelDate(cleanRawCell(cleanRow[namSinhKey]));
+                    let namTrichXuat = namSinhStr.length >= 4 ? namSinhStr.slice(-4) : "2026";
+                    let gioiTinh = cleanRawCell(cleanRow[nuKey]).toLowerCase() === "x" ? "Nữ" : "Nam";
 
                     finalUploadList.push({
-                        id: trackingCloudId, ho_ten: hoTenStr, ten: tenStr, so_bhxh: soBhxhStr, so_cccd: soCccdStr,
-                        an_toan_vien: anToanVienStr, nndh: nndhStr, nam_ve_huu: namVeHuuStr, ma_don_vi: maDonViStr, 
-                        nam: namTrichXuat, nam_sinh: namSinhStr, gioi_tinh: gioiTinh, chuc_danh_cong_viec: chucDanhStr
+                        id: trackingCloudId, ho_ten: hoTenStr, ten: tenStr, so_bhxh: cleanRawCell(cleanRow[bhxhKey]), so_cccd: cleanRawCell(cleanRow[cccdKey]),
+                        ma_don_vi: maDonViStr, nam: namTrichXuat, nam_sinh: namSinhStr, gioi_tinh: gioiTinh, chuc_danh_cong_viec: cleanRawCell(cleanRow[chucDanhKey])
                     });
                     trackingCloudId++;
                 }
 
                 try {
                     const { error } = await client.from('nhan_su').upsert(finalUploadList, { onConflict: 'id' });
-                    if(!error) { alert(`🎉 Đồng bộ ${finalUploadList.length} nhân sự lên Cloud thành công!`); await taiDuLieuHeThong(); }
-                } catch(err) { alert("Lỗi kết nối: " + err.message); }
+                    if(!error) { alert(`🎉 Đã nạp thành công ${finalUploadList.length} nhân sự.`); await taiDuLieuHeThong(); }
+                } catch(err) { alert(err.message); }
             };
-            reader.readAsArrayBuffer(file);
+            reader.readAsArrayBuffer(input.files[0]);
             input.value = "";
         }
 
@@ -580,13 +580,8 @@
             document.querySelectorAll('.app-section').forEach(el => el.style.display = 'none');
             document.getElementById('tab_' + tab).classList.add('active');
             document.getElementById('sec_' + tab).style.display = 'flex';
-            if(tab === 'hoso') {
-                document.getElementById('side_hoso').style.display = 'block';
-                document.getElementById('side_thietbi').style.display = 'none';
-            } else {
-                document.getElementById('side_hoso').style.display = 'none';
-                document.getElementById('side_thietbi').style.display = 'block';
-            }
+            document.getElementById('side_hoso').style.display = tab === 'hoso' ? 'block' : 'none';
+            document.getElementById('side_thietbi').style.display = tab === 'thietbi' ? 'block' : 'none';
         }
     </script>
 </body>
