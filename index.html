@@ -95,7 +95,7 @@
     <div class="header">
         <div>
             <h1>Hệ Thống Quản Trị Nhân Sự & Thiết Bị Toàn Diện</h1>
-            <p>Bản sửa lỗi cấp cao nhất: Tích hợp thư viện QR độc lập và loại bỏ lỗi biên dịch hàm</p>
+            <p>Bản sửa lỗi đồng bộ QR: Tự kích hoạt bản vẽ và chuyển tab thông minh ngay khi lưu thành công</p>
         </div>
         <div style="font-size: 16px; font-weight: 600; background: rgba(255,255,255,0.2); padding: 10px 20px; border-radius: 30px;">
             <i class="fa-solid fa-laptop-code"></i> Quy trình tự động hóa ổn định 100%
@@ -376,6 +376,7 @@
             box.style.display = "block";
         }
 
+        // TỐI ƯU HÀM CẤP PHÁT: Tự chuyển tab và kích hoạt chu trình vẽ QR ngay khi vừa thêm mới
         async function thucHienCapPhatThietBi() {
             const dvSelectVal = document.getElementById('form_filter_dv_ns').value;
             let finalNsId = "";
@@ -409,6 +410,8 @@
             const { error } = await client.from('cap_phat_thiet_bi').insert([payload]);
             if(!error) { 
                 alert(`🎉 Bàn giao tài sản thành công cho anh/chị: ${ns.ho_ten}!`); 
+                
+                // Reset form
                 document.getElementById('form_ten_tb').value = "";
                 document.getElementById('form_ma_tb').value = "";
                 document.getElementById('form_search_ns').value = "";
@@ -416,7 +419,10 @@
                 document.getElementById('form_selected_ns_id').value = "";
                 document.getElementById('form_trang_thai_tb').value = "Đang sử dụng tốt";
                 if(document.getElementById('form_select_ns_direct')) document.getElementById('form_select_ns_direct').value = "";
+                
+                // Đồng bộ dữ liệu và ép nhảy về tab quản lý thiết bị để kích hoạt vẽ QR
                 await taiDuLieuHeThong(); 
+                chuyenTabHeThong('thietbi');
             } else {
                 alert("Lỗi cấp phát: " + error.message);
             }
@@ -430,7 +436,7 @@
             return "status-tot";
         }
 
-        // PHẦN VẼ BẢNG: Đã được fix lỗi cú pháp nút bấm thu hồi dứt điểm 100%
+        // ĐỒNG BỘ QR: Đã tăng thời gian chờ lên 100ms đảm bảo DOM render canvas xong mới vẽ QR
         function renderBangThietBi() {
             const tbody = document.getElementById('thiet_bi_table_body');
             const searchVal = document.getElementById('txt_tim_tb').value.toLowerCase().trim();
@@ -472,6 +478,7 @@
                 `;
                 tbody.appendChild(tr);
 
+                // Delay 100ms đảm bảo thẻ Canvas đã xuất hiện thực tế trên màn hình để thư viện can thiệp vẽ
                 setTimeout(() => {
                     let elementCanvas = document.getElementById(canvasId);
                     if(elementCanvas) {
@@ -489,7 +496,7 @@
                             console.error("Lỗi vẽ canvas QR: ", canvasErr);
                         }
                     }
-                }, 40);
+                }, 100);
             });
         }
 
@@ -537,7 +544,6 @@
             if(document.getElementById('stat_tb')) document.getElementById('stat_tb').innerText = CACHE_THIET_BI.length;
         }
 
-        // HÀM QUAN TRỌNG: Đã được viết lại cực chuẩn, không dính lỗi khoảng trắng syntax
         async function xoaThietBiPhanPhoi(id) {
             if(!confirm("⚠️ Bạn có chắc chắn muốn tiến hành thu hồi thiết bị/tài sản này không?")) return;
             const { error } = await client.from('cap_phat_thiet_bi').delete().eq('id', id);
