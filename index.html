@@ -76,7 +76,7 @@
     <div class="header">
         <div>
             <h1>Hệ Thống Quản Trị Tổng Hợp Cơ Sở Nhân Sự & Thiết Bị Toàn Diện</h1>
-            <p>Bản sửa lỗi tối thượng: Vượt lỗi liên kết Khóa Ngoại Đơn Vị (Foreign Key Constraint)</p>
+            <p>Bản sửa lỗi tối thượng: Bộ lọc cưỡng bức loại bỏ dòng trống chống lỗi Not-Null Constraint</p>
         </div>
         <div style="font-size: 13px; font-weight: 500; background: rgba(255,255,255,0.15); padding: 6px 12px; border-radius: 20px;">
             <i class="fa-solid fa-cloud"></i> Đám mây thời gian thực
@@ -94,12 +94,11 @@
                 <div class="sidebar-card">
                     <h3><i class="fa-solid fa-file-excel"></i> Nhập dữ liệu thông minh</h3>
                     <div class="form-group" style="background: #fff8ee; padding: 10px; border-radius: 6px; border: 1px solid #ffeaa7; margin-bottom: 12px;">
-                        <label style="color: #d63031; font-weight: bold;"><i class="fa-solid fa-triangle-exclamation"></i> Cấu hình chống lỗi khóa ngoại:</label>
+                        <label style="color: #d63031; font-weight: bold;"><i class="fa-solid fa-shield-halved"></i> Chế độ bảo vệ dữ liệu:</label>
                         <label style="font-weight: normal; margin-top: 5px; display: flex; align-items: center; gap: 5px; font-size: 12px;">
                             <input type="checkbox" id="chk_ignore_ma_don_vi" checked> 
-                            Bỏ qua liên kết Mã Đơn Vị (Khuyên dùng)
+                            Bỏ qua liên kết Mã Đơn Vị (Bắt buộc)
                         </label>
-                        <small style="color: #666; font-size: 11px; display: block; margin-top: 4px;">Tự động đặt trống cột này nếu mã đơn vị trong file Excel chưa được khai báo trước trong database.</small>
                     </div>
 
                     <input type="file" id="excel_file_input" accept=".xlsx, .xls, .csv" style="display: none;" onchange="xuLyFileExcelNhanSu(this)">
@@ -302,15 +301,15 @@
                 });
                 
                 let idxId = headerRow.findIndex(h => ["stt", "manv", "id", "manhanvien", "maso", "masonhanvien", "sott", "masott"].includes(h));
-                let idxHoTen = headerRow.findIndex(h => ["hovaten", "hoten", "hovatennhanvien", "tennhanvien"].includes(h));
+                let idxHoTen = headerRow.findIndex(h => ["hovaten", "hoten", "hovatennhanvien", "tennhanvien", "ho_va_ten"].includes(h));
                 let idxTen = headerRow.findIndex(h => ["ten", "tenrutgon"].includes(h));
-                let idxNgaySinh = headerRow.findIndex(h => ["ngaysinh"].includes(h));
-                let idxGioiTinh = headerRow.findIndex(h => ["gioitinh"].includes(h));
+                let idxNgaySinh = headerRow.findIndex(h => ["ngaysinh", "ngay_sinh"].includes(h));
+                let idxGioiTinh = headerRow.findIndex(h => ["gioitinh", "gioi_tinh"].includes(h));
                 let idxNuX = headerRow.findIndex(h => ["nux", "nu"].includes(h));
-                let idxMaDonVi = headerRow.findIndex(h => ["madonvi", "donvi", "madv"].includes(h));
-                let idxChucDanh = headerRow.findIndex(h => ["chucdanhcongviec", "chucdanh", "chucvu", "vitricongviec"].includes(h));
-                let idxCccd = headerRow.findIndex(h => ["socccd", "cccd", "cancuoc"].includes(h));
-                let idxBhxh = headerRow.findIndex(h => ["sobhxh", "bhxh", "baohiem"].includes(h));
+                let idxMaDonVi = headerRow.findIndex(h => ["madonvi", "donvi", "madv", "ma_don_vi"].includes(h));
+                let idxChucDanh = headerRow.findIndex(h => ["chucdanhcongviec", "chucdanh", "chucvu", "vitricongviec", "chuc_danh_cong_viec"].includes(h));
+                let idxCccd = headerRow.findIndex(h => ["socccd", "cccd", "cancuoc", "so_cccd"].includes(h));
+                let idxBhxh = headerRow.findIndex(h => ["sobhxh", "bhxh", "baohiem", "so_bhxh"].includes(h));
                 let idxTrangThai = headerRow.findIndex(h => ["trangthai", "trangthailamviec"].includes(h));
 
                 if (idxId === -1 && matrix.length > 1) {
@@ -340,19 +339,35 @@
                     if(isNaN(cleanId)) continue; 
                     
                     if(checkedUniqueKeys.has(cleanId)) continue;
-                    checkedUniqueKeys.add(cleanId);
 
                     let hoTenStr = (idxHoTen !== -1 && row[idxHoTen] !== undefined) ? String(row[idxHoTen]).trim() : "";
-                    if(!hoTenStr || hoTenStr === "undefined") hoTenStr = "Nhân viên " + cleanId;
+                    
+                    // 🛡️ CHẶN DÒNG TRỐNG / DÒNG LỖI TẬN GỐC: 
+                    // Nếu tên trống hoặc bằng chuỗi vô nghĩa, loại bỏ hoàn toàn dòng này khỏi danh sách tải lên
+                    if(!hoTenStr || hoTenStr === "" || hoTenStr === "undefined" || hoTenStr.length < 2) {
+                        continue; 
+                    }
 
                     let tenRutGonStr = "";
                     if(idxTen !== -1 && row[idxTen] !== undefined && String(row[idxTen]).trim() !== "") {
                         tenRutGonStr = String(row[idxTen]).trim();
                     }
-                    if(!tenRutGonStr || tenRutGonStr === "undefined") {
+                    
+                    // Tự tạo tên rút gọn nếu cột trong excel bị bỏ trống
+                    if(!tenRutGonStr || tenRutGonStr === "undefined" || tenRutGonStr === "") {
                         let parts = hoTenStr.split(" ");
                         tenRutGonStr = parts[parts.length - 1]; 
                     }
+                    if(!tenRutGonStr) {
+                        tenRutGonStr = hoTenStr;
+                    }
+
+                    // KIỂM TRA LẦN CUỐI: Nếu vì lý do gì tên rút gọn vẫn null hoặc trống, ép giá trị theo họ tên để tránh lỗi NOT-NULL
+                    if(!tenRutGonStr || tenRutGonStr.trim() === "") {
+                        tenRutGonStr = hoTenStr;
+                    }
+
+                    checkedUniqueKeys.add(cleanId);
 
                     let gioiTinh = "Nam";
                     if(idxGioiTinh !== -1 && row[idxGioiTinh]) {
@@ -363,7 +378,6 @@
 
                     let ngaySinhStr = (idxNgaySinh !== -1 && row[idxNgaySinh] !== "") ? String(row[idxNgaySinh]).trim() : null;
                     
-                    // SỬA LỖI KHÓA NGOẠI: Nếu tích checkbox, tự động bỏ qua ma_don_vi để tránh dính foreign key constraint
                     let maDonViStr = null; 
                     if (!ignoreMaDonVi && idxMaDonVi !== -1 && row[idxMaDonVi] !== "") {
                         maDonViStr = String(row[idxMaDonVi]).trim();
@@ -377,10 +391,10 @@
                     mapData.push({
                         id: cleanId, 
                         ho_ten: hoTenStr,
-                        ten_rut_gon: tenRutGonStr || hoTenStr, 
+                        ten_rut_gon: tenRutGonStr, 
                         ngay_sinh: ngaySinhStr,
                         gioi_tinh: gioiTinh,
-                        ma_don_vi: maDonViStr, // Sẽ mang giá trị null nếu kích hoạt chống lỗi khóa ngoại
+                        ma_don_vi: maDonViStr, 
                         chuc_danh_cong_viec: chucDanhStr,
                         so_cccd: soCccdStr,
                         so_bhxh: soBhxhStr,
@@ -389,15 +403,16 @@
                 }
 
                 if(mapData.length === 0) {
-                    alert("❌ Không bóc tách được dữ liệu!");
+                    alert("❌ Thất bại: Không bóc tách được bất kỳ bản ghi nhân sự hợp lệ nào từ file Excel!");
                     return;
                 }
 
+                // Thực hiện tải dữ liệu lên sau khi đã loại bỏ 100% các dòng rỗng nguy hiểm
                 const { error } = await client.from('nhan_su').upsert(mapData, { onConflict: 'id' });
                 if(error) {
-                    alert("Lỗi Supabase: " + error.message);
+                    alert("Lỗi cấu trúc từ Supabase: " + error.message);
                 } else {
-                    alert(`🎉 THÀNH CÔNG! Đã vượt qua kiểm tra hệ thống khóa ngoại và nạp thành công ${mapData.length} nhân sự.`);
+                    alert(`🎉 THÀNH CÔNG DỨT ĐIỂM! Đã tự động lọc bỏ các dòng rỗng lỗi và nạp thành công ${mapData.length} nhân sự lên Cloud.`);
                     await taiDuLieuHeThong();
                 }
             };
