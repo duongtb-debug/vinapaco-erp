@@ -76,7 +76,7 @@
     <div class="header">
         <div>
             <h1>Hệ Thống Quản Trị Tổng Hợp Cơ Sở Nhân Sự & Thiết Bị Toàn Diện</h1>
-            <p>Bản sửa lỗi tối thượng: Kiểm soát chuỗi chống Null Constraint ở cột Tên rút gọn</p>
+            <p>Bản sửa lỗi tối thượng: Loại bỏ hoàn toàn dòng trống Excel chống lỗi ID Not-Null Constraint</p>
         </div>
         <div style="font-size: 13px; font-weight: 500; background: rgba(255,255,255,0.15); padding: 6px 12px; border-radius: 20px;">
             <i class="fa-solid fa-cloud"></i> Đám mây thời gian thực
@@ -93,7 +93,7 @@
             <div id="side_hoso" style="display: block;">
                 <div class="sidebar-card">
                     <h3><i class="fa-solid fa-file-excel"></i> Nhập dữ liệu thông minh</h3>
-                    <p style="font-size: 12px; color: #666; margin: 0 0 10px 0;">Hệ thống ép cấu trúc tránh lỗi rỗng dữ liệu.</p>
+                    <p style="font-size: 12px; color: #666; margin: 0 0 10px 0;">Hệ thống lọc bỏ dòng trống, chuẩn hóa ID.</p>
                     <input type="file" id="excel_file_input" accept=".xlsx, .xls, .csv" style="display: none;" onchange="xuLyFileExcelNhanSu(this)">
                     
                     <button class="btn-primary" style="width: 100%; margin-bottom: 12px;" onclick="document.getElementById('excel_file_input').click()">
@@ -273,7 +273,7 @@
             } catch(e) { alert(e.message); }
         }
 
-        // HÀM ĐỌC FILE VÀ ÉP KIỂU SỬA LỖI KHÔNG BAO GIỜ BỊ BIẾN NULL CONSTRAINT
+        // HÀM ĐỌC FILE VÀ SỬA LỖI LOẠI BỎ DÒNG TRỐNG CHỐNG LỖI ID NULL CONSTRAINT
         async function xuLyFileExcelNhanSu(input) {
             if(!input.files.length) return;
             const file = input.files[0];
@@ -284,18 +284,17 @@
                 const workbook = XLSX.read(data, { type: 'array' });
                 const worksheet = workbook.Sheets[workbook.SheetNames[0]];
                 
-                // Đọc dữ liệu thô dạng lưới dòng/cột
                 const matrix = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
                 if(!matrix.length) { alert("File trống!"); return; }
 
-                // Chuẩn hóa dòng tiêu đề đầu tiên về chữ thường không dấu viết liền để đối chiếu
+                // Chuẩn hóa dòng tiêu đề đầu tiên
                 let headerRow = matrix[0].map(h => {
                     return String(h).toLowerCase().trim()
-                        .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Xóa dấu tiếng việt
-                        .replace(/[^a-z0-9]/g, ""); // Xóa ký tự đặc biệt và dấu cách
+                        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+                        .replace(/[^a-z0-9]/g, "");
                 });
                 
-                // Định vị số cột động
+                // Tìm vị trí cột
                 let idxId = headerRow.findIndex(h => ["stt", "manv", "id", "manhanvien"].includes(h));
                 let idxHoTen = headerRow.findIndex(h => ["hovaten", "hoten", "hovatennhanvien"].includes(h));
                 let idxTen = headerRow.findIndex(h => ["ten", "tenrutgon"].includes(h));
@@ -308,7 +307,6 @@
                 let idxBhxh = headerRow.findIndex(h => ["sobhxh", "bhxh", "baohiem"].includes(h));
                 let idxTrangThai = headerRow.findIndex(h => ["trangthai", "trangthailamviec"].includes(h));
 
-                // Nếu không tìm thấy cột Họ và tên bằng từ khóa thông minh, ép mặc định lấy cột số 2 (Index 1)
                 if (idxHoTen === -1) idxHoTen = 1;
                 if (idxId === -1) idxId = 0;
 
@@ -317,32 +315,37 @@
 
                 for(let i = 1; i < matrix.length; i++) {
                     let row = matrix[i];
-                    if(!row || row.length <= 1) continue;
+                    if(!row || row.length === 0) continue;
 
                     let rawId = row[idxId];
                     if(rawId === undefined || rawId === null || String(rawId).trim() === "") continue;
 
+                    // Làm sạch ID, loại bỏ ký tự rác
                     let cleanId = parseInt(String(rawId).replace(/[^0-9]/g, ''));
-                    if(isNaN(cleanId) || checkedUniqueKeys.has(cleanId)) continue;
+                    
+                    // CHỐT CHẶN: Nếu không dịch được ra số ID hợp lệ, BỎ QUA dòng này lập tức (Chống lỗi Null ID)
+                    if(isNaN(cleanId) || cleanId === undefined || cleanId === null) {
+                        continue; 
+                    }
+                    
+                    if(checkedUniqueKeys.has(cleanId)) continue;
                     checkedUniqueKeys.add(cleanId);
 
                     // Lấy họ tên
-                    let hoTenStr = (idxHoTen !== -1 && row[idxHoTen] !== undefined) ? String(row[idxHoTen]).trim() : "Không rõ tên";
-                    if(!hoTenStr || hoTenStr === """ || hoTenStr === "undefined") hoTenStr = "Nhân viên số " + cleanId;
+                    let hoTenStr = (idxHoTen !== -1 && row[idxHoTen] !== undefined) ? String(row[idxHoTen]).trim() : "Nhân viên " + cleanId;
+                    if(!hoTenStr || hoTenStr === "" || hoTenStr === "undefined") hoTenStr = "Nhân viên " + cleanId;
 
-                    // KHẮC PHỤC TRIỆT ĐỂ: Lấy tên rút gọn
+                    // Lấy tên rút gọn
                     let tenRutGonStr = "";
                     if(idxTen !== -1 && row[idxTen] !== undefined && String(row[idxTen]).trim() !== "") {
                         tenRutGonStr = String(row[idxTen]).trim();
                     }
                     
-                    // Nếu cột tên rút gọn bị bỏ trống hoặc quét lỗi, tự động bóc tách từ cuối cùng của Họ Tên
                     if(!tenRutGonStr || tenRutGonStr === "undefined") {
                         let parts = hoTenStr.split(" ");
                         tenRutGonStr = parts[parts.length - 1]; 
                     }
                     
-                    // Chốt chặn cuối cùng: nếu vẫn lỗi chuỗi rỗng thì lấy luôn cả Họ tên làm Tên rút gọn, tuyệt đối không để Null
                     if(!tenRutGonStr) {
                         tenRutGonStr = hoTenStr;
                     }
@@ -363,9 +366,9 @@
                     let trangThaiStr = (idxTrangThai !== -1 && row[idxTrangThai] !== "") ? String(row[idxTrangThai]).trim() : "Đang làm việc";
 
                     mapData.push({
-                        id: cleanId,
+                        id: cleanId, // Chắc chắn có số, không bao giờ null
                         ho_ten: hoTenStr,
-                        ten_rut_gon: tenRutGonStr, // Bảo đảm an toàn 100% không dính lỗi Not-Null Constraint nữa
+                        ten_rut_gon: tenRutGonStr, 
                         ngay_sinh: ngaySinhStr,
                         gioi_tinh: gioiTinh,
                         ma_don_vi: maDonViStr,
@@ -377,7 +380,7 @@
                 }
 
                 if(mapData.length === 0) {
-                    alert("Không tìm thấy dữ liệu hợp lệ để nạp!");
+                    alert("Không tìm thấy dữ liệu hợp lệ để nạp! Hãy kiểm tra cột số thứ tự (stt / manv).");
                     return;
                 }
 
@@ -386,7 +389,7 @@
                 if(error) {
                     alert("Lỗi cơ sở dữ liệu: " + error.message);
                 } else {
-                    alert(`🎉 DỨT ĐIỂM THÀNH CÔNG! Đã nạp thành công ${mapData.length} nhân sự lên Cloud.`);
+                    alert(`🎉 XỬ LÝ DỨT ĐIỂM THÀNH CÔNG! Đã lọc bỏ dòng trống và nạp thành công ${mapData.length} nhân sự lên Cloud.`);
                     await taiDuLieuHeThong();
                 }
             };
