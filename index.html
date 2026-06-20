@@ -85,9 +85,9 @@
         .suggestion-item .sub-info { font-size: 13px; color: #6c757d; margin-top: 3px; display: flex; gap: 15px; }
         code { font-family: 'Courier New', Courier, monospace; font-weight: bold; color: #212529; font-size: 15px; background: #f1f3f5; padding: 2px 6px; border-radius: 4px; }
         
-        /* Cấu trúc hiển thị ô chứa QR */
-        .qr-container { width: 75px; height: 75px; margin: 0 auto; background: #fff; padding: 2px; border: 1px solid #ddd; border-radius: 4px; display: flex; align-items: center; justify-content: center; }
-        .qr-container img { width: 100% !important; height: 100% !important; }
+        /* Định dạng ô chứa QR bảo đảm cân chỉnh giữa hoàn hảo */
+        .qr-container { width: 70px; height: 70px; margin: 0 auto; background: #fff; padding: 3px; border: 1px solid #e2e8f0; border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+        .qr-container img { width: 100% !important; height: 100% !important; display: block; }
     </style>
 </head>
 <body>
@@ -433,12 +433,13 @@
             return "status-tot";
         }
 
-        // PHẦN RENDERING MÃ QR ĐƯỢC LÀM MỚI TOÀN BỘ SỬ DỤNG ENGINE NỘI BỘ (LOCAL QR CODE)
+        // ĐÃ SỬA: Tối ưu quy trình sinh QR sau khi cây DOM đã hoàn thành render bảng dữ liệu
         function renderBangThietBi() {
             const tbody = document.getElementById('thiet_bi_table_body');
             const searchVal = document.getElementById('txt_tim_tb').value.toLowerCase().trim();
             const filterDv = document.getElementById('select_don_vi_tb').value;
-            if(!tbody) return; tbody.innerHTML = "";
+            if(!tbody) return; 
+            tbody.innerHTML = "";
 
             let dataFilter = CACHE_THIET_BI.filter(tb => {
                 if(filterDv !== "ALL" && String(tb.ma_don_vi).trim() !== filterDv) return false;
@@ -453,41 +454,49 @@
                 return;
             }
 
+            let htmlString = "";
             dataFilter.forEach((tb) => {
-                let tr = document.createElement('tr');
                 let statusClass = traVeClassBadgeTrangThai(tb.trang_thai);
-                
-                // Chuỗi thông tin thô để gán vào QR
-                let rawText = `Ma: ${tb.ma_thiet_bi} | TB: ${tb.ten_thiet_bi} | Nhan: ${tb.ten_nhan_vien} | DV: ${tb.ma_don_vi}`;
-                // Tạo ID duy nhất cho mỗi container chứa QR để tránh bị lặp đè dữ liệu
                 let qrContainerId = `qr_box_${tb.id}`;
 
-                tr.innerHTML = `
-                    <td style="vertical-align: middle; text-align: center;">
-                        <div id="${qrContainerId}" class="qr-container"></div>
-                    </td>
-                    <td style="vertical-align: middle;"><mark><b>${tb.ma_thiet_bi}</b></mark></td>
-                    <td style="vertical-align: middle;"><strong style="color:#2c3e50;">${tb.ten_thiet_bi}</strong></td>
-                    <td style="vertical-align: middle;"><i class="fa-solid fa-user-check" style="color:var(--success-color); font-size:14px; margin-right:4px;"></i> <b>${tb.ten_nhan_vien}</b></td>
-                    <td style="vertical-align: middle;"><span class="badge badge-info" style="background:#eef2f7; color:#1e56a0; border: 1px solid #b3d4fc;">${tb.ma_don_vi}</span></td>
-                    <td style="vertical-align: middle;">${new Date(tb.created_at).toLocaleDateString('vi-VN')}</td>
-                    <td style="vertical-align: middle;"><span class="status-badge ${statusClass}">${tb.trang_thai || 'Đang sử dụng tốt'}</span></td>
-                    <td style="vertical-align: middle;"><small class="text-muted">${tb.ghi_chu || '<i>Không có</i>'}</small></td>
-                    <td style="text-align:center; vertical-align: middle;">
-                        <button class="btn-danger" style="padding: 6px 12px; font-size:14px; border-radius:6px;" onclick="xoaThietBiPhanPhoi(${tb.id})"><i class="fa-solid fa-trash-can"></i> Thu hồi</button>
-                    </td>
+                htmlString += `
+                    <tr>
+                        <td style="vertical-align: middle; text-align: center;">
+                            <div id="${qrContainerId}" class="qr-container"></div>
+                        </td>
+                        <td style="vertical-align: middle;"><mark><b>${tb.ma_thiet_bi}</b></mark></td>
+                        <td style="vertical-align: middle;"><strong style="color:#2c3e50;">${tb.ten_thiet_bi}</strong></td>
+                        <td style="vertical-align: middle;"><i class="fa-solid fa-user-check" style="color:var(--success-color); font-size:14px; margin-right:4px;"></i> <b>${tb.ten_nhan_vien}</b></td>
+                        <td style="vertical-align: middle;"><span class="badge badge-info" style="background:#eef2f7; color:#1e56a0; border: 1px solid #b3d4fc;">${tb.ma_don_vi}</span></td>
+                        <td style="vertical-align: middle;">${new Date(tb.created_at).toLocaleDateString('vi-VN')}</td>
+                        <td style="vertical-align: middle;"><span class="status-badge ${statusClass}">${tb.trang_thai || 'Đang sử dụng tốt'}</span></td>
+                        <td style="vertical-align: middle;"><small class="text-muted">${tb.ghi_chu || '<i>Không có</i>'}</small></td>
+                        <td style="text-align:center; vertical-align: middle;">
+                            <button class="btn-danger" style="padding: 6px 12px; font-size:14px; border-radius:6px;" onclick="xoaThietBiPhanPhoi(${tb.id})"><i class="fa-solid fa-trash-can"></i> Thu hồi</button>
+                        </td>
+                    </tr>
                 `;
-                tbody.appendChild(tr);
+            });
 
-                // Khởi tạo và ép Engine nội bộ render trực tiếp mã QR vào thẻ Div vừa tạo
-                new QRCode(document.getElementById(qrContainerId), {
-                    text: rawText,
-                    width: 71,
-                    height: 71,
-                    colorDark : "#000000",
-                    colorLight : "#ffffff",
-                    correctLevel : QRCode.CorrectLevel.H
-                });
+            // Gán đồng loạt vào innerHTML trước để trình duyệt khởi tạo phần tử DOM
+            tbody.innerHTML = htmlString;
+
+            // Sau khi phần tử div đã tồn tại thật trên giao diện, tiến hành gọi thư viện vẽ mã QR Code
+            dataFilter.forEach((tb) => {
+                let qrContainerId = `qr_box_${tb.id}`;
+                let containerTarget = document.getElementById(qrContainerId);
+                let rawText = `Ma: ${tb.ma_thiet_bi} | TB: ${tb.ten_thiet_bi} | Nhan: ${tb.ten_nhan_vien} | DV: ${tb.ma_don_vi}`;
+                
+                if (containerTarget) {
+                    new QRCode(containerTarget, {
+                        text: rawText,
+                        width: 64,
+                        height: 64,
+                        colorDark : "#000000",
+                        colorLight : "#ffffff",
+                        correctLevel : QRCode.CorrectLevel.M
+                    });
+                }
             });
         }
 
