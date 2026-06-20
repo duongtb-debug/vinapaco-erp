@@ -70,6 +70,8 @@
         .btn-pill.active { background-color: var(--primary-color); color: white; border-color: var(--primary-color); }
         .btn-primary { background-color: var(--primary-color); color: white; border: none; padding: 10px 15px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
         .btn-primary:hover { background-color: #143d73; }
+        .btn-danger { background-color: var(--danger-color); color: white; border: none; padding: 10px 15px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
+        .btn-danger:hover { background-color: #c0392b; }
 
         /* Tables */
         .table-responsive { overflow-x: auto; width: 100%; }
@@ -95,7 +97,7 @@
     <div class="header">
         <div>
             <h1>Hệ Thống Quản Trị Tổng Hợp Cơ Sở Nhân Sự & Thiết Bị Toàn Diện</h1>
-            <p>Bản sửa lỗi tối ưu: Tự động sửa lỗi thiếu cột Tên rút gọn, giữ định dạng số BHXH/CCCD nguyên bản</p>
+            <p>Bản cập nhật tối ưu: Tích hợp dọn sạch đám mây và Tự động chuẩn hóa tiêu đề cột Excel thông minh</p>
         </div>
         <div style="font-size: 13px; font-weight: 500; background: rgba(255,255,255,0.15); padding: 6px 12px; border-radius: 20px;">
             <i class="fa-solid fa-cloud"></i> Đám mây thời gian thực
@@ -112,10 +114,15 @@
             <div id="side_hoso" style="display: block;">
                 <div class="sidebar-card">
                     <h3><i class="fa-solid fa-file-excel"></i> Nhập dữ liệu thông minh</h3>
-                    <p style="font-size: 12px; color: #666; margin: 0 0 10px 0;">Đã cấu hình cơ chế tự động điền Tên nếu file Excel thiếu cột.</p>
+                    <p style="font-size: 12px; color: #666; margin: 0 0 10px 0;">Hỗ trợ dọn dẹp bộ nhớ Cloud trước khi đẩy tệp mới.</p>
                     <input type="file" id="excel_file_input" accept=".xlsx, .xls, .csv" style="display: none;" onchange="xuLyFileExcelNhanSu(this)">
-                    <button class="btn-primary" style="width: 100%;" onclick="document.getElementById('excel_file_input').click()">
+                    
+                    <button class="btn-primary" style="width: 100%; margin-bottom: 12px;" onclick="document.getElementById('excel_file_input').click()">
                         <i class="fa-solid fa-cloud-arrow-up"></i> TẢI FILE EXCEL / CSV LÊN
+                    </button>
+                    
+                    <button class="btn-danger" style="width: 100%; justify-content: center; background-color: #d63031;" onclick="xoaToanBoDuLieuCloud()">
+                        <i class="fa-solid fa-trash-can"></i> XÓA SẠCH DỮ LIỆU CŨ TRÊN CLOUD
                     </button>
                 </div>
             </div>
@@ -299,6 +306,30 @@
             return str;
         }
 
+        // HÀM CAO CẤP: XÓA SẠCH DỮ LIỆU ĐÁM MÂY TRƯỚC KHI UPDATE
+        async function xoaToanBoDuLieuCloud() {
+            if (!confirm("⚠️ CẢNH BÁO: Bạn có chắc chắn muốn xóa SẠCH TOÀN BỘ dữ liệu nhân sự trên Đám mây? Thao tác này giúp dọn dẹp bộ nhớ trước khi đồng bộ file mới và không thể khôi phục!")) {
+                return;
+            }
+            
+            document.getElementById('nhan_su_table_body').innerHTML = `<tr><td colspan="10" style="text-align: center; color:red; font-weight:bold;">Đang xóa sạch dữ liệu trên Cloud... Xin vui lòng đợi.</td></tr>`;
+            
+            try {
+                // Xóa toàn bộ dòng dữ liệu nhân sự bằng điều kiện id lớn hơn 0
+                const { error } = await client.from('nhan_su').delete().gt('id', 0);
+                
+                if (error) {
+                    alert("Lỗi khi xóa dữ liệu Cloud: " + error.message);
+                } else {
+                    alert("🎉 Thành công! Đã xóa sạch bộ nhớ cũ trên Cloud. Bây giờ bạn có thể upload file Excel mới.");
+                }
+            } catch(e) {
+                alert("Lỗi hệ thống: " + e.message);
+            }
+            await taiDuLieuHeThong();
+        }
+
+        // HÀM PHÂN TÍCH EXCEL THÔNG MINH - CHỐNG LỖI SAI TIÊU ĐỀ CỘT
         async function xuLyFileExcelNhanSu(input) {
             if(!input.files.length) return;
             const file = input.files[0];
@@ -315,8 +346,31 @@
                 let mapData = [];
                 let checkedUniqueKeys = new Set();
 
+                // 1. Phân tích thông minh tiêu đề cột (Hỗ trợ viết hoa, viết thường, có dấu, không dấu)
+                let sampleRow = rawJson[0];
+                let columnMap = {
+                    id: "", ho_ten: "", ten: "", ngay_sinh: "", gioi_tinh: "",
+                    ma_don_vi: "", chuc_danh: "", so_cccd: "", so_bhxh: "", trang_thai: ""
+                };
+
+                Object.keys(sampleRow).forEach(key => {
+                    let k = key.toLowerCase().trim().replace(/_/g, "");
+                    
+                    if (["stt", "manv", "id", "manhanvien"].includes(k)) columnMap.id = key;
+                    if (["hovaten", "hoten"].includes(k)) columnMap.ho_ten = key;
+                    if (["ten", "tenrutgon"].includes(k)) columnMap.ten = key;
+                    if (["ngaysinh"].includes(k)) columnMap.ngay_sinh = key;
+                    if (["gioitinh"].includes(k)) columnMap.gioi_tinh = key;
+                    if (["madonvi", "donvi"].includes(k)) columnMap.ma_don_vi = key;
+                    if (["chucdanhcongviec", "chucdanh"].includes(k)) columnMap.chuc_danh = key;
+                    if (["socccd", "cccd"].includes(k)) columnMap.so_cccd = key;
+                    if (["sobhxh", "bhxh"].includes(k)) columnMap.so_bhxh = key;
+                    if (["trangthai", "trangthailamviec"].includes(k)) columnMap.trang_thai = key;
+                });
+
+                // 2. Chuyển đổi dữ liệu chuẩn
                 rawJson.forEach(row => {
-                    let idVal = row["stt"] || row["Mã NV"] || row["ID"] || row["id"] || row["Mã nhân viên"];
+                    let idVal = row[columnMap.id || "stt"] || row["Mã NV"] || row["ID"] || row["id"];
                     
                     if(idVal !== undefined && idVal !== null && idVal !== "") {
                         let cleanId = parseInt(String(idVal).replace(/[^0-9]/g, ''));
@@ -324,26 +378,29 @@
                         if(!isNaN(cleanId) && !checkedUniqueKeys.has(cleanId)) {
                             checkedUniqueKeys.add(cleanId);
                             
+                            // Trích xuất Giới tính
                             let gioiTinh = "Nam";
-                            if(row["Giới tính"] || row["Giới Tính"]) {
-                                gioiTinh = cleanCellToText(row["Giới tính"] || row["Giới Tính"]);
+                            let gtKey = columnMap.gioi_tinh || "Giới tính";
+                            if(row[gtKey]) {
+                                gioiTinh = cleanCellToText(row[gtKey]);
                             } else if (row["nu_x"] && cleanCellToText(row["nu_x"]).toUpperCase() === "X") {
                                 gioiTinh = "Nữ";
                             }
 
-                            let hoTenStr = cleanCellToText(row["ho_va_ten"] || row["Họ và Tên"] || row["Họ tên"]) || "Không rõ";
+                            // Trích xuất Họ Tên và xử lý Tên rút gọn thông minh
+                            let hoTenStr = cleanCellToText(row[columnMap.ho_ten || "Họ và Tên"]) || "Không rõ";
+                            let tenRutGonStr = cleanCellToText(row[columnMap.ten || "Tên rút gọn"] || row["ten"] || row["Tên"]);
                             
-                            // GIẢI PHÁP THÔNG MINH: Tự động tìm cột Tên, hoặc tự trích xuất nếu thiếu cột
-                            let tenRutGonStr = cleanCellToText(row["ten"] || row["Tên rút gọn"] || row["Tên"] || row["ten_rut_gon"]);
+                            // Nếu thiếu cột Tên, tự động cắt chữ cuối cùng của Họ Tên ra điền vào
                             if (!tenRutGonStr && hoTenStr !== "Không rõ") {
-                                let parts = hoTenStr.split(" ");
-                                tenRutGonStr = parts[parts.length - 1]; // Lấy chữ cuối cùng làm Tên
+                                let parts = hoTenStr.trim().split(" ");
+                                tenRutGonStr = parts[parts.length - 1];
                             }
 
-                            let ngaySinhStr = cleanCellToText(row["ngay_sinh"] || row["Ngày sinh"] || row["Ngày Sinh"]);
-                            let soCccdStr = cleanCellToText(row["so_cccd"] || row["Số CCCD"] || row["CCCD"]);
-                            let soBhxhStr = cleanCellToText(row["so_bhxh"] || row["Số BHXH"]);
-                            let maDonViStr = cleanCellToText(row["ma_don_vi"] || row["Mã Đơn Vị"] || row["Đơn vị"]);
+                            let ngaySinhStr = cleanCellToText(row[columnMap.ngay_sinh || "Ngày sinh"]);
+                            let soCccdStr = cleanCellToText(row[columnMap.so_cccd || "Số CCCD"]);
+                            let soBhxhStr = cleanCellToText(row[columnMap.so_bhxh || "Số BHXH"]);
+                            let maDonViStr = cleanCellToText(row[columnMap.ma_don_vi || "Mã Đơn Vị"]);
 
                             mapData.push({
                                 id: cleanId,
@@ -352,25 +409,26 @@
                                 ngay_sinh: ngaySinhStr !== "" ? ngaySinhStr : null,
                                 gioi_tinh: gioiTinh,
                                 ma_don_vi: maDonViStr,
-                                chuc_danh_cong_viec: cleanCellToText(row["chuc_danh_cong_viec"] || row["Chức Danh Công Việc"] || row["Chức danh"]),
+                                chuc_danh_cong_viec: cleanCellToText(row[columnMap.chuc_danh || "Chức danh"]),
                                 so_cccd: soCccdStr !== "" ? soCccdStr : null,
                                 so_bhxh: soBhxhStr !== "" ? soBhxhStr : null,
-                                trang_thai_lam_viec: cleanCellToText(row["trang_thai"] || row["Trạng thái làm việc"]) || "Đang làm việc"
+                                trang_thai_lam_viec: cleanCellToText(row[columnMap.trang_thai || "Trạng thái"]) || "Đang làm việc"
                             });
                         }
                     }
                 });
 
                 if(mapData.length === 0) {
-                    alert("Không tìm thấy dữ liệu hợp lệ!");
+                    alert("Không tìm thấy dữ liệu hợp lệ trong file!");
                     return;
                 }
 
+                // Ghi đè hoặc thêm mới an toàn (Upsert)
                 const { error } = await client.from('nhan_su').upsert(mapData, { onConflict: 'id' });
                 if(error) {
                     alert("Lỗi đồng bộ: " + error.message);
                 } else {
-                    alert(`Thành công dứt điểm! Đã đồng bộ chuẩn định dạng ${mapData.length} nhân sự lên Cloud.`);
+                    alert(`🎉 Đồng bộ thành công dứt điểm! Đã đưa cấu trúc ${mapData.length} nhân sự lên Cloud.`);
                     await taiDuLieuHeThong();
                 }
             };
@@ -409,7 +467,7 @@
             });
 
             if(!queryData.length) {
-                tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;">Không tìm thấy nhân sự phù hợp tiêu chí lọc.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;">Không có dữ liệu nhân sự trên Cloud hoặc không phù hợp bộ lọc.</td></tr>`;
                 return;
             }
 
