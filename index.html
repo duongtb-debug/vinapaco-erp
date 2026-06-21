@@ -96,9 +96,9 @@
         .qr-canvas { width: 110px; height: 110px; background: #fff; margin: 0 auto; padding: 5px; border: 1px solid #ddd; border-radius: 4px; display: flex; align-items: center; justify-content: center; }
         .qr-canvas img { width: 100% !important; height: 100% !important; }
         
-        .link-file { color: var(--primary); text-decoration: none; font-weight: bold; display: inline-flex; align-items: center; gap: 4px; margin-bottom: 4px; background: #f0f4f8; padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+        .link-file { color: var(--primary); text-decoration: none; font-weight: bold; display: inline-flex; align-items: center; gap: 4px; margin-bottom: 4px; background: #f0f4f8; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
         .link-file:hover { background: #e1e8ed; text-decoration: underline; }
-        .upload-zone { border: 2px dashed #ccc; padding: 12px; border-radius: 6px; text-align: center; background: #fafafa; cursor: pointer; }
+        .upload-zone { border: 2px dashed #ccc; padding: 15px; border-radius: 6px; text-align: center; background: #fafafa; cursor: pointer; }
         .upload-zone:hover { border-color: var(--primary); background: #f4f8fd; }
     </style>
 </head>
@@ -214,12 +214,12 @@
                     <label style="color:var(--success);"><i class="fa-solid fa-cloud-arrow-up"></i> TẢI FILE / FOLDER CHỨNG TỪ LÊN CLOUD</label>
                     <div class="upload-zone" onclick="document.getElementById('file_uploader_multi').click()">
                         <i class="fa-solid fa-folder-open" style="font-size:24px; color:#aaa;"></i>
-                        <p style="margin:5px 0 0 0; font-size:12px; color:#666;">Bấm để chọn <b>Nhiều file</b> hoặc dán thư mục hóa đơn</p>
+                        <p style="margin:5px 0 0 0; font-size:12px; color:#666;">Bấm để chọn <b>Nhiều file</b></p>
                     </div>
                     <input type="file" id="file_uploader_multi" multiple style="display:none;" onchange="uploadMultipleFilesToCloud(this)">
                     
-                    <div style="margin-top: 8px;">
-                        <label style="font-size:11px; color:#555;">Hoặc Chọn Tải Nguyên Cả Thư Mục (Folder):</label>
+                    <div style="margin-top: 8px; border-top: 1px dashed #ddd; padding-top: 8px;">
+                        <label style="font-size:11px; color:#555; font-weight: bold;">Hoặc Tải Nguyên Cả Thư Mục (Folder):</label>
                         <input type="file" id="folder_uploader" webkitdirectory directory multiple onchange="uploadMultipleFilesToCloud(this)">
                     </div>
                 </div>
@@ -297,7 +297,7 @@
                     <table>
                         <thead>
                             <tr>
-                                <th class="text-center" style="width:100px;">Ngày Nhập</th><th style="width:140px;" class="text-center">Trạng Thái Hồ Sơ</th><th>Mã / Tên Thiết Bị Sửa Chữa</th><th style="text-align:right; width:130px; color:var(--primary);">Chi Phí Gốc</th><th style="text-align:right; width:140px; color:var(--danger);">Quyết Toán (+8%)</th><th>Đơn Vị Thụ Hưởng</th><th style="width:200px;" class="text-center">Hóa Đơn & Đa Chứng Từ Trực Tuyến</th><th class="text-center" style="width:140px;">Thao Tác</th>
+                                <th class="text-center" style="width:100px;">Ngày Nhập</th><th style="width:140px;" class="text-center">Trạng Thái Hồ Sơ</th><th>Mã / Tên Thiết Bị Sửa Chữa</th><th style="text-align:right; width:130px; color:var(--primary);">Chi Phí Gốc</th><th style="text-align:right; width:140px; color:var(--danger);">Quyết Toán (+8%)</th><th>Đơn Vị Thụ Hưởng</th><th style="width:220px;" class="text-center">Hóa Đơn & Đa Chứng Từ Trực Tuyến</th><th class="text-center" style="width:140px;">Thao Tác</th>
                             </tr>
                         </thead>
                         <tbody id="table_thanhtoan_body"></tbody>
@@ -380,27 +380,26 @@
         }
         function handleTableScroll(container) { if (container.scrollHeight - container.scrollTop <= container.clientHeight + 40) { if (CURRENT_PAGE_SIZE < FILTERED_LIST.length) { CURRENT_PAGE_SIZE += 30; renderNhanSuTable(); } } }
 
-        // --- TẢI MULTIPLE FILES & FOLDERS LÊN SUPABASE STORAGE ---
+        // --- TẢI MULTIPLE FILES & FOLDERS LÊN SUPABASE STORAGE (ĐÃ FIX LỖI PATH THƯ MỤC TRÙNG) ---
         async function uploadMultipleFilesToCloud(input) {
             const files = input.files; if(files.length === 0) return;
             let currentUrls = document.getElementById('pay_document_links_area').value.trim();
             let urlList = currentUrls ? currentUrls.split("\n") : [];
 
-            alert(`Đang tiến hành tải lên ${files.length} file lên Cloud Supabase Storage... Vui lòng chờ.`);
+            alert(`Đang tiến hành tải lên ${files.length} file lên kho Cloud... Vui lòng chờ.`);
 
             for (let i = 0; i < files.length; i++) {
                 let file = files[i];
-                // Tạo tên file ngẫu nhiên để tránh trùng lập trên hệ thống
                 let fileExt = file.name.split('.').pop();
+                // Loại bỏ hoàn toàn tiền tố "documents/" thừa để tránh đúp thư mục
                 let fileNameNew = `${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
-                let filePath = `documents/${fileNameNew}`;
+                let filePath = `${fileNameNew}`; 
 
                 let { data, error } = await client.storage.from('documents').upload(filePath, file);
                 
                 if (error) {
                     console.error("Lỗi upload file: ", error.message);
                 } else {
-                    // Lấy link public trực tuyến đa máy
                     let { data: publicData } = client.storage.from('documents').getPublicUrl(filePath);
                     if(publicData && publicData.publicUrl) {
                         urlList.push(publicData.publicUrl);
@@ -409,8 +408,8 @@
             }
 
             document.getElementById('pay_document_links_area').value = urlList.join("\n");
-            alert("Đã hoàn tất tải chuỗi tài liệu lên đám mây thành công!");
-            input.value = ""; // Reset uploader
+            alert("Đã tải tệp lên Đám Mây thành công!\n\nBƯỚC TIẾP THEO BẮT BUỘC: Bạn hãy nhấn vào nút 'LƯU CẬP NHẬT HỒ SƠ TRỰC TUYẾN' ở phía bên dưới form để lưu tệp vào bảng dữ liệu.");
+            input.value = ""; 
         }
 
         async function saveDeviceCofig() {
@@ -474,9 +473,13 @@
             let filtered = DB_SUA_CHUA.filter(x => !kw || (x.ten_thiet_bi && x.ten_thiet_bi.toLowerCase().includes(kw)) || (x.ma_thiet_bi && x.ma_thiet_bi.toLowerCase().includes(kw)));
             filtered.forEach(x => {
                 let costOriginal = parseFloat(x.chi_phi) || 0;
+                let cleanSolution = x.bien_phap_khac_phuc || "";
+                if(cleanSolution.includes("===PAYMENT_PROFILE===")) {
+                    cleanSolution = cleanSolution.split("===PAYMENT_PROFILE===")[0].trim();
+                }
                 tbody.innerHTML += `<tr>
                     <td class="text-center"><b>${formatDisplayDate(x.created_at)}</b></td><td><mark><b>${x.ma_thiet_bi || ''}</b></mark></td><td><b>${x.ten_thiet_bi || 'Thiết bị không rõ'}</b></td><td>${x.noi_dung_hong || ''}</td>
-                    <td style="max-width:250px; overflow:hidden; text-overflow:ellipsis;"><small>${x.bien_phap_khac_phuc || ''}</small></td>
+                    <td style="max-width:250px; overflow:hidden; text-overflow:ellipsis;"><small>${cleanSolution}</small></td>
                     <td style="text-align:right; font-weight:bold; color:var(--primary);">${costOriginal.toLocaleString('vi-VN')}</td>
                     <td class="text-center"><button class="btn-table-edit" onclick="editRepairLog(${x.id})"><i class="fa-solid fa-edit"></i> Sửa</button><button class="btn-table-del" onclick="deleteRepairLog(${x.id}, '${x.ten_thiet_bi}')"><i class="fa-solid fa-trash"></i> Xóa</button></td>
                 </tr>`;
@@ -509,7 +512,7 @@
             document.getElementById('stat_count_total').innerText = DB_SUA_CHUA.length + " danh mục"; document.getElementById('stat_money_original').innerText = orig.toLocaleString('vi-VN') + " VND"; document.getElementById('stat_money_taxed').innerText = tax.toLocaleString('vi-VN') + " VND";
         }
 
-        // --- HIỂN THỊ DANH SÁCH BẢNG THANH TOÁN (GIẢI PHÁP ĐA MÁY CLOUD AN TOÀN) ---
+        // --- HIỂN THỊ DANH SÁCH BẢNG THANH TOÁN (SỬA LỖI ĐỌC DỮ LIỆU ĐỂ HIỂN THỊ FILE CHỨNG TỪ) ---
         function displayPaymentTable() {
             const tbody = document.getElementById('table_thanhtoan_body'); tbody.innerHTML = "";
             const kw = document.getElementById('search_thanhtoan').value.toLowerCase().trim();
@@ -521,7 +524,6 @@
                 let costOriginal = parseFloat(x.chi_phi) || 0;
                 let rawText = x.bien_phap_khac_phuc || "";
 
-                // TRÍCH XUẤT THÔNG TIN CLOUD ĐA MÁY TỪ TRƯỜNG BIỆN PHÁP KHẮC PHỤC
                 let statusHS = "Chưa xử lý";
                 let donVi = "Chưa khai báo";
                 let linkString = "";
@@ -538,14 +540,16 @@
 
                 let badgeClass = statusHS === "Đã hoàn thành" ? "hs-done" : (statusHS === "Đang xác minh" ? "hs-doing" : "hs-todo");
 
-                // Tạo chuỗi danh sách các link chứng từ download
-                let docCell = `<i style="color:#999">Trống</i>`;
-                if(linkString) {
+                // Tạo chuỗi danh sách các link chứng từ download trực quan
+                let docCell = `<i style="color:#aaa">Trống</i>`;
+                if(linkString && linkString.trim() !== "") {
                     docCell = "";
                     let splitLinks = linkString.split("\n");
-                    splitLinks.forEach((lk, idx) => {
+                    let fileCount = 1;
+                    splitLinks.forEach((lk) => {
                         if(lk.trim()) {
-                            docCell += `<a href="${lk.trim()}" target="_blank" class="link-file"><i class="fa-solid fa-file-invoice"></i> Chứng từ ${idx + 1}</a><br>`;
+                            docCell += `<a href="${lk.trim()}" target="_blank" class="link-file"><i class="fa-solid fa-file-pdf"></i> Tệp chứng từ ${fileCount}</a><br>`;
+                            fileCount++;
                         }
                     });
                 }
@@ -600,7 +604,6 @@
             let beneficiary = document.getElementById('pay_beneficiary').value.trim();
             let allLinks = document.getElementById('pay_document_links_area').value.trim();
 
-            // Lấy lại phần mô tả kỹ thuật cũ (nếu có) trước thẻ đánh dấu ===PAYMENT_PROFILE===
             let baseSolution = log.bien_phap_khac_phuc || "";
             if (baseSolution.includes("===PAYMENT_PROFILE===")) {
                 baseSolution = baseSolution.split("===PAYMENT_PROFILE===")[0].trim();
@@ -612,7 +615,6 @@
                 links: allLinks
             };
 
-            // Ép gói cấu trúc vào trường text an toàn để đồng bộ hóa đám mây xuyên thiết bị máy tính
             let finalSolutionField = `${baseSolution}\n\n===PAYMENT_PROFILE===\n${JSON.stringify(profileJson)}`;
 
             const { error } = await client.from('lich_su_sua_chua').update({
@@ -622,7 +624,7 @@
             if (error) {
                 alert("Lỗi khi đồng bộ lên Cloud: " + error.message);
             } else {
-                alert("Đã lưu trạng thái, đơn vị thụ hưởng & tệp chứng từ lên Đám mây thành công! Tất cả các máy tính khác đều sẽ đọc được dữ liệu này.");
+                alert("Đã cập nhật trạng thái hồ sơ & chứng từ thành công!");
                 document.getElementById('pay_log_id').value = ""; 
                 document.getElementById('pay_beneficiary').value = "";
                 document.getElementById('pay_document_links_area').value = "";
