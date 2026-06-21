@@ -511,7 +511,6 @@
             } else { box.style.display = 'none'; }
         }
 
-        // --- GÁN CỨNG LINK GITHUB PAGES CHÍNH XÁC ---
         function displayThietBi() {
             const tbody = document.getElementById('table_thietbi_body'); tbody.innerHTML = "";
             const kw = document.getElementById('search_thietbi').value.toLowerCase().trim();
@@ -522,7 +521,6 @@
                 return;
             }
 
-            // URL GitHub Pages đã gán cố định dứt điểm lỗi 404
             const viewPageUrl = "https://duongtb-debug.github.io/vinapaco-erp/view.html";
 
             filtered.forEach((x, i) => {
@@ -578,7 +576,7 @@
         function displayRepairLog() {
             const tbody = document.getElementById('table_suachua_body'); tbody.innerHTML = "";
             const kw = document.getElementById('search_suachua').value.toLowerCase().trim();
-            let filtered = DB_SUA_CHUA.filter(x => !kw || x.ten_thiet_bi.toLowerCase().includes(kw) || x.ma_thiet_bi.toLowerCase().includes(kw));
+            let filtered = DB_SUA_CHUA.filter(x => !kw || (x.ten_thiet_bi && x.ten_thiet_bi.toLowerCase().includes(kw)) || (x.ma_thiet_bi && x.ma_thiet_bi.toLowerCase().includes(kw)));
             
             if(filtered.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="7" class="text-center" style="color: #999; padding: 20px;">Không tìm thấy nhật ký sửa chữa nào.</td></tr>`;
@@ -589,8 +587,8 @@
                 let costOriginal = parseFloat(x.chi_phi) || 0;
                 tbody.innerHTML += `<tr>
                     <td class="text-center"><b>${formatDisplayDate(x.ngay_sua_chua || x.created_at)}</b></td>
-                    <td><mark><b>${x.ma_thiet_bi}</b></mark></td>
-                    <td><b>${x.ten_thiet_bi}</b></td>
+                    <td><mark><b>${x.ma_thiet_bi || ''}</b></mark></td>
+                    <td><b>${x.ten_thiet_bi || 'Thiết bị không rõ'}</b></td>
                     <td>${x.noi_dung_hong || ''}</td>
                     <td>${x.bien_phap_khac_phuc || ''}</td>
                     <td style="text-align:right; font-weight:bold; color:var(--primary);">${costOriginal.toLocaleString('vi-VN')}</td>
@@ -602,19 +600,35 @@
             });
         }
 
+        // --- HÀM LƯU NHẬT KÝ SỬA CHỮA ĐÃ SỬA LỖI KHÔNG TÌM THẤY THÔNG TIN THIẾT BỊ ---
         async function saveRepairConfig() {
             const editingRepairId = document.getElementById('editing_repair_id').value; 
             const cpId = document.getElementById('repair_cp_id').value; 
             const damage = document.getElementById('repair_damage').value.trim();
+            const searchText = document.getElementById('repair_dev_search').value.trim();
             
-            if(!cpId || !damage) { alert("Vui lòng chọn thiết bị và nhập lỗi!"); return; }
-            const dev = DB_THIET_BI.find(x => x.id == cpId);
+            if(!damage) { alert("Vui lòng nhập nội dung hư hỏng / hiện tượng lỗi!"); return; }
+            if(!cpId && !searchText) { alert("Vui lòng chọn thiết bị hư hỏng từ danh sách gợi ý!"); return; }
+
+            let dev = null;
+            // Tìm kiếm thiết bị chính xác từ danh sách DB_THIET_BI
+            if(cpId) {
+                dev = DB_THIET_BI.find(x => x.id == cpId);
+            } else {
+                dev = DB_THIET_BI.find(x => searchText.toUpperCase().includes(x.ma_thiet_bi.toUpperCase()));
+            }
+
+            if(!dev) {
+                alert("Hệ thống không tìm thấy thông tin thiết bị này! Vui lòng nhấp chuột chọn chính xác thiết bị xuất hiện từ bảng danh sách gợi ý đổ xuống.");
+                return;
+            }
+
             let costOriginal = parseFloat(document.getElementById('repair_cost').value) || 0;
             let todayStr = new Date().toISOString().split('T')[0];
 
             let payload = { 
-                cap_phat_id: parseInt(cpId), 
-                ma_thiet_bi: dev.ma_thiet_bi, 
+                cap_phat_id: parseInt(dev.id), 
+                ma_thiet_bi: dev.ma_thiet_bi.toUpperCase(), 
                 ten_thiet_bi: dev.ten_thiet_bi, 
                 noi_dung_hong: damage, 
                 bien_phap_khac_phuc: document.getElementById('repair_solution').value.trim(), 
@@ -623,12 +637,14 @@
             };
 
             if(editingRepairId) { 
-                await client.from('lich_su_sua_chua').update(payload).eq('id', editingRepairId); 
+                const { error } = await client.from('lich_su_sua_chua').update(payload).eq('id', editingRepairId); 
+                if(error) { alert("Lỗi khi cập nhật dữ liệu: " + error.message); return; }
                 cancelEditRepair(); 
             } else { 
                 payload.trang_thai_thanh_toan = "Chưa thanh toán"; 
                 payload.ten_ho_so_thanh_toan = "Hồ sơ sửa chữa " + dev.ten_thiet_bi; 
-                await client.from('lich_su_sua_chua').insert([payload]); 
+                const { error } = await client.from('lich_su_sua_chua').insert([payload]); 
+                if(error) { alert("Lỗi khi lưu dữ liệu lên Supabase: " + error.message); return; }
                 clearRepairForm(); 
             } 
             
@@ -640,9 +656,9 @@
         function editRepairLog(id) {
             const log = DB_SUA_CHUA.find(x => x.id == id); if(!log) return;
             document.getElementById('editing_repair_id').value = log.id; document.getElementById('repair_cp_id').value = log.cap_phat_id;
-            document.getElementById('repair_dev_search').value = `${log.ma_thiet_bi} [${log.ten_thiet_bi}]`;
-            document.getElementById('repair_damage').value = log.noi_dung_hong; document.getElementById('repair_solution').value = log.bien_phap_khac_phuc;
-            document.getElementById('repair_cost').value = log.chi_phi;
+            document.getElementById('repair_dev_search').value = log.ma_thiet_bi ? `${log.ma_thiet_bi} [${log.ten_thiet_bi}]` : (log.ten_thiet_bi || '');
+            document.getElementById('repair_damage').value = log.noi_dung_hong || ''; document.getElementById('repair_solution').value = log.bien_phap_khac_phuc || '';
+            document.getElementById('repair_cost').value = log.chi_phi || 0;
             calculateRealtimeTax(); switchSection('suachua'); document.getElementById('btn_cancel_edit_repair').style.display = "block"; window.scrollTo({ top: 0, behavior: 'smooth' });
         }
         function cancelEditRepair() { document.getElementById('editing_repair_id').value = ""; clearRepairForm(); document.getElementById('btn_cancel_edit_repair').style.display = "none"; }
@@ -670,7 +686,7 @@
             const kw = document.getElementById('search_thanhtoan').value.toLowerCase().trim();
 
             let list = DB_SUA_CHUA.filter(x => {
-                let nameHS = x.ten_ho_so_thanh_toan || "Hồ sơ sửa chữa " + x.ten_thiet_bi; let dvThanhToan = x.don_vi_thu_huong || "";
+                let nameHS = x.ten_ho_so_thanh_toan || "Hồ sơ sửa chữa " + (x.ten_thiet_bi || ""); let dvThanhToan = x.don_vi_thu_huong || "";
                 return !kw || nameHS.toLowerCase().includes(kw) || dvThanhToan.toLowerCase().includes(kw);
             });
 
@@ -679,7 +695,7 @@
             list.forEach(x => {
                 let isPaid = x.trang_thai_thanh_toan === "Đã thanh toán";
                 let costWithTax = parseFloat(x.chi_phi_thanh_toan_tron_goi) || (parseFloat(x.chi_phi) * 1.08) || 0;
-                let displayProfileName = x.ten_ho_so_thanh_toan || `Hồ sơ thanh toán sửa chữa ${x.ten_thiet_bi}`;
+                let displayProfileName = x.ten_ho_so_thanh_toan || `Hồ sơ thanh toán sửa chữa ${x.ten_thiet_bi || ''}`;
                 let displayDate = x.ngay_lap_ho_so ? formatDisplayDate(x.ngay_lap_ho_so) : formatDisplayDate(x.ngay_sua_chua || x.created_at);
 
                 tbody.innerHTML += `<tr>
@@ -702,7 +718,7 @@
             document.getElementById('pay_log_id').value = log.id;
             if(log.ngay_lap_ho_so) { document.getElementById('pay_date').value = log.ngay_lap_ho_so; }
             else { document.getElementById('pay_date').value = log.ngay_sua_chua ? log.ngay_sua_chua : new Date().toISOString().split('T')[0]; }
-            document.getElementById('pay_name').value = log.ten_ho_so_thanh_toan || "Hồ sơ thanh toán " + log.ten_thiet_bi;
+            document.getElementById('pay_name').value = log.ten_ho_so_thanh_toan || "Hồ sơ thanh toán " + (log.ten_thiet_bi || "");
             document.getElementById('pay_cost').value = log.chi_phi_thanh_toan_tron_goi || (parseFloat(log.chi_phi) * 1.08);
             document.getElementById('pay_beneficiary').value = log.don_vi_thu_huong || "";
             document.getElementById('pay_status_select').value = log.trang_thai_thanh_toan === "Đã thanh toán" ? "Đã thanh toán" : "Chưa thanh toán";
@@ -762,16 +778,19 @@
         
         function repairSuggest(input) {
             const val = input.value.toLowerCase().trim(); const box = document.getElementById('repair_suggest'); box.innerHTML = "";
-            let matches = DB_THIET_BI.filter(t => !val || t.ten_thiet_bi.toLowerCase().includes(val) || t.ma_thiet_bi.toLowerCase().includes(val));
-            matches.slice(0, 15).forEach(t => {
-                let div = document.createElement('div'); div.className = 'suggest-item'; div.innerHTML = `<span><b>${t.ma_thiet_bi}</b> - ${t.ten_thiet_bi}</span>`;
-                div.onclick = () => { 
-                    document.getElementById('repair_dev_search').value = `${t.ma_thiet_bi} [${t.ten_thiet_bi}]`; 
-                    document.getElementById('repair_cp_id').value = t.id; 
-                    box.style.display = 'none'; 
-                }; 
-                box.appendChild(div);
-            }); box.style.display = 'block';
+            let matches = DB_THIET_BI.filter(t => !val || (t.ten_thiet_bi && t.ten_thiet_bi.toLowerCase().includes(val)) || (t.ma_thiet_bi && t.ma_thiet_bi.toLowerCase().includes(val)));
+            if(matches.length > 0) {
+                matches.slice(0, 15).forEach(t => {
+                    let div = document.createElement('div'); div.className = 'suggest-item'; div.innerHTML = `<span><b>${t.ma_thiet_bi}</b> - ${t.ten_thiet_bi}</span>`;
+                    div.onclick = () => { 
+                        document.getElementById('repair_dev_search').value = `${t.ma_thiet_bi} [${t.ten_thiet_bi}]`; 
+                        document.getElementById('repair_cp_id').value = t.id; 
+                        box.style.display = 'none'; 
+                    }; 
+                    box.appendChild(div);
+                }); 
+                box.style.display = 'block';
+            } else { box.style.display = 'none'; }
         }
         function resetSelectedUser() { document.getElementById('dev_user_search').value = ''; document.getElementById('dev_user_id').value = ''; }
         window.onclick = function(event) { if (!event.target.matches('.form-control')) { document.getElementById('dev_suggest').style.display = 'none'; document.getElementById('repair_suggest').style.display = 'none'; } }
