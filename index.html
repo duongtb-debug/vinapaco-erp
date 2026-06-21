@@ -379,6 +379,7 @@
 
         let DB_NHAN_SU = []; let DB_THIET_BI = []; let DB_SUA_CHUA = []; let FILTERED_LIST = []; let CURRENT_PAGE_SIZE = 30;
 
+        // SỬA LỖI ĐỒNG BỘ: Bắt buộc tải xong data từ Supabase mới xử lý tham số QR
         window.onload = async function() { 
             await fetchAllData(); 
             checkUrlParamsForQrScan();
@@ -389,8 +390,8 @@
             const qrCodeParam = urlParams.get('device_code');
             if (qrCodeParam) {
                 switchSection('thietbi');
-                document.getElementById('search_thietbi').value = qrCodeParam;
-                setTimeout(() => { displayThietBi(); }, 500);
+                document.getElementById('search_thietbi').value = qrCodeParam.trim();
+                displayThietBi();
             }
         }
 
@@ -535,6 +536,11 @@
             const kw = document.getElementById('search_thietbi').value.toLowerCase().trim();
             let filtered = DB_THIET_BI.filter(x => !kw || x.ten_thiet_bi.toLowerCase().includes(kw) || x.ma_thiet_bi.toLowerCase().includes(kw) || x.ten_nhan_vien.toLowerCase().includes(kw));
 
+            if(filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center" style="color: #999; padding: 20px;">Không tìm thấy thiết bị nào phù hợp.</td></tr>`;
+                return;
+            }
+
             const currentAppUrl = window.location.origin + window.location.pathname;
 
             filtered.forEach((x, i) => {
@@ -615,7 +621,6 @@
             });
         }
 
-        // SỬA LỖI LƯU THÀNH CÔNG NHƯNG KHÔNG HIỂN THỊ
         async function saveRepairConfig() {
             const editingRepairId = document.getElementById('editing_repair_id').value; 
             const cpId = document.getElementById('repair_cp_id').value; 
@@ -648,7 +653,6 @@
             
             alert("Lưu nhật ký sửa chữa thiết bị thành công!");
             
-            // ĐỒNG BỘ: Kéo lại data mới và vẽ lại bảng ngay tức thì
             let r3 = await client.from('lich_su_sua_chua').select('*').order('id', { ascending: false }); 
             DB_SUA_CHUA = r3.data || [];
             
