@@ -376,7 +376,22 @@
 
         let DB_NHAN_SU = []; let DB_THIET_BI = []; let DB_SUA_CHUA = []; let FILTERED_LIST = []; let CURRENT_PAGE_SIZE = 30;
 
-        window.onload = async function() { await fetchAllData(); };
+        window.onload = async function() { 
+            await fetchAllData(); 
+            // KIỂM TRA ĐƯỜNG DẪN QR KHI QUÉT BẰNG ĐIỆN THOẠI
+            checkUrlParamsForQrScan();
+        };
+
+        // Hàm tự động bắt mã khi điện thoại quét trúng URL phần mềm
+        function checkUrlParamsForQrScan() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const qrCodeParam = urlParams.get('device_code');
+            if (qrCodeParam) {
+                switchSection('thietbi');
+                document.getElementById('search_thietbi').value = qrCodeParam;
+                setTimeout(() => { displayThietBi(); }, 500);
+            }
+        }
 
         function calculateRealtimeTax() {
             let cost = parseFloat(document.getElementById('repair_cost').value) || 0;
@@ -450,7 +465,7 @@
         }
         function handleTableScroll(container) { if (container.scrollHeight - container.scrollTop <= container.clientHeight + 40) { if (CURRENT_PAGE_SIZE < FILTERED_LIST.length) { CURRENT_PAGE_SIZE += 30; renderNhanSuTable(); } } }
 
-        // --- TAB 2: THIẾT BỊ QR (CẬP NHẬT LOGIC CHO PHÉP TỰ ĐIỀN TAY) ---
+        // --- TAB 2: THIẾT BỊ QR ---
         async function saveDeviceCofig() {
             const editingId = document.getElementById('editing_device_id').value; 
             const nsNameRaw = document.getElementById('dev_user_search').value.trim();
@@ -461,19 +476,16 @@
             if(!nsNameRaw || !name) { alert("Vui lòng điền đủ Tên Nhân sự và Tên Thiết bị!"); return; } 
             if(!code) code = "EQ-" + Date.now().toString().slice(-6);
 
-            // LOGIC MỚI: Kiểm tra xem ID nhân sự có đang được chọn từ hộp thông minh hay không
             let nsId = document.getElementById('dev_user_id').value;
             let finalEmployeeName = nsNameRaw;
             let finalDonVi = selectedDonVi || "KHO_LE";
 
-            // Nếu nhập tay hoàn toàn hoặc sửa đổi chuỗi mà không khớp ID cũ
             const matchedNs = DB_NHAN_SU.find(x => x.ho_ten.toUpperCase() === nsNameRaw.toUpperCase());
             if (matchedNs) {
                 nsId = matchedNs.id;
                 finalEmployeeName = matchedNs.ho_ten;
                 finalDonVi = matchedNs.ma_don_vi;
             } else {
-                // Chấp nhận nhập tay hoàn toàn tự do
                 nsId = null; 
             }
 
@@ -513,7 +525,7 @@
                 }); 
                 box.style.display = 'block';
             } else {
-                box.style.display = 'none'; // Không có kết quả thì ẩn đi để người dùng nhập tự do
+                box.style.display = 'none';
             }
         }
 
@@ -521,6 +533,9 @@
             const tbody = document.getElementById('table_thietbi_body'); tbody.innerHTML = "";
             const kw = document.getElementById('search_thietbi').value.toLowerCase().trim();
             let filtered = DB_THIET_BI.filter(x => !kw || x.ten_thiet_bi.toLowerCase().includes(kw) || x.ma_thiet_bi.toLowerCase().includes(kw) || x.ten_nhan_vien.toLowerCase().includes(kw));
+
+            // Lấy URL hiện tại của phần mềm để gán trực tiếp vào QR
+            const currentAppUrl = window.location.origin + window.location.pathname;
 
             filtered.forEach((x, i) => {
                 let qrId = `qr_box_${i}`;
@@ -536,7 +551,17 @@
                         <button class="btn-table-del" onclick="deleteDevice(${x.id}, '${x.ten_thiet_bi}')">Xóa</button>
                     </td>
                 </tr>`;
-                setTimeout(() => { new QRCode(document.getElementById(qrId), { text: x.ma_thiet_bi, width: 55, height: 55 }); }, 20);
+                
+                // ĐỔI ĐỂ GIẢI QUYẾT LỖI TÌM KIẾM GOOGLE: Mã hóa liên kết phần mềm chứa tham số thay vì văn bản thường
+                let qrLinkValue = `${currentAppUrl}?device_code=${x.ma_thiet_bi}`;
+                
+                setTimeout(() => { 
+                    new QRCode(document.getElementById(qrId), { 
+                        text: qrLinkValue, 
+                        width: 55, 
+                        height: 55 
+                    }); 
+                }, 20);
             });
         }
 
