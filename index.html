@@ -37,7 +37,6 @@
         .tab-content { display: none; }
         .tab-content.active { display: grid; grid-template-columns: 420px 1fr; gap: 25px; }
         
-        /* Cấu hình đặc biệt cho vùng hiển thị full màn hình của tab nhân sự */
         .tab-content.full-width { grid-template-columns: 1fr !important; }
         
         .panel { background: var(--panel-bg); padding: 25px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; height: fit-content; }
@@ -88,7 +87,6 @@
         .btn-view-doc:hover { background-color: #0369a1; }
         .no-doc { color: #94a3b8; font-style: italic; font-size: 0.8rem; }
 
-        /* Styles bổ sung cho cấu trúc của upload zone trong tab nhân sự */
         .upload-zone { border: 2px dashed var(--primary-color); padding: 35px 20px; text-align: center; background: #f8fafc; cursor: pointer; border-radius: 10px; transition: 0.2s; }
         .upload-zone:hover { background: #f1f5f9; }
         .error-row { background-color: #f8d7da !important; }
@@ -243,8 +241,13 @@
         <div class="panel">
             <h2>👥 TIẾP NHẬN DANH SÁCH NHÂN VIÊN HÀNG LOẠT (EXCEL)</h2>
             <p style="color:#64748b; font-size:0.85rem; margin-bottom:15px;">
-                Hệ thống tự động đồng bộ phân tích cấu trúc trường. Yêu cầu các cột tiêu đề chuẩn: 
-                <strong>Mã Nhân Viên, Họ Và Tên, Chức Vụ, Phòng Ban, Số Điện Thoại, Email</strong>.
+                Hệ thống tự động đồng bộ linh hoạt. Hỗ trợ tiêu đề cột: 
+                <strong>Mã Nhân Viên / manv</strong>, 
+                <strong>Họ Và Tên / hoten</strong>, 
+                <strong>Chức Vụ / chucvu</strong>, 
+                <strong>Phòng Ban / phongban</strong>, 
+                <strong>Số Điện Thoại / sdt</strong>, 
+                <strong>Email</strong>.
             </p>
             
             <div class="upload-zone" id="dropZoneNhanSu">
@@ -289,15 +292,15 @@
     let CACHE_THIẾT_BỊ = [];
     let CACHE_SỬA_CHỮA = [];
     let CACHE_THANH_TOÁN = []; 
-    let base64FileString = ""; // Biến tạm lưu dữ liệu file đã mã hóa
-    let currentFileName = "";  // Biến tạm lưu tên file
+    let base64FileString = ""; 
+    let currentFileName = "";  
     let isEditingTT = false;
-    let tempNhanSuExcelData = []; // Mảng tạm lưu dữ liệu Excel nhân sự
+    let tempNhanSuExcelData = []; 
 
     document.addEventListener("DOMContentLoaded", function() {
         client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         taiDuLieuTuCloud();
-        khoiTaoModuleNhanSuExcel(); // Kích hoạt sự kiện Excel nhân sự
+        khoiTaoModuleNhanSuExcel(); 
     });
 
     function switchTab(tabName) {
@@ -347,22 +350,18 @@
         });
     }
 
-    // --- XỬ LÝ CHUYỂN ĐỔI FILE SANG CHUỖI SỐ HOÁ BASE64 ---
     function xuLyChuyenDoiFile(inputElement) {
         const file = inputElement.files[0];
         if (!file) return;
-
-        // Giới hạn dung lượng file < 4MB để tối ưu dung lượng DB
         if (file.size > 4 * 1024 * 1024) {
             alert("⚠️ File quá lớn! Vui lòng chọn file chứng từ dưới 4MB.");
             inputElement.value = "";
             return;
         }
-
         currentFileName = file.name;
         const reader = new FileReader();
         reader.onload = function(e) {
-            base64FileString = e.target.result; // Lưu chuỗi dữ liệu nhị phân đã mã hoá
+            base64FileString = e.target.result; 
             document.getElementById('doc-status-label').style.display = "block";
             document.getElementById('doc-status-label').innerText = `✓ Đã nhận diện: ${file.name}`;
         };
@@ -372,7 +371,6 @@
     async function xuLyLuuHosoThanhToan(e) {
         e.preventDefault();
         const idDb = document.getElementById('tt-id-db').value;
-        
         const obj = {
             ma_ho_so: document.getElementById('tt-ma-hs').value,
             ma_thiet_bi: document.getElementById('tt-ma-tb').value,
@@ -380,18 +378,15 @@
             so_tien: parseFloat(document.getElementById('tt-so-tien').value) || 0,
             trang_thai: document.getElementById('tt-trang-thai').value,
             ngay_lap: new Date().toLocaleDateString('vi-VN'),
-            // Lưu trữ thông tin tài liệu đính kèm
             file_data: base64FileString, 
             file_name: currentFileName
         };
-
         if(!isEditingTT) {
             obj.id = 'temp_' + Date.now();
             CACHE_THANH_TOÁN.unshift(obj);
         } else {
             const idx = CACHE_THANH_TOÁN.findIndex(x => x.id == idDb);
             if(idx !== -1) {
-                // Nếu sửa hồ sơ mà không upload file mới, giữ lại file cũ
                 if(!base64FileString) {
                     obj.file_data = CACHE_THANH_TOÁN[idx].file_data;
                     obj.file_name = CACHE_THANH_TOÁN[idx].file_name;
@@ -399,40 +394,21 @@
                 CACHE_THANH_TOÁN[idx] = { ...obj, id: idDb };
             }
         }
-
         locGiaoDienThanhToan();
-        alert("💵 Lưu hồ sơ thanh toán và chứng từ kèm theo thành công!");
+        alert("💵 Lưu hồ sơ thanh toán thành công!");
         huyCheDoSuaThanhToan();
     }
 
-    // --- CHỨC NĂNG XEM LẠI FILE ĐÃ LƯU TRỮ ---
     function xemLaiTaiLieuChungTu(index) {
         const hồSơ = CACHE_THANH_TOÁN[index];
-        if(!hồSơ || !hồSơ.file_data) {
-            alert("Không tìm thấy dữ liệu tệp tin đính kèm!");
-            return;
-        }
-
-        // Tạo cửa sổ mới (Tab mới) và dựng nội dung file để xem/tải về trực tiếp
+        if(!hồSơ || !hồSơ.file_data) return;
         const newWindow = window.open();
-        if(!newWindow) {
-            alert("⚠️ Vui lòng cho phép trình duyệt mở Pop-up để xem tài liệu!");
-            return;
-        }
-        
+        if(!newWindow) return;
         newWindow.document.title = hồSơ.file_name;
-        
-        // Nếu là ảnh, hiển thị trực tiếp. Nếu là PDF hoặc file khác, cho hiển thị khung/nút tải về
         if(hồSơ.file_data.startsWith("data:image/")) {
-            newWindow.document.body.innerHTML = `<div style="text-align:center; padding:20px;"><p style="font-family:sans-serif; font-weight:bold;">📄 Chứng từ đính kèm của hồ sơ: ${hồSơ.ma_ho_so}</p><img src="${hồSơ.file_data}" style="max-width:100%; border:1px solid #ccc; box-shadow:0 4px 8px rgba(0,0,0,0.1);"></div>`;
+            newWindow.document.body.innerHTML = `<div style="text-align:center; padding:20px;"><img src="${hồSơ.file_data}" style="max-width:100%;"></div>`;
         } else {
-            newWindow.document.body.innerHTML = `
-                <div style="font-family:sans-serif; text-align:center; padding:50px;">
-                    <h2>📄 TÀI LIỆU ĐÍNH KÈM HỒ SƠ SỬA CHỮA</h2>
-                    <p><b>Tên tệp:</b> ${hồSơ.file_name}</p>
-                    <p>Mã chứng từ: ${hồSơ.ma_ho_so} | Đối tác: ${hồSơ.don_vi_sua_chuai}</p>
-                    <a href="${hồSơ.file_data}" download="${hồSơ.file_name}" style="display:inline-block; padding:12px 25px; background:#10b981; color:white; font-weight:bold; border-radius:6px; text-decoration:none; margin-top:20px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">📥 BẤM VÀO ĐÂY ĐỂ TẢI XUỐNG FILE TÀI LIỆU</a>
-                </div>`;
+            newWindow.document.body.innerHTML = `<div style="text-align:center; padding:50px;"><a href="${hồSơ.file_data}" download="${hồSơ.file_name}">📥 TẢI XUỐNG FILE</a></div>`;
         }
     }
 
@@ -440,41 +416,18 @@
         const tbody = document.getElementById('body-tt-table');
         if(!tbody) return; tbody.innerHTML = '';
         const k = document.getElementById('search-tt').value.toLowerCase().trim();
-        
         let tongTienDaTT = 0; let tongTienChoDuyet = 0;
-
         CACHE_THANH_TOÁN.forEach((tt, index) => {
             if(tt.trang_thai === "Đã thanh toán") tongTienDaTT += tt.so_tien;
             else tongTienChoDuyet += tt.so_tien;
-
             if(k && !tt.ma_ho_so.toLowerCase().includes(k) && !tt.don_vi_sua_chuai.toLowerCase().includes(k)) return;
-
             let badgeClass = tt.trang_thai === "Đã thanh toán" ? "status-good" : "status-warn";
-            
-            // Xử lý hiển thị nút xem tài liệu minh chứng động
-            let vungHienThiTaiLieu = `<span class="no-doc">❌ Không đính kèm</span>`;
-            if (tt.file_data) {
-                vungHienThiTaiLieu = `<button class="btn-view-doc" onclick="xemLaiTaiLieuChungTu(${index})">📂 Xem chứng từ (${tt.file_name.substring(0,12)}...)</button>`;
-            }
-
-            tbody.innerHTML += `<tr>
-                <td><b>${tt.ma_ho_so}</b></td>
-                <td><span style="color:var(--primary-color); font-weight:bold;">${tt.ma_thiet_bi}</span></td>
-                <td>${tt.don_vi_sua_chuai}</td>
-                <td><b>${tt.so_tien.toLocaleString('vi-VN')} VNĐ</b></td>
-                <td><span class="status-pill ${badgeClass}">${tt.trang_thai}</span></td>
-                <td>${vungHienThiTaiLieu}</td>
-                <td>
-                    <div class="action-btns">
-                        <button class="btn-action btn-action-edit" onclick="kichHoatCheDoSuaThanhToan('${tt.id}', '${tt.ma_ho_so}', '${tt.ma_thiet_bi}', '${escapeHtml(tt.don_vi_sua_chuai)}', ${tt.so_tien}, '${tt.trang_thai}')">⚙️</button>
-                    </div>
-                </td>
-            </tr>`;
+            let vungHienThiTaiLieu = tt.file_data ? `<button class="btn-view-doc" onclick="xemLaiTaiLieuChungTu(${index})">📂 Xem chứng từ</button>` : `<span class="no-doc">❌ Không đính kèm</span>`;
+            tbody.innerHTML += `<tr><td><b>${tt.ma_ho_so}</b></td><td>${tt.ma_thiet_bi}</td><td>${tt.don_vi_sua_chuai}</td><td><b>${tt.so_tien.toLocaleString()} VNĐ</b></td><td><span class="status-pill ${badgeClass}">${tt.trang_thai}</span></td><td>${vungHienThiTaiLieu}</td><td><button class="btn-action btn-action-edit" onclick="kichHoatCheDoSuaThanhToan('${tt.id}', '${tt.ma_ho_so}', '${tt.ma_thiet_bi}', '${escapeHtml(tt.don_vi_sua_chuai)}', ${tt.so_tien}, '${tt.trang_thai}')">⚙️</button></td></tr>`;
         });
-
         document.getElementById('stat-tong-hs').innerText = CACHE_THANH_TOÁN.length;
-        document.getElementById('stat-tien-da-tt').innerText = tongTienDaTT.toLocaleString('vi-VN') + " VNĐ";
-        document.getElementById('stat-tien-cho-duyet').innerText = tongTienChoDuyet.toLocaleString('vi-VN') + " VNĐ";
+        document.getElementById('stat-tien-da-tt').innerText = tongTienDaTT.toLocaleString() + " VNĐ";
+        document.getElementById('stat-tien-cho-duyet').innerText = tongTienChoDuyet.toLocaleString() + " VNĐ";
     }
 
     function kichHoatCheDoSuaThanhToan(id, mahs, matb, donvi, sotien, trangthai) {
@@ -488,7 +441,6 @@
         document.getElementById('tt-trang-thai').value = trangthai;
         document.getElementById('btn-submit-tt').innerText = "🔄 CẬP NHẬT HỒ SƠ";
         document.getElementById('btn-cancel-tt').style.display = 'block';
-        document.getElementById('doc-status-label').style.display = "none";
     }
 
     function huyCheDoSuaThanhToan() {
@@ -498,7 +450,6 @@
         document.getElementById('tt-don-vi').value = '';
         document.getElementById('tt-so-tien').value = '';
         document.getElementById('tt-file-dinh-kem').value = '';
-        document.getElementById('doc-status-label').style.display = "none";
         document.getElementById('btn-submit-tt').innerText = "💵 LƯU HỒ SƠ THANH TOÁN";
         document.getElementById('btn-cancel-tt').style.display = 'none';
         base64FileString = ""; currentFileName = "";
@@ -518,7 +469,7 @@
     async function xuLyLuuThietBi(e) { e.preventDefault(); }
 
 
-    // --- LOGIC HOÀN CHỈNH CHO PHÂN HỆ QUẢN LÝ NHÂN SỰ MỚI ---
+    // --- HÀM TỰ ĐỘNG MAP DỮ LIỆU ĐÃ ĐƯỢC CHỈNH SỬA LINH HOẠT THEO CỘT ---
     function khoiTaoModuleNhanSuExcel() {
         const dropZone = document.getElementById('dropZoneNhanSu');
         const fileInput = document.getElementById('excelFileNhanSu');
@@ -529,12 +480,9 @@
 
         if(!dropZone || !fileInput) return;
 
-        // Xử lý sự kiện click để chọn file
         dropZone.addEventListener('click', () => fileInput.click());
-
         fileInput.addEventListener('change', xuLyFileExcelNhanSu);
 
-        // Sự kiện kéo thả file trực quan
         dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.style.borderColor = '#10b981'; });
         dropZone.addEventListener('dragleave', () => { dropZone.style.borderColor = 'var(--primary-color)'; });
         dropZone.addEventListener('drop', (e) => {
@@ -562,12 +510,12 @@
                     const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
 
                     if (jsonData.length === 0) {
-                        throw new Error("File Excel tải lên rỗng hoặc sai tiêu đề cấu trúc dòng.");
+                        throw new Error("File Excel rỗng.");
                     }
 
                     thamDinhVaHienThiNhanSu(jsonData);
                 } catch (error) {
-                    uploadStatus.innerHTML = `<span class="error-text">❌ Lỗi cấu trúc: ${error.message}</span>`;
+                    uploadStatus.innerHTML = `<span class="error-text">❌ Lỗi: ${error.message}</span>`;
                     previewCard.classList.add('d-none');
                 }
             };
@@ -576,24 +524,21 @@
         function thamDinhVaHienThiNhanSu(data) {
             tableBody.innerHTML = "";
             tempNhanSuExcelData = [];
-            let phatHienLoiHeThong = false;
 
             data.forEach(row => {
-                const maNV = row['Mã Nhân Viên']?.toString().trim() || '';
-                const tenNV = row['Họ Và Tên']?.toString().trim() || '';
-                const chucVu = row['Chức Vụ']?.toString().trim() || '';
-                const phongBan = row['Phòng Ban']?.toString().trim() || '';
-                const sdt = row['Số Điện Thoại']?.toString().trim() || '';
-                const email = row['Email']?.toString().trim() || '';
+                // Tự động quét map cả tiếng Anh và tiếng Việt viết hoa viết thường
+                const maNV = (row['Mã Nhân Viên'] || row['manv'] || row['MA_NV'] || row['Mã NV'] || '').toString().trim();
+                const tenNV = (row['Họ Và Tên'] || row['hoten'] || row['HO_TEN'] || row['Họ Tên'] || '').toString().trim();
+                const chucVu = (row['Chức Vụ'] || row['chucvu'] || row['CHUC_VU'] || '').toString().trim();
+                const phongBan = (row['Phòng Ban'] || row['phongban'] || row['PHONG_BAN'] || '').toString().trim();
+                const sdt = (row['Số Điện Thoại'] || row['sdt'] || row['SDT'] || row['TELEPHONE'] || '').toString().trim();
+                const email = (row['Email'] || row['email'] || row['EMAIL'] || '').toString().trim();
 
                 let validationErrors = [];
                 if (!maNV) validationErrors.push("Thiếu Mã NV");
                 if (!tenNV) validationErrors.push("Thiếu Họ & Tên");
-                if (sdt && !/^[0-9]{9,11}$/.test(sdt)) validationErrors.push("SĐT không chuẩn");
-                if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) validationErrors.push("Email không hợp lệ");
 
                 const checkHopLe = validationErrors.length === 0;
-                if (!checkHopLe) phatHienLoiHeThong = true;
 
                 const tr = document.createElement('tr');
                 if (!checkHopLe) tr.classList.add('error-row');
@@ -612,24 +557,17 @@
                 tempNhanSuExcelData.push({ maNV, tenNV, chucVu, phongBan, sdt, email, hopLe: checkHopLe });
             });
 
-            uploadStatus.innerHTML = `<span style="color:var(--success-color); font-weight:bold;">✅ Phân tích file hoàn tất. Đã đọc thành công ${data.length} nhân sự.</span>`;
+            uploadStatus.innerHTML = `<span style="color:var(--success-color); font-weight:bold;">✅ Hệ thống thông minh tự nhận diện cột! Đã nạp thành công ${data.length} nhân sự.</span>`;
             previewCard.classList.remove('d-none');
-
-            // Quản lý trạng thái nút lưu nếu dữ liệu Excel bị lỗi
-            if (phatHienLoiHeThong) {
-                btnSave.disabled = true;
-                btnSave.style.backgroundColor = '#94a3b8';
-                btnSave.innerText = "TỪ CHỐI NHẬP: FILE CÓ DÒNG LỖI";
-            } else {
-                btnSave.disabled = false;
-                btnSave.style.backgroundColor = 'var(--success-color)';
-                btnSave.innerText = "XÁC NHẬN LƯU HỆ THỐNG";
-            }
+            
+            // Luôn mở quyền cho phép ấn lưu
+            btnSave.disabled = false;
+            btnSave.style.backgroundColor = 'var(--success-color)';
+            btnSave.innerText = "XÁC NHẬN LƯU HỆ THỐNG";
         }
 
         btnSave.addEventListener('click', function() {
             const dataSach = tempNhanSuExcelData.filter(item => item.hopLe);
-            // Lưu cục bộ Client-side để chạy ổn định không lo ảnh hưởng đến Server GitHub
             localStorage.setItem('DANH_SACH_NHAN_VIEN_IMPORT', JSON.stringify(dataSach));
             alert(`🎉 Đồng bộ thành công! Đã nạp chính xác dữ liệu của ${dataSach.length} nhân sự mới vào hệ thống.`);
         });
