@@ -89,7 +89,7 @@
         .filter-select { width: 240px; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; background-color: #fff; font-weight: bold; color: var(--dark); outline: none; cursor: pointer; font-family: 'Times New Roman', Times, serif; }
 
         .table-container { width: 100%; max-height: 70vh; overflow-y: auto; overflow-x: auto; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border: 1px solid var(--border); }
-        table { width: 100%; border-collapse: collapse; min-width: 1100px; }
+        table { width: 100%; border-collapse: collapse; min-width: 1200px; }
         th { position: sticky; top: 0; background: #f8f9fa; color: #2c3e50; font-weight: bold; white-space: nowrap; z-index: 10; border-bottom: 2px solid var(--border); font-size: 14px; }
         th, td { border: 1px solid var(--border); padding: 10px 12px; font-size: 14px; text-align: left; }
         tr:hover { background: #fdfdfd; }
@@ -99,11 +99,16 @@
         .status-using { background: #e8f8f5; color: #2ecc71; }
         .status-broken { background: #fdebd0; color: #e67e22; }
         .status-repair { background: #ebf5fb; color: #2980b9; }
+
+        /* MÀU TRẠNG THÁI HỒ SƠ MỚI */
+        .hs-todo { background: #fce4e4; color: #e74c3c; }
+        .hs-doing { background: #fef9e7; color: #f39c12; }
+        .hs-done { background: #d4efdf; color: #27ae60; }
         
         .qr-canvas { width: 110px; height: 110px; background: #fff; margin: 0 auto; padding: 5px; border: 1px solid #ddd; border-radius: 4px; display: flex; align-items: center; justify-content: center; }
         .qr-canvas img { width: 100% !important; height: 100% !important; }
         
-        .link-file { color: var(--primary); text-decoration: none; font-weight: bold; }
+        .link-file { color: var(--primary); text-decoration: none; font-weight: bold; display: inline-flex; align-items: center; gap: 4px; }
         .link-file:hover { text-decoration: underline; }
     </style>
 </head>
@@ -118,7 +123,7 @@
         <div class="nav-tab active" id="tab_hoso" onclick="switchSection('hoso')"><i class="fa-solid fa-users"></i> Hồ Sơ Nhân Sự Gốc (<span id="count_ns">0</span>)</div>
         <div class="nav-tab" id="tab_thietbi" onclick="switchSection('thietbi')"><i class="fa-solid fa-qrcode"></i> Quản Lý & Cấp Phát Thiết Bị QR</div>
         <div class="nav-tab" id="tab_suachua" onclick="switchSection('suachua')"><i class="fa-solid fa-screwdriver-wrench"></i> Nhật Ký Sửa Chữa Thiết Bị</div>
-        <div class="nav-tab" id="tab_thanhtoan" onclick="switchSection('thanhtoan')"><i class="fa-solid fa-file-invoice-dollar"></i> Tổng Hợp Hồ Sơ Chi Phí</div>
+        <div class="nav-tab" id="tab_thanhtoan" onclick="switchSection('thanhtoan')"><i class="fa-solid fa-file-invoice-dollar"></i> Quản Lý Hồ Sơ Chi Phí & Chứng Từ</div>
     </div>
 
     <div class="wrapper">
@@ -198,14 +203,29 @@
             </div>
 
             <div class="card s-form" id="form_thanhtoan_panel" style="display:none;">
-                <h3><i class="fa-solid fa-file-signature"></i> Ghi chú nội bộ hồ sơ</h3>
-                <p style="color:#777; font-size:12px; margin-top:0;">* Tính năng bổ sung ghi chú cục bộ cho phiên làm việc hiện tại.</p>
+                <h3><i class="fa-solid fa-file-signature"></i> Xử Lý Hồ Sơ Chi Tiết</h3>
                 <input type="hidden" id="pay_log_id" value="">
+                
                 <div class="form-group">
-                    <label>Ghi chú đơn vị sửa chữa / thực hiện</label>
-                    <input type="text" id="pay_beneficiary_local" class="form-control" placeholder="Ví dụ: Công ty Cơ điện ABC...">
+                    <label style="color: var(--purple)">Trạng thái hồ sơ thanh toán</label>
+                    <select id="pay_status" class="form-control" style="font-weight: bold;">
+                        <option value="Chưa xử lý">🔴 Chưa xử lý</option>
+                        <option value="Đang xác minh">🟡 Đang xác minh / Ký duyệt</option>
+                        <option value="Đã hoàn thành">🟢 Đã hoàn thành quyết toán</option>
+                    </select>
                 </div>
-                <button class="btn btn-primary" onclick="updateLocalPaymentNote()"><i class="fa-solid fa-circle-check"></i> Cập Nhật Ghi Chú</button>
+
+                <div class="form-group">
+                    <label>Đơn vị thụ hưởng (Nhà cung cấp / Đối tác)</label>
+                    <input type="text" id="pay_beneficiary" class="form-control" placeholder="Ví dụ: Công ty TNHH Thiết bị ABC...">
+                </div>
+
+                <div class="form-group">
+                    <label><i class="fa-solid fa-paperclip"></i> Đính kèm Hóa đơn / Chứng từ (Dán Link)</label>
+                    <input type="url" id="pay_document_link" class="form-control" placeholder="Dán link Drive, Dropbox hoặc ảnh chứng từ...">
+                </div>
+
+                <button class="btn btn-primary" onclick="updateLocalPaymentProfile()"><i class="fa-solid fa-circle-check"></i> Lưu Cập Nhật Hồ Sơ</button>
             </div>
         </div>
 
@@ -326,17 +346,19 @@
                     </div>
                 </div>
                 <div class="filter-wrapper">
-                    <input type="text" id="search_thanhtoan" class="search-bar" placeholder="Tìm nhanh theo tên thiết bị hoặc mã thiết bị..." oninput="displayPaymentTable()">
+                    <input type="text" id="search_thanhtoan" class="search-bar" placeholder="Tìm nhanh theo tên thiết bị, đơn vị thụ hưởng..." oninput="displayPaymentTable()">
                 </div>
                 <div class="table-container">
                     <table>
                         <thead>
                             <tr>
-                                <th class="text-center" style="width:110px;">Ngày Phát Sinh</th>
-                                <th>Mã / Tên Thiết Bị Quy Quyết Toán</th>
-                                <th style="text-align:right; width:160px; color:var(--primary);">Chi Phí Gốc</th>
-                                <th style="text-align:right; width:180px; color:var(--danger);">Chi Phí Quyết Toán (+8%)</th>
-                                <th>Đơn Vị Thực Hiện Xử Lý</th>
+                                <th class="text-center" style="width:100px;">Ngày Nhập</th>
+                                <th style="width:140px;" class="text-center">Trạng Thái Hồ Sơ</th>
+                                <th>Mã / Tên Thiết Bị Sửa Chữa</th>
+                                <th style="text-align:right; width:140px; color:var(--primary);">Chi Phí Gốc</th>
+                                <th style="text-align:right; width:150px; color:var(--danger);">Quyết Toán (+8%)</th>
+                                <th>Đơn Vị Thụ Hưởng</th>
+                                <th style="width:160px;" class="text-center">Hóa Đơn / Chứng Từ</th>
                                 <th class="text-center" style="width:140px;">Thao Tác</th>
                             </tr>
                         </thead>
@@ -353,7 +375,9 @@
         const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         let DB_NHAN_SU = []; let DB_THIET_BI = []; let DB_SUA_CHUA = []; let FILTERED_LIST = []; let CURRENT_PAGE_SIZE = 30;
-        let LOCAL_NOTES = {}; // Bộ nhớ lưu tạm ghi chú cục bộ tránh lỗi DB schema
+        
+        // Đọc dữ liệu mở rộng từ Bộ nhớ trình duyệt (Tránh lỗi cache schema của Supabase)
+        let LOCAL_PAYMENT_DATA = JSON.parse(localStorage.getItem('LOCAL_PAYMENT_DATA')) || {};
 
         window.onload = async function() { 
             await fetchAllData(); 
@@ -495,7 +519,7 @@
             let filtered = DB_THIET_BI.filter(x => !kw || x.ten_thiet_bi.toLowerCase().includes(kw) || x.ma_thiet_bi.toLowerCase().includes(kw) || x.ten_nhan_vien.toLowerCase().includes(kw));
 
             if(filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="text-center" style="color: #999; padding: 20px;">Không tìm thấy thiết bị nào phù hợp.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center">Không tìm thấy thiết bị nào phù hợp.</td></tr>`;
                 return;
             }
 
@@ -578,7 +602,6 @@
             });
         }
 
-        // --- LƯU TRƯỜNG TINH GỌN TUYỆT ĐỐI AN TOÀN KHÔNG SỢ LỖI SCHEMA CACHE ---
         async function saveRepairConfig() {
             const editingRepairId = document.getElementById('editing_repair_id').value; 
             const cpId = document.getElementById('repair_cp_id').value; 
@@ -595,14 +618,10 @@
                 dev = DB_THIET_BI.find(x => searchText.toUpperCase().includes(x.ma_thiet_bi.toUpperCase()));
             }
 
-            if(!dev) {
-                alert("Hệ thống không tìm thấy thông tin thiết bị này!");
-                return;
-            }
+            if(!dev) { alert("Hệ thống không tìm thấy thông tin thiết bị này!"); return; }
 
             let costOriginal = parseFloat(document.getElementById('repair_cost').value) || 0;
 
-            // Loại bỏ hoàn toàn tất cả các cột liên quan đến Hồ Sơ Thanh Toán/Đơn vị thụ hưởng để không bao giờ bị lỗi Cache Schema
             let payload = { 
                 cap_phat_id: parseInt(dev.id), 
                 ma_thiet_bi: dev.ma_thiet_bi.toUpperCase(), 
@@ -618,11 +637,10 @@
                 cancelEditRepair(); 
             } else { 
                 const { error } = await client.from('lich_su_sua_chua').insert([payload]); 
-                if(error) { alert("Lỗi khi lưu dữ liệu lên Supabase: " + error.message); return; }
+                if(error) { alert("Lỗi khi lưu dữ liệu: " + error.message); return; }
                 clearRepairForm(); 
             } 
             
-            document.getElementById('search_suachua').value = "";
             await fetchAllData();
             alert("Lưu nhật ký sửa chữa thiết bị thành công!");
         }
@@ -641,7 +659,13 @@
         async function deleteRepairLog(id, name) {
             if(confirm(`Bạn có chắc chắn muốn xóa nhật ký sửa chữa của máy: ${name}?`)) {
                 const { error } = await client.from('lich_su_sua_chua').delete().eq('id', id);
-                if(!error) { alert("Xóa nhật ký sửa chữa thành công!"); await fetchAllData(); }
+                if(!error) { 
+                    // Xóa cả dữ liệu local tương ứng
+                    delete LOCAL_PAYMENT_DATA[id];
+                    localStorage.setItem('LOCAL_PAYMENT_DATA', JSON.stringify(LOCAL_PAYMENT_DATA));
+                    alert("Xóa nhật ký sửa chữa thành công!"); 
+                    await fetchAllData(); 
+                }
             }
         }
 
@@ -669,25 +693,44 @@
 
             let list = DB_SUA_CHUA.filter(x => {
                 let deviceName = x.ten_thiet_bi || ""; let deviceCode = x.ma_thiet_bi || "";
-                return !kw || deviceName.toLowerCase().includes(kw) || deviceCode.toLowerCase().includes(kw);
+                let localExt = LOCAL_PAYMENT_DATA[x.id] || {};
+                let donViThuHuong = localExt.don_vi_thu_huong || "";
+                return !kw || deviceName.toLowerCase().includes(kw) || deviceCode.toLowerCase().includes(kw) || donViThuHuong.toLowerCase().includes(kw);
             });
 
-            if(list.length === 0) { tbody.innerHTML = `<tr><td colspan="6" class="text-center">Không tìm thấy bản ghi chi phí nào.</td></tr>`; return; }
+            if(list.length === 0) { tbody.innerHTML = `<tr><td colspan="8" class="text-center">Không tìm thấy bản ghi chi phí nào.</td></tr>`; return; }
 
             list.forEach(x => {
                 let costOriginal = parseFloat(x.chi_phi) || 0;
                 let costWithTax = costOriginal * 1.08;
                 let displayDate = formatDisplayDate(x.created_at);
-                let localNoteValue = LOCAL_NOTES[x.id] || `<i style="color:#999">Chưa note (Cục bộ)</i>`;
+                
+                // Lấy thông tin mở rộng cục bộ
+                let localExt = LOCAL_PAYMENT_DATA[x.id] || {};
+                let statusHS = localExt.trang_thai_hs || "Chưa xử lý";
+                let donVi = localExt.don_vi_thu_huong || `<i style="color:#999">Chưa khai báo</i>`;
+                let linkDoc = localExt.link_chung_tu || "";
+
+                // Chọn class badge trạng thái hồ sơ
+                let badgeClass = "hs-todo";
+                if(statusHS === "Đang xác minh") badgeClass = "hs-doing";
+                else if(statusHS === "Đã hoàn thành") badgeClass = "hs-done";
+
+                let docCell = `<i style="color:#999">Trống</i>`;
+                if(linkDoc) {
+                    docCell = `<a href="${linkDoc}" target="_blank" class="link-file"><i class="fa-solid fa-file-invoice-dollar"></i> Xem chứng từ</a>`;
+                }
 
                 tbody.innerHTML += `<tr>
                     <td class="text-center"><b>${displayDate}</b></td>
+                    <td class="text-center"><span class="badge ${badgeClass}">${statusHS}</span></td>
                     <td><b>[${x.ma_thiet_bi || 'N/A'}] - ${x.ten_thiet_bi || ''}</b></td>
                     <td style="text-align:right; font-weight:bold; color:#1e56a0;">${costOriginal.toLocaleString('vi-VN')}</td>
                     <td style="text-align:right; font-weight:bold; color:#c0392b;">${costWithTax.toLocaleString('vi-VN')}</td>
-                    <td>${localNoteValue}</td>
+                    <td><b>${donVi}</b></td>
+                    <td class="text-center">${docCell}</td>
                     <td class="text-center">
-                        <button class="btn-table-edit" onclick="selectForPaymentProfile(${x.id})"><i class="fa-solid fa-folder-open"></i> Note nhanh</button>
+                        <button class="btn-table-edit" onclick="selectForPaymentProfile(${x.id})"><i class="fa-solid fa-folder-open"></i> Xử lý HS</button>
                     </td>
                 </tr>`;
             });
@@ -695,21 +738,41 @@
 
         function selectForPaymentProfile(id) {
             document.getElementById('pay_log_id').value = id;
-            document.getElementById('pay_beneficiary_local').value = LOCAL_NOTES[id] || "";
+            let localExt = LOCAL_PAYMENT_DATA[id] || {};
+            
+            document.getElementById('pay_status').value = localExt.trang_thai_hs || "Chưa xử lý";
+            document.getElementById('pay_beneficiary').value = localExt.don_vi_thu_huong || "";
+            document.getElementById('pay_document_link').value = localExt.link_chung_tu || "";
+            
             switchSection('thanhtoan'); 
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        function updateLocalPaymentNote() {
+        function updateLocalPaymentProfile() {
             const logId = document.getElementById('pay_log_id').value;
-            if(!logId) { alert("Vui lòng bấm nút 'Note nhanh' ở bảng dữ liệu chi phí trước!"); return; }
+            if(!logId) { alert("Vui lòng bấm nút 'Xử lý HS' ở bảng dữ liệu chi phí trước!"); return; }
 
-            let noteText = document.getElementById('pay_beneficiary_local').value.trim();
-            LOCAL_NOTES[logId] = noteText; // Lưu vào biến client-side tạm thời
+            let status = document.getElementById('pay_status').value;
+            let beneficiary = document.getElementById('pay_beneficiary').value.trim();
+            let docLink = document.getElementById('pay_document_link').value.trim();
 
-            alert("Đã cập nhật ghi chú cục bộ thành công!");
+            // Ghi nhận cấu trúc dữ liệu mở rộng vào LocalStorage của trình duyệt
+            LOCAL_PAYMENT_DATA[logId] = {
+                trang_thai_hs: status,
+                don_vi_thu_huong: beneficiary,
+                link_chung_tu: docLink
+            };
+
+            localStorage.setItem('LOCAL_PAYMENT_DATA', JSON.stringify(LOCAL_PAYMENT_DATA));
+
+            alert("Đã cập nhật Trạng thái, Đơn vị thụ hưởng và Chứng từ hóa đơn thành công!");
+            
+            // Xóa form
             document.getElementById('pay_log_id').value = ""; 
-            document.getElementById('pay_beneficiary_local').value = "";
+            document.getElementById('pay_beneficiary').value = "";
+            document.getElementById('pay_document_link').value = "";
+            document.getElementById('pay_status').value = "Chưa xử lý";
+            
             displayPaymentTable();
         }
 
