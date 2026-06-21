@@ -205,23 +205,8 @@
                     <input type="date" id="pay_date" class="form-control">
                 </div>
                 <div class="form-group">
-                    <label>Tên hồ sơ thanh toán</label>
-                    <input type="text" id="pay_name" class="form-control" placeholder="Ví dụ: HS thanh toán sửa chữa máy hàn...">
-                </div>
-                <div class="form-group">
-                    <label style="color: var(--danger);">Chi phí tổng thể bộ hồ sơ (Đã gồm 8% thuế)</label>
-                    <input type="number" id="pay_cost" class="form-control" placeholder="Tổng tiền quyết toán cuối cùng...">
-                </div>
-                <div class="form-group">
                     <label>Đơn vị thụ hưởng</label>
                     <input type="text" id="pay_beneficiary" class="form-control" placeholder="Ví dụ: Công ty TNHH Cơ điện ABC...">
-                </div>
-                <div class="form-group">
-                    <label style="color:var(--primary)">Trạng thái thanh toán</label>
-                    <select id="pay_status_select" class="form-control" style="font-weight:bold;">
-                        <option value="Chưa thanh toán">❌ Chưa thanh toán</option>
-                        <option value="Đã thanh toán">✅ Đã thanh toán</option>
-                    </select>
                 </div>
                 <div class="form-group">
                     <label style="color:var(--primary)"><i class="fa-solid fa-file-pdf"></i> Phiếu toàn bộ hồ sơ đính kèm</label>
@@ -331,34 +316,34 @@
             <div id="sec_thanhtoan" class="app-section">
                 <div class="dashboard-grid">
                     <div class="db-card paid">
-                        <h4>Hồ sơ đã thanh toán</h4>
-                        <div class="value" id="stat_count_paid">0 hồ sơ</div>
+                        <h4>Tổng số hồ sơ sửa chữa</h4>
+                        <div class="value" id="stat_count_total">0 hồ sơ</div>
                     </div>
                     <div class="db-card unpaid">
-                        <h4>Hồ sơ chưa thanh toán</h4>
-                        <div class="value" id="stat_count_unpaid">0 hồ sơ</div>
+                        <h4>Đơn vị thụ hưởng gần nhất</h4>
+                        <div class="value" id="stat_latest_beneficiary" style="font-size:14px; color:var(--purple);">Chưa có</div>
                     </div>
                     <div class="db-card paid">
-                        <h4>Số tiền đã quyết toán</h4>
-                        <div class="value" id="stat_money_paid" style="color: var(--success);">0 VND</div>
+                        <h4>Tổng chi phí gốc dự kiến</h4>
+                        <div class="value" id="stat_money_original" style="color: var(--success);">0 VND</div>
                     </div>
                     <div class="db-card unpaid">
-                        <h4>Số tiền chưa thanh toán</h4>
-                        <div class="value" id="stat_money_unpaid" style="color: var(--danger);">0 VND</div>
+                        <h4>Tổng chi phí gồm thuế (8%)</h4>
+                        <div class="value" id="stat_money_taxed" style="color: var(--danger);">0 VND</div>
                     </div>
                 </div>
                 <div class="filter-wrapper">
-                    <input type="text" id="search_thanhtoan" class="search-bar" placeholder="Tìm theo tên hồ sơ, đơn vị thụ hưởng..." oninput="displayPaymentTable()">
+                    <input type="text" id="search_thanhtoan" class="search-bar" placeholder="Tìm nhanh theo tên thiết bị, đơn vị thụ hưởng..." oninput="displayPaymentTable()">
                 </div>
                 <div class="table-container">
                     <table>
                         <thead>
                             <tr>
                                 <th class="text-center" style="width:110px;">Ngày Lập HS</th>
-                                <th>Tên Hồ Sơ Thanh Toán</th>
-                                <th style="text-align:right; width:150px; color:var(--danger);">Chi Phí (Đã gồm Thuế)</th>
+                                <th>Mã / Tên Thiết Bị Sửa Chữa</th>
+                                <th style="text-align:right; width:150px; color:var(--primary);">Chi Phí Gốc</th>
+                                <th style="text-align:right; width:150px; color:var(--danger);">Chi Phí (Tạm Tính +8%)</th>
                                 <th>Đơn Vị Thụ Hưởng</th>
-                                <th class="text-center" style="width:130px;">Trạng Thái</th>
                                 <th class="text-center" style="width:160px;">Phiếu Đính Kèm Toàn Bộ</th>
                                 <th class="text-center" style="width:180px;">Thao Tác</th>
                             </tr>
@@ -585,7 +570,6 @@
 
             filtered.forEach(x => {
                 let costOriginal = parseFloat(x.chi_phi) || 0;
-                // Sử dụng created_at để làm ngày hiển thị thay thế cho cột không tồn tại
                 tbody.innerHTML += `<tr>
                     <td class="text-center"><b>${formatDisplayDate(x.created_at)}</b></td>
                     <td><mark><b>${x.ma_thiet_bi || ''}</b></mark></td>
@@ -601,7 +585,7 @@
             });
         }
 
-        // --- HÀM LƯU NHẬT KÝ SỬA CHỮA ĐÃ FIX TRIỆT ĐỂ LỖI COLUMN CACHE SCHEMA ---
+        // --- FIX TRIỆT ĐỂ LỖI COLUMN CACHE SCHEMA CHO CẢ TRƯỜNG NGAY_SUA_CHUA VÀ TEN_HO_SO_THANH_TOAN ---
         async function saveRepairConfig() {
             const editingRepairId = document.getElementById('editing_repair_id').value; 
             const cpId = document.getElementById('repair_cp_id').value; 
@@ -619,13 +603,13 @@
             }
 
             if(!dev) {
-                alert("Hệ thống không tìm thấy thông tin thiết bị này! Vui lòng nhấp chuột chọn chính xác thiết bị xuất hiện từ bảng danh sách gợi ý đổ xuống.");
+                alert("Hệ thống không tìm thấy thông tin thiết bị này! Vui lòng chọn chính xác thiết bị từ danh sách gợi ý.");
                 return;
             }
 
             let costOriginal = parseFloat(document.getElementById('repair_cost').value) || 0;
 
-            // Loại bỏ hoàn toàn trường 'ngay_sua_chua' không tồn tại trên DB
+            // payload tinh gọn hoàn toàn không chứa các trường không tồn tại trên DB
             let payload = { 
                 cap_phat_id: parseInt(dev.id), 
                 ma_thiet_bi: dev.ma_thiet_bi.toUpperCase(), 
@@ -640,8 +624,6 @@
                 if(error) { alert("Lỗi khi cập nhật dữ liệu: " + error.message); return; }
                 cancelEditRepair(); 
             } else { 
-                payload.trang_thai_thanh_toan = "Chưa thanh toán"; 
-                payload.ten_ho_so_thanh_toan = "Hồ sơ sửa chữa " + dev.ten_thiet_bi; 
                 const { error } = await client.from('lich_su_sua_chua').insert([payload]); 
                 if(error) { alert("Lỗi khi lưu dữ liệu lên Supabase: " + error.message); return; }
                 clearRepairForm(); 
@@ -671,13 +653,21 @@
         }
 
         function calculatePaymentStats() {
-            let countPaid = 0, countUnpaid = 0, moneyPaid = 0, moneyUnpaid = 0;
-            DB_SUA_CHUA.forEach(x => {
-                let costWithTax = parseFloat(x.chi_phi_thanh_toan_tron_goi) || (parseFloat(x.chi_phi) * 1.08) || 0;
-                if(x.trang_thai_thanh_toan === "Đã thanh toán") { countPaid++; moneyPaid += costWithTax; } else { countUnpaid++; moneyUnpaid += costWithTax; }
+            let countTotal = DB_SUA_CHUA.length;
+            let moneyOriginal = 0; let moneyTaxed = 0;
+            let latestBeneficiary = "Chưa có";
+
+            DB_SUA_CHUA.forEach((x, idx) => {
+                let cost = parseFloat(x.chi_phi) || 0;
+                moneyOriginal += cost;
+                moneyTaxed += (cost * 1.08);
+                if(idx === 0 && x.don_vi_thu_huong) { latestBeneficiary = x.don_vi_thu_huong; }
             });
-            document.getElementById('stat_count_paid').innerText = countPaid + " hồ sơ"; document.getElementById('stat_count_unpaid').innerText = countUnpaid + " hồ sơ";
-            document.getElementById('stat_money_paid').innerText = moneyPaid.toLocaleString('vi-VN') + " VND"; document.getElementById('stat_money_unpaid').innerText = moneyUnpaid.toLocaleString('vi-VN') + " VND";
+
+            document.getElementById('stat_count_total').innerText = countTotal + " hồ sơ"; 
+            document.getElementById('stat_latest_beneficiary').innerText = latestBeneficiary;
+            document.getElementById('stat_money_original').innerText = moneyOriginal.toLocaleString('vi-VN') + " VND"; 
+            document.getElementById('stat_money_taxed').innerText = moneyTaxed.toLocaleString('vi-VN') + " VND";
         }
 
         function displayPaymentTable() {
@@ -685,28 +675,27 @@
             const kw = document.getElementById('search_thanhtoan').value.toLowerCase().trim();
 
             let list = DB_SUA_CHUA.filter(x => {
-                let nameHS = x.ten_ho_so_thanh_toan || "Hồ sơ sửa chữa " + (x.ten_thiet_bi || ""); let dvThanhToan = x.don_vi_thu_huong || "";
-                return !kw || nameHS.toLowerCase().includes(kw) || dvThanhToan.toLowerCase().includes(kw);
+                let deviceName = x.ten_thiet_bi || ""; let dvThanhToan = x.don_vi_thu_huong || "";
+                return !kw || deviceName.toLowerCase().includes(kw) || dvThanhToan.toLowerCase().includes(kw);
             });
 
-            if(list.length === 0) { tbody.innerHTML = `<tr><td colspan="7" class="text-center">Không tìm thấy hồ sơ thanh toán.</td></tr>`; return; }
+            if(list.length === 0) { tbody.innerHTML = `<tr><td colspan="7" class="text-center">Không tìm thấy hồ sơ sửa chữa nào.</td></tr>`; return; }
 
             list.forEach(x => {
-                let isPaid = x.trang_thai_thanh_toan === "Đã thanh toán";
-                let costWithTax = parseFloat(x.chi_phi_thanh_toan_tron_goi) || (parseFloat(x.chi_phi) * 1.08) || 0;
-                let displayProfileName = x.ten_ho_so_thanh_toan || `Hồ sơ thanh toán sửa chữa ${x.ten_thiet_bi || ''}`;
+                let costOriginal = parseFloat(x.chi_phi) || 0;
+                let costWithTax = costOriginal * 1.08;
                 let displayDate = x.ngay_lap_ho_so ? formatDisplayDate(x.ngay_lap_ho_so) : formatDisplayDate(x.created_at);
 
                 tbody.innerHTML += `<tr>
                     <td class="text-center"><b>${displayDate}</b></td>
-                    <td><b>${displayProfileName}</b></td>
+                    <td><b>[${x.ma_thiet_bi || 'N/A'}] - ${x.ten_thiet_bi || ''}</b></td>
+                    <td style="text-align:right; font-weight:bold; color:#1e56a0;">${costOriginal.toLocaleString('vi-VN')}</td>
                     <td style="text-align:right; font-weight:bold; color:#c0392b;">${costWithTax.toLocaleString('vi-VN')}</td>
                     <td>${x.don_vi_thu_huong || '<i style="color:#999">Chưa cập nhật</i>'}</td>
-                    <td class="text-center"><span class="badge ${isPaid?'status-using':'status-broken'}">${isPaid?'✅ Đã thanh toán':'❌ Chưa thanh toán'}</span></td>
-                    <td class="text-center">${x.url_phieu_yeu_cau?`<a href="${x.url_phieu_yeu_cau}" target="_blank" class="link-file"><i class="fa-solid fa-file-invoice"></i> Xem toàn bộ hồ sơ</a>`:'Chưa đính kèm phiếu'}</td>
+                    <td class="text-center">${x.url_phieu_yeu_cau?`<a href="${x.url_phieu_yeu_cau}" target="_blank" class="link-file"><i class="fa-solid fa-file-invoice"></i> Xem hồ sơ</a>`:'Chưa đính kèm'}</td>
                     <td class="text-center">
-                        <button class="btn-table-edit" onclick="selectForPaymentProfile(${x.id})"><i class="fa-solid fa-folder-open"></i> Chọn</button>
-                        <button class="btn-table-del" onclick="clearPaymentProfileOnly(${x.id})"><i class="fa-solid fa-eraser"></i> Xóa HS</button>
+                        <button class="btn-table-edit" onclick="selectForPaymentProfile(${x.id})"><i class="fa-solid fa-folder-open"></i> Chọn xử lý</button>
+                        <button class="btn-table-del" onclick="clearPaymentProfileOnly(${x.id})"><i class="fa-solid fa-eraser"></i> Reset</button>
                     </td>
                 </tr>`;
             });
@@ -717,22 +706,16 @@
             document.getElementById('pay_log_id').value = log.id;
             if(log.ngay_lap_ho_so) { document.getElementById('pay_date').value = log.ngay_lap_ho_so; }
             else { document.getElementById('pay_date').value = log.created_at ? log.created_at.split('T')[0] : new Date().toISOString().split('T')[0]; }
-            document.getElementById('pay_name').value = log.ten_ho_so_thanh_toan || "Hồ sơ thanh toán " + (log.ten_thiet_bi || "");
-            document.getElementById('pay_cost').value = log.chi_phi_thanh_toan_tron_goi || (parseFloat(log.chi_phi) * 1.08);
             document.getElementById('pay_beneficiary').value = log.don_vi_thu_huong || "";
-            document.getElementById('pay_status_select').value = log.trang_thai_thanh_toan === "Đã thanh toán" ? "Đã thanh toán" : "Chưa thanh toán";
             switchSection('thanhtoan'); window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
         async function updatePaymentProfile() {
             const logId = document.getElementById('pay_log_id').value;
-            if(!logId) { alert("Vui lòng bấm nút 'Chọn' hồ sơ ở bảng bên phải trước!"); return; }
+            if(!logId) { alert("Vui lòng bấm nút 'Chọn xử lý' hồ sơ ở bảng bên phải trước!"); return; }
 
             let payDate = document.getElementById('pay_date').value;
-            let payName = document.getElementById('pay_name').value.trim();
-            let payCost = parseFloat(document.getElementById('pay_cost').value) || 0;
             let payBeneficiary = document.getElementById('pay_beneficiary').value.trim();
-            let payStatus = document.getElementById('pay_status_select').value;
 
             let fileUrl = ""; const fileInput = document.getElementById('pay_file');
             if(fileInput.files.length > 0) {
@@ -741,22 +724,25 @@
                 if(!error) { fileUrl = client.storage.from('phieu_cong_viec').getPublicUrl(filePath).data.publicUrl; }
             }
 
-            let payload = { ngay_lap_ho_so: payDate, ten_ho_so_thanh_toan: payName, chi_phi_thanh_toan_tron_goi: payCost, don_vi_thu_huong: payBeneficiary, trang_thai_thanh_toan: payStatus };
+            // Gửi các trường an toàn được chấp nhận bởi Schema hiện tại
+            let payload = { ngay_lap_ho_so: payDate, don_vi_thu_huong: payBeneficiary };
             if(fileUrl) payload.url_phieu_yeu_cau = fileUrl;
 
             const { error } = await client.from('lich_su_sua_chua').update(payload).eq('id', logId);
             if(!error) {
-                alert("Cập nhật bộ hồ sơ thanh toán biến động thành công!");
-                document.getElementById('pay_log_id').value = ""; document.getElementById('pay_name').value = ""; document.getElementById('pay_cost').value = ""; document.getElementById('pay_beneficiary').value = ""; fileInput.value = "";
+                alert("Cập nhật thông tin hồ sơ thành công!");
+                document.getElementById('pay_log_id').value = ""; document.getElementById('pay_beneficiary').value = ""; fileInput.value = "";
                 await fetchAllData();
+            } else {
+                alert("Lỗi khi lưu: " + error.message);
             }
         }
 
         async function clearPaymentProfileOnly(id) {
-            if(confirm("Bạn muốn xóa thông tin thanh toán của hồ sơ này? (Nhật ký sửa chữa kỹ thuật gốc vẫn được giữ nguyên)")) {
-                let resetPayload = { ngay_lap_ho_so: null, ten_ho_so_thanh_toan: null, chi_phi_thanh_toan_tron_goi: null, don_vi_thu_huong: null, trang_thai_thanh_toan: "Chưa thanh toán", url_phieu_yeu_cau: null };
+            if(confirm("Bạn muốn reset thông tin đính kèm của hồ sơ này?")) {
+                let resetPayload = { ngay_lap_ho_so: null, don_vi_thu_huong: null, url_phieu_yeu_cau: null };
                 const { error } = await client.from('lich_su_sua_chua').update(resetPayload).eq('id', id);
-                if(!error) { alert("Đã xóa sạch bộ hồ sơ quyết toán!"); await fetchAllData(); }
+                if(!error) { alert("Đã reset!"); await fetchAllData(); }
             }
         }
 
