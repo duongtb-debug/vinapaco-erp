@@ -189,42 +189,53 @@
                     <textarea id="repair_solution" class="form-control" rows="2" placeholder="Ví dụ: Thay tụ điện nguồn..."></textarea>
                 </div>
                 <div class="form-group">
-                    <label>Chi phí sửa chữa (VNĐ)</label>
-                    <input type="number" id="repair_cost" class="form-control" value="0">
+                    <label>Chi phí gốc sau báo giá (VNĐ)</label>
+                    <input type="number" id="repair_cost" class="form-control" value="0" oninput="calculateThanhTienForm()">
                 </div>
                 <div class="form-group">
-                    <label style="color:var(--purple);"><i class="fa-solid fa-file-arrow-up"></i> Tải lên Phiếu yêu cầu công việc</label>
-                    <input type="file" id="repair_file" class="form-control" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx">
+                    <label>Thành tiền (Tự động +8% Thuế)</label>
+                    <input type="text" id="repair_total_cost" class="form-control" readonly style="background:#e9ecef; font-weight:bold; color: var(--danger);" value="0 VND">
                 </div>
-                <button class="btn btn-purple" id="btn_save_repair" onclick="saveRepairConfig()"><i class="fa-solid fa-cloud-arrow-up"></i> Lưu Nhật Ký & Upload Phiếu</button>
+                <button class="btn btn-purple" id="btn_save_repair" onclick="saveRepairConfig()"><i class="fa-solid fa-cloud-arrow-up"></i> Lưu Nhật Ký & Thuế</button>
                 <button class="btn btn-danger" id="btn_cancel_edit_repair" style="display:none; margin-top:8px;" onclick="cancelEditRepair()"><i class="fa-solid fa-xmark"></i> Hủy Sửa</button>
             </div>
 
             <div class="card s-form" id="form_thanhtoan_panel" style="display:none;">
-                <h3><i class="fa-solid fa-file-signature"></i> Xử Lý Thanh Toán</h3>
+                <h3><i class="fa-solid fa-file-signature"></i> Cập Nhật Hồ Sơ Thanh Toán</h3>
                 <input type="hidden" id="pay_log_id" value="">
                 <div class="form-group">
-                    <label>Thiết bị được chọn</label>
-                    <input type="text" id="pay_dev_name" class="form-control" readonly style="background:#e9ecef; font-weight:bold;" placeholder="Chọn hồ sơ ở bảng bên phải...">
+                    <label>Ngày tháng năm lập hồ sơ</label>
+                    <input type="date" id="pay_date" class="form-control">
                 </div>
                 <div class="form-group">
-                    <label>Chi phí sửa chữa (VND)</label>
-                    <input type="text" id="pay_dev_cost" class="form-control" readonly style="background:#e9ecef; font-weight:bold; color:#c0392b;">
+                    <label>Tên hồ sơ thanh toán</label>
+                    <input type="text" id="pay_name" class="form-control" placeholder="Ví dụ: HS thanh toán sửa chữa máy hàn đợt 1...">
                 </div>
                 <div class="form-group">
-                    <label style="color:var(--primary)">Trạng thái thanh toán hồ sơ</label>
+                    <label>Chi phí trọn gói (VND)</label>
+                    <input type="number" id="pay_cost" class="form-control" placeholder="Nhập tổng tiền quyết toán...">
+                </div>
+                <div class="form-group">
+                    <label>Đơn vị thụ hưởng</label>
+                    <input type="text" id="pay_beneficiary" class="form-control" placeholder="Ví dụ: Công ty TNHH Cơ điện ABC...">
+                </div>
+                <div class="form-group">
+                    <label style="color:var(--primary)">Trạng thái thanh toán</label>
                     <select id="pay_status_select" class="form-control" style="font-weight:bold;">
                         <option value="Chưa thanh toán">❌ Chưa thanh toán</option>
                         <option value="Đã thanh toán">✅ Đã thanh toán</option>
                     </select>
                 </div>
-                <button class="btn btn-primary" onclick="updatePaymentStatus()"><i class="fa-solid fa-circle-check"></i> Cập Nhật Trạng Thái</button>
+                <div class="form-group">
+                    <label style="color:var(--primary)"><i class="fa-solid fa-file-pdf"></i> Phiếu toàn bộ hồ sơ đính kèm</label>
+                    <input type="file" id="pay_file" class="form-control" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx">
+                </div>
+                <button class="btn btn-primary" onclick="updatePaymentProfile()"><i class="fa-solid fa-circle-check"></i> Lưu Cập Nhật Biến Động</button>
             </div>
         </div>
 
         <div class="main-panel">
             <div id="sec_hoso" class="app-section active">
-                
                 <div class="dashboard-grid">
                     <div class="db-card male">
                         <h4>Lao động Nam</h4>
@@ -319,9 +330,9 @@
                                 <th>Mã Thiết Bị</th>
                                 <th>Tên Thiết Bị Tài Sản</th>
                                 <th>Nội Dung Hư Hỏng</th>
-                                <th>Biện PháXử Lý</th>
-                                <th style="text-align:right; width:120px;">Chi Phí (VND)</th>
-                                <th class="text-center" style="width:120px;">Phiếu Công Việc</th>
+                                <th>Biện Pháp Xử Lý</th>
+                                <th style="text-align:right; width:120px;">Chi Phí Gốc (VND)</th>
+                                <th style="text-align:right; width:130px; color:#c0392b;">Thành Tiền (+8%)</th>
                                 <th class="text-center" style="width:140px;">Thao Tác</th>
                             </tr>
                         </thead>
@@ -341,7 +352,7 @@
                         <div class="value" id="stat_count_unpaid">0 phiếu</div>
                     </div>
                     <div class="db-card paid">
-                        <h4>Số tiền đã thanh toán</h4>
+                        <h4>Số tiền đã quyết toán</h4>
                         <div class="value" id="stat_money_paid" style="color: var(--success);">0 VND</div>
                     </div>
                     <div class="db-card unpaid">
@@ -351,7 +362,7 @@
                 </div>
 
                 <div class="filter-wrapper">
-                    <input type="text" id="search_thanhtoan" class="search-bar" placeholder="Tìm theo tên máy, mã máy hoặc nội dung sửa chữa..." oninput="displayPaymentTable()">
+                    <input type="text" id="search_thanhtoan" class="search-bar" placeholder="Tìm kiếm theo tên hồ sơ, đơn vị thụ hưởng..." oninput="displayPaymentTable()">
                     <select id="filter_payment_status" class="filter-select" onchange="displayPaymentTable()">
                         <option value="">-- Tất cả trạng thái --</option>
                         <option value="Đã thanh toán">Đã thanh toán</option>
@@ -363,13 +374,12 @@
                     <table>
                         <thead>
                             <tr>
-                                <th class="text-center" style="width:100px;">Ngày Nhập</th>
-                                <th>Mã Thiết Bị</th>
-                                <th>Tên Thiết Bị Tài Sản</th>
-                                <th>Nội Dung Hư Hỏng</th>
-                                <th style="text-align:right; width:130px;">Chi Phí (VND)</th>
+                                <th class="text-center" style="width:110px;">Ngày Lập HS</th>
+                                <th>Tên Hồ Sơ Thanh Toán</th>
+                                <th style="text-align:right; width:140px; color:var(--danger);">Chi Phí (VND)</th>
+                                <th>Đơn Vị Thụ Hưởng</th>
                                 <th class="text-center" style="width:140px;">Trạng Thái</th>
-                                <th class="text-center" style="width:120px;">Phiếu Đính Kèm</th>
+                                <th class="text-center" style="width:140px;">Phiếu Đính Kèm Toàn Bộ</th>
                                 <th class="text-center" style="width:90px;">Thao Tác</th>
                             </tr>
                         </thead>
@@ -415,7 +425,7 @@
                 let r3 = await client.from('lich_su_sua_chua').select('*').order('id', { ascending: false });
                 DB_SUA_CHUA = r3.data || [];
 
-                calculateHRStats(); // Tính toán thống kê nhân sự mới
+                calculateHRStats();
                 buildDropdowns();
                 triggerFilterReset();
                 calculatePaymentStats();
@@ -425,81 +435,43 @@
             } catch (e) { console.error(e); }
         }
 
-        // HÀM TÍNH TOÁN DASHBOARD NHÂN SỰ TỰ ĐỘNG
         function calculateHRStats() {
-            let total = DB_NHAN_SU.length;
-            if(total === 0) return;
-
-            let countMale = 0, countFemale = 0;
-            let countWorking = 0, countRetired = 0, countPendingRetired = 0;
-            
-            // Lấy năm hiện tại để tính mốc hưu trí
-            let currentYear = new Date().getFullYear(); 
+            let total = DB_NHAN_SU.length; if(total === 0) return;
+            let countMale = 0, countFemale = 0, countWorking = 0, countRetired = 0, countPendingRetired = 0;
+            let currentYear = 2026; 
 
             DB_NHAN_SU.forEach(x => {
-                // 1. Thống kê giới tính
                 let gt = String(x.gioi_tinh || "").trim().toLowerCase();
-                if(gt === "nam" || gt === "m") countMale++;
-                else countFemale++;
+                if(gt === "nam" || gt === "m") countMale++; else countFemale++;
 
-                // 2. Thống kê tình trạng làm việc dựa vào năm về hưu
                 if(x.nam_ve_huu) {
-                    let rYear = null;
-                    if(x.nam_ve_huu.includes("-")) {
-                        rYear = parseInt(x.nam_ve_huu.split("-")[0]); // Định dạng ISO YYYY-MM-DD
-                    } else {
-                        rYear = parseInt(x.nam_ve_huu); // Định dạng chuỗi số năm YYYY
-                    }
-
-                    if(rYear && rYear < currentYear) {
-                        countRetired++; // Đã nghỉ hưu trước năm nay
-                    } else if(rYear && rYear === currentYear) {
-                        countPendingRetired++; // Sắp nghỉ hưu trong năm nay
-                        countWorking++; // Vẫn tính thuộc nhóm đang làm việc
-                    } else {
-                        countWorking++; // Năm về hưu lớn hơn năm nay -> Đang làm việc
-                    }
-                } else {
-                    countWorking++; // Không có dữ liệu hưu -> Mặc định đang làm việc
-                }
+                    let rYear = x.nam_ve_huu.includes("-") ? parseInt(x.nam_ve_huu.split("-")[0]) : parseInt(x.nam_ve_huu);
+                    if(rYear && rYear < currentYear) countRetired++;
+                    else if(rYear && rYear === currentYear) { countPendingRetired++; countWorking++; }
+                    else countWorking++;
+                } else countWorking++;
             });
 
-            // Tính tỷ lệ phần trăm %
-            let ratioMale = ((countMale / total) * 100).toFixed(1);
-            let ratioFemale = ((countFemale / total) * 100).toFixed(1);
-
-            // Đẩy dữ liệu hiển thị lên các thẻ Dashboard
             document.getElementById('hr_stat_male').innerText = countMale + " người";
-            document.getElementById('hr_ratio_male').innerText = "Tỷ lệ: " + ratioMale + "%";
-            
+            document.getElementById('hr_ratio_male').innerText = "Tỷ lệ: " + ((countMale / total) * 100).toFixed(1) + "%";
             document.getElementById('hr_stat_female').innerText = countFemale + " người";
-            document.getElementById('hr_ratio_female').innerText = "Tỷ lệ: " + ratioFemale + "%";
-            
+            document.getElementById('hr_ratio_female').innerText = "Tỷ lệ: " + ((countFemale / total) * 100).toFixed(1) + "%";
             document.getElementById('hr_stat_working').innerText = countWorking + " người";
-            document.getElementById('hr_stat_pending_retired').innerText = "Sắp nghỉ hưu (" + currentYear + "): " + countPendingRetired + " người";
-            
+            document.getElementById('hr_stat_pending_retired').innerText = `Sắp nghỉ hưu (${currentYear}): ` + countPendingRetired + " người";
             document.getElementById('hr_stat_retired').innerText = countRetired + " người";
         }
 
         function buildDropdowns() {
             let uniqueDonVi = [...new Set(DB_NHAN_SU.map(x => x.ma_don_vi).filter(Boolean))].sort();
-            
-            const selectHoso = document.getElementById('filter_donvi');
-            selectHoso.innerHTML = '<option value="">-- Tất cả Mã Đơn Vị --</option>';
-            const selectDevForm = document.getElementById('dev_filter_donvi');
-            selectDevForm.innerHTML = '<option value="">-- Tất cả các đơn vị --</option>';
-            
+            const selectHoso = document.getElementById('filter_donvi'); selectHoso.innerHTML = '<option value="">-- Tất cả Mã Đơn Vị --</option>';
+            const selectDevForm = document.getElementById('dev_filter_donvi'); selectDevForm.innerHTML = '<option value="">-- Tất cả các đơn vị --</option>';
             uniqueDonVi.forEach(dv => {
                 selectHoso.innerHTML += `<option value="${dv}">Nhóm Đơn Vị: ${dv}</option>`;
                 selectDevForm.innerHTML += `<option value="${dv}">Nhóm Đơn Vị: ${dv}</option>`;
             });
         }
 
-        function resetSelectedUser() {
-            document.getElementById('dev_user_search').value = ''; 
-            document.getElementById('dev_user_id').value = '';
-            smartSuggest(document.getElementById('dev_user_search'));
-        }
+        function resetSelectedUser() { document.getElementById('dev_user_search').value = ''; document.getElementById('dev_user_id').value = ''; smartSuggest(document.getElementById('dev_user_search')); }
 
         function switchSection(target) {
             document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
@@ -513,144 +485,140 @@
             document.getElementById('form_thanhtoan_panel').style.display = (target === 'thanhtoan') ? 'block' : 'none';
         }
 
-        function cleanStr(s) {
-            return String(s || "").toLowerCase().trim()
-                .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-                .replace(/đ/g, 'd').replace(/[\s_\-\t\n\r]/g, "");
+        function cleanStr(s) { return String(s || "").toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/[\s_\-\t\n\r]/g, ""); }
+        function formatDisplayDate(isoDateString) {
+            if(!isoDateString) return ""; if(isoDateString.includes("T")) isoDateString = isoDateString.split("T")[0];
+            let parts = isoDateString.split("-"); if(parts.length !== 3) return isoDateString; return `${parts[2]}/${parts[1]}/${parts[0]}`;
         }
 
-        function formatDisplayDate(isoDateString) {
-            if(!isoDateString) return "";
-            if(isoDateString.includes("T")) isoDateString = isoDateString.split("T")[0];
-            let parts = isoDateString.split("-");
-            if(parts.length !== 3) return isoDateString;
-            return `${parts[2]}/${parts[1]}/${parts[0]}`;
+        // --- PHÂN HỆ SUẤT / PHÁT SỬA CHỮA & TÍNH TOÁN THUẾ TỰ ĐỘNG ---
+        function calculateThanhTienForm() {
+            let cost = parseFloat(document.getElementById('repair_cost').value) || 0;
+            let total = cost * 1.08;
+            document.getElementById('repair_total_cost').value = total.toLocaleString('vi-VN') + " VND";
         }
 
         // --- PHÂN HỆ 1: NHÂN SỰ ---
         function triggerFilterReset() {
             const kw = document.getElementById('search_hoso').value.toLowerCase().trim();
             const selectedDonVi = document.getElementById('filter_donvi').value;
-            
             FILTERED_LIST = DB_NHAN_SU.filter(x => {
-                let matchKeyword = !kw || 
-                    x.ho_ten.toLowerCase().includes(kw) || 
-                    (x.so_cccd && x.so_cccd.includes(kw)) ||
-                    (x.chuc_danh_cong_viec && x.chuc_danh_cong_viec.toLowerCase().includes(kw));
-                let matchDonVi = !selectedDonVi || x.ma_don_vi === selectedDonVi;
-                return matchKeyword && matchDonVi;
+                let matchKeyword = !kw || x.ho_ten.toLowerCase().includes(kw) || (x.so_cccd && x.so_cccd.includes(kw));
+                return matchKeyword && (!selectedDonVi || x.ma_don_vi === selectedDonVi);
             });
-            CURRENT_PAGE_SIZE = 30;
-            renderNhanSuTable();
+            CURRENT_PAGE_SIZE = 30; renderNhanSuTable();
         }
 
         function renderNhanSuTable() {
-            const tbody = document.getElementById('table_hoso_body');
-            if(FILTERED_LIST.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="12" class="text-center">Không tìm thấy kết quả phù hợp.</td></tr>`;
-                return;
-            }
-            let chunk = FILTERED_LIST.slice(0, CURRENT_PAGE_SIZE);
-            let html = "";
+            const tbody = document.getElementById('table_hoso_body'); if(FILTERED_LIST.length === 0) { tbody.innerHTML = `<tr><td colspan="12" class="text-center">Không thấy kết quả.</td></tr>`; return; }
+            let chunk = FILTERED_LIST.slice(0, CURRENT_PAGE_SIZE); let html = "";
             chunk.forEach((x) => {
-                html += `<tr>
-                    <td class="text-center" style="color: #999;">#${x.id}</td>
-                    <td class="text-center"><b>${x.stt_excel || ''}</b></td>
-                    <td><b>${x.ho_ten}</b></td>
-                    <td>${x.so_so_bhxh || ''}</td>
-                    <td><mark>${x.so_cccd || ''}</mark></td>
-                    <td class="text-center">${x.gioi_tinh}</td>
-                    <td class="text-center" style="font-weight:bold;">${formatDisplayDate(x.nam_sinh)}</td>
-                    <td class="text-center"><span class="badge" style="background:#e8f4f8; color:#1e56a0; border:1px solid #bce;">${x.ma_don_vi}</span></td>
-                    <td>${x.an_toan_vien || ''}</td>
-                    <td>${x.nndh || ''}</td>
-                    <td class="text-center" style="color:#c0392b; font-weight:bold;">${formatDisplayDate(x.nam_ve_huu)}</td>
-                    <td><small>${x.chuc_danh_cong_viec || ''}</small></td>
-                </tr>`;
+                html += `<tr><td class="text-center">#${x.id}</td><td class="text-center">${x.stt_excel||''}</td><td><b>${x.ho_ten}</b></td><td>${x.so_so_bhxh||''}</td><td><mark>${x.so_cccd||''}</mark></td><td class="text-center">${x.gioi_tinh}</td><td class="text-center">${formatDisplayDate(x.nam_sinh)}</td><td class="text-center"><span class="badge" style="background:#e8f4f8; color:#1e56a0;">${x.ma_don_vi}</span></td><td>${x.an_toan_vien||''}</td><td>${x.nndh||''}</td><td class="text-center">${formatDisplayDate(x.nam_ve_huu)}</td><td><small>${x.chuc_danh_cong_viec||''}</small></td></tr>`;
             });
             tbody.innerHTML = html;
         }
 
-        function handleTableScroll(container) {
-            if (container.scrollHeight - container.scrollTop <= container.clientHeight + 40) {
-                if (CURRENT_PAGE_SIZE < FILTERED_LIST.length) {
-                    CURRENT_PAGE_SIZE += 30;
-                    renderNhanSuTable();
-                }
-            }
-        }
+        function handleTableScroll(container) { if (container.scrollHeight - container.scrollTop <= container.clientHeight + 40) { if (CURRENT_PAGE_SIZE < FILTERED_LIST.length) { CURRENT_PAGE_SIZE += 30; renderNhanSuTable(); } } }
 
         function importExcelNhanSu(input) {
-            const file = input.files[0]; if(!file) return;
-            const reader = new FileReader();
+            const file = input.files[0]; if(!file) return; const reader = new FileReader();
             reader.onload = async function(e) {
                 try {
-                    const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
-                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-                    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
-
+                    const data = new Uint8Array(e.target.result); const workbook = XLSX.read(data, { type: 'array' });
+                    const sheet = workbook.Sheets[workbook.SheetNames[0]]; const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
                     let headerIdx = 0;
                     for (let i = 0; i < Math.min(rows.length, 15); i++) {
-                        let combined = rows[i].map(cleanStr).join("");
-                        if(combined.includes("hoten") || combined.includes("cccd") || combined.includes("bhxh")) { headerIdx = i; break; }
+                        let combined = rows[i].map(cleanStr).join(""); if(combined.includes("hoten") || combined.includes("cccd")) { headerIdx = i; break; }
                     }
-
                     let colMap = { stt: -1, ho_ten: -1, madv: -1, gioi_tinh: -1, nam_ve_huu: -1 };
                     rows[headerIdx].forEach((cell, idx) => {
-                        let c = cleanStr(cell);
-                        if (c === "stt" || c === "id") colMap.stt = idx;
+                        let c = cleanStr(cell); if (c === "stt" || c === "id") colMap.stt = idx;
                         else if (c.includes("hovaten") || c === "hoten") colMap.ho_ten = idx;
                         else if (c.includes("madonvi") || c === "madv") colMap.madv = idx;
-                        else if (c.includes("gioitinh")) colMap.gioi_tinh = idx;
-                        else if (c.includes("namvehuu")) colMap.nam_ve_huu = idx;
                     });
-
                     let bulkData = [];
                     for(let i = headerIdx + 1; i < rows.length; i++) {
-                        let r = rows[i]; if(!r || r.length === 0) continue;
-                        let hoTenStr = colMap.ho_ten !== -1 ? String(r[colMap.ho_ten] || "").trim() : "";
+                        let r = rows[i]; if(!r || r.length === 0) continue; let hoTenStr = colMap.ho_ten !== -1 ? String(r[colMap.ho_ten] || "").trim() : "";
                         if(!hoTenStr || hoTenStr.toUpperCase().includes("HỌ VÀ TÊN")) continue;
-
-                        bulkData.push({
-                            stt_excel: colMap.stt !== -1 ? parseInt(String(r[colMap.stt]).replace(/[^\d]/g, "")) || null : null,
-                            ho_ten: hoTenStr.toUpperCase(),
-                            ma_don_vi: colMap.madv !== -1 ? String(r[colMap.madv] || "CHƯA RÕ").trim() : "CHƯA RÕ",
-                            gioi_tinh: colMap.gioi_tinh !== -1 ? String(r[colMap.gioi_tinh] || "Nam").trim() : "Nam",
-                            nam_ve_huu: colMap.nam_ve_huu !== -1 ? String(r[colMap.nam_ve_huu] || "").trim() : null
-                        });
+                        bulkData.push({ stt_excel: colMap.stt !== -1 ? parseInt(String(r[colMap.stt]).replace(/[^\d]/g, "")) || null : null, ho_ten: hoTenStr.toUpperCase(), ma_don_vi: colMap.madv !== -1 ? String(r[colMap.madv] || "CHƯA RÕ").trim() : "CHƯA RÕ", gioi_tinh: "Nam" });
                     }
-
-                    const { error } = await client.from('nhan_su').insert(bulkData);
-                    if(error) throw error;
-                    alert(`Đã nạp thành công ${bulkData.length} nhân sự mới!`);
-                    await fetchAllData();
-                } catch(err) { alert("Lỗi: " + err.message); }
-                    finally { input.value = ""; }
-            };
-            reader.readAsArrayBuffer(file);
+                    await client.from('nhan_su').insert(bulkData); alert("Nạp thành công!"); await fetchAllData();
+                } catch(err) { alert("Lỗi: " + err.message); } finally { input.value = ""; }
+            }; reader.readAsArrayBuffer(file);
         }
 
-        async function clearDataCloud(table) {
-            if(confirm("Xác nhận xóa sạch toàn bộ nhân sự trên Supabase?")) {
-                await client.from(table).delete().neq('id', 0);
-                await fetchAllData();
-            }
-        }
+        async function clearDataCloud(table) { if(confirm("Xóa sạch dữ liệu trên đám mây?")) { await client.from(table).delete().neq('id', 0); await fetchAllData(); } }
 
-        // --- PHÂN HỆ THÀNH TOÁN ---
-        function calculatePaymentStats() {
-            let countPaid = 0, countUnpaid = 0;
-            let moneyPaid = 0, moneyUnpaid = 0;
-
+        // --- PHÂN HỆ 3: NHẬT KÝ SỬA CHỮA ---
+        function displayRepairLog() {
+            const tbody = document.getElementById('table_suachua_body'); tbody.innerHTML = "";
             DB_SUA_CHUA.forEach(x => {
-                let cost = parseFloat(x.chi_phi) || 0;
+                let costOriginal = parseFloat(x.chi_phi) || 0;
+                let costTaxed = costOriginal * 1.08; // Tự động nhân 8% thuế để tính thành tiền
+                tbody.innerHTML += `<tr>
+                    <td class="text-center"><b>${formatDisplayDate(x.ngay_sua_chua || x.created_at)}</b></td>
+                    <td><mark><b>${x.ma_thiet_bi}</b></mark></td>
+                    <td><b>${x.ten_thiet_bi}</b></td>
+                    <td>${x.noi_dung_hong || ''}</td>
+                    <td>${x.bien_phap_khac_phuc || ''}</td>
+                    <td style="text-align:right; font-weight:bold;">${costOriginal.toLocaleString('vi-VN')}</td>
+                    <td style="text-align:right; font-weight:bold; color:#c0392b;">${costTaxed.toLocaleString('vi-VN')}</td>
+                    <td class="text-center">
+                        <button class="btn-table-edit" onclick="editRepairLog(${x.id})">Sửa chi phí</button>
+                    </td>
+                </tr>`;
+            });
+        }
+
+        async function saveRepairConfig() {
+            const editingRepairId = document.getElementById('editing_repair_id').value;
+            const cpId = document.getElementById('repair_cp_id').value;
+            const damage = document.getElementById('repair_damage').value.trim();
+            if(!cpId || !damage) { alert("Vui lòng nhập đầy đủ thông tin cốt lõi!"); return; }
+            const dev = DB_THIET_BI.find(x => x.id == cpId);
+
+            let costOriginal = parseFloat(document.getElementById('repair_cost').value) || 0;
+            let todayStr = new Date().toISOString().split('T')[0];
+
+            let payload = { 
+                cap_phat_id: parseInt(cpId), ma_thiet_bi: dev.ma_thiet_bi, ten_thiet_bi: dev.ten_thiet_bi, 
+                noi_dung_hong: damage, bien_phap_khac_phuc: document.getElementById('repair_solution').value.trim(), 
+                chi_phi: costOriginal, ngay_sua_chua: todayStr 
+            };
+
+            if(editingRepairId) { 
+                await client.from('lich_su_sua_chua').update(payload).eq('id', editingRepairId); cancelEditRepair(); 
+            } else { 
+                payload.trang_thai_thanh_toan = "Chưa thanh toán";
+                payload.ten_ho_so_thanh_toan = "Hồ sơ sửa chữa " + dev.ten_thiet_bi;
+                await client.from('lich_su_sua_chua').insert([payload]); clearRepairForm(); 
+            }
+            await fetchAllData();
+        }
+
+        function editRepairLog(id) {
+            const log = DB_SUA_CHUA.find(x => x.id == id); if(!log) return;
+            document.getElementById('editing_repair_id').value = log.id; document.getElementById('repair_cp_id').value = log.cap_phat_id;
+            document.getElementById('repair_dev_search').value = `${log.ma_thiet_bi} [${log.ten_thiet_bi}]`;
+            document.getElementById('repair_damage').value = log.noi_dung_hong; document.getElementById('repair_solution').value = log.bien_phap_khac_phuc;
+            document.getElementById('repair_cost').value = log.chi_phi;
+            calculateThanhTienForm(); switchSection('suachua');
+            document.getElementById('btn_cancel_edit_repair').style.display = "block";
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        function cancelEditRepair() { document.getElementById('editing_repair_id').value = ""; clearRepairForm(); document.getElementById('btn_cancel_edit_repair').style.display = "none"; }
+        function clearRepairForm() { document.getElementById('repair_dev_search').value = ""; document.getElementById('repair_damage').value = ""; document.getElementById('repair_solution').value = ""; document.getElementById('repair_cost').value = 0; document.getElementById('repair_total_cost').value = "0 VND"; }
+
+        // --- PHÂN HỆ 4: HỒ SƠ THANH TOÁN (ĐÃ TINH CHỈNH THEO YÊU CẦU MỚI) ---
+        function calculatePaymentStats() {
+            let countPaid = 0, countUnpaid = 0, moneyPaid = 0, moneyUnpaid = 0;
+            DB_SUA_CHUA.forEach(x => {
+                let cost = parseFloat(x.chi_phi_thanh_toan_tron_goi) || (parseFloat(x.chi_phi) * 1.08) || 0;
                 if(x.trang_thai_thanh_toan === "Đã thanh toán") { countPaid++; moneyPaid += cost; } 
                 else { countUnpaid++; moneyUnpaid += cost; }
             });
-
-            document.getElementById('stat_count_paid').innerText = countPaid + " phiếu";
-            document.getElementById('stat_count_unpaid').innerText = countUnpaid + " phiếu";
+            document.getElementById('stat_count_paid').innerText = countPaid + " hồ sơ";
+            document.getElementById('stat_count_unpaid').innerText = countUnpaid + " hồ sơ";
             document.getElementById('stat_money_paid').innerText = moneyPaid.toLocaleString('vi-VN') + " VND";
             document.getElementById('stat_money_unpaid').innerText = moneyUnpaid.toLocaleString('vi-VN') + " VND";
         }
@@ -661,208 +629,128 @@
             const statusFilter = document.getElementById('filter_payment_status').value;
 
             let list = DB_SUA_CHUA.filter(x => {
-                let matchKw = !kw || x.ten_thiet_bi.toLowerCase().includes(kw) || x.ma_thiet_bi.toLowerCase().includes(kw);
+                let nameHS = x.ten_ho_so_thanh_toan || "Hồ sơ sửa chữa " + x.ten_thiet_bi;
+                let dvThanhToan = x.don_vi_thu_huong || "Chưa cập nhật";
+                let matchKw = !kw || nameHS.toLowerCase().includes(kw) || dvThanhToan.toLowerCase().includes(kw);
                 let currentStatus = x.trang_thai_thanh_toan === "Đã thanh toán" ? "Đã thanh toán" : "Chưa thanh toán";
                 return matchKw && (!statusFilter || currentStatus === statusFilter);
             });
 
-            if(list.length === 0) { tbody.innerHTML = `<tr><td colspan="8" class="text-center">Không tìm thấy hồ sơ thanh toán nào.</td></tr>`; return; }
+            if(list.length === 0) { tbody.innerHTML = `<tr><td colspan="7" class="text-center">Không tìm thấy hồ sơ thanh toán nào.</td></tr>`; return; }
 
             list.forEach(x => {
                 let isPaid = x.trang_thai_thanh_toan === "Đã thanh toán";
+                let currentCost = parseFloat(x.chi_phi_thanh_toan_tron_goi) || (parseFloat(x.chi_phi) * 1.08) || 0;
+                let displayProfileName = x.ten_ho_so_thanh_toan || `Hồ sơ quyết toán thiết bị ${x.ma_thiet_bi}`;
+                let displayDate = x.ngay_lap_ho_so ? formatDisplayDate(x.ngay_lap_ho_so) : formatDisplayDate(x.ngay_sua_chua || x.created_at);
+
                 tbody.innerHTML += `<tr>
-                    <td class="text-center"><b>${x.ngay_sua_chua?formatDisplayDate(x.ngay_sua_chua):formatDisplayDate(x.created_at)}</b></td>
-                    <td><mark><b>${x.ma_thiet_bi}</b></mark></td>
-                    <td><b>${x.ten_thiet_bi}</b></td>
-                    <td>${x.noi_dung_hong || ''}</td>
-                    <td style="text-align:right; font-weight:bold; color:#c0392b;">${Number(x.chi_phi || 0).toLocaleString('vi-VN')}</td>
+                    <td class="text-center"><b>${displayDate}</b></td>
+                    <td><b>${displayProfileName}</b></td>
+                    <td style="text-align:right; font-weight:bold; color:#c0392b;">${currentCost.toLocaleString('vi-VN')}</td>
+                    <td>${x.don_vi_thu_huong || '<i style="color:#999">Chưa khai báo</i>'}</td>
                     <td class="text-center"><span class="badge ${isPaid?'status-using':'status-broken'}">${isPaid?'✅ Đã thanh toán':'❌ Chưa thanh toán'}</span></td>
-                    <td class="text-center">${x.url_phieu_yeu_cau?`<a href="${x.url_phieu_yeu_cau}" target="_blank" class="link-file">Xem Phiếu</a>`:'Không có'}</td>
-                    <td class="text-center"><button class="btn-table-edit" onclick="selectForPayment(${x.id})"><i class="fa-solid fa-cash-register"></i> Chọn</button></td>
+                    <td class="text-center">${x.url_phieu_yeu_cau?`<a href="${x.url_phieu_yeu_cau}" target="_blank" class="link-file"><i class="fa-solid fa-file-pdf"></i> Xem toàn bộ hồ sơ</a>`:'Chưa có file'}</td>
+                    <td class="text-center"><button class="btn-table-edit" onclick="selectForPaymentProfile(${x.id})"><i class="fa-solid fa-pen-to-square"></i> Chọn</button></td>
                 </tr>`;
             });
         }
 
-        function selectForPayment(id) {
+        function selectForPaymentProfile(id) {
             const log = DB_SUA_CHUA.find(x => x.id == id); if(!log) return;
             document.getElementById('pay_log_id').value = log.id;
-            document.getElementById('pay_dev_name').value = `${log.ma_thiet_bi} - ${log.ten_thiet_bi}`;
-            document.getElementById('pay_dev_cost').value = Number(log.chi_phi).toLocaleString('vi-VN') + " VND";
+            
+            // Tự điền ngày tháng năm
+            if(log.ngay_lap_ho_so) { document.getElementById('pay_date').value = log.ngay_lap_ho_so; }
+            else { document.getElementById('pay_date').value = log.ngay_sua_chua ? log.ngay_sua_chua : new Date().toISOString().split('T')[0]; }
+
+            document.getElementById('pay_name').value = log.ten_ho_so_thanh_toan || "Hồ sơ thanh toán sửa chữa " + log.ten_thiet_bi;
+            document.getElementById('pay_cost').value = log.chi_phi_thanh_toan_tron_goi || (parseFloat(log.chi_phi) * 1.08);
+            document.getElementById('pay_beneficiary').value = log.don_vi_thu_huong || "";
             document.getElementById('pay_status_select').value = log.trang_thai_thanh_toan === "Đã thanh toán" ? "Đã thanh toán" : "Chưa thanh toán";
+            
+            switchSection('thanhtoan');
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        async function updatePaymentStatus() {
+        async function updatePaymentProfile() {
             const logId = document.getElementById('pay_log_id').value;
-            const status = document.getElementById('pay_status_select').value;
-            if(!logId) { alert("Vui lòng chọn hồ sơ!"); return; }
+            if(!logId) { alert("Vui lòng nhấn nút 'Chọn' hồ sơ ở bảng bên phải trước khi lưu cập nhật biến động!"); return; }
 
-            const { error } = await client.from('lich_su_sua_chua').update({ trang_thai_thanh_toan: status }).eq('id', logId);
-            if(!error) {
-                alert("Cập nhật trạng thái thanh toán thành công!");
-                document.getElementById('pay_log_id').value = ""; document.getElementById('pay_dev_name').value = ""; document.getElementById('pay_dev_cost').value = "";
-                await fetchAllData();
-            }
-        }
+            let payDate = document.getElementById('pay_date').value;
+            let payName = document.getElementById('pay_name').value.trim();
+            let payCost = parseFloat(document.getElementById('pay_cost').value) || 0;
+            let payBeneficiary = document.getElementById('pay_beneficiary').value.trim();
+            let payStatus = document.getElementById('pay_status_select').value;
 
-        // --- CÁC HÀM PHỤ TRỢ THIẾT BỊ VÀ SỬA CHỮA ---
-        function smartSuggest(input) {
-            const val = input.value.toLowerCase().trim();
-            const box = document.getElementById('dev_suggest');
-            const targetDonVi = document.getElementById('dev_filter_donvi').value; 
-            box.innerHTML = "";
-
-            let matches = DB_NHAN_SU.filter(n => {
-                let matchName = !val || n.ho_ten.toLowerCase().includes(val);
-                return matchName && (!targetDonVi || n.ma_don_vi === targetDonVi);
-            });
-
-            matches.slice(0, 15).forEach(n => {
-                let div = document.createElement('div'); div.className = 'suggest-item';
-                div.innerHTML = `<span><b>${n.ho_ten}</b></span> <span class="badge-dv">Đơn vị: ${n.ma_don_vi}</span>`;
-                div.onclick = () => {
-                    document.getElementById('dev_user_search').value = `${n.ho_ten} (Đơn vị: ${n.ma_don_vi})`;
-                    document.getElementById('dev_user_id').value = n.id;
-                    box.style.display = 'none';
-                };
-                box.appendChild(div);
-            });
-            box.style.display = 'block';
-        }
-
-        function repairSuggest(input) {
-            const val = input.value.toLowerCase().trim();
-            const box = document.getElementById('repair_suggest'); box.innerHTML = "";
-            let matches = DB_THIET_BI.filter(t => !val || t.ten_thiet_bi.toLowerCase().includes(val) || t.ma_thiet_bi.toLowerCase().includes(val));
-
-            matches.slice(0, 15).forEach(t => {
-                let div = document.createElement('div'); div.className = 'suggest-item';
-                div.innerHTML = `<span><b>${t.ma_thiet_bi}</b> - ${t.ten_thiet_bi}</span>`;
-                div.onclick = () => {
-                    document.getElementById('repair_dev_search').value = `${t.ma_thiet_bi} [${t.ten_thiet_bi}]`;
-                    document.getElementById('repair_cp_id').value = t.id;
-                    box.style.display = 'none';
-                };
-                box.appendChild(div);
-            });
-            box.style.display = 'block';
-        }
-
-        async function saveDeviceCofig() {
-            const editingId = document.getElementById('editing_device_id').value;
-            const nsId = document.getElementById('dev_user_id').value;
-            const name = document.getElementById('dev_name').value.trim();
-            let code = document.getElementById('dev_code').value.trim();
-            if(!nsId || !name) { alert("Vui lòng điền đủ!"); return; }
-            if(!code) code = "EQ-" + Date.now().toString().slice(-6);
-
-            const ns = DB_NHAN_SU.find(x => x.id == nsId);
-            let payload = { nhan_su_id: parseInt(nsId), ten_nhan_vien: ns.ho_ten, ma_don_vi: ns.ma_don_vi, ten_thiet_bi: name, ma_thiet_bi: code.toUpperCase(), trang_thai: document.getElementById('dev_status_select').value };
-
-            if(editingId) { await client.from('cap_phat_thiet_bi').update(payload).eq('id', editingId); cancelEditDevice(); } 
-            else { await client.from('cap_phat_thiet_bi').insert([payload]); clearDeviceForm(); }
-            await fetchAllData();
-        }
-
-        function editDevice(id) {
-            const dev = DB_THIET_BI.find(x => x.id == id); if(!dev) return;
-            document.getElementById('editing_device_id').value = dev.id;
-            document.getElementById('dev_user_id').value = dev.nhan_su_id;
-            document.getElementById('dev_user_search').value = `${dev.ten_nhan_vien} (Đơn vị: ${dev.ma_don_vi})`;
-            document.getElementById('dev_name').value = dev.ten_thiet_bi; document.getElementById('dev_code').value = dev.ma_thiet_bi;
-            document.getElementById('dev_status_select').value = dev.trang_thai;
-            document.getElementById('form_device_title').innerHTML = `Cập Nhật Thiết Bị`;
-            document.getElementById('btn_save_device').innerHTML = `Cập Nhật`;
-            document.getElementById('btn_cancel_edit_device').style.display = "block";
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-
-        function cancelEditDevice() { document.getElementById('editing_device_id').value = ""; clearDeviceForm(); document.getElementById('btn_cancel_edit_device').style.display = "none"; }
-        function clearDeviceForm() { document.getElementById('dev_name').value = ""; document.getElementById('dev_code').value = ""; document.getElementById('dev_user_search').value = ""; }
-
-        async function deleteDevice(id, name) {
-            if(confirm(`Xóa thiết bị ${name}?`)) {
-                await client.from('lich_su_sua_chua').delete().eq('cap_phat_id', id);
-                await client.from('cap_phat_thiet_bi').delete().eq('id', id);
-                await fetchAllData();
-            }
-        }
-
-        async function saveRepairConfig() {
-            const editingRepairId = document.getElementById('editing_repair_id').value;
-            const cpId = document.getElementById('repair_cp_id').value;
-            const damage = document.getElementById('repair_damage').value.trim();
-            if(!cpId || !damage) { alert("Vui lòng điền đủ!"); return; }
-            const dev = DB_THIET_BI.find(x => x.id == cpId);
-
-            let fileUrl = "";
-            const fileInput = document.getElementById('repair_file');
+            let fileUrl = ""; const fileInput = document.getElementById('pay_file');
             if(fileInput.files.length > 0) {
-                const file = fileInput.files[0]; const filePath = `phieu/${Date.now()}_${file.name}`;
+                const file = fileInput.files[0]; const filePath = `phieu_thanhtoan/${Date.now()}_${file.name}`;
                 let { error } = await client.storage.from('phieu_cong_viec').upload(filePath, file);
                 if(!error) { fileUrl = client.storage.from('phieu_cong_viec').getPublicUrl(filePath).data.publicUrl; }
             }
 
-            let todayStr = new Date().toISOString().split('T')[0];
-            let payload = { cap_phat_id: parseInt(cpId), ma_thiet_bi: dev.ma_thiet_bi, ten_thiet_bi: dev.ten_thiet_bi, noi_dung_hong: damage, bien_phap_khac_phuc: document.getElementById('repair_solution').value.trim(), chi_phi: parseFloat(document.getElementById('repair_cost').value)||0, ngay_sua_chua: todayStr };
-            if(fileUrl) payload.url_phieu_yeu_cau = fileUrl;
+            let payload = {
+                ngay_lap_ho_so: payDate,
+                ten_ho_so_thanh_toan: payName,
+                chi_phi_thanh_toan_tron_goi: payCost,
+                don_vi_thu_huong: payBeneficiary,
+                trang_thai_thanh_toan: payStatus
+            };
+            if(fileUrl) payload.url_phieu_yeu_cau = fileUrl; // Ghi đè phiếu đính kèm của toàn bộ hồ sơ
 
-            if(editingRepairId) { await client.from('lich_su_sua_chua').update(payload).eq('id', editingRepairId); cancelEditRepair(); } 
-            else { payload.trang_thai_thanh_toan = "Chưa thanh toán"; await client.from('lich_su_sua_chua').insert([payload]); clearRepairForm(); }
-            await fetchAllData();
+            const { error } = await client.from('lich_su_sua_chua').update(payload).eq('id', logId);
+            if(!error) {
+                alert("Cập nhật biến động hồ sơ thanh toán thành công!");
+                document.getElementById('pay_log_id').value = ""; document.getElementById('pay_name').value = ""; 
+                document.getElementById('pay_cost').value = ""; document.getElementById('pay_beneficiary').value = ""; fileInput.value = "";
+                await fetchAllData();
+            }
         }
 
-        function editRepairLog(id) {
-            const log = DB_SUA_CHUA.find(x => x.id == id); if(!log) return;
-            document.getElementById('editing_repair_id').value = log.id; document.getElementById('repair_cp_id').value = log.cap_phat_id;
-            document.getElementById('repair_dev_search').value = `${log.ma_thiet_bi} [${log.ten_thiet_bi}]`;
-            document.getElementById('repair_damage').value = log.noi_dung_hong; document.getElementById('repair_solution').value = log.bien_phap_khac_phuc;
-            document.getElementById('repair_cost').value = log.chi_phi;
-            document.getElementById('btn_cancel_edit_repair').style.display = "block";
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+        // --- CÁC HÀM PHỤ TRỢ KHÁC CỦA HỆ THỐNG ---
+        function smartSuggest(input) {
+            const val = input.value.toLowerCase().trim(); const box = document.getElementById('dev_suggest'); const targetDonVi = document.getElementById('dev_filter_donvi').value; box.innerHTML = "";
+            let matches = DB_NHAN_SU.filter(n => { return n.ho_ten.toLowerCase().includes(val) && (!targetDonVi || n.ma_don_vi === targetDonVi); });
+            matches.slice(0, 15).forEach(n => {
+                let div = document.createElement('div'); div.className = 'suggest-item'; div.innerHTML = `<span><b>${n.ho_ten}</b></span> <span class="badge-dv">Đơn vị: ${n.ma_don_vi}</span>`;
+                div.onclick = () => { document.getElementById('dev_user_search').value = `${n.ho_ten} (Đơn vị: ${n.ma_don_vi})`; document.getElementById('dev_user_id').value = n.id; box.style.display = 'none'; }; box.appendChild(div);
+            }); box.style.display = 'block';
         }
 
-        function cancelEditRepair() { document.getElementById('editing_repair_id').value = ""; clearRepairForm(); document.getElementById('btn_cancel_edit_repair').style.display = "none"; }
-        function clearRepairForm() { document.getElementById('repair_dev_search').value = ""; document.getElementById('repair_damage').value = ""; document.getElementById('repair_solution').value = ""; document.getElementById('repair_cost').value = 0; }
+        function repairSuggest(input) {
+            const val = input.value.toLowerCase().trim(); const box = document.getElementById('repair_suggest'); box.innerHTML = "";
+            let matches = DB_THIET_BI.filter(t => !val || t.ten_thiet_bi.toLowerCase().includes(val) || t.ma_thiet_bi.toLowerCase().includes(val));
+            matches.slice(0, 15).forEach(t => {
+                let div = document.createElement('div'); div.className = 'suggest-item'; div.innerHTML = `<span><b>${t.ma_thiet_bi}</b> - ${t.ten_thiet_bi}</span>`;
+                div.onclick = () => { document.getElementById('repair_dev_search').value = `${t.ma_thiet_bi} [${t.ten_thiet_bi}]`; document.getElementById('repair_cp_id').value = t.id; box.style.display = 'none'; }; box.appendChild(div);
+            }); box.style.display = 'block';
+        }
+
+        async function saveDeviceCofig() {
+            const editingId = document.getElementById('editing_device_id').value; const nsId = document.getElementById('dev_user_id').value; const name = document.getElementById('dev_name').value.trim(); let code = document.getElementById('dev_code').value.trim();
+            if(!nsId || !name) { alert("Vui lòng điền đủ!"); return; } if(!code) code = "EQ-" + Date.now().toString().slice(-6);
+            const ns = DB_NHAN_SU.find(x => x.id == nsId);
+            let payload = { nhan_su_id: parseInt(nsId), ten_nhan_vien: ns.ho_ten, ma_don_vi: ns.ma_don_vi, ten_thiet_bi: name, ma_thiet_bi: code.toUpperCase(), trang_thai: document.getElementById('dev_status_select').value };
+            if(editingId) { await client.from('cap_phat_thiet_bi').update(payload).eq('id', editingId); cancelEditDevice(); } else { await client.from('cap_phat_thiet_bi').insert([payload]); clearDeviceForm(); } await fetchAllData();
+        }
 
         function displayThietBi() {
             const tbody = document.getElementById('table_thietbi_body'); tbody.innerHTML = "";
             DB_THIET_BI.forEach((x, i) => {
                 let qrId = `qr_box_${i}`;
-                tbody.innerHTML += `<tr>
-                    <td><div id="${qrId}" class="qr-canvas"></div></td>
-                    <td><mark><b>${x.ma_thiet_bi}</b></mark></td>
-                    <td><b>${x.ten_thiet_bi}</b></td>
-                    <td>${x.ten_nhan_vien}</td>
-                    <td class="text-center">${x.ma_don_vi}</td>
-                    <td class="text-center"><span class="badge ${x.trang_thai==='Bảo dưỡng'?'status-repair':'status-using'}">${x.trang_thai || 'Đang sử dụng'}</span></td>
-                    <td class="text-center">
-                        <button class="btn-table-edit" onclick="editDevice(${x.id})">Sửa</button>
-                        <button class="btn-table-del" onclick="deleteDevice(${x.id}, '${x.ten_thiet_bi}')">Xóa</button>
-                    </td>
-                </tr>`;
+                tbody.innerHTML += `<tr><td><div id="${qrId}" class="qr-canvas"></div></td><td><mark><b>${x.ma_thiet_bi}</b></mark></td><td><b>${x.ten_thiet_bi}</b></td><td>${x.ten_nhan_vien}</td><td class="text-center">${x.ma_don_vi}</td><td class="text-center"><span class="badge ${x.trang_thai==='Bảo dưỡng'?'status-repair':'status-using'}">${x.trang_thai || 'Đang sử dụng'}</span></td><td class="text-center"><button class="btn-table-edit" onclick="editDevice(${x.id})">Sửa</button><button class="btn-table-del" onclick="deleteDevice(${x.id}, '${x.ten_thiet_bi}')">Xóa</button></td></tr>`;
                 setTimeout(() => { new QRCode(document.getElementById(qrId), { text: x.ma_thiet_bi, width: 55, height: 55 }); }, 20);
             });
         }
-
-        function displayRepairLog() {
-            const tbody = document.getElementById('table_suachua_body'); tbody.innerHTML = "";
-            DB_SUA_CHUA.forEach(x => {
-                tbody.innerHTML += `<tr>
-                    <td class="text-center"><b>${x.ngay_sua_chua?formatDisplayDate(x.ngay_sua_chua):formatDisplayDate(x.created_at)}</b></td>
-                    <td><mark><b>${x.ma_thiet_bi}</b></mark></td>
-                    <td><b>${x.ten_thiet_bi}</b></td>
-                    <td>${x.noi_dung_hong}</td>
-                    <td>${x.bien_phap_khac_phuc}</td>
-                    <td style="text-align:right; font-weight:bold; color:#c0392b;">${Number(x.chi_phi).toLocaleString('vi-VN')}</td>
-                    <td class="text-center">${x.url_phieu_yeu_cau?`<a href="${x.url_phieu_yeu_cau}" target="_blank" class="link-file">Xem</a>`:'Không'}</td>
-                    <td class="text-center">
-                        <button class="btn-table-edit" onclick="editRepairLog(${x.id})">Sửa</button>
-                        <button class="btn-table-del" onclick="async () => { if(confirm('Xóa?')) { await client.from('lich_su_sua_chua').delete().eq('id', ${x.id}); await fetchAllData(); } }">Xóa</button>
-                    </td>
-                </tr>`;
-            });
+        function editDevice(id) {
+            const dev = DB_THIET_BI.find(x => x.id == id); if(!dev) return;
+            document.getElementById('editing_device_id').value = dev.id; document.getElementById('dev_user_id').value = dev.nhan_su_id; document.getElementById('dev_user_search').value = `${dev.ten_nhan_vien} (Đơn vị: ${dev.ma_don_vi})`; document.getElementById('dev_name').value = dev.ten_thiet_bi; document.getElementById('dev_code').value = dev.ma_thiet_bi; document.getElementById('dev_status_select').value = dev.trang_thai;
+            document.getElementById('form_device_title').innerHTML = `Cập Nhật Thiết Bị`; document.getElementById('btn_save_device').innerHTML = `Cập Nhật`; document.getElementById('btn_cancel_edit_device').style.display = "block"; window.scrollTo({ top: 0, behavior: 'smooth' });
         }
+        function cancelEditDevice() { document.getElementById('editing_device_id').value = ""; clearDeviceForm(); document.getElementById('btn_cancel_edit_device').style.display = "none"; }
+        function clearDeviceForm() { document.getElementById('dev_name').value = ""; document.getElementById('dev_code').value = ""; document.getElementById('dev_user_search').value = ""; }
+        async function deleteDevice(id, name) { if(confirm(`Xóa thiết bị ${name}?`)) { await client.from('lich_su_sua_chua').delete().eq('cap_phat_id', id); await client.from('cap_phat_thiet_bi').delete().eq('id', id); await fetchAllData(); } }
     </script>
 </body>
 </html>
