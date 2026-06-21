@@ -99,7 +99,11 @@
         .status-using { background: #e8f8f5; color: #2ecc71; }
         .status-broken { background: #fdebd0; color: #e67e22; }
         .status-repair { background: #ebf5fb; color: #2980b9; }
-        .qr-canvas { width: 55px; height: 55px; background: #eee; margin: 0 auto; display: flex; align-items: center; justify-content: center; }
+        
+        /* Cải tiến khu vực chứa QR to rõ ràng hơn hẳn */
+        .qr-canvas { width: 110px; height: 110px; background: #fff; margin: 0 auto; padding: 5px; border: 1px solid #ddd; border-radius: 4px; display: flex; align-items: center; justify-content: center; }
+        .qr-canvas img { width: 100% !important; height: 100% !important; }
+        
         .link-file { color: var(--primary); text-decoration: none; font-weight: bold; }
         .link-file:hover { text-decoration: underline; }
     </style>
@@ -289,7 +293,7 @@
                     <table>
                         <thead>
                             <tr>
-                                <th class="text-center" style="width:80px;">Mã QR Code</th>
+                                <th class="text-center" style="width:130px;">Mã QR Code (Mới)</th>
                                 <th>Mã Thiết Bị</th>
                                 <th>Tên Thiết Bị / Tài Sản</th>
                                 <th>Người Đang Giữ</th>
@@ -378,11 +382,9 @@
 
         window.onload = async function() { 
             await fetchAllData(); 
-            // KIỂM TRA ĐƯỜNG DẪN QR KHI QUÉT BẰNG ĐIỆN THOẠI
             checkUrlParamsForQrScan();
         };
 
-        // Hàm tự động bắt mã khi điện thoại quét trúng URL phần mềm
         function checkUrlParamsForQrScan() {
             const urlParams = new URLSearchParams(window.location.search);
             const qrCodeParam = urlParams.get('device_code');
@@ -534,7 +536,6 @@
             const kw = document.getElementById('search_thietbi').value.toLowerCase().trim();
             let filtered = DB_THIET_BI.filter(x => !kw || x.ten_thiet_bi.toLowerCase().includes(kw) || x.ma_thiet_bi.toLowerCase().includes(kw) || x.ten_nhan_vien.toLowerCase().includes(kw));
 
-            // Lấy URL hiện tại của phần mềm để gán trực tiếp vào QR
             const currentAppUrl = window.location.origin + window.location.pathname;
 
             filtered.forEach((x, i) => {
@@ -552,16 +553,21 @@
                     </td>
                 </tr>`;
                 
-                // ĐỔI ĐỂ GIẢI QUYẾT LỖI TÌM KIẾM GOOGLE: Mã hóa liên kết phần mềm chứa tham số thay vì văn bản thường
                 let qrLinkValue = `${currentAppUrl}?device_code=${x.ma_thiet_bi}`;
                 
+                // CẢI TIẾN LỚN: Tăng kích thước (110px) và tối ưu hóa cấp độ sửa lỗi cao (CorrectLevel.H) giúp điện thoại bắt nét cực nhạy
                 setTimeout(() => { 
-                    new QRCode(document.getElementById(qrId), { 
-                        text: qrLinkValue, 
-                        width: 55, 
-                        height: 55 
-                    }); 
-                }, 20);
+                    const container = document.getElementById(qrId);
+                    if(container) {
+                        container.innerHTML = ""; // Xóa sạch dữ liệu rác cũ trước khi vẽ tránh chồng đè mã
+                        new QRCode(container, { 
+                            text: qrLinkValue, 
+                            width: 110, 
+                            height: 110,
+                            correctLevel: QRCode.CorrectLevel.H
+                        }); 
+                    }
+                }, 30);
             });
         }
 
