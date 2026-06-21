@@ -585,8 +585,9 @@
 
             filtered.forEach(x => {
                 let costOriginal = parseFloat(x.chi_phi) || 0;
+                // Sử dụng created_at để làm ngày hiển thị thay thế cho cột không tồn tại
                 tbody.innerHTML += `<tr>
-                    <td class="text-center"><b>${formatDisplayDate(x.ngay_sua_chua || x.created_at)}</b></td>
+                    <td class="text-center"><b>${formatDisplayDate(x.created_at)}</b></td>
                     <td><mark><b>${x.ma_thiet_bi || ''}</b></mark></td>
                     <td><b>${x.ten_thiet_bi || 'Thiết bị không rõ'}</b></td>
                     <td>${x.noi_dung_hong || ''}</td>
@@ -600,7 +601,7 @@
             });
         }
 
-        // --- HÀM LƯU NHẬT KÝ SỬA CHỮA ĐÃ SỬA LỖI KHÔNG TÌM THẤY THÔNG TIN THIẾT BỊ ---
+        // --- HÀM LƯU NHẬT KÝ SỬA CHỮA ĐÃ FIX TRIỆT ĐỂ LỖI COLUMN CACHE SCHEMA ---
         async function saveRepairConfig() {
             const editingRepairId = document.getElementById('editing_repair_id').value; 
             const cpId = document.getElementById('repair_cp_id').value; 
@@ -611,7 +612,6 @@
             if(!cpId && !searchText) { alert("Vui lòng chọn thiết bị hư hỏng từ danh sách gợi ý!"); return; }
 
             let dev = null;
-            // Tìm kiếm thiết bị chính xác từ danh sách DB_THIET_BI
             if(cpId) {
                 dev = DB_THIET_BI.find(x => x.id == cpId);
             } else {
@@ -624,16 +624,15 @@
             }
 
             let costOriginal = parseFloat(document.getElementById('repair_cost').value) || 0;
-            let todayStr = new Date().toISOString().split('T')[0];
 
+            // Loại bỏ hoàn toàn trường 'ngay_sua_chua' không tồn tại trên DB
             let payload = { 
                 cap_phat_id: parseInt(dev.id), 
                 ma_thiet_bi: dev.ma_thiet_bi.toUpperCase(), 
                 ten_thiet_bi: dev.ten_thiet_bi, 
                 noi_dung_hong: damage, 
                 bien_phap_khac_phuc: document.getElementById('repair_solution').value.trim(), 
-                chi_phi: costOriginal, 
-                ngay_sua_chua: todayStr 
+                chi_phi: costOriginal
             };
 
             if(editingRepairId) { 
@@ -696,7 +695,7 @@
                 let isPaid = x.trang_thai_thanh_toan === "Đã thanh toán";
                 let costWithTax = parseFloat(x.chi_phi_thanh_toan_tron_goi) || (parseFloat(x.chi_phi) * 1.08) || 0;
                 let displayProfileName = x.ten_ho_so_thanh_toan || `Hồ sơ thanh toán sửa chữa ${x.ten_thiet_bi || ''}`;
-                let displayDate = x.ngay_lap_ho_so ? formatDisplayDate(x.ngay_lap_ho_so) : formatDisplayDate(x.ngay_sua_chua || x.created_at);
+                let displayDate = x.ngay_lap_ho_so ? formatDisplayDate(x.ngay_lap_ho_so) : formatDisplayDate(x.created_at);
 
                 tbody.innerHTML += `<tr>
                     <td class="text-center"><b>${displayDate}</b></td>
@@ -717,7 +716,7 @@
             const log = DB_SUA_CHUA.find(x => x.id == id); if(!log) return;
             document.getElementById('pay_log_id').value = log.id;
             if(log.ngay_lap_ho_so) { document.getElementById('pay_date').value = log.ngay_lap_ho_so; }
-            else { document.getElementById('pay_date').value = log.ngay_sua_chua ? log.ngay_sua_chua : new Date().toISOString().split('T')[0]; }
+            else { document.getElementById('pay_date').value = log.created_at ? log.created_at.split('T')[0] : new Date().toISOString().split('T')[0]; }
             document.getElementById('pay_name').value = log.ten_ho_so_thanh_toan || "Hồ sơ thanh toán " + (log.ten_thiet_bi || "");
             document.getElementById('pay_cost').value = log.chi_phi_thanh_toan_tron_goi || (parseFloat(log.chi_phi) * 1.08);
             document.getElementById('pay_beneficiary').value = log.don_vi_thu_huong || "";
