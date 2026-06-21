@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hệ Thống Quản Lý Thiết Bị - Sửa Chữa & Thanh Toán</title>
+    <title>Hệ Thống Tổng Hợp: Nhân Sự - Thiết Bị QR - Sửa Chữa & Thanh Toán</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -36,7 +36,7 @@
         .header { background: var(--primary); color: white; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; }
         .header h1 { margin: 0; font-size: 22px; text-transform: uppercase; font-weight: bold; }
         
-        .nav-tabs { display: flex; background: white; border-bottom: 1px solid var(--border); padding: 0 20px; gap: 5px; }
+        .nav-tabs { display: flex; background: white; border-bottom: 1px solid var(--border); padding: 0 20px; gap: 5px; flex-wrap: wrap; }
         .nav-tab { padding: 12px 20px; font-weight: bold; font-size: 15px; color: #555; cursor: pointer; border-bottom: 3px solid transparent; display: flex; align-items: center; gap: 8px; }
         .nav-tab.active { color: var(--primary); border-bottom-color: var(--primary); background: #f9fbfd; }
         
@@ -45,13 +45,13 @@
         .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
         .card h3 { margin: 0 0 15px 0; font-size: 15px; color: var(--primary); text-transform: uppercase; border-bottom: 2px solid var(--border); padding-bottom: 5px; font-weight: bold; }
         
-        /* Dashboard Thống Kê */
+        /* Dashboard Thống Kê Thanh Toán */
         .dashboard-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 15px; }
         .db-card { background: white; padding: 15px; border-radius: 8px; border-left: 5px solid #ccc; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
         .db-card.paid { border-left-color: var(--success); }
         .db-card.unpaid { border-left-color: var(--danger); }
         .db-card h4 { margin: 0 0 5px 0; font-size: 13px; text-transform: uppercase; color: #777; }
-        .db-card .value { font-size: 18px; font-weight: bold; color: var(--dark); }
+        .db-card .value { font-size: 17px; font-weight: bold; color: var(--dark); }
 
         .form-group { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; position: relative; }
         .form-group label { font-size: 13px; font-weight: bold; color: #333; }
@@ -98,6 +98,7 @@
         .status-broken { background: #fdebd0; color: #e67e22; }
         
         .qr-canvas { width: 55px; height: 55px; background: #eee; margin: 0 auto; display: flex; align-items: center; justify-content: center; }
+        .load-more-indicator { text-align: center; padding: 15px; font-size: 13px; color: #777; font-style: italic; background: #fafafa; border-top: 1px solid var(--border); }
         .link-file { color: var(--primary); text-decoration: none; font-weight: bold; }
         .link-file:hover { text-decoration: underline; }
     </style>
@@ -105,37 +106,26 @@
 <body>
 
     <div class="header">
-        <h1>Hệ Thống Quản Lý Thiết Bị & Hồ Sơ Thanh Toán Sửa Chữa</h1>
+        <h1>Hệ Thống Tổng Hợp Quản Lý Nhân Sự - Thiết Bị & Sửa Chữa</h1>
         <div id="cloud_status" style="font-size:14px; font-weight:bold; color:#2ecc71;"><i class="fa-solid fa-cloud"></i> ĐỒNG BỘ SUPABASE TRỰC TUYẾN</div>
     </div>
 
     <div class="nav-tabs">
-        <div class="nav-tab active" id="tab_thanhtoan" onclick="switchSection('thanhtoan')"><i class="fa-solid fa-file-invoice-dollar"></i> Hồ Sơ Thanh Toán Sửa Chữa</div>
+        <div class="nav-tab active" id="tab_hoso" onclick="switchSection('hoso')"><i class="fa-solid fa-users"></i> Hồ Sơ Nhân Sự Gốc (<span id="count_ns">0</span>)</div>
         <div class="nav-tab" id="tab_thietbi" onclick="switchSection('thietbi')"><i class="fa-solid fa-qrcode"></i> Quản Lý & Cấp Phát Thiết Bị QR</div>
         <div class="nav-tab" id="tab_suachua" onclick="switchSection('suachua')"><i class="fa-solid fa-screwdriver-wrench"></i> Nhật Ký Sửa Chữa Thiết Bị</div>
+        <div class="nav-tab" id="tab_thanhtoan" onclick="switchSection('thanhtoan')"><i class="fa-solid fa-file-invoice-dollar"></i> Hồ Sơ Thanh Toán Sửa Chữa</div>
     </div>
 
     <div class="wrapper">
         <div class="sidebar">
-            <div class="card s-form" id="form_thanhtoan_panel">
-                <h3><i class="fa-solid fa-file-signature"></i> Xử Lý Thanh Toán</h3>
-                <input type="hidden" id="pay_log_id" value="">
+            <div class="card s-form" id="form_hoso_panel">
+                <h3><i class="fa-solid fa-file-excel"></i> Nhập Dữ Liệu Excel</h3>
                 <div class="form-group">
-                    <label>Thiết bị được chọn</label>
-                    <input type="text" id="pay_dev_name" class="form-control" readonly style="background:#e9ecef; font-weight:bold;" placeholder="Chọn hồ sơ ở bảng bên phải...">
+                    <label>Chọn tệp danh sách nhân sự gốc</label>
+                    <input type="file" id="excel_file" accept=".xlsx, .xls" onchange="importExcelNhanSu(this)">
                 </div>
-                <div class="form-group">
-                    <label>Chi phí sửa chữa (VND)</label>
-                    <input type="text" id="pay_dev_cost" class="form-control" readonly style="background:#e9ecef; font-weight:bold; color:#c0392b;">
-                </div>
-                <div class="form-group">
-                    <label style="color:var(--primary)">Trạng thái thanh toán hồ sơ</label>
-                    <select id="pay_status_select" class="form-control" style="font-weight:bold;">
-                        <option value="Chưa thanh toán">❌ Chưa thanh toán</option>
-                        <option value="Đã thanh toán">✅ Đã thanh toán</option>
-                    </select>
-                </div>
-                <button class="btn btn-primary" onclick="updatePaymentStatus()"><i class="fa-solid fa-circle-check"></i> Cập Nhật Trạng Thái</button>
+                <button class="btn btn-danger" onclick="clearDataCloud('nhan_su')"><i class="fa-solid fa-trash"></i> Xóa sạch toàn bộ nhân sự</button>
             </div>
 
             <div class="card s-form" id="form_thietbi_panel" style="display:none;">
@@ -202,54 +192,58 @@
                 <button class="btn btn-purple" id="btn_save_repair" onclick="saveRepairConfig()"><i class="fa-solid fa-cloud-arrow-up"></i> Lưu Nhật Ký & Upload Phiếu</button>
                 <button class="btn btn-danger" id="btn_cancel_edit_repair" style="display:none; margin-top:8px;" onclick="cancelEditRepair()"><i class="fa-solid fa-xmark"></i> Hủy Sửa</button>
             </div>
+
+            <div class="card s-form" id="form_thanhtoan_panel" style="display:none;">
+                <h3><i class="fa-solid fa-file-signature"></i> Xử Lý Thanh Toán</h3>
+                <input type="hidden" id="pay_log_id" value="">
+                <div class="form-group">
+                    <label>Thiết bị được chọn</label>
+                    <input type="text" id="pay_dev_name" class="form-control" readonly style="background:#e9ecef; font-weight:bold;" placeholder="Chọn hồ sơ ở bảng bên phải...">
+                </div>
+                <div class="form-group">
+                    <label>Chi phí sửa chữa (VND)</label>
+                    <input type="text" id="pay_dev_cost" class="form-control" readonly style="background:#e9ecef; font-weight:bold; color:#c0392b;">
+                </div>
+                <div class="form-group">
+                    <label style="color:var(--primary)">Trạng thái thanh toán hồ sơ</label>
+                    <select id="pay_status_select" class="form-control" style="font-weight:bold;">
+                        <option value="Chưa thanh toán">❌ Chưa thanh toán</option>
+                        <option value="Đã thanh toán">✅ Đã thanh toán</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" onclick="updatePaymentStatus()"><i class="fa-solid fa-circle-check"></i> Cập Nhật Trạng Thái</button>
+            </div>
         </div>
 
         <div class="main-panel">
-            <div id="sec_thanhtoan" class="app-section active">
-                <div class="dashboard-grid">
-                    <div class="db-card paid">
-                        <h4>Hồ sơ đã thanh toán</h4>
-                        <div class="value" id="stat_count_paid">0 phiếu</div>
-                    </div>
-                    <div class="db-card unpaid">
-                        <h4>Hồ sơ chưa thanh toán</h4>
-                        <div class="value" id="stat_count_unpaid">0 phiếu</div>
-                    </div>
-                    <div class="db-card paid">
-                        <h4>Số tiền đã thanh toán</h4>
-                        <div class="value" id="stat_money_paid" style="color: var(--success);">0 VND</div>
-                    </div>
-                    <div class="db-card unpaid">
-                        <h4>Số tiền chưa thanh toán</h4>
-                        <div class="value" id="stat_money_unpaid" style="color: var(--danger);">0 VND</div>
-                    </div>
-                </div>
-
+            <div id="sec_hoso" class="app-section active">
                 <div class="filter-wrapper">
-                    <input type="text" id="search_thanhtoan" class="search-bar" placeholder="Tìm theo tên máy, mã máy hoặc nội dung sửa chữa..." oninput="displayPaymentTable()">
-                    <select id="filter_payment_status" class="filter-select" onchange="displayPaymentTable()">
-                        <option value="">-- Tất cả trạng thái --</option>
-                        <option value="Đã thanh toán">Đã thanh toán</option>
-                        <option value="Chưa thanh toán">Chưa thanh toán</option>
+                    <input type="text" id="search_hoso" class="search-bar" placeholder="Tìm nhanh theo Họ Tên, Số CCCD..." oninput="triggerFilterReset()">
+                    <select id="filter_donvi" class="filter-select" onchange="triggerFilterReset()">
+                        <option value="">-- Tất cả Mã Đơn Vị --</option>
                     </select>
                 </div>
-
-                <div class="table-container">
+                <div class="table-container" id="hoso_scroll_container" onscroll="handleTableScroll(this)">
                     <table>
                         <thead>
                             <tr>
-                                <th class="text-center" style="width:100px;">Ngày Nhập</th>
-                                <th>Mã Thiết Bị</th>
-                                <th>Tên Thiết Bị Tài Sản</th>
-                                <th>Nội Dung Hư Hỏng</th>
-                                <th style="text-align:right; width:130px;">Chi Phí (VND)</th>
-                                <th class="text-center" style="width:140px;">Trạng Thái</th>
-                                <th class="text-center" style="width:120px;">Phiếu Đính Kèm</th>
-                                <th class="text-center" style="width:90px;">Thao Tác</th>
+                                <th class="text-center" style="width: 50px;">Hệ thống</th>
+                                <th class="text-center" style="width: 50px;">STT gốc</th>
+                                <th>Họ và Tên</th>
+                                <th>Số Sổ BHXH</th>
+                                <th>Số CCCD</th>
+                                <th class="text-center">Giới Tính</th>
+                                <th class="text-center">Năm Sinh</th>
+                                <th class="text-center">Mã Đơn Vị</th>
+                                <th>An Toàn Viên</th>
+                                <th>NNĐH</th>
+                                <th class="text-center">Năm Về Hưu</th>
+                                <th>Chức Danh Công Việc</th>
                             </tr>
                         </thead>
-                        <tbody id="table_thanhtoan_body"></tbody>
+                        <tbody id="table_hoso_body"></tbody>
                     </table>
+                    <div id="load_more_msg" class="load-more-indicator" style="display:none;"></div>
                 </div>
             </div>
 
@@ -304,6 +298,54 @@
                     </table>
                 </div>
             </div>
+
+            <div id="sec_thanhtoan" class="app-section">
+                <div class="dashboard-grid">
+                    <div class="db-card paid">
+                        <h4>Hồ sơ đã thanh toán</h4>
+                        <div class="value" id="stat_count_paid">0 phiếu</div>
+                    </div>
+                    <div class="db-card unpaid">
+                        <h4>Hồ sơ chưa thanh toán</h4>
+                        <div class="value" id="stat_count_unpaid">0 phiếu</div>
+                    </div>
+                    <div class="db-card paid">
+                        <h4>Số tiền đã thanh toán</h4>
+                        <div class="value" id="stat_money_paid" style="color: var(--success);">0 VND</div>
+                    </div>
+                    <div class="db-card unpaid">
+                        <h4>Số tiền chưa thanh toán</h4>
+                        <div class="value" id="stat_money_unpaid" style="color: var(--danger);">0 VND</div>
+                    </div>
+                </div>
+
+                <div class="filter-wrapper">
+                    <input type="text" id="search_thanhtoan" class="search-bar" placeholder="Tìm theo tên máy, mã máy hoặc nội dung sửa chữa..." oninput="displayPaymentTable()">
+                    <select id="filter_payment_status" class="filter-select" onchange="displayPaymentTable()">
+                        <option value="">-- Tất cả trạng thái --</option>
+                        <option value="Đã thanh toán">Đã thanh toán</option>
+                        <option value="Chưa thanh toán">Chưa thanh toán</option>
+                    </select>
+                </div>
+
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th class="text-center" style="width:100px;">Ngày Nhập</th>
+                                <th>Mã Thiết Bị</th>
+                                <th>Tên Thiết Bị Tài Sản</th>
+                                <th>Nội Dung Hư Hỏng</th>
+                                <th style="text-align:right; width:130px;">Chi Phí (VND)</th>
+                                <th class="text-center" style="width:140px;">Trạng Thái</th>
+                                <th class="text-center" style="width:120px;">Phiếu Đính Kèm</th>
+                                <th class="text-center" style="width:90px;">Thao Tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table_thanhtoan_body"></tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -315,6 +357,8 @@
         let DB_NHAN_SU = [];
         let DB_THIET_BI = [];
         let DB_SUA_CHUA = []; 
+        let FILTERED_LIST = [];
+        let CURRENT_PAGE_SIZE = 30;
 
         window.onload = async function() { await fetchAllData(); };
 
@@ -332,6 +376,7 @@
             try {
                 let r1 = await client.from('nhan_su').select('*').order('id', { ascending: true });
                 DB_NHAN_SU = r1.data || [];
+                document.getElementById('count_ns').innerText = DB_NHAN_SU.length;
 
                 let r2 = await client.from('cap_phat_thiet_bi').select('*').order('created_at', { ascending: false });
                 DB_THIET_BI = r2.data || [];
@@ -340,6 +385,7 @@
                 DB_SUA_CHUA = r3.data || [];
 
                 buildDropdowns();
+                triggerFilterReset();
                 calculatePaymentStats();
                 displayPaymentTable();
                 displayThietBi();
@@ -349,9 +395,14 @@
 
         function buildDropdowns() {
             let uniqueDonVi = [...new Set(DB_NHAN_SU.map(x => x.ma_don_vi).filter(Boolean))].sort();
+            
+            const selectHoso = document.getElementById('filter_donvi');
+            selectHoso.innerHTML = '<option value="">-- Tất cả Mã Đơn Vị --</option>';
             const selectDevForm = document.getElementById('dev_filter_donvi');
             selectDevForm.innerHTML = '<option value="">-- Tất cả các đơn vị --</option>';
+            
             uniqueDonVi.forEach(dv => {
+                selectHoso.innerHTML += `<option value="${dv}">Nhóm Đơn Vị: ${dv}</option>`;
                 selectDevForm.innerHTML += `<option value="${dv}">Nhóm Đơn Vị: ${dv}</option>`;
             });
         }
@@ -368,9 +419,16 @@
             document.getElementById('tab_' + target).classList.add('active');
             document.getElementById('sec_' + target).classList.add('active');
             
-            document.getElementById('form_thanhtoan_panel').style.display = (target === 'thanhtoan') ? 'block' : 'none';
+            document.getElementById('form_hoso_panel').style.display = (target === 'hoso') ? 'block' : 'none';
             document.getElementById('form_thietbi_panel').style.display = (target === 'thietbi') ? 'block' : 'none';
             document.getElementById('form_suachua_panel').style.display = (target === 'suachua') ? 'block' : 'none';
+            document.getElementById('form_thanhtoan_panel').style.display = (target === 'thanhtoan') ? 'block' : 'none';
+        }
+
+        function cleanStr(s) {
+            return String(s || "").toLowerCase().trim()
+                .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                .replace(/đ/g, 'd').replace(/[\s_\-\t\n\r]/g, "");
         }
 
         function formatDisplayDate(isoDateString) {
@@ -381,20 +439,123 @@
             return `${parts[2]}/${parts[1]}/${parts[0]}`;
         }
 
-        // TÍNH TOÁN THỐNG KÊ HỒ SƠ THANH TOÁN
+        // --- PHÂN HỆ 1: NHÂN SỰ ---
+        function triggerFilterReset() {
+            const kw = document.getElementById('search_hoso').value.toLowerCase().trim();
+            const selectedDonVi = document.getElementById('filter_donvi').value;
+            
+            FILTERED_LIST = DB_NHAN_SU.filter(x => {
+                let matchKeyword = !kw || 
+                    x.ho_ten.toLowerCase().includes(kw) || 
+                    (x.so_cccd && x.so_cccd.includes(kw)) ||
+                    (x.chuc_danh_cong_viec && x.chuc_danh_cong_viec.toLowerCase().includes(kw));
+                let matchDonVi = !selectedDonVi || x.ma_don_vi === selectedDonVi;
+                return matchKeyword && matchDonVi;
+            });
+            CURRENT_PAGE_SIZE = 30;
+            renderNhanSuTable();
+        }
+
+        function renderNhanSuTable() {
+            const tbody = document.getElementById('table_hoso_body');
+            if(FILTERED_LIST.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="12" class="text-center">Không tìm thấy kết quả phù hợp.</td></tr>`;
+                return;
+            }
+            let chunk = FILTERED_LIST.slice(0, CURRENT_PAGE_SIZE);
+            let html = "";
+            chunk.forEach((x) => {
+                html += `<tr>
+                    <td class="text-center" style="color: #999;">#${x.id}</td>
+                    <td class="text-center"><b>${x.stt_excel || ''}</b></td>
+                    <td><b>${x.ho_ten}</b></td>
+                    <td>${x.so_so_bhxh || ''}</td>
+                    <td><mark>${x.so_cccd || ''}</mark></td>
+                    <td class="text-center">${x.gioi_tinh}</td>
+                    <td class="text-center" style="font-weight:bold;">${formatDisplayDate(x.nam_sinh)}</td>
+                    <td class="text-center"><span class="badge" style="background:#e8f4f8; color:#1e56a0; border:1px solid #bce;">${x.ma_don_vi}</span></td>
+                    <td>${x.an_toan_vien || ''}</td>
+                    <td>${x.nndh || ''}</td>
+                    <td class="text-center" style="color:#c0392b; font-weight:bold;">${formatDisplayDate(x.nam_ve_huu)}</td>
+                    <td><small>${x.chuc_danh_cong_viec || ''}</small></td>
+                </tr>`;
+            });
+            tbody.innerHTML = html;
+        }
+
+        function handleTableScroll(container) {
+            if (container.scrollHeight - container.scrollTop <= container.clientHeight + 40) {
+                if (CURRENT_PAGE_SIZE < FILTERED_LIST.length) {
+                    CURRENT_PAGE_SIZE += 30;
+                    renderNhanSuTable();
+                }
+            }
+        }
+
+        function importExcelNhanSu(input) {
+            const file = input.files[0]; if(!file) return;
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+
+                    let headerIdx = 0;
+                    for (let i = 0; i < Math.min(rows.length, 15); i++) {
+                        let combined = rows[i].map(cleanStr).join("");
+                        if(combined.includes("hoten") || combined.includes("cccd") || combined.includes("bhxh")) { headerIdx = i; break; }
+                    }
+
+                    let colMap = { stt: -1, ho_ten: -1, madv: -1 };
+                    rows[headerIdx].forEach((cell, idx) => {
+                        let c = cleanStr(cell);
+                        if (c === "stt" || c === "id") colMap.stt = idx;
+                        else if (c.includes("hovaten") || c === "hoten") colMap.ho_ten = idx;
+                        else if (c.includes("madonvi") || c === "madv") colMap.madv = idx;
+                    });
+
+                    let bulkData = [];
+                    for(let i = headerIdx + 1; i < rows.length; i++) {
+                        let r = rows[i]; if(!r || r.length === 0) continue;
+                        let hoTenStr = colMap.ho_ten !== -1 ? String(r[colMap.ho_ten] || "").trim() : "";
+                        if(!hoTenStr || hoTenStr.toUpperCase().includes("HỌ VÀ TÊN")) continue;
+
+                        bulkData.push({
+                            stt_excel: colMap.stt !== -1 ? parseInt(String(r[colMap.stt]).replace(/[^\d]/g, "")) || null : null,
+                            ho_ten: hoTenStr.toUpperCase(),
+                            ma_don_vi: colMap.madv !== -1 ? String(r[colMap.madv] || "CHƯA RÕ").trim() : "CHƯA RÕ",
+                            gioi_tinh: "Nam"
+                        });
+                    }
+
+                    const { error } = await client.from('nhan_su').insert(bulkData);
+                    if(error) throw error;
+                    alert(`Đã nạp thành công ${bulkData.length} nhân sự mới!`);
+                    await fetchAllData();
+                } catch(err) { alert("Lỗi: " + err.message); }
+                    finally { input.value = ""; }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        async function clearDataCloud(table) {
+            if(confirm("Xác nhận xóa sạch toàn bộ nhân sự trên Supabase?")) {
+                await client.from(table).delete().neq('id', 0);
+                await fetchAllData();
+            }
+        }
+
+        // --- PHÂN HỆ THÀNH TOÁN ---
         function calculatePaymentStats() {
             let countPaid = 0, countUnpaid = 0;
             let moneyPaid = 0, moneyUnpaid = 0;
 
             DB_SUA_CHUA.forEach(x => {
                 let cost = parseFloat(x.chi_phi) || 0;
-                if(x.trang_thai_thanh_toan === "Đã thanh toán") {
-                    countPaid++;
-                    moneyPaid += cost;
-                } else {
-                    countUnpaid++;
-                    moneyUnpaid += cost;
-                }
+                if(x.trang_thai_thanh_toan === "Đã thanh toán") { countPaid++; moneyPaid += cost; } 
+                else { countUnpaid++; moneyUnpaid += cost; }
             });
 
             document.getElementById('stat_count_paid').innerText = countPaid + " phiếu";
@@ -403,86 +564,57 @@
             document.getElementById('stat_money_unpaid').innerText = moneyUnpaid.toLocaleString('vi-VN') + " VND";
         }
 
-        // HIỂN THỊ BẢNG QUẢN LÝ HỒ SƠ THANH TOÁN
         function displayPaymentTable() {
             const tbody = document.getElementById('table_thanhtoan_body'); tbody.innerHTML = "";
             const kw = document.getElementById('search_thanhtoan').value.toLowerCase().trim();
             const statusFilter = document.getElementById('filter_payment_status').value;
 
             let list = DB_SUA_CHUA.filter(x => {
-                let matchKw = !kw || 
-                       (x.ten_thiet_bi && x.ten_thiet_bi.toLowerCase().includes(kw)) || 
-                       (x.ma_thiet_bi && x.ma_thiet_bi.toLowerCase().includes(kw)) || 
-                       (x.noi_dung_hong && x.noi_dung_hong.toLowerCase().includes(kw));
-                
+                let matchKw = !kw || x.ten_thiet_bi.toLowerCase().includes(kw) || x.ma_thiet_bi.toLowerCase().includes(kw);
                 let currentStatus = x.trang_thai_thanh_toan === "Đã thanh toán" ? "Đã thanh toán" : "Chưa thanh toán";
-                let matchStatus = !statusFilter || currentStatus === statusFilter;
-                return matchKw && matchStatus;
+                return matchKw && (!statusFilter || currentStatus === statusFilter);
             });
 
-            if(list.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="8" class="text-center">Không tìm thấy hồ sơ thanh toán nào.</td></tr>`;
-                return;
-            }
+            if(list.length === 0) { tbody.innerHTML = `<tr><td colspan="8" class="text-center">Không tìm thấy hồ sơ thanh toán nào.</td></tr>`; return; }
 
             list.forEach(x => {
                 let isPaid = x.trang_thai_thanh_toan === "Đã thanh toán";
-                let badgeClass = isPaid ? "status-using" : "status-broken";
-                let statusTxt = isPaid ? "✅ Đã thanh toán" : "❌ Chưa thanh toán";
-                
-                let fileLinkHtml = `<span style="color:#aaa; font-style:italic;">Không đính kèm</span>`;
-                if(x.url_phieu_yeu_cau) {
-                    fileLinkHtml = `<a href="${x.url_phieu_yeu_cau}" target="_blank" class="link-file"><i class="fa-solid fa-file-pdf"></i> Xem Phiếu</a>`;
-                }
-
-                let dateDisplay = x.ngay_sua_chua ? formatDisplayDate(x.ngay_sua_chua) : formatDisplayDate(x.created_at);
-
                 tbody.innerHTML += `<tr>
-                    <td class="text-center"><b>${dateDisplay}</b></td>
-                    <td><mark><b>${x.ma_thiet_bi || 'N/A'}</b></mark></td>
-                    <td><b>${x.ten_thiet_bi || 'Chưa cập nhật'}</b></td>
-                    <td>${x.noi_dung_hong || 'Trống nội dung'}</td>
+                    <td class="text-center"><b>${x.ngay_sua_chua?formatDisplayDate(x.ngay_sua_chua):formatDisplayDate(x.created_at)}</b></td>
+                    <td><mark><b>${x.ma_thiet_bi}</b></mark></td>
+                    <td><b>${x.ten_thiet_bi}</b></td>
+                    <td>${x.noi_dung_hong || ''}</td>
                     <td style="text-align:right; font-weight:bold; color:#c0392b;">${Number(x.chi_phi || 0).toLocaleString('vi-VN')}</td>
-                    <td class="text-center"><span class="badge ${badgeClass}">${statusTxt}</span></td>
-                    <td class="text-center">${fileLinkHtml}</td>
-                    <td class="text-center">
-                        <button class="btn-table-edit" onclick="selectForPayment(${x.id})"><i class="fa-solid fa-cash-register"></i> Chọn</button>
-                    </td>
+                    <td class="text-center"><span class="badge ${isPaid?'status-using':'status-broken'}">${isPaid?'✅ Đã thanh toán':'❌ Chưa thanh toán'}</span></td>
+                    <td class="text-center">${x.url_phieu_yeu_cau?`<a href="${x.url_phieu_yeu_cau}" target="_blank" class="link-file">Xem Phiếu</a>`:'Không có'}</td>
+                    <td class="text-center"><button class="btn-table-edit" onclick="selectForPayment(${x.id})"><i class="fa-solid fa-cash-register"></i> Chọn</button></td>
                 </tr>`;
             });
         }
 
         function selectForPayment(id) {
-            const log = DB_SUA_CHUA.find(x => x.id == id);
-            if(!log) return;
-
+            const log = DB_SUA_CHUA.find(x => x.id == id); if(!log) return;
             document.getElementById('pay_log_id').value = log.id;
-            document.getElementById('pay_dev_name').value = `${log.ma_thiet_bi || ''} - ${log.ten_thiet_bi || ''}`;
-            document.getElementById('pay_dev_cost').value = Number(log.chi_phi || 0).toLocaleString('vi-VN') + " VND";
+            document.getElementById('pay_dev_name').value = `${log.ma_thiet_bi} - ${log.ten_thiet_bi}`;
+            document.getElementById('pay_dev_cost').value = Number(log.chi_phi).toLocaleString('vi-VN') + " VND";
             document.getElementById('pay_status_select').value = log.trang_thai_thanh_toan === "Đã thanh toán" ? "Đã thanh toán" : "Chưa thanh toán";
-            
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
         async function updatePaymentStatus() {
             const logId = document.getElementById('pay_log_id').value;
             const status = document.getElementById('pay_status_select').value;
-
-            if(!logId) { alert("Vui lòng ấn chọn một hồ sơ thanh toán từ bảng danh sách bên phải!"); return; }
+            if(!logId) { alert("Vui lòng chọn hồ sơ!"); return; }
 
             const { error } = await client.from('lich_su_sua_chua').update({ trang_thai_thanh_toan: status }).eq('id', logId);
             if(!error) {
-                alert("Cập nhật trạng thái thanh toán hồ sơ thành công!");
-                document.getElementById('pay_log_id').value = "";
-                document.getElementById('pay_dev_name').value = "";
-                document.getElementById('pay_dev_cost').value = "";
+                alert("Cập nhật trạng thái thanh toán thành công!");
+                document.getElementById('pay_log_id').value = ""; document.getElementById('pay_dev_name').value = ""; document.getElementById('pay_dev_cost').value = "";
                 await fetchAllData();
-            } else {
-                alert("Lỗi cập nhật: " + error.message);
             }
         }
 
-        // --- CÁC HÀM CŨ CỦA HỆ THỐNG GIỮ NGUYÊN HOẠT ĐỘNG ---
+        // --- CÁC HÀM PHỤ TRỢ THIẾT BỊ VÀ SỬA CHỮA ---
         function smartSuggest(input) {
             const val = input.value.toLowerCase().trim();
             const box = document.getElementById('dev_suggest');
@@ -491,23 +623,13 @@
 
             let matches = DB_NHAN_SU.filter(n => {
                 let matchName = !val || n.ho_ten.toLowerCase().includes(val);
-                let matchDv = !targetDonVi || n.ma_don_vi === targetDonVi;
-                return matchName && matchDv;
+                return matchName && (!targetDonVi || n.ma_don_vi === targetDonVi);
             });
 
-            if(!val && !targetDonVi) matches = matches.slice(0, 20);
-            else matches = matches.slice(0, 15);
-
-            if(matches.length === 0) {
-                box.innerHTML = '<div class="suggest-item" style="color:#999; cursor:default;">Không tìm thấy nhân viên...</div>';
-                box.style.display = 'block'; return;
-            }
-
-            matches.forEach(n => {
+            matches.slice(0, 15).forEach(n => {
                 let div = document.createElement('div'); div.className = 'suggest-item';
                 div.innerHTML = `<span><b>${n.ho_ten}</b></span> <span class="badge-dv">Đơn vị: ${n.ma_don_vi}</span>`;
-                div.onclick = (e) => {
-                    e.stopPropagation();
+                div.onclick = () => {
                     document.getElementById('dev_user_search').value = `${n.ho_ten} (Đơn vị: ${n.ma_don_vi})`;
                     document.getElementById('dev_user_id').value = n.id;
                     box.style.display = 'none';
@@ -520,17 +642,12 @@
         function repairSuggest(input) {
             const val = input.value.toLowerCase().trim();
             const box = document.getElementById('repair_suggest'); box.innerHTML = "";
-            let matches = DB_THIET_BI.filter(t => {
-                if (!t.ten_thiet_bi || !t.ma_thiet_bi) return false;
-                if (!val) return true; 
-                return t.ten_thiet_bi.toLowerCase().includes(val) || t.ma_thiet_bi.toLowerCase().includes(val);
-            });
+            let matches = DB_THIET_BI.filter(t => !val || t.ten_thiet_bi.toLowerCase().includes(val) || t.ma_thiet_bi.toLowerCase().includes(val));
 
             matches.slice(0, 15).forEach(t => {
                 let div = document.createElement('div'); div.className = 'suggest-item';
                 div.innerHTML = `<span><b>${t.ma_thiet_bi}</b> - ${t.ten_thiet_bi}</span>`;
-                div.onclick = (e) => {
-                    e.stopPropagation();
+                div.onclick = () => {
                     document.getElementById('repair_dev_search').value = `${t.ma_thiet_bi} [${t.ten_thiet_bi}]`;
                     document.getElementById('repair_cp_id').value = t.id;
                     box.style.display = 'none';
@@ -545,21 +662,15 @@
             const nsId = document.getElementById('dev_user_id').value;
             const name = document.getElementById('dev_name').value.trim();
             let code = document.getElementById('dev_code').value.trim();
-            const status = document.getElementById('dev_status_select').value; 
-            
-            if(!nsId || !name) { alert("Vui lòng kích chọn chính xác nhân sự!"); return; }
+            if(!nsId || !name) { alert("Vui lòng điền đủ!"); return; }
             if(!code) code = "EQ-" + Date.now().toString().slice(-6);
 
             const ns = DB_NHAN_SU.find(x => x.id == nsId);
-            let payload = { nhan_su_id: parseInt(nsId), ten_nhan_vien: ns.ho_ten, ma_don_vi: ns.ma_don_vi, ten_thiet_bi: name, ma_thiet_bi: code.toUpperCase(), trang_thai: status };
+            let payload = { nhan_su_id: parseInt(nsId), ten_nhan_vien: ns.ho_ten, ma_don_vi: ns.ma_don_vi, ten_thiet_bi: name, ma_thiet_bi: code.toUpperCase(), trang_thai: document.getElementById('dev_status_select').value };
 
-            if(editingId) {
-                const { error } = await client.from('cap_phat_thiet_bi').update(payload).eq('id', editingId);
-                if(!error) { alert("Cập nhật thiết bị thành công!"); cancelEditDevice(); await fetchAllData(); }
-            } else {
-                const { error } = await client.from('cap_phat_thiet_bi').insert([payload]);
-                if(!error) { alert(`Cấp phát thành công thiết bị ${name}!`); clearDeviceForm(); await fetchAllData(); }
-            }
+            if(editingId) { await client.from('cap_phat_thiet_bi').update(payload).eq('id', editingId); cancelEditDevice(); } 
+            else { await client.from('cap_phat_thiet_bi').insert([payload]); clearDeviceForm(); }
+            await fetchAllData();
         }
 
         function editDevice(id) {
@@ -567,26 +678,19 @@
             document.getElementById('editing_device_id').value = dev.id;
             document.getElementById('dev_user_id').value = dev.nhan_su_id;
             document.getElementById('dev_user_search').value = `${dev.ten_nhan_vien} (Đơn vị: ${dev.ma_don_vi})`;
-            document.getElementById('dev_name').value = dev.ten_thiet_bi;
-            document.getElementById('dev_code').value = dev.ma_thiet_bi;
+            document.getElementById('dev_name').value = dev.ten_thiet_bi; document.getElementById('dev_code').value = dev.ma_thiet_bi;
             document.getElementById('dev_status_select').value = dev.trang_thai;
-            document.getElementById('form_device_title').innerHTML = `<i class="fa-solid fa-pen-to-square"></i> Cập Nhật Thiết Bị`;
-            document.getElementById('btn_save_device').innerHTML = `<i class="fa-solid fa-square-check"></i> Cập Nhật`;
+            document.getElementById('form_device_title').innerHTML = `Cập Nhật Thiết Bị`;
+            document.getElementById('btn_save_device').innerHTML = `Cập Nhật`;
             document.getElementById('btn_cancel_edit_device').style.display = "block";
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        function cancelEditDevice() {
-            document.getElementById('editing_device_id').value = ""; clearDeviceForm();
-            document.getElementById('form_device_title').innerHTML = `<i class="fa-solid fa-plus"></i> Cấp Phát Thiết Bị`;
-            document.getElementById('btn_save_device').innerHTML = `<i class="fa-solid fa-floppy-disk"></i> Lưu & Xuất Mã QR`;
-            document.getElementById('btn_cancel_edit_device').style.display = "none";
-        }
+        function cancelEditDevice() { document.getElementById('editing_device_id').value = ""; clearDeviceForm(); document.getElementById('btn_cancel_edit_device').style.display = "none"; }
+        function clearDeviceForm() { document.getElementById('dev_name').value = ""; document.getElementById('dev_code').value = ""; document.getElementById('dev_user_search').value = ""; }
 
-        function clearDeviceForm() { document.getElementById('dev_name').value = ""; document.getElementById('dev_code').value = ""; document.getElementById('dev_user_search').value = ""; document.getElementById('dev_user_id').value = ""; }
-
-        async function deleteDevice(id, deviceName) {
-            if(confirm(`Xóa thiết bị "${deviceName}" sẽ xóa toàn bộ nhật ký liên quan?`)) {
+        async function deleteDevice(id, name) {
+            if(confirm(`Xóa thiết bị ${name}?`)) {
                 await client.from('lich_su_sua_chua').delete().eq('cap_phat_id', id);
                 await client.from('cap_phat_thiet_bi').delete().eq('id', id);
                 await fetchAllData();
@@ -597,85 +701,53 @@
             const editingRepairId = document.getElementById('editing_repair_id').value;
             const cpId = document.getElementById('repair_cp_id').value;
             const damage = document.getElementById('repair_damage').value.trim();
-            const solution = document.getElementById('repair_solution').value.trim();
-            const cost = parseFloat(document.getElementById('repair_cost').value) || 0;
-            const fileInput = document.getElementById('repair_file');
-
-            if(!cpId || !damage) { alert("Vui lòng điền đủ thông tin!"); return; }
+            if(!cpId || !damage) { alert("Vui lòng điền đủ!"); return; }
             const dev = DB_THIET_BI.find(x => x.id == cpId);
 
             let fileUrl = "";
+            const fileInput = document.getElementById('repair_file');
             if(fileInput.files.length > 0) {
-                const file = fileInput.files[0];
-                const filePath = `phieu/${Date.now()}_${file.name}`;
-                let { error: uploadError } = await client.storage.from('phieu_cong_viec').upload(filePath, file);
-                if(!uploadError) { const { data } = client.storage.from('phieu_cong_viec').getPublicUrl(filePath); fileUrl = data.publicUrl; }
+                const file = fileInput.files[0]; const filePath = `phieu/${Date.now()}_${file.name}`;
+                let { error } = await client.storage.from('phieu_cong_viec').upload(filePath, file);
+                if(!error) { fileUrl = client.storage.from('phieu_cong_viec').getPublicUrl(filePath).data.publicUrl; }
             }
 
             let todayStr = new Date().toISOString().split('T')[0];
-            let payload = { cap_phat_id: parseInt(cpId), ma_thiet_bi: dev.ma_thiet_bi, ten_thiet_bi: dev.ten_thiet_bi, noi_dung_hong: damage, bien_phap_khac_phuc: solution, chi_phi: cost, ngay_sua_chua: todayStr };
+            let payload = { cap_phat_id: parseInt(cpId), ma_thiet_bi: dev.ma_thiet_bi, ten_thiet_bi: dev.ten_thiet_bi, noi_dung_hong: damage, bien_phap_khac_phuc: document.getElementById('repair_solution').value.trim(), chi_phi: parseFloat(document.getElementById('repair_cost').value)||0, ngay_sua_chua: todayStr };
             if(fileUrl) payload.url_phieu_yeu_cau = fileUrl;
 
-            if(editingRepairId) {
-                await client.from('lich_su_sua_chua').update(payload).eq('id', editingRepairId);
-                cancelEditRepair();
-            } else {
-                payload.trang_thai_thanh_toan = "Chưa thanh toán"; // Thiết lập mặc định cho hồ sơ mới
-                await client.from('lich_su_sua_chua').insert([payload]);
-                await client.from('cap_phat_thiet_bi').update({ trang_thai: 'Bảo dưỡng' }).eq('id', cpId);
-                clearRepairForm();
-            }
+            if(editingRepairId) { await client.from('lich_su_sua_chua').update(payload).eq('id', editingRepairId); cancelEditRepair(); } 
+            else { payload.trang_thai_thanh_toan = "Chưa thanh toán"; await client.from('lich_su_sua_chua').insert([payload]); clearRepairForm(); }
             await fetchAllData();
         }
 
         function editRepairLog(id) {
             const log = DB_SUA_CHUA.find(x => x.id == id); if(!log) return;
-            document.getElementById('editing_repair_id').value = log.id;
-            document.getElementById('repair_cp_id').value = log.cap_phat_id;
-            document.getElementById('repair_dev_search').value = `${log.ma_thiet_bi || ''} [${log.ten_thiet_bi || ''}]`;
-            document.getElementById('repair_damage').value = log.noi_dung_hong;
-            document.getElementById('repair_solution').value = log.bien_phap_khac_phuc;
+            document.getElementById('editing_repair_id').value = log.id; document.getElementById('repair_cp_id').value = log.cap_phat_id;
+            document.getElementById('repair_dev_search').value = `${log.ma_thiet_bi} [${log.ten_thiet_bi}]`;
+            document.getElementById('repair_damage').value = log.noi_dung_hong; document.getElementById('repair_solution').value = log.bien_phap_khac_phuc;
             document.getElementById('repair_cost').value = log.chi_phi;
-            document.getElementById('form_repair_title').innerHTML = `<i class="fa-solid fa-pen-to-square"></i> Sửa Nhật Ký Sửa Chữa`;
-            document.getElementById('btn_save_repair').innerHTML = `<i class="fa-solid fa-square-check"></i> Cập Nhật Nhật Ký`;
             document.getElementById('btn_cancel_edit_repair').style.display = "block";
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        function cancelEditRepair() {
-            document.getElementById('editing_repair_id').value = ""; clearRepairForm();
-            document.getElementById('form_repair_title').innerHTML = `<i class="fa-solid fa-notes-medical"></i> Khai Báo Sửa Chữa`;
-            document.getElementById('btn_save_repair').innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i> Lưu Nhật Ký`;
-            document.getElementById('btn_cancel_edit_repair').style.display = "none";
-        }
-
-        function clearRepairForm() { document.getElementById('repair_dev_search').value = ""; document.getElementById('repair_cp_id').value = ""; document.getElementById('repair_damage').value = ""; document.getElementById('repair_solution').value = ""; document.getElementById('repair_cost').value = "0"; document.getElementById('repair_file').value = ""; }
-
-        async function deleteRepairLog(id) {
-            if(confirm("Xóa dòng nhật ký này?")) { await client.from('lich_su_sua_chua').delete().eq('id', id); await fetchAllData(); }
-        }
+        function cancelEditRepair() { document.getElementById('editing_repair_id').value = ""; clearRepairForm(); document.getElementById('btn_cancel_edit_repair').style.display = "none"; }
+        function clearRepairForm() { document.getElementById('repair_dev_search').value = ""; document.getElementById('repair_damage').value = ""; document.getElementById('repair_solution').value = ""; document.getElementById('repair_cost').value = 0; }
 
         function displayThietBi() {
             const tbody = document.getElementById('table_thietbi_body'); tbody.innerHTML = "";
-            const kw = document.getElementById('search_thietbi').value.toLowerCase().trim();
-            const selectedStatus = document.getElementById('filter_thietbi_status').value; 
-            let list = DB_THIET_BI.filter(x => {
-                let matchKw = !kw || x.ten_thiet_bi.toLowerCase().includes(kw) || x.ma_thiet_bi.toLowerCase().includes(kw);
-                return matchKw && (!selectedStatus || x.trang_thai === selectedStatus);
-            });
-
-            list.forEach((x, i) => {
+            DB_THIET_BI.forEach((x, i) => {
                 let qrId = `qr_box_${i}`;
                 tbody.innerHTML += `<tr>
                     <td><div id="${qrId}" class="qr-canvas"></div></td>
                     <td><mark><b>${x.ma_thiet_bi}</b></mark></td>
                     <td><b>${x.ten_thiet_bi}</b></td>
-                    <td><i class="fa-regular fa-user"></i> ${x.ten_nhan_vien}</td>
+                    <td>${x.ten_nhan_vien}</td>
                     <td class="text-center">${x.ma_don_vi}</td>
                     <td class="text-center"><span class="badge ${x.trang_thai==='Bảo dưỡng'?'status-repair':'status-using'}">${x.trang_thai || 'Đang sử dụng'}</span></td>
                     <td class="text-center">
-                        <button class="btn-table-edit" onclick="editDevice(${x.id})"><i class="fa-solid fa-pen"></i> Sửa</button>
-                        <button class="btn-table-del" onclick="deleteDevice(${x.id}, '${x.ten_thiet_bi}')"><i class="fa-solid fa-trash"></i> Xóa</button>
+                        <button class="btn-table-edit" onclick="editDevice(${x.id})">Sửa</button>
+                        <button class="btn-table-del" onclick="deleteDevice(${x.id}, '${x.ten_thiet_bi}')">Xóa</button>
                     </td>
                 </tr>`;
                 setTimeout(() => { new QRCode(document.getElementById(qrId), { text: x.ma_thiet_bi, width: 55, height: 55 }); }, 20);
@@ -684,11 +756,7 @@
 
         function displayRepairLog() {
             const tbody = document.getElementById('table_suachua_body'); tbody.innerHTML = "";
-            const kw = document.getElementById('search_suachua').value.toLowerCase().trim();
-            let list = DB_SUA_CHUA.filter(x => !kw || x.ten_thiet_bi.toLowerCase().includes(kw) || x.ma_thiet_bi.toLowerCase().includes(kw));
-
-            list.forEach(x => {
-                let fileLinkHtml = x.url_phieu_yeu_cau ? `<a href="${x.url_phieu_yeu_cau}" target="_blank" class="link-file">Xem Phiếu</a>` : 'Không có';
+            DB_SUA_CHUA.forEach(x => {
                 tbody.innerHTML += `<tr>
                     <td class="text-center"><b>${x.ngay_sua_chua?formatDisplayDate(x.ngay_sua_chua):formatDisplayDate(x.created_at)}</b></td>
                     <td><mark><b>${x.ma_thiet_bi}</b></mark></td>
@@ -696,10 +764,10 @@
                     <td>${x.noi_dung_hong}</td>
                     <td>${x.bien_phap_khac_phuc}</td>
                     <td style="text-align:right; font-weight:bold; color:#c0392b;">${Number(x.chi_phi).toLocaleString('vi-VN')}</td>
-                    <td class="text-center">${fileLinkHtml}</td>
+                    <td class="text-center">${x.url_phieu_yeu_cau?`<a href="${x.url_phieu_yeu_cau}" target="_blank" class="link-file">Xem</a>`:'Không'}</td>
                     <td class="text-center">
-                        <button class="btn-table-edit" onclick="editRepairLog(${x.id})"><i class="fa-solid fa-pen"></i> Sửa</button>
-                        <button class="btn-table-del" onclick="deleteRepairLog(${x.id})"><i class="fa-solid fa-trash"></i> Xóa</button>
+                        <button class="btn-table-edit" onclick="editRepairLog(${x.id})">Sửa</button>
+                        <button class="btn-table-del" onclick="async () => { if(confirm('Xóa?')) { await client.from('lich_su_sua_chua').delete().eq('id', ${x.id}); await fetchAllData(); } }">Xóa</button>
                     </td>
                 </tr>`;
             });
