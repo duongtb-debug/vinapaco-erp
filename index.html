@@ -63,7 +63,6 @@
         
         .badge { padding: 3px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; }
         .badge-active { background: #e8f8f5; color: #2ecc71; }
-        .badge-done { background: #eef2f7; color: #7f8c8d; }
         .qr-canvas { width: 50px; height: 50px; background: #eee; margin: 0 auto; }
         .text-center { text-align: center; }
     </style>
@@ -102,7 +101,7 @@
                 </div>
                 <div class="form-group">
                     <label>Tên thiết bị tài sản (*)</label>
-                    <input type="text" id="dev_name" class="form-control" placeholder="Ví dụ: Máy tính Dell Latitude Vostro">
+                    <input type="text" id="dev_name" class="form-control" placeholder="Ví dụ: Máy tính Dell Latitude">
                 </div>
                 <div class="form-group">
                     <label>Mã thiết bị (Số Seri)</label>
@@ -196,7 +195,7 @@
     </div>
 
     <script>
-        // Cấu hình kết nối cơ sở dữ liệu Supabase của bạn
+        // Cấu hình kết nối cơ sở dữ liệu Supabase
         const SUPABASE_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co"; 
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ";
         const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -226,20 +225,18 @@
             } catch (e) { console.error("Lỗi đồng bộ dữ liệu: ", e); }
         }
 
-        // Chuyển đổi tab thông minh (Ẩn/hiện cả form nhập và bảng hiển thị tương ứng)
         function switchSection(target) {
             document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.app-section').forEach(el => el.classList.remove('active'));
             document.getElementById('tab_' + target).classList.add('active');
             document.getElementById('sec_' + target).classList.add('active');
             
-            // Chuyển đổi panel form bên trái
             document.getElementById('form_hoso_panel').style.display = (target === 'hoso') ? 'block' : 'none';
             document.getElementById('form_thietbi_panel').style.display = (target === 'thietbi') ? 'block' : 'none';
             document.getElementById('form_suachua_panel').style.display = (target === 'suachua') ? 'block' : 'none';
         }
 
-        // Xử lý nạp dữ liệu từ file Excel hàng loạt
+        // TÍCH HỢP HÀM XỬ LÝ EXCEL CHUYÊN GIA - CHỐNG LỆCH CỘT - CHỐNG CACHE SCHEMA
         function importExcelNhanSu(input) {
             const file = input.files[0]; if(!file) return;
             const reader = new FileReader();
@@ -251,43 +248,75 @@
                     const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
 
                     let headerIdx = 0;
-                    for (let i = 0; i < Math.min(rows.length, 10); i++) {
-                        let txt = rows[i].join("").toLowerCase();
-                        if(txt.includes("hoten") || txt.includes("manv") || txt.includes("cccd")) { headerIdx = i; break; }
+                    for (let i = 0; i < Math.min(rows.length, 15); i++) {
+                        let txt = rows[i].join("").toLowerCase().replace(/[\s_\-]/g, "");
+                        let btxt = txt.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd');
+                        if(btxt.includes("hoten") || btxt.includes("manv") || btxt.includes("cccd")) { 
+                            headerIdx = i; 
+                            break; 
+                        }
+                    }
+
+                    let colMap = { id: -1, ho_ten: -1, ma_don_vi: -1, chuc_danh: -1, so_cccd: -1, gioi_tinh: -1 };
+                    
+                    rows[headerIdx].forEach((cell, idx) => {
+                        let c = String(cell).toLowerCase().trim()
+                                    .normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd')
+                                    .replace(/[\s_\-]/g, "");
+
+                        if (c.includes("manv") || c === "stt" || c === "id") colMap.id = idx;
+                        else if (c.includes("hovaten") || c === "hoten" || c === "ten") colMap.ho_ten = idx;
+                        else if (c.includes("donvi") || c.includes("madv") || c === "phongban" || c.includes("bophan")) colMap.ma_don_vi = idx;
+                        else if (c.includes("chucdanh") || c.includes("chucvu") || c.includes("congviec")) colMap.chuc_danh = idx;
+                        else if (c.includes("cccd") || c.includes("cancuoc") || c.includes("cmnd")) colMap.so_cccd = idx;
+                        else if (c.includes("gioitinh")) colMap.gioi_tinh = idx;
+                    });
+
+                    if(colMap.ho_ten === -1) {
+                        alert("Không tìm thấy cột Họ và Tên trong file Excel!");
+                        return;
                     }
 
                     let bulkData = [];
                     for(let i = headerIdx + 1; i < rows.length; i++) {
                         let r = rows[i];
-                        if(!r[1]) continue; // Bỏ qua nếu cột tên trống
-                        
-                        let idVal = parseInt(String(r[0]).replace(/[^\d]/g, "")) || i;
+                        if(!r || r.length === 0) continue;
+
+                        let hoTenStr = colMap.ho_ten !== -1 ? String(r[colMap.ho_ten] || "").trim() : "";
+                        if(!hoTenStr || hoTenStr.toUpperCase().includes("HỌ VÀ TÊN")) continue;
+
+                        let rawId = colMap.id !== -1 ? String(r[colMap.id] || "").replace(/[^\d]/g, "") : "";
+                        let idVal = parseInt(rawId) || i;
+
                         bulkData.push({
                             id: idVal,
-                            ho_ten: String(r[1]).trim().toUpperCase(),
-                            ma_don_vi: String(r[4] || r[3]).trim(),
-                            chuc_danh_cong_viec: String(r[5] || "").trim(),
-                            so_cccd: String(r[8] || null).trim(),
-                            gioi_tinh: String(r[3] || "Nam").trim()
+                            ho_ten: hoTenStr.toUpperCase(),
+                            ma_don_vi: colMap.ma_don_vi !== -1 ? String(r[colMap.ma_don_vi] || "CHƯA RÕ").trim() : "CHƯA RÕ",
+                            chuc_danh_cong_viec: colMap.chuc_danh !== -1 ? String(r[colMap.chuc_danh] || "").trim() : "",
+                            so_cccd: colMap.so_cccd !== -1 ? String(r[colMap.so_cccd] || "").trim() || null : null,
+                            gioi_tinh: colMap.gioi_tinh !== -1 ? String(r[colMap.gioi_tinh] || "Nam").trim() : "Nam"
                         });
                     }
 
-                    // Giải pháp loại bỏ lỗi ON CONFLICT bằng cơ chế xóa dọn các ID trùng trước khi insert bulk
+                    if(bulkData.length === 0) { alert("Không tìm thấy hàng dữ liệu nào hợp lệ!"); return; }
+
                     const targetIds = bulkData.map(d => d.id);
                     await client.from('nhan_su').delete().in('id', targetIds);
 
                     const { error } = await client.from('nhan_su').insert(bulkData);
                     if(error) throw error;
 
-                    alert(`Đã nạp thành công ${bulkData.length} nhân sự lên hệ thống đám mây!`);
+                    alert(`Đồng bộ thành công dữ liệu an toàn cho ${bulkData.length} nhân sự lên Supabase!`);
                     await fetchAllData();
-                } catch(err) { alert("Lỗi xử lý file Excel: " + err.message); }
-                finally { input.value = ""; }
+                } catch(err) { 
+                    alert("Lỗi xử lý hệ thống: " + err.message); 
+                } finally { 
+                    input.value = ""; 
+                }
             };
             reader.readAsArrayBuffer(file);
         }
 
-        // Gợi ý nhân sự và thiết bị liên kết thông minh
         function smartSuggest(input, mode) {
             const val = input.value.toLowerCase().trim();
             const box = document.getElementById(mode + '_suggest');
@@ -322,7 +351,6 @@
             box.style.display = 'block';
         }
 
-        // Lưu cấp phát thiết bị tài sản
         async function saveDeviceCofig() {
             const nsId = document.getElementById('dev_user_id').value;
             const name = document.getElementById('dev_name').value.trim();
@@ -344,7 +372,6 @@
             if(!error) { alert("Cấp phát thiết bị thành công!"); await fetchAllData(); }
         }
 
-        // Lưu hồ sơ sửa chữa
         async function saveRepairRecord() {
             const devId = document.getElementById('rep_device_id').value;
             const issue = document.getElementById('rep_issue').value.trim();
@@ -366,7 +393,6 @@
             if(!error) { alert("Đã ghi nhận hồ sơ chi phí sửa chữa!"); await fetchAllData(); }
         }
 
-        // Hiển thị các bảng dữ liệu
         function displayNhanSu() {
             const tbody = document.getElementById('table_hoso_body'); tbody.innerHTML = "";
             const kw = document.getElementById('search_hoso').value.toLowerCase();
