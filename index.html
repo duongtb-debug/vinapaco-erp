@@ -3,618 +3,429 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hệ Thống Đám Mây Realtime & Quản Lý Mã QR Thiết Bị</title>
-    
-    <!-- SDK Firebase Online -->
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
-    
-    <!-- Thư viện sinh mã QR độc lập chuyên nghiệp (Không phụ thuộc mạng sau khi tải trang) -->
+    <title>Hệ Thống Quản Lý Nhân Sự - Thiết Bị - Sửa Chữa</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
     <style>
         :root {
-            --primary: #2563eb;
-            --primary-light: #eff6ff;
-            --success: #10b981;
-            --success-light: #ecfdf5;
-            --warning: #f59e0b;
-            --warning-light: #fffbeb;
-            --danger: #ef4444;
-            --danger-light: #fef2f2;
-            --purple: #8b5cf6;
-            --purple-light: #f5f3ff;
-            --dark: #0f172a;
-            --light-bg: #f8fafc;
-            --card-bg: #ffffff;
-            --text-main: #334155;
-            --text-muted: #64748b;
-            --border-color: #cbd5e1;
-            --shadow-template: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 16px -6px rgba(15, 23, 42, 0.04);
-            --form-border: 1px solid #e2e8f0;
+            --primary: #1e56a0;
+            --success: #2ecc71;
+            --warning: #f39c12;
+            --danger: #e74c3c;
+            --dark: #2c3e50;
+            --bg: #f4f6f9;
+            --border: #e1e8ed;
         }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        body { background-color: var(--light-bg); background-image: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%); color: var(--text-main); padding: 25px; }
-        .container { max-width: 1750px; margin: 0 auto; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; background-color: var(--bg); color: #333; }
         
-        header { 
-            text-align: center; margin-bottom: 30px; padding: 30px; 
-            background: #ffffff; border-radius: 20px; box-shadow: var(--shadow-template); border: var(--form-border);
-            position: relative; overflow: hidden;
-        }
-        header::after { content: ''; position: absolute; top:0; left:0; width: 100%; height: 6px; background: linear-gradient(90deg, var(--primary), var(--purple), var(--success)); }
-        header h1 { color: var(--dark); margin-bottom: 8px; font-size: 2.4rem; font-weight: 800; }
-        .cloud-status { display: inline-flex; align-items: center; gap: 6px; background: var(--success-light); color: var(--success); padding: 6px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 700; margin-top: 10px; border: 1px solid rgba(16,185,129,0.2); }
+        /* Header & Thanh Điều Hướng */
+        .header { background: var(--primary); color: white; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { margin: 0; font-size: 20px; text-transform: uppercase; }
+        .nav-tabs { display: flex; background: white; border-bottom: 1px solid var(--border); padding: 0 20px; gap: 5px; }
+        .nav-tab { padding: 15px 20px; font-weight: 600; color: #555; cursor: pointer; border-bottom: 3px solid transparent; display: flex; align-items: center; gap: 8px; }
+        .nav-tab.active { color: var(--primary); border-bottom-color: var(--primary); background: #f9fbfd; }
+        
+        /* Bố cục chính */
+        .wrapper { max-width: 1600px; margin: 20px auto; padding: 0 20px; display: grid; grid-template-columns: 320px 1fr; gap: 20px; }
+        .sidebar { display: flex; flex-direction: column; gap: 20px; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .card h3 { margin: 0 0 15px 0; font-size: 14px; color: var(--primary); text-transform: uppercase; border-bottom: 2px solid var(--border); padding-bottom: 5px; }
+        
+        /* Form & Điều khiển */
+        .form-group { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; position: relative; }
+        .form-group label { font-size: 12px; font-weight: 600; color: #555; }
+        .form-control { padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; outline: none; }
+        .form-control:focus { border-color: var(--primary); }
+        
+        .btn { background: var(--primary); color: white; border: none; padding: 10px 15px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px; width: 100%; transition: opacity 0.2s; }
+        .btn:hover { opacity: 0.9; }
+        .btn-success { background: var(--success); }
+        .btn-danger { background: var(--danger); }
+        
+        /* Gợi ý thông minh */
+        .suggest-box { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ccc; border-radius: 6px; max-height: 180px; overflow-y: auto; z-index: 100; box-shadow: 0 4px 8px rgba(0,0,0,0.1); display: none; }
+        .suggest-item { padding: 8px 12px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #f9f9f9; }
+        .suggest-item:hover { background: #ebf3fc; }
 
-        /* Dashboard */
-        .dashboard-3d { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 30px; }
-        .widget-3d {
-            background: var(--card-bg); border-radius: 16px; padding: 25px; position: relative;
-            box-shadow: var(--shadow-template); border: var(--form-border); transition: transform 0.2s;
-        }
-        .widget-3d:hover { transform: translateY(-4px); }
-        .widget-val { font-size: 2.4rem; font-weight: 800; margin: 5px 0; letter-spacing: -1px; }
-        .widget-title { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); font-weight: 700; }
-        .w-progress-bg { background: #e2e8f0; height: 6px; border-radius: 3px; margin-top: 10px; overflow: hidden; }
-        .w-progress-bar { height: 100%; width: 0%; transition: width 0.5s ease; }
-
-        /* Chuẩn hóa Form Mẫu */
-        .grid-master { display: grid; grid-template-columns: 1fr 1.1fr 1.1fr 0.8fr; gap: 25px; margin-bottom: 30px; }
-        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
-        .grid-repair { display: grid; grid-template-columns: 1.2fr 1.5fr 1.2fr 1fr; gap: 15px; margin-bottom: 15px; }
+        /* Bảng dữ liệu */
+        .main-panel { display: flex; flex-direction: column; gap: 20px; }
+        .app-section { display: none; }
+        .app-section.active { display: block; }
+        .search-bar { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; margin-bottom: 15px; }
         
-        @media (max-width: 1400px) { .grid-master { grid-template-columns: 1fr 1fr; } .dashboard-3d { grid-template-columns: 1fr 1fr; } }
-        @media (max-width: 768px) { .grid-master, .grid-repair, .dashboard-3d { grid-template-columns: 1fr; } }
+        table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        th, td { border: 1px solid var(--border); padding: 10px 12px; font-size: 13px; text-align: left; }
+        th { background: #f8f9fa; color: #495057; font-weight: 600; }
+        tr:hover { background: #fdfdfd; }
         
-        .card-template { 
-            background: var(--card-bg); padding: 25px; border-radius: 16px; 
-            box-shadow: var(--shadow-template); border: var(--form-border);
-            display: flex; flex-direction: column; justify-content: space-between;
-        }
-        .form-header-block {
-            padding: 10px 15px; border-radius: 8px; margin-bottom: 18px; font-weight: 700; font-size: 1.05rem;
-            display: flex; justify-content: space-between; align-items: center; color: #ffffff;
-        }
-        .fh-dept { background: linear-gradient(135deg, #475569, #1e293b); }
-        .fh-user { background: linear-gradient(135deg, var(--success), #047857); }
-        .fh-device { background: linear-gradient(135deg, var(--primary), #1d4ed8); }
-        .fh-repair { background: linear-gradient(135deg, var(--purple), #6d28d9); }
-        .fh-task { background: linear-gradient(135deg, #0284c7, #0369a1); }
-
-        /* Form Controls */
-        .form-group { margin-bottom: 14px; }
-        label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.85rem; color: #475569; }
-        input, select, textarea { width: 100%; padding: 11px 14px; border: 1px solid #cbd5e1; background: #ffffff; color: var(--dark); border-radius: 8px; font-size: 0.9rem; transition: all 0.2s; }
-        input:focus, select:focus, textarea:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px rgba(37,99,235,0.15); }
-        input[readonly] { background-color: #f8fafc; color: #b45309; border-style: dashed; font-weight: bold; }
-        
-        /* Buttons */
-        .btn { display: inline-block; background: var(--primary); color: white; padding: 11px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 0.9rem; transition: 0.2s; text-align: center; }
-        .btn:hover { transform: translateY(-1px); opacity: 0.95; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        .btn-sm { padding: 4px 8px; font-size: 0.78rem; margin-right: 3px; border-radius: 4px; font-weight: 600; }
-        .btn-gray { background: #64748b; } .btn-warning { background: var(--warning); color:white;} .btn-danger { background: var(--danger); }
-        .btn-qr { background: #0f172a; color: #ffffff; } /* Nút QR màu đen sang trọng */
-        
-        /* Tables */
-        .table-container-under { margin-top: 20px; border-top: 1px dashed #cbd5e1; padding-top: 15px; }
-        .table-responsive { overflow-x: auto; max-height: 250px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px; }
-        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.88rem; background: #fff; }
-        th, td { padding: 12px 14px; border-bottom: 1px solid #f1f5f9; }
-        th { background-color: #f8fafc; font-weight: 700; position: sticky; top: 0; z-index: 10; color: #475569; border-bottom: 2px solid #e2e8f0; }
-        tr:hover { background-color: #f8fafc; }
-        
-        /* Badges */
-        .badge { padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; color: white; display: inline-block; }
-        .bg-success { background-color: var(--success); } .bg-warning { background-color: var(--warning); } .bg-danger { background-color: var(--danger); } .bg-gray { background-color: #64748b; } .bg-purple { background-color: var(--purple); } .bg-blue { background-color: var(--primary); }
-
-        /* Timer Pomodoro */
-        .timer-box { text-align: center; padding: 15px; background: #f8fafc; border-radius: 12px; margin-top: 5px; border: 1px solid #e2e8f0; }
-        .timer-display { font-size: 2.2rem; font-weight: bold; font-family: monospace; color: var(--primary); margin: 5px 0; }
-        
-        .card-inner-template { background: var(--card-bg); padding: 25px; border-radius: 16px; box-shadow: var(--shadow-template); border: var(--form-border); margin-bottom: 30px; }
-
-        /* MODAL POPUP HIỂN THỊ VÀ IN MÃ QR */
-        .qr-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6); z-index: 9999; justify-content: center; align-items: center; backdrop-filter: blur(4px); }
-        .qr-modal-content { background: #fff; padding: 30px; border-radius: 20px; max-width: 420px; width: 90%; text-align: center; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); position: relative; }
-        .close-modal { position: absolute; top: 15px; right: 15px; font-size: 1.5rem; cursor: pointer; color: var(--text-muted); }
-        
-        /* Khuôn mẫu Tem QR để dán lên thiết bị */
-        #qr-print-zone { 
-            border: 2px dashed #0f172a; padding: 20px; border-radius: 12px; margin: 20px auto; 
-            background: #fff; width: 260px; display: flex; flex-direction: column; align-items: center; gap: 10px;
-        }
-        #qr-code-canvas img { margin: 0 auto; }
-        .qr-info-text { font-size: 0.9rem; color: #1e293b; text-align: left; width: 100%; line-height: 1.4; border-top: 1px solid #e2e8f0; padding-top: 8px; margin-top: 5px; }
-
-        /* CSS CSS ĐẶC BIỆT DÀNH CHO MÁY IN (Chỉ in cái Tem QR khi bấm lệnh in) */
-        @media print {
-            body * { visibility: hidden; }
-            #qr-modal-target, #qr-modal-target *, #qr-print-zone, #qr-print-zone * { visibility: visible; }
-            #qr-modal-target { position: absolute; top: 0; left: 0; width: 100%; background: white; }
-            .no-print { display: none !important; }
-            #qr-print-zone { border: 1px solid #000; box-shadow: none; margin: 0; padding: 15px; width: 60mm; height: auto; } /* Định dạng vừa khuôn tem giấy decal cuộn */
-        }
+        .badge { padding: 3px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; }
+        .badge-active { background: #e8f8f5; color: #2ecc71; }
+        .badge-done { background: #eef2f7; color: #7f8c8d; }
+        .qr-canvas { width: 50px; height: 50px; background: #eee; margin: 0 auto; }
+        .text-center { text-align: center; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <header>
-        <h1>☁️ Hệ Thống Đám Mây Realtime & Quản Lý Mã QR</h1>
-        <p>Hệ thống tự động lưu trữ độc lập, tích hợp bộ tạo mã QR chuẩn hóa và tối ưu hóa biểu mẫu in ấn dán nhãn</p>
-        <div class="cloud-status">● Đã đồng bộ Đám mây (Firebase)</div>
-    </header>
-
-    <!-- Khối Thống Kê Dashboard -->
-    <div class="dashboard-3d">
-        <div class="widget-3d" style="border-top: 4px solid var(--primary);">
-            <span class="widget-title">🛠️ Thiết bị lỗi / từng lỗi</span>
-            <div class="widget-val" id="dash-faulty-devices" style="color: var(--primary);">0</div>
-            <div class="w-progress-bg"><div id="dash-faulty-progress" class="w-progress-bar bg-blue"></div></div>
-        </div>
-        <div class="widget-3d" style="border-top: 4px solid var(--purple);">
-            <span class="widget-title">💰 Tổng chi phí sửa chữa</span>
-            <div class="widget-val" id="dash-total-cost" style="color: var(--purple);">0 đ</div>
-            <div class="w-progress-bg"><div class="w-progress-bar bg-purple" style="width: 100%;"></div></div>
-        </div>
-        <div class="widget-3d" style="border-top: 4px solid var(--danger);">
-            <span class="widget-title">⏳ Việc cần làm hôm nay</span>
-            <div class="widget-val" id="dash-pending-tasks" style="color: var(--danger);">0</div>
-            <div class="w-progress-bg"><div id="dash-pending-progress" class="w-progress-bar bg-danger"></div></div>
-        </div>
-        <div class="widget-3d" style="border-top: 4px solid var(--success);">
-            <span class="widget-title">🎯 Tỷ lệ hoàn thành việc</span>
-            <div class="widget-val" id="dash-completion-rate" style="color: var(--success);">0%</div>
-            <div class="w-progress-bg"><div id="dash-completion-progress" class="w-progress-bar bg-success"></div></div>
-        </div>
+    <div class="header">
+        <h1>Hệ Thống Quản Lý Thiết Bị & Hồ Sơ Sửa Chữa</h1>
+        <div id="cloud_status" style="font-size:13px; font-weight:600; color:#2ecc71;"><i class="fa-solid fa-cloud"></i> ĐỒNG BỘ SUPABASE TRỰC TUYẾN</div>
     </div>
 
-    <!-- Hàng chứa các khối Form Mẫu -->
-    <div class="grid-master">
-        
-        <!-- Khối Phòng Ban -->
-        <div class="card-template">
-            <div>
-                <div class="form-header-block fh-dept" id="dept-form-title">🏢 Mẫu Phòng Ban / Đơn Vị</div>
-                <form id="dept-form" onsubmit="saveDept(event)">
-                    <input type="hidden" id="edit-dept-id-flag">
-                    <div class="form-group">
-                        <label>Tên Phòng ban / Bộ phận</label>
-                        <input type="text" id="dept-name" required placeholder="Ví dụ: Phòng Kỹ Thuật...">
-                    </div>
-                    <button type="submit" id="btn-dept-submit" class="btn" style="background-color: #334155; width:100%;">Thêm Phòng Ban</button>
-                    <button type="button" id="btn-dept-cancel" class="btn btn-gray" style="display:none; width:100%; margin-top:5px;" onclick="cancelDeptEdit()">Hủy</button>
-                </form>
-            </div>
-            <div class="table-container-under">
-                <div class="table-responsive">
-                    <table id="dept-table">
-                        <thead><tr><th>Tên Phòng Ban</th><th style="width:75px; text-align:right;">Xử lý</th></tr></thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- Khối Nhân Sự -->
-        <div class="card-template">
-            <div>
-                <div class="form-header-block fh-user" id="user-form-title">👤 Mẫu Nhân Sự Đơn Vị</div>
-                <form id="user-form" onsubmit="saveUser(event)">
-                    <input type="hidden" id="edit-user-id-flag">
-                    <div class="form-group"><label>Họ và Tên</label><input type="text" id="user-name" required placeholder="Nhập tên nhân sự..."></div>
-                    <div class="form-group"><label>Chức danh</label><input type="text" id="user-role" required placeholder="Ví dụ: Chuyên viên..."></div>
-                    <div class="form-group"><label>Thuộc Đơn vị nào</label><select id="user-dept" required><option value="">-- Chọn đơn vị --</option></select></div>
-                    <button type="submit" id="btn-user-submit" class="btn btn-success" style="width:100%;">Thêm Nhân Sự</button>
-                    <button type="button" id="btn-user-cancel" class="btn btn-gray" style="display:none; width:100%; margin-top:5px;" onclick="cancelUserEdit()">Hủy</button>
-                </form>
-            </div>
-            <div class="table-container-under">
-                <div class="table-responsive">
-                    <table id="user-table">
-                        <thead><tr><th>Nhân Sự</th><th>Phòng Ban</th><th style="width:75px; text-align:right;">Xử lý</th></tr></thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- Khối Thiết Bị -->
-        <div class="card-template">
-            <div>
-                <div class="form-header-block fh-device" id="device-form-title">📦 Mẫu Quản Lý Thiết Bị</div>
-                <form id="device-form" onsubmit="saveDevice(event)">
-                    <input type="hidden" id="edit-device-id-flag">
-                    <div class="form-group"><label>Mã thiết bị (Tự động)</label><input type="text" id="device-id" readonly></div>
-                    <div class="form-group"><label>Tên thiết bị</label><input type="text" id="device-name" required placeholder="Nhập tên thiết bị..."></div>
-                    <div class="form-group">
-                        <label>Nhóm loại</label>
-                        <select id="device-type">
-                            <option value="Thiết bị CNTT">Thiết bị CNTT</option>
-                            <option value="Máy văn phòng">Máy văn phòng</option>
-                            <option value="Thiết bị kỹ thuật">Thiết bị kỹ thuật</option>
-                        </select>
-                    </div>
-                    <div class="form-group"><label>Phòng ban chịu trách nhiệm</label><select id="device-dept" required><option value="">-- Chọn phòng ban --</option></select></div>
-                    <button type="submit" id="btn-device-submit" class="btn" style="width:100%;">Thêm Thiết Bị</button>
-                    <button type="button" id="btn-device-cancel" class="btn btn-gray" style="display:none; width:100%; margin-top:5px;" onclick="cancelDeviceEdit()">Hủy</button>
-                </form>
-            </div>
-            <div class="table-container-under">
-                <div class="table-responsive">
-                    <table id="device-table">
-                        <thead><tr><th>Thiết Bị</th><th>Quản Lý</th><th style="width:125px; text-align:right;">Nhãn QR / Sửa</th></tr></thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- Khối Pomodoro -->
-        <div class="card-template" style="justify-content: flex-start;">
-            <div class="form-header-block" style="background: linear-gradient(135deg, #e11d48, #9f1239);">⏱️ Thời Gian Pomodoro</div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
-                <div class="form-group"><label>Làm (phút)</label><input type="number" id="work-time" value="25" min="1" onchange="resetTimer()"></div>
-                <div class="form-group"><label>Nghỉ (phút)</label><input type="number" id="break-time" value="5" min="1" onchange="resetTimer()"></div>
-            </div>
-            <div class="timer-box">
-                <div id="timer-state" style="color: var(--success); font-weight: bold; font-size: 0.8rem;">ĐANG LÀM VIỆC 🎯</div>
-                <div id="timer-clock" class="timer-display">25:00</div>
-                <button id="btn-timer" class="btn btn-success" style="padding: 6px 10px; width: 48%; font-size:0.8rem;" onclick="toggleTimer()">Bắt Đầu</button>
-                <button class="btn btn-gray" style="padding: 6px 10px; width: 48%; font-size:0.8rem;" onclick="resetTimer()">Đặt Lại</button>
-            </div>
-        </div>
+    <div class="nav-tabs">
+        <div class="nav-tab active" id="tab_hoso" onclick="switchSection('hoso')"><i class="fa-solid fa-users"></i> Hồ Sơ Nhân Sự</div>
+        <div class="nav-tab" id="tab_thietbi" onclick="switchSection('thietbi')"><i class="fa-solid fa-qrcode"></i> Quản Lý & Cấp Phát Thiết Bị QR</div>
+        <div class="nav-tab" id="tab_suachua" onclick="switchSection('suachua')"><i class="fa-solid fa-screwdriver-wrench"></i> Thanh Toán Sửa Chữa</div>
     </div>
 
-    <!-- Khối Nhật Ký Bảo Trì -->
-    <div class="card-inner-template">
-        <div class="form-header-block fh-repair" id="repair-form-title">🛠️ Mẫu Nhật Ký Bảo Trì & Sửa Chữa Thiết Bị Toàn Hệ Thống</div>
-        <form id="repair-form" onsubmit="saveRepair(event)">
-            <input type="hidden" id="edit-repair-id-flag">
-            <div class="grid-repair">
-                <div class="form-group"><label>1. Thiết bị đang sự cố</label><select id="repair-device" required onchange="filterRepairUserByDevice()"><option value="">-- Chọn thiết bị --</option></select></div>
-                <div class="form-group"><label>2. Hiện trạng hư hỏng / Cách xử lý</label><input type="text" id="repair-content" required placeholder="Mô tả lỗi..."></div>
-                <div class="form-group"><label>3. Kỹ thuật phụ trách (Lọc tự động)</label><select id="repair-user"><option value="">-- Vui lòng chọn thiết bị trước --</option></select></div>
-                <div class="form-group"><label>4. Chi phí vật tư phát sinh (VNĐ)</label><input type="number" id="repair-cost" value="0" min="0"></div>
-            </div>
-            <div style="display: flex; gap: 10px; justify-content: flex-end;">
-                <button type="button" id="btn-repair-cancel" class="btn btn-gray" style="display:none;" onclick="cancelRepairEdit()">Hủy</button>
-                <button type="submit" id="btn-repair-submit" class="btn btn-purple">Lưu Hồ Sơ Sửa Chữa</button>
-            </div>
-        </form>
-        <div class="table-container-under">
-            <div class="table-responsive">
-                <table id="repair-table">
-                    <thead><tr><th>Thiết Bị</th><th>Chi Tiết Sự Cố</th><th>Kỹ Thuật</th><th>Chi Phí</th><th style="width:100px; text-align:right;">Hành động</th></tr></thead>
-                    <tbody></tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
-    <!-- Khối Lịch Trình Nhắc Việc -->
-    <div class="card-inner-template">
-        <div class="form-header-block fh-task" id="task-form-title">📋 Mẫu Kế Hoạch & Nhắc Lịch Thời Gian Thực (Realtime Countdown)</div>
-        <form id="task-form" onsubmit="saveTask(event)">
-            <input type="hidden" id="edit-task-id-flag">
-            <div class="grid-3" style="margin-bottom: 12px;">
-                <div class="form-group"><label>Nội dung công việc</label><input type="text" id="task-name" required placeholder="Nhập việc cần làm..."></div>
-                <div class="form-group"><label>Thiết bị liên kết</label><select id="task-device"><option value="">-- Không có --</option></select></div>
-                <div class="form-group"><label>Nhân sự chịu trách nhiệm</label><select id="task-user"><option value="">-- Chưa giao --</option></select></div>
-            </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap:15px; align-items: flex-end;">
+    <div class="wrapper">
+        <div class="sidebar">
+            <div class="card s-form" id="form_hoso_panel">
+                <h3><i class="fa-solid fa-file-excel"></i> Nhập Dữ Liệu Excel</h3>
                 <div class="form-group">
-                    <label>Ưu tiên</label>
-                    <select id="task-priority"><option value="Cao">🔴 Cao</option><option value="Trung bình" selected>🟡 Trung bình</option><option value="Thấp">🟢 Thấp</option></select>
+                    <label>Chọn tệp danh sách nhân sự</label>
+                    <input type="file" id="excel_file" accept=".xlsx, .xls" onchange="importExcelNhanSu(this)">
                 </div>
-                <div class="form-group"><label>Thời gian bắt đầu</label><input type="time" id="task-start-time" required></div>
-                <div class="form-group"><label>Thời lượng làm (phút)</label><input type="number" id="task-duration" value="30" min="1" required></div>
+                <button class="btn btn-danger" onclick="clearDataCloud('nhan_su')"><i class="fa-solid fa-trash"></i> Xóa sạch dữ liệu cũ</button>
             </div>
-            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 15px;">
-                <button type="button" id="btn-task-cancel" class="btn btn-gray" style="display:none;" onclick="cancelTaskEdit()">Hủy</button>
-                <button type="submit" id="btn-task-submit" class="btn" style="background:#0284c7;">Lưu Lịch Trình</button>
+
+            <div class="card s-form" id="form_thietbi_panel" style="display:none;">
+                <h3><i class="fa-solid fa-plus"></i> Cấp Phát Thiết Bị</h3>
+                <div class="form-group">
+                    <label>Tìm kiếm nhân sự nhận (*)</label>
+                    <input type="text" id="dev_user_search" class="form-control" placeholder="Nhập tên hoặc mã NV..." oninput="smartSuggest(this, 'dev')">
+                    <div id="dev_suggest" class="suggest-box"></div>
+                    <input type="hidden" id="dev_user_id">
+                </div>
+                <div class="form-group">
+                    <label>Tên thiết bị tài sản (*)</label>
+                    <input type="text" id="dev_name" class="form-control" placeholder="Ví dụ: Máy tính Dell Latitude Vostro">
+                </div>
+                <div class="form-group">
+                    <label>Mã thiết bị (Số Seri)</label>
+                    <input type="text" id="dev_code" class="form-control" placeholder="Bỏ trống hệ thống tự sinh mã">
+                </div>
+                <button class="btn btn-success" onclick="saveDeviceCofig()"><i class="fa-solid fa-floppy-disk"></i> Lưu & Xuất Mã QR</button>
             </div>
-        </form>
-        <div class="table-container-under">
-            <div class="table-responsive" style="max-height: 350px;">
-                <table id="task-table">
-                    <thead><tr><th>Công Việc</th><th>Thiết Bị</th><th>Phụ Trách</th><th>Ưu Tiên</th><th>⏰ Bắt Đầu</th><th>⏳ Đếm Ngược</th><th>Trạng Thái</th><th style="width:100px; text-align:right;">Hành động</th></tr></thead>
-                    <tbody></tbody>
+
+            <div class="card s-form" id="form_suachua_panel" style="display:none;">
+                <h3><i class="fa-solid fa-receipt"></i> Lập Hồ Sơ Sửa Chữa</h3>
+                <div class="form-group">
+                    <label>Chọn thiết bị đang sự cố (*)</label>
+                    <input type="text" id="rep_device_search" class="form-control" placeholder="Nhập tên hoặc Mã QR thiết bị..." oninput="smartSuggest(this, 'rep')">
+                    <div id="rep_suggest" class="suggest-box"></div>
+                    <input type="hidden" id="rep_device_id">
+                </div>
+                <div class="form-group">
+                    <label>Nội dung / Hiện trạng hỏng</label>
+                    <input type="text" id="rep_issue" class="form-control" placeholder="Ví dụ: Hỏng phím, vỡ màn hình...">
+                </div>
+                <div class="form-group">
+                    <label>Chi phí sửa chữa (VNĐ)</label>
+                    <input type="number" id="rep_cost" class="form-control" placeholder="0">
+                </div>
+                <div class="form-group">
+                    <label>Nhân viên phụ trách</label>
+                    <input type="text" id="rep_agent" class="form-control" placeholder="Tên thợ hoặc đơn vị sửa">
+                </div>
+                <button class="btn" onclick="saveRepairRecord()"><i class="fa-solid fa-check"></i> Lưu Hồ Sơ Chi Phí</button>
+            </div>
+        </div>
+
+        <div class="main-panel">
+            <div id="sec_hoso" class="app-section active">
+                <input type="text" id="search_hoso" class="search-bar" placeholder="Tìm kiếm nhanh nhân sự theo tên, mã hoặc phòng ban..." oninput="displayNhanSu()">
+                <table>
+                    <thead>
+                        <tr>
+                            <th class="text-center">Mã NV</th>
+                            <th>Họ và Tên</th>
+                            <th>Đơn Vị Phòng Ban</th>
+                            <th>Chức Danh Công Việc</th>
+                            <th>Số CCCD</th>
+                            <th>Giới Tính</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table_hoso_body">
+                        <tr><td colspan="6" class="text-center">Đang tải cơ sở dữ liệu nhân sự...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div id="sec_thietbi" class="app-section">
+                <input type="text" id="search_thietbi" class="search-bar" placeholder="Tìm nhanh thiết bị, quét mã QR hoặc tên người sử dụng..." oninput="displayThietBi()">
+                <table>
+                    <thead>
+                        <tr>
+                            <th class="text-center" style="width:70px;">Mã QR</th>
+                            <th>Mã Thiết Bị</th>
+                            <th>Tên Thiết Bị / Tài Sản</th>
+                            <th>Người Đang Giữ</th>
+                            <th>Bộ Phận</th>
+                            <th class="text-center">Trạng Thái</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table_thietbi_body">
+                        <tr><td colspan="6" class="text-center">Chưa có thiết bị nào được cấp phát.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div id="sec_suachua" class="app-section">
+                <input type="text" id="search_suachua" class="search-bar" placeholder="Tìm kiếm hồ sơ sửa chữa, thiết bị hoặc kỹ thuật..." oninput="displaySuaChua()">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Thiết Bị</th>
+                            <th>Mã Thiết Bị</th>
+                            <th>Nội Dung Sự Cố</th>
+                            <th>Kỹ Thuật Xử Lý</th>
+                            <th>Chi Phí Thanh Toán</th>
+                            <th class="text-center">Ngày Lập</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table_suachua_body">
+                        <tr><td colspan="6" class="text-center">Chưa ghi nhận lịch sử bảo trì, sửa chữa nào.</td></tr>
+                    </tbody>
                 </table>
             </div>
         </div>
     </div>
-</div>
 
-<!-- CỦA SỔ POPUP POPUP HIỂN THỊ VÀ IN MÃ QR TÀI SẢN -->
-<div id="qr-modal-target" class="qr-modal" onclick="closeQrModal(event)">
-    <div class="qr-modal-content" onclick="event.stopPropagation()">
-        <span class="close-modal no-print" onclick="closeQrModal(null)">&times;</span>
-        <h3 class="no-print" style="margin-bottom: 10px; color: var(--dark)">🖨️ Nhãn Mã QR Thiết Bị</h3>
-        <p class="no-print" style="font-size:0.85rem; color: var(--text-muted); margin-bottom: 15px;">Bạn có thể in mã này dán trực tiếp lên tài sản. Khi quét camera, thông tin & trạng thái thực tế sẽ hiển thị.</p>
-        
-        <!-- Vùng khuôn khổ tem in dán nhãn -->
-        <div id="qr-print-zone">
-            <div style="font-weight: 800; font-size: 0.95rem; color:#0f172a; letter-spacing: 0.5px;">TÀI SẢN DOANH NGHIỆP</div>
-            <div id="qr-code-canvas"></div>
-            <div class="qr-info-text" id="qr-info-details">
-                <!-- Nội dung chữ đổ động bằng JS -->
-            </div>
-        </div>
-        
-        <div style="display: flex; gap:10px; justify-content: center; margin-top: 15px;" class="no-print">
-            <button class="btn btn-gray" onclick="closeQrModal(null)">Đóng lại</button>
-            <button class="btn btn-qr" onclick="window.print()">Bấm Lệnh In Tem</button>
-        </div>
-    </div>
-</div>
+    <script>
+        // Cấu hình kết nối cơ sở dữ liệu Supabase của bạn
+        const SUPABASE_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co"; 
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ";
+        const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-<script>
-    // ==========================================
-    // KHU VỰC CẤU HÌNH FIREBASE ONLINE CỦA BẠN
-    // ==========================================
-    const firebaseConfig = {
-        apiKey: "AIzaSyA1234567890-Thay_The_Key_Cua_Ban",
-        authDomain: "du-an-cua-ban.firebaseapp.com",
-        databaseURL: "https://du-an-cua-ban-default-rtdb.firebaseio.com/", 
-        projectId: "du-an-cua-ban",
-        storageBucket: "du-an-cua-ban.appspot.com",
-        messagingSenderId: "1234567890",
-        appId: "1:1234567890:web:abcdef123456"
-    };
+        let DB_NHAN_SU = [];
+        let DB_THIET_BI = [];
+        let DB_SUA_CHUA = [];
 
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
+        window.onload = async function() {
+            await fetchAllData();
+        };
 
-    let depts = [], users = [], devices = [], tasks = [], repairs = [];
-    let timerInterval, isRunning = false, isWorkingMode = true, timeLeft = 25 * 60;
+        async function fetchAllData() {
+            try {
+                let r1 = await client.from('nhan_su').select('*').order('id', { ascending: true });
+                DB_NHAN_SU = r1.data || [];
+                
+                let r2 = await client.from('cap_phat_thiet_bi').select('*').order('created_at', { ascending: false });
+                DB_THIET_BI = r2.data || [];
+                
+                let r3 = await client.from('ho_so_sua_chua').select('*').order('created_at', { ascending: false });
+                DB_SUA_CHUA = r3.data || [];
 
-    // --- LẮNG NGHE ĐỒNG BỘ ĐÁM MÂY REALTIME ---
-    db.ref().on('value', snapshot => {
-        const data = snapshot.val() || {};
-        depts = data.depts || [];
-        users = data.users || [];
-        devices = data.devices || [];
-        tasks = data.tasks || [];
-        repairs = data.repairs || [];
-
-        // Đảm bảo đồng bộ cấu trúc chuẩn
-        devices = devices.map(d => { if (!d.dept) d.dept = "Chưa rõ phòng ban"; return d; });
-        tasks = tasks.map(t => { if (!t.status) t.status = "Chờ xử lý"; return t; });
-
-        renderAll();
-        renderTasksRealtime();
-        updateDashboard();
-        
-        // KIỂM TRA NẾU TRÌNH DUYỆT ĐANG TRONG TRẠNG THÁI QUÉT XEM NHANH ĐƯỜNG LINK QR
-        checkUrlForScanParameters();
-    });
-
-    function pushToCloud() { db.ref().set({ depts, users, devices, tasks, repairs }); }
-
-    function setFormCurrentTime() {
-        let now = new Date();
-        document.getElementById('task-start-time').value = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
-    }
-
-    function generateDeviceID() {
-        if(document.getElementById('edit-device-id-flag').value) return; 
-        let id;
-        do { id = "TB-" + Math.floor(10000 + Math.random() * 90000); } 
-        while (devices.some(d => d && d.id === id));
-        document.getElementById('device-id').value = id;
-    }
-
-    // --- DASHBOARD REALTIME ---
-    function updateDashboard() {
-        const uniqueFaulty = new Set(repairs.map(r => r.deviceId)).size;
-        document.getElementById('dash-faulty-devices').textContent = uniqueFaulty;
-        document.getElementById('dash-faulty-progress').style.width = Math.min((uniqueFaulty / (devices.length || 1)) * 100, 100) + "%";
-
-        const totalCost = repairs.reduce((sum, r) => sum + (parseFloat(r.cost) || 0), 0);
-        document.getElementById('dash-total-cost').textContent = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(totalCost);
-
-        const pending = tasks.filter(t => t.status !== 'Đã xong').length;
-        document.getElementById('dash-pending-tasks').textContent = pending;
-        document.getElementById('dash-pending-progress').style.width = Math.min((pending / (tasks.length || 1)) * 100, 100) + "%";
-
-        const completed = tasks.filter(t => t.status === 'Đã xong').length;
-        let rate = tasks.length ? Math.round((completed / tasks.length) * 100) : 0;
-        document.getElementById('dash-completion-rate').textContent = rate + "%";
-        document.getElementById('dash-completion-progress').style.width = rate + "%";
-    }
-
-    // --- CÁC HÀM XỬ LÝ BIỂU MẪU CƠ BẢN ---
-    function saveDept(e) {
-        e.preventDefault(); const name = document.getElementById('dept-name').value.trim(); const editFlag = document.getElementById('edit-dept-id-flag').value;
-        if (editFlag) { depts[editFlag] = name; cancelDeptEdit(); } else { if(depts.includes(name)) { alert("Phòng ban đã có!"); return; } depts.push(name); }
-        pushToCloud(); document.getElementById('dept-name').value = '';
-    }
-    function editDept(idx) { document.getElementById('edit-dept-id-flag').value = idx; document.getElementById('dept-name').value = depts[idx]; document.getElementById('btn-dept-submit').textContent = "Cập Nhật"; document.getElementById('btn-dept-cancel').style.display = "block"; }
-    function cancelDeptEdit() { document.getElementById('edit-dept-id-flag').value = ""; document.getElementById('btn-dept-submit').textContent = "Thêm Phòng Ban"; document.getElementById('btn-dept-cancel').style.display = "none"; document.getElementById('dept-name').value = ''; }
-    function deleteDept(idx) { if(confirm("Xóa phòng ban này?")) { depts.splice(idx, 1); pushToCloud(); } }
-
-    function saveUser(e) {
-        e.preventDefault(); const name = document.getElementById('user-name').value.trim(); const role = document.getElementById('user-role').value.trim(); const dept = document.getElementById('user-dept').value; const editFlag = document.getElementById('edit-user-id-flag').value;
-        if (editFlag) { users[editFlag] = { name, role, dept }; cancelUserEdit(); } else { users.push({ name, role, dept }); }
-        pushToCloud(); document.getElementById('user-name').value = ''; document.getElementById('user-role').value = '';
-    }
-    function editUser(idx) { const u = users[idx]; document.getElementById('edit-user-id-flag').value = idx; document.getElementById('user-name').value = u.name; document.getElementById('user-role').value = u.role; document.getElementById('user-dept').value = u.dept; document.getElementById('btn-user-submit').textContent = "Cập Nhật"; document.getElementById('btn-user-cancel').style.display = "block"; }
-    function cancelUserEdit() { document.getElementById('edit-user-id-flag').value = ""; document.getElementById('btn-user-submit').textContent = "Thêm Nhân Sự"; document.getElementById('btn-user-cancel').style.display = "none"; document.getElementById('user-name').value = ''; }
-    function deleteUser(idx) { if(confirm("Xóa nhân sự này?")) { users.splice(idx, 1); pushToCloud(); } }
-
-    function saveDevice(e) {
-        e.preventDefault(); const id = document.getElementById('device-id').value; const name = document.getElementById('device-name').value.trim(); const type = document.getElementById('device-type').value; const dept = document.getElementById('device-dept').value; const editFlag = document.getElementById('edit-device-id-flag').value;
-        if (editFlag) { devices[editFlag] = { id, name, type, dept }; cancelDeviceEdit(); } else { devices.push({ id, name, type, dept }); }
-        pushToCloud(); document.getElementById('device-name').value = ''; generateDeviceID();
-    }
-    function editDevice(idx) { const d = devices[idx]; document.getElementById('edit-device-id-flag').value = idx; document.getElementById('device-id').value = d.id; document.getElementById('device-name').value = d.name; document.getElementById('device-type').value = d.type; document.getElementById('device-dept').value = d.dept; document.getElementById('btn-device-submit').textContent = "Cập Nhật"; document.getElementById('btn-device-cancel').style.display = "block"; }
-    function cancelDeviceEdit() { document.getElementById('edit-device-id-flag').value = ""; document.getElementById('btn-device-submit').textContent = "Thêm Thiết Bị"; document.getElementById('btn-device-cancel').style.display = "none"; document.getElementById('device-name').value = ''; generateDeviceID(); }
-    function deleteDevice(idx) { if(confirm("Xóa thiết bị này?")) { devices.splice(idx, 1); pushToCloud(); } }
-
-    function filterRepairUserByDevice() {
-        const devName = document.getElementById('repair-device').value; const userSelect = document.getElementById('repair-user'); userSelect.innerHTML = '<option value="">-- Chọn kỹ thuật sửa --</option>'; if (!devName) return;
-        const selectedDev = devices.find(d => d.name === devName); const targetDept = selectedDev ? selectedDev.dept : ""; const filtered = users.filter(u => u.dept === targetDept);
-        if(filtered.length === 0) { userSelect.innerHTML = `<option value="">-- Không có thợ thuộc phòng ${targetDept} --</option>`; } 
-        else { filtered.forEach(u => { userSelect.innerHTML += `<option value="${u.name}">${u.name} (${u.role})</option>`; }); }
-    }
-
-    function saveRepair(e) {
-        e.preventDefault(); const deviceName = document.getElementById('repair-device').value; const content = document.getElementById('repair-content').value.trim(); const userName = document.getElementById('repair-user').value; const cost = parseFloat(document.getElementById('repair-cost').value) || 0; const editFlag = document.getElementById('edit-repair-id-flag').value;
-        const selectedDev = devices.find(d => d.name === deviceName); const deviceId = selectedDev ? selectedDev.id : "N/A"; const deptName = selectedDev ? selectedDev.dept : "Chưa rõ";
-        if (editFlag) { repairs[editFlag] = { deviceId, deviceName, deptName, content, userName, cost }; cancelRepairEdit(); } else { repairs.push({ deviceId, deviceName, deptName, content, userName, cost }); }
-        pushToCloud(); document.getElementById('repair-content').value = ''; document.getElementById('repair-cost').value = '0';
-    }
-    function editRepair(idx) { const r = repairs[idx]; document.getElementById('edit-repair-id-flag').value = idx; document.getElementById('repair-device').value = r.deviceName; filterRepairUserByDevice(); document.getElementById('repair-content').value = r.content; document.getElementById('repair-user').value = r.userName; document.getElementById('repair-cost').value = r.cost; document.getElementById('btn-repair-submit').textContent = "Cập Nhật Nhật Ký"; document.getElementById('btn-repair-cancel').style.display = "inline-block"; }
-    function cancelRepairEdit() { document.getElementById('edit-repair-id-flag').value = ""; document.getElementById('btn-repair-submit').textContent = "Lưu Hồ Sơ Sửa Chữa"; document.getElementById('btn-repair-cancel').style.display = "none"; document.getElementById('repair-content').value = ''; }
-    function deleteRepair(idx) { if(confirm("Xóa lịch sử này?")) { repairs.splice(idx, 1); pushToCloud(); } }
-
-    function saveTask(e) {
-        e.preventDefault(); const name = document.getElementById('task-name').value.trim(); const device = document.getElementById('task-device').value; const user = document.getElementById('task-user').value; const priority = document.getElementById('task-priority').value; const startTime = document.getElementById('task-start-time').value; const duration = parseInt(document.getElementById('task-duration').value) || 30; const editFlag = document.getElementById('edit-task-id-flag').value;
-        if (editFlag) { const oldStt = tasks[editFlag].status || "Chờ xử lý"; tasks[editFlag] = { name, device, user, priority, startTime, duration, status: oldStt }; cancelTaskEdit(); } else { tasks.push({ name, device, user, priority, startTime, duration, status: "Chờ xử lý" }); }
-        pushToCloud(); document.getElementById('task-name').value = ''; setFormCurrentTime();
-    }
-    function toggleTaskStatus(idx) { tasks[idx].status = tasks[idx].status === "Đã xong" ? "Chờ xử lý" : "Đã xong"; pushToCloud(); }
-    function editTask(idx) { const t = tasks[idx]; document.getElementById('edit-task-id-flag').value = idx; document.getElementById('task-name').value = t.name; document.getElementById('task-device').value = t.device; document.getElementById('task-user').value = t.user; document.getElementById('task-priority').value = t.priority; document.getElementById('task-start-time').value = t.startTime; document.getElementById('task-duration').value = t.duration; document.getElementById('btn-task-submit').textContent = "Cập Nhật Kế Hoạch"; document.getElementById('btn-task-cancel').style.display = "inline-block"; }
-    function cancelTaskEdit() { document.getElementById('edit-task-id-flag').value = ""; document.getElementById('btn-task-submit').textContent = "Lưu Lịch Trình"; document.getElementById('btn-task-cancel').style.display = "none"; document.getElementById('task-name').value = ''; setFormCurrentTime(); }
-    function deleteTask(idx) { if(confirm("Xóa việc này?")) { tasks.splice(idx, 1); pushToCloud(); } }
-
-    // --- ĐỒNG HỒ POMODORO ---
-    function updateTimerDisplay() { let mins = Math.floor(timeLeft / 60).toString().padStart(2, '0'); let secs = (timeLeft % 60).toString().padStart(2, '0'); document.getElementById('timer-clock').textContent = `${mins}:${secs}`; }
-    function toggleTimer() { const btn = document.getElementById('btn-timer'); if (isRunning) { clearInterval(timerInterval); btn.textContent = "Tiếp Tục"; btn.className = "btn btn-success"; isRunning = false; } else { isRunning = true; btn.textContent = "Tạm Dừng"; btn.className = "btn btn-danger"; timerInterval = setInterval(() => { if (timeLeft > 0) { timeLeft--; updateTimerDisplay(); } else { clearInterval(timerInterval); isRunning = false; isWorkingMode = !isWorkingMode; if (!isWorkingMode) { alert("☕ Đến giờ nghỉ ngơi!"); document.getElementById('timer-state').textContent = "ĐANG NGHỈ NGƠI ☕"; timeLeft = (parseInt(document.getElementById('break-time').value) || 5) * 60; } else { alert("🎯 Tập trung làm việc!"); document.getElementById('timer-state').textContent = "ĐANG LÀM VIỆC 🎯"; timeLeft = (parseInt(document.getElementById('work-time').value) || 25) * 60; } btn.textContent = "Bắt Đầu"; btn.className = "btn btn-success"; updateTimerDisplay(); } }, 1000); } }
-    function resetTimer() { clearInterval(timerInterval); isRunning = false; isWorkingMode = true; document.getElementById('timer-state').textContent = "ĐANG LÀM VIỆC 🎯"; timeLeft = (parseInt(document.getElementById('work-time').value) || 25) * 60; updateTimerDisplay(); }
-
-    // --- HỆ THỐNG ĐIỀU HÀNH MÃ QR ĐỘC LẬP THIẾT BỊ ---
-    function openQrModal(deviceId) {
-        const d = devices.find(item => item.id === deviceId);
-        if(!d) return;
-
-        // Lấy số lần hỏng hóc thực tế
-        const errorCount = repairs.filter(r => r.deviceId === deviceId).length;
-        const currentStatus = errorCount > 0 ? `🚨 Có vấn đề (${errorCount} lần sửa)` : "🟢 Hoạt động tốt";
-
-        // Xóa mã QR cũ trước khi vẽ mã mới
-        document.getElementById('qr-code-canvas').innerHTML = "";
-
-        // Tạo đường dẫn động (Lấy link hiện tại của hệ thống online để tích hợp tham số quét)
-        const currentUrlBase = window.location.href.split('?')[0];
-        const scanUrl = `${currentUrlBase}?scan_id=${d.id}`;
-
-        // Gọi thư viện Khởi tạo mã QR độc lập
-        new QRCode(document.getElementById("qr-code-canvas"), {
-            text: scanUrl,
-            width: 160,
-            height: 160,
-            colorDark : "#0f172a",
-            colorLight : "#ffffff",
-            correctLevel : QRCode.CorrectLevel.H
-        });
-
-        // Điền thông tin vào mẫu in
-        document.getElementById('qr-info-details').innerHTML = `
-            <strong>Tên tài sản:</strong> ${d.name}<br>
-            <strong>Mã quản lý:</strong> ${d.id}<br>
-            <strong>Chịu trách nhiệm:</strong> ${d.dept}<br>
-            <strong>Tình trạng:</strong> ${currentStatus}
-        `;
-
-        document.getElementById('qr-modal-target').style.display = "flex";
-    }
-
-    function closeQrModal(e) {
-        if(!e || e.target === document.getElementById('qr-modal-target')) {
-            document.getElementById('qr-modal-target').style.display = "none";
+                displayNhanSu();
+                displayThietBi();
+                displaySuaChua();
+            } catch (e) { console.error("Lỗi đồng bộ dữ liệu: ", e); }
         }
-    }
 
-    // Cơ chế tự động quét: Nếu bất kỳ điện thoại nào quét camera vào mã QR dán trên máy
-    // Nó sẽ tự động kích hoạt hàm này để trích xuất dữ liệu từ Cloud hiện ra màn hình xem nhanh
-    function checkUrlForScanParameters() {
-        const urlParams = new URLSearchParams(window.location.search);
-        const scanId = urlParams.get('scan_id');
-        if(scanId && devices.length > 0) {
-            const d = devices.find(item => item.id === scanId);
-            if(d) {
-                const errorCount = repairs.filter(r => r.deviceId === scanId).length;
-                const repairLogs = repairs.filter(r => r.deviceId === scanId).map(r => `• ${r.content} (${new Intl.NumberFormat('vi-VN').format(r.cost)} đ)`).join('<br>') || 'Chưa có lịch sử hư hỏng';
-                
-                alert(`[THÔNG TIN TRẠNG THÁI THIẾT BỊ QUÉT ĐƯỢC]\n\n` +
-                      `- Mã thiết bị: ${d.id}\n` +
-                      `- Tên tài sản: ${d.name}\n` +
-                      `- Loại: ${d.type}\n` +
-                      `- Đơn vị quản lý: ${d.dept}\n` +
-                      `- Tình trạng sửa chữa: ${errorCount > 0 ? 'Cần chú ý (' + errorCount + ' lần bảo trì)' : 'Ổn định'}\n` +
-                      `- Nhật ký: ${errorCount > 0 ? 'Có hỏng hóc phát sinh' : 'Thiết bị sạch dữ liệu lỗi'}`);
-                
-                // Xóa tham số trên URL để không bị lặp lại thông báo khi tải lại trang
-                window.history.replaceState({}, document.title, window.location.pathname);
+        // Chuyển đổi tab thông minh (Ẩn/hiện cả form nhập và bảng hiển thị tương ứng)
+        function switchSection(target) {
+            document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.app-section').forEach(el => el.classList.remove('active'));
+            document.getElementById('tab_' + target).classList.add('active');
+            document.getElementById('sec_' + target).classList.add('active');
+            
+            // Chuyển đổi panel form bên trái
+            document.getElementById('form_hoso_panel').style.display = (target === 'hoso') ? 'block' : 'none';
+            document.getElementById('form_thietbi_panel').style.display = (target === 'thietbi') ? 'block' : 'none';
+            document.getElementById('form_suachua_panel').style.display = (target === 'suachua') ? 'block' : 'none';
+        }
+
+        // Xử lý nạp dữ liệu từ file Excel hàng loạt
+        function importExcelNhanSu(input) {
+            const file = input.files[0]; if(!file) return;
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+
+                    let headerIdx = 0;
+                    for (let i = 0; i < Math.min(rows.length, 10); i++) {
+                        let txt = rows[i].join("").toLowerCase();
+                        if(txt.includes("hoten") || txt.includes("manv") || txt.includes("cccd")) { headerIdx = i; break; }
+                    }
+
+                    let bulkData = [];
+                    for(let i = headerIdx + 1; i < rows.length; i++) {
+                        let r = rows[i];
+                        if(!r[1]) continue; // Bỏ qua nếu cột tên trống
+                        
+                        let idVal = parseInt(String(r[0]).replace(/[^\d]/g, "")) || i;
+                        bulkData.push({
+                            id: idVal,
+                            ho_ten: String(r[1]).trim().toUpperCase(),
+                            ma_don_vi: String(r[4] || r[3]).trim(),
+                            chuc_danh_cong_viec: String(r[5] || "").trim(),
+                            so_cccd: String(r[8] || null).trim(),
+                            gioi_tinh: String(r[3] || "Nam").trim()
+                        });
+                    }
+
+                    // Giải pháp loại bỏ lỗi ON CONFLICT bằng cơ chế xóa dọn các ID trùng trước khi insert bulk
+                    const targetIds = bulkData.map(d => d.id);
+                    await client.from('nhan_su').delete().in('id', targetIds);
+
+                    const { error } = await client.from('nhan_su').insert(bulkData);
+                    if(error) throw error;
+
+                    alert(`Đã nạp thành công ${bulkData.length} nhân sự lên hệ thống đám mây!`);
+                    await fetchAllData();
+                } catch(err) { alert("Lỗi xử lý file Excel: " + err.message); }
+                finally { input.value = ""; }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // Gợi ý nhân sự và thiết bị liên kết thông minh
+        function smartSuggest(input, mode) {
+            const val = input.value.toLowerCase().trim();
+            const box = document.getElementById(mode + '_suggest');
+            if(!val) { box.style.display = 'none'; return; }
+
+            box.innerHTML = "";
+            if (mode === 'dev') {
+                let matches = DB_NHAN_SU.filter(n => n.ho_ten.toLowerCase().includes(val) || String(n.id).includes(val)).slice(0, 5);
+                matches.forEach(n => {
+                    let div = document.createElement('div'); div.className = 'suggest-item';
+                    div.innerText = `${n.ho_ten} (Mã: NS-${n.id})`;
+                    div.onclick = () => {
+                        document.getElementById('dev_user_search').value = n.ho_ten;
+                        document.getElementById('dev_user_id').value = n.id;
+                        box.style.display = 'none';
+                    };
+                    box.appendChild(div);
+                });
+            } else {
+                let matches = DB_THIET_BI.filter(t => t.ten_thiet_bi.toLowerCase().includes(val) || t.ma_thiet_bi.toLowerCase().includes(val)).slice(0, 5);
+                matches.forEach(t => {
+                    let div = document.createElement('div'); div.className = 'suggest-item';
+                    div.innerText = `${t.ten_thiet_bi} [${t.ma_thiet_bi}]`;
+                    div.onclick = () => {
+                        document.getElementById('rep_device_search').value = t.ten_thiet_bi;
+                        document.getElementById('rep_device_id').value = t.id;
+                        box.style.display = 'none';
+                    };
+                    box.appendChild(div);
+                });
+            }
+            box.style.display = 'block';
+        }
+
+        // Lưu cấp phát thiết bị tài sản
+        async function saveDeviceCofig() {
+            const nsId = document.getElementById('dev_user_id').value;
+            const name = document.getElementById('dev_name').value.trim();
+            let code = document.getElementById('dev_code').value.trim();
+            if(!nsId || !name) { alert("Vui lòng nhập đầy đủ thông tin nhân sự và thiết bị!"); return; }
+            if(!code) code = "EQ-" + Date.now().toString().slice(-6);
+
+            const ns = DB_NHAN_SU.find(x => x.id == nsId);
+            let payload = {
+                nhan_su_id: parseInt(nsId),
+                ten_nhan_vien: ns.ho_ten,
+                ma_don_vi: ns.ma_don_vi,
+                ten_thiet_bi: name,
+                ma_thiet_bi: code.toUpperCase(),
+                trang_thai: "Đang sử dụng"
+            };
+
+            const { error } = await client.from('cap_phat_thiet_bi').insert([payload]);
+            if(!error) { alert("Cấp phát thiết bị thành công!"); await fetchAllData(); }
+        }
+
+        // Lưu hồ sơ sửa chữa
+        async function saveRepairRecord() {
+            const devId = document.getElementById('rep_device_id').value;
+            const issue = document.getElementById('rep_issue').value.trim();
+            const cost = document.getElementById('rep_cost').value || 0;
+            const agent = document.getElementById('rep_agent').value.trim();
+            if(!devId || !issue) { alert("Vui lòng chọn thiết bị và nhập nội dung sự cố!"); return; }
+
+            const dev = DB_THIET_BI.find(x => x.id == devId);
+            let payload = {
+                thiet_bi_id: parseInt(devId),
+                ten_thiet_bi: dev.ten_thiet_bi,
+                ma_thiet_bi: dev.ma_thiet_bi,
+                noi_dung_hong: issue,
+                chi_phi: parseFloat(cost),
+                nguoi_sua: agent
+            };
+
+            const { error } = await client.from('ho_so_sua_chua').insert([payload]);
+            if(!error) { alert("Đã ghi nhận hồ sơ chi phí sửa chữa!"); await fetchAllData(); }
+        }
+
+        // Hiển thị các bảng dữ liệu
+        function displayNhanSu() {
+            const tbody = document.getElementById('table_hoso_body'); tbody.innerHTML = "";
+            const kw = document.getElementById('search_hoso').value.toLowerCase();
+            let list = DB_NHAN_SU.filter(x => x.ho_ten.toLowerCase().includes(kw) || x.ma_don_vi.toLowerCase().includes(kw));
+            
+            list.forEach(x => {
+                tbody.innerHTML += `<tr>
+                    <td class="text-center">NS-${x.id}</td>
+                    <td><b>${x.ho_ten}</b></td>
+                    <td>${x.ma_don_vi}</td>
+                    <td>${x.chuc_danh_cong_viec || ''}</td>
+                    <td>${x.so_cccd || ''}</td>
+                    <td>${x.gioi_tinh}</td>
+                </tr>`;
+            });
+        }
+
+        function displayThietBi() {
+            const tbody = document.getElementById('table_thietbi_body'); tbody.innerHTML = "";
+            const kw = document.getElementById('search_thietbi').value.toLowerCase();
+            let list = DB_THIET_BI.filter(x => x.ten_thiet_bi.toLowerCase().includes(kw) || x.ma_thiet_bi.toLowerCase().includes(kw) || x.ten_nhan_vien.toLowerCase().includes(kw));
+
+            list.forEach((x, i) => {
+                let qrId = `qr_box_${i}`;
+                tbody.innerHTML += `<tr>
+                    <td><div id="${qrId}" class="qr-canvas"></div></td>
+                    <td><mark><b>${x.ma_thiet_bi}</b></mark></td>
+                    <td><b>${x.ten_thiet_bi}</b></td>
+                    <td>${x.ten_nhan_vien}</td>
+                    <td>${x.ma_don_vi}</td>
+                    <td class="text-center"><span class="badge badge-active">${x.trang_thai}</span></td>
+                </tr>`;
+                setTimeout(() => { new QRCode(document.getElementById(qrId), { text: x.ma_thiet_bi, width: 50, height: 50 }); }, 20);
+            });
+        }
+
+        function displaySuaChua() {
+            const tbody = document.getElementById('table_suachua_body'); tbody.innerHTML = "";
+            const kw = document.getElementById('search_suachua').value.toLowerCase();
+            let list = DB_SUA_CHUA.filter(x => x.ten_thiet_bi.toLowerCase().includes(kw) || x.noi_dung_hong.toLowerCase().includes(kw));
+
+            list.forEach(x => {
+                tbody.innerHTML += `<tr>
+                    <td><b>${x.ten_thiet_bi}</b></td>
+                    <td><mark>${x.ma_thiet_bi}</mark></td>
+                    <td>${x.noi_dung_hong}</td>
+                    <td>${x.nguoi_sua || 'Kỹ thuật nội bộ'}</td>
+                    <td style="color:var(--danger); font-weight:bold;">${parseFloat(x.chi_phi).toLocaleString('vi-VN')} đ</td>
+                    <td class="text-center">${new Date(x.created_at).toLocaleDateString('vi-VN')}</td>
+                </tr>`;
+            });
+        }
+
+        async function clearDataCloud(table) {
+            if(confirm("Bạn có chắc chắn muốn xóa toàn bộ dữ liệu trên bảng này?")) {
+                await client.from(table).delete().neq('id', 0);
+                await fetchAllData();
             }
         }
-    }
-
-    // --- RENDER MẪU BẢNG ---
-    function renderAll() {
-        const uSel = document.getElementById('user-dept'); const dSel = document.getElementById('device-dept');
-        const rSel = document.getElementById('repair-device'); const tDSel = document.getElementById('task-device'); const tUSel = document.getElementById('task-user');
-        const oldU = uSel.value; const oldD = dSel.value; const oldR = rSel.value; const oldTD = tDSel.value; const oldTU = tUSel.value;
-
-        uSel.innerHTML = '<option value="">-- Chọn đơn vị --</option>'; dSel.innerHTML = '<option value="">-- Chọn phòng ban --</option>';
-        rSel.innerHTML = '<option value="">-- Chọn thiết bị --</option>'; tDSel.innerHTML = '<option value="">-- Không có --</option>'; tUSel.innerHTML = '<option value="">-- Chưa giao --</option>';
-
-        depts.forEach(d => { uSel.innerHTML += `<option value="${d}">${d}</option>`; dSel.innerHTML += `<option value="${d}">${d}</option>`; });
-        devices.forEach(d => { rSel.innerHTML += `<option value="${d.name}">${d.name} (${d.id})</option>`; tDSel.innerHTML += `<option value="${d.name}">${d.name}</option>`; });
-        users.forEach(u => { tUSel.innerHTML += `<option value="${u.name}">${u.name}</option>`; });
-        uSel.value = oldU; dSel.value = oldD; rSel.value = oldR; tDSel.value = oldTD; tUSel.value = oldTU;
-
-        // Render bảng Phòng Ban
-        const dBody = document.querySelector('#dept-table tbody'); dBody.innerHTML = '';
-        depts.forEach((d, i) => { dBody.innerHTML += `<tr><td><strong>${d}</strong></td><td style="text-align:right;"><button class="btn btn-warning btn-sm" onclick="editDept(${i})">Sửa</button><button class="btn btn-danger btn-sm" onclick="deleteDept(${i})">Xóa</button></td></tr>`; });
-
-        // Render bảng Nhân Sự
-        const uBody = document.querySelector('#user-table tbody'); uBody.innerHTML = '';
-        users.forEach((u, i) => { uBody.innerHTML += `<tr><td><strong>${u.name}</strong><br><small style="color:var(--text-muted)">${u.role}</small></td><td><span class="badge bg-purple">${u.dept}</span></td><td style="text-align:right;"><button class="btn btn-warning btn-sm" onclick="editUser(${i})">Sửa</button><button class="btn btn-danger btn-sm" onclick="deleteUser(${i})">Xóa</button></td></tr>`; });
-
-        // Render bảng Thiết Bị (Bổ sung Nút QR và in nhãn)
-        const devBody = document.querySelector('#device-table tbody'); devBody.innerHTML = '';
-        devices.forEach((d, i) => { 
-            devBody.innerHTML += `
-                <tr>
-                    <td><strong>${d.name}</strong><br><small style="color:var(--primary)">${d.id} | ${d.type}</small></td>
-                    <td><span class="badge bg-blue">${d.dept}</span></td>
-                    <td style="text-align:right;">
-                        <button class="btn btn-qr btn-sm" onclick="openQrModal('${d.id}')">🖨️ Nhãn QR</button>
-                        <button class="btn btn-warning btn-sm" onclick="editDevice(${i})">Sửa</button>
-                    </td>
-                </tr>`; 
-        });
-
-        // Render bảng Sửa Chữa
-        const repBody = document.querySelector('#repair-table tbody'); repBody.innerHTML = '';
-        repairs.forEach((r, i) => { repBody.innerHTML += `<tr><td><strong>${r.deviceName}</strong><br><small style="color:var(--text-muted)">Mã: ${r.deviceId} | ĐV: ${r.deptName}</small></td><td><span style="color:var(--danger); font-weight:600;">🔧 Lỗi:</span> ${r.content}</td><td><span class="badge bg-gray">👤 ${r.userName || "Chưa rõ"}</span></td><td><strong style="color:var(--purple)">${new Intl.NumberFormat('vi-VN').format(r.cost)} đ</strong></td><td style="text-align:right;"><button class="btn btn-warning btn-sm" onclick="editRepair(${i})">Sửa</button><button class="btn btn-danger btn-sm" onclick="deleteRepair(${i})">Xóa</button></td></tr>`; });
-    }
-
-    // --- ĐẾM NGƯỢC THỜI GIAN THỰC NHẮC VIỆC ---
-    function renderTasksRealtime() {
-        const tBody = document.querySelector('#task-table tbody'); if(!tBody) return; tBody.innerHTML = '';
-        let now = new Date(); let currentMinutes = now.getHours() * 60 + now.getMinutes();
-        tasks.forEach((t, i) => {
-            let badgePri = t.priority === "Cao" ? "bg-danger" : (t.priority === "Trung bình" ? "bg-warning" : "bg-success");
-            let timeParts = t.startTime.split(':'); let startMins = parseInt(timeParts[0]) * 60 + parseInt(timeParts[1]); let endMins = startMins + parseInt(t.duration);
-            let countdownText = "", statusBadge = "";
-            if (t.status === "Đã xong") { statusBadge = `<span class="badge bg-success" onclick="toggleTaskStatus(${i})" style="cursor:pointer;">✅ Hoàn thành</span>`; countdownText = `<span style="color:var(--text-muted)">Đã lưu Cloud</span>`; } 
-            else {
-                if (currentMinutes < startMins) { let diff = startMins - currentMinutes; countdownText = `Còn ${Math.floor(diff/60) > 0 ? Math.floor(diff/60) + 'h ' : ''}${diff%60}p`; statusBadge = `<span class="badge bg-gray" onclick="toggleTaskStatus(${i})" style="cursor:pointer;">⏳ Chờ giờ</span>`; } 
-                else if (currentMinutes >= startMins && currentMinutes <= endMins) { countdownText = `<span style="color:var(--danger); font-weight:bold;">⏰ Đang chạy (${endMins - currentMinutes}p)</span>`; statusBadge = `<span class="badge bg-danger" onclick="toggleTaskStatus(${i})" style="cursor:pointer;">⚡ Thực hiện</span>`; } 
-                else { let diff = currentMinutes - endMins; countdownText = `<span style="color:var(--danger); font-weight:bold;">Trễ ${Math.floor(diff/60) > 0 ? Math.floor(diff/60) + 'h ' : ''}${diff%60}p</span>`; statusBadge = `<span class="badge bg-purple" onclick="toggleTaskStatus(${i})" style="cursor:pointer;">⚠️ Trễ hạn</span>`; }
-            }
-            tBody.innerHTML += `<tr><td><strong>${t.name}</strong></td><td><small>${t.device || '✖'}</small></td><td><strong>${t.user || '✖'}</strong></td><td><span class="badge ${badgePri}">${t.priority}</span></td><td><strong style="color:var(--primary)">${t.startTime}</strong> <small>(${t.duration}p)</small></td><td>${countdownText}</td><td>${statusBadge}</td><td style="text-align:right;"><button class="btn btn-warning btn-sm" onclick="editTask(${i})">Sửa</button><button class="btn btn-danger btn-sm" onclick="deleteTask(${i})">Xóa</button></td></tr>`;
-        });
-    }
-
-    window.onload = function() {
-        setFormCurrentTime(); generateDeviceID(); resetTimer();
-        setInterval(renderTasksRealtime, 10000); 
-    };
-</script>
+    </script>
 </body>
 </html>
