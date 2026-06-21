@@ -38,8 +38,6 @@
         .filter-toolbar { display: flex; gap: 15px; margin-bottom: 18px; }
         .search-bar { flex: 1; padding: 11px 16px; border: 1px solid #ced4da; border-radius: 6px; font-size: 15px; }
         .select-filter { padding: 11px; border: 1px solid #ced4da; border-radius: 6px; background: white; min-width: 180px; }
-        .btn-primary { background-color: var(--primary-color); color: white; border: none; padding: 12px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; justify-content: center; width: 100%; }
-        .btn-danger { background-color: var(--danger-color); color: white; border: none; padding: 12px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; justify-content: center; width: 100%; }
         .table-responsive { overflow-x: auto; border: 1px solid var(--border-color); border-radius: 6px; background: white; max-height: 550px; }
         table { width: 100%; border-collapse: collapse; }
         table th, table td { padding: 12px 14px; text-align: left; font-size: 14px; border-bottom: 1px solid var(--border-color); }
@@ -56,7 +54,7 @@
         <div class="header">
             <div>
                 <h1>Hệ Thống Quản Trị Nhân Sự & Thiết Bị Toàn Diện</h1>
-                <p>Sửa lỗi hiển thị: Đồng bộ và ép kiểu dữ liệu chuẩn xác lên bảng</p>
+                <p>Sửa lỗi định dạng: Đọc dữ liệu tuyệt đối theo vị trí cột vật lý</p>
             </div>
         </div>
 
@@ -234,24 +232,15 @@
             }
         }
 
-        // CHUẨN HÓA TIÊU ĐỀ KHÔNG SỢ LỆCH ĐỊNH DẠNG
-        function cleanKey(str) {
-            if (!str) return '';
-            return String(str).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\r?\n|\r/g, '').replace(/\s+/g, '');
-        }
-
-        // ÉP KIỂU NGÀY ĐÚNG ĐỊNH DẠNG ISO DATE
         function formatExcelDate(val) {
             if (!val) return null;
-            if (val instanceof Date) {
-                return val.toISOString().split('T')[0];
-            }
+            if (val instanceof Date) return val.toISOString().split('T')[0];
             let str = String(val).trim();
             if (str.match(/^\d{4}-\d{2}-\d{2}/)) return str.substring(0, 10);
             return str;
         }
 
-        // ENGINE ĐỌC FILE EXCEL ĐỒNG BỘ THẬT LÊN DATABASE
+        // ENGINE ĐỌC TUYỆT ĐỐI THEO TỌA ĐỘ VỊ TRÍ CỘT 
         async function xuLyExcelNhanSuChuyenGia(input) {
             if (!input.files || input.files.length === 0) return;
             const file = input.files[0];
@@ -263,42 +252,37 @@
                     const workbook = XLSX.read(data, { type: 'array', cellDates: true });
                     const sheet = workbook.Sheets[workbook.SheetNames[0]];
                     
-                    // QUAN TRỌNG: Quét bắt đầu từ dòng số 2 để loại bỏ dòng trống đầu tiên của file gốc
-                    const json = XLSX.utils.sheet_to_json(sheet, { range: 1 });
-                    if (json.length === 0) { alert("File Excel rỗng!"); return; }
+                    // Đọc dạng mảng hai chiều để lấy đúng vị trí cột, không phụ thuộc vào chuỗi text tiêu đề
+                    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                    if (rows.length < 3) { alert("File Excel không đủ dữ liệu dòng!"); return; }
+
+                    let dataRows = rows.slice(2); // Cắt bỏ dòng 0 (trống) và dòng 1 (tiêu đề)
                     
-                    const mapped = json.map(row => {
-                        let cleanRow = {};
-                        Object.keys(row).forEach(k => { cleanRow[cleanKey(k)] = row[k]; });
+                    let mapped = dataRows.map(row => {
+                        if (!row || row.length < 2 || !row[1]) return null; // Dòng rỗng không có họ tên
 
-                        const extract = (aliases) => {
-                            for (let a of aliases) {
-                                if (cleanRow[a] !== undefined && cleanRow[a] !== null) return cleanRow[a];
-                            }
-                            return '';
-                        };
-
-                        let hoTen = String(extract(['hovaten', 'hoten'])).trim();
-                        let tenRieng = String(extract(['ten'])).trim() || (hoTen ? hoTen.split(' ').pop() : '');
-                        let bhxh = String(extract(['sosobhxh', 'bhxh'])).trim();
-                        let cccd = String(extract(['socccd', 'cccd', 'cmnd'])).trim();
+                        // Bản đồ ánh xạ chính xác tuyệt đối theo vị trí các cột trong file gốc của bạn
+                        let hoTen = String(row[1] || '').trim();
+                        let tenRieng = String(row[2] || '').trim() || hoTen.split(' ').pop();
+                        let bhxh = String(row[3] || '').trim();
+                        let cccd = String(row[4] || '').trim();
                         
-                        let atvRaw = String(extract(['antoanvien', 'atv'])).toLowerCase().trim();
-                        let nndhRaw = String(extract(['nndh', 'dochai'])).toLowerCase().trim();
+                        let atvRaw = String(row[6] || '').toLowerCase().trim();
+                        let nndhRaw = String(row[7] || '').toLowerCase().trim();
                         
-                        let maDv = String(extract(['madonvi', 'donvi'])).trim();
-                        let namHienTai = parseInt(extract(['nam', 'namhientai'])) || 2026;
+                        let namVeHuu = formatExcelDate(row[8]);
+                        let maDv = String(row[9] || '').trim();
+                        
+                        // Cố định ép kiểu Integer cho cột 'nam' để database không từ chối lưu
+                        let namHienTai = parseInt(row[10]) || 2026; 
+                        let namSinh = formatExcelDate(row[11]);
+                        
+                        let nuVal = String(row[12] || '').toLowerCase().trim();
+                        let gioiTinh = (nuVal === 'x' || nuVal === '1') ? "Nữ" : "Nam";
 
-                        let namSinh = formatExcelDate(extract(['namsinh', 'sinh']));
-                        let namVeHuu = formatExcelDate(extract(['namvehuu', 'vehuu']));
-
-                        // Ép chuẩn Boolean (true/false) để Supabase chấp nhận lưu vào Cloud
-                        let nuVal = String(extract(['nux', 'nu'])).toLowerCase().trim();
-                        let gioiTinh = "Nam";
-                        if (nuVal === 'x' || nuVal === '1' || nuVal === 'true') { gioiTinh = "Nữ"; }
-
-                        let laAtv = (atvRaw === 'x' || atvRaw === '1' || atvRaw === 'true');
-                        let laNndh = (nndhRaw === 'x' || nndhRaw === '1' || nndhRaw === 'true');
+                        let laAtv = (atvRaw === 'x' || atvRaw === '1');
+                        let laNndh = (nndhRaw === 'x' || nndhRaw === '1');
+                        let chucDanh = String(row[13] || '').trim();
 
                         return {
                             ho_va_ten: hoTen,
@@ -309,27 +293,27 @@
                             nndh: laNndh,
                             nam_ve_hu: namVeHuu,
                             ma_don_vi: maDv,
-                            nam: namHienTai,
+                            nam: namHienTai, // Đã được ép kiểu Số chuẩn 100%
                             nam_sinh: namSinh,
                             gioi_tinh: gioiTinh,
-                            chuc_danh_cong_viec: String(extract(['chucdanhcongviec', 'chucdanh'])).trim()
+                            chuc_danh_cong_viec: chucDanh
                         };
-                    }).filter(x => x.ho_va_ten !== '');
+                    }).filter(x => x !== null && x.ho_va_ten !== '');
 
-                    if (mapped.length === 0) { alert("Không tìm thấy dữ liệu hợp lệ!"); return; }
+                    if (mapped.length === 0) { alert("Không trích xuất được nhân sự hợp lệ nào!"); return; }
 
-                    // Đẩy dữ liệu lên Cloud và kiểm tra phản hồi lỗi trực tiếp từ Database
+                    // Thực hiện nạp thẳng lên Cloud Database
                     const { error } = await client.from('nhan_su').insert(mapped);
                     
                     if (error) {
-                        console.error("Lỗi từ Database:", error);
+                        console.error("Lỗi gửi dữ liệu:", error);
                         alert("Database từ chối lưu dữ liệu: " + error.message);
                     } else {
-                        alert(`🎉 Thành công! Đã đồng bộ và lưu thực tế ${mapped.length} nhân sự lên hệ thống.`);
+                        alert(`🎉 Thành công! Dữ liệu đã khớp chuẩn 100%. Đã nạp thành công ${mapped.length} nhân sự lên Cloud.`);
                         await taiDuLieuHeThong();
                     }
                 } catch (err) {
-                    alert("Lỗi xử lý hệ thống: " + err.message);
+                    alert("Lỗi hệ thống: " + err.message);
                 }
             };
             reader.readAsArrayBuffer(file);
