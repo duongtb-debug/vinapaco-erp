@@ -100,7 +100,6 @@
         .status-broken { background: #fdebd0; color: #e67e22; }
         .status-repair { background: #ebf5fb; color: #2980b9; }
         
-        /* Cải tiến khu vực chứa QR to rõ ràng hơn hẳn */
         .qr-canvas { width: 110px; height: 110px; background: #fff; margin: 0 auto; padding: 5px; border: 1px solid #ddd; border-radius: 4px; display: flex; align-items: center; justify-content: center; }
         .qr-canvas img { width: 100% !important; height: 100% !important; }
         
@@ -293,7 +292,7 @@
                     <table>
                         <thead>
                             <tr>
-                                <th class="text-center" style="width:130px;">Mã QR Code (Mới)</th>
+                                <th class="text-center" style="width:130px;">Mã QR Code</th>
                                 <th>Mã Thiết Bị</th>
                                 <th>Tên Thiết Bị / Tài Sản</th>
                                 <th>Người Đang Giữ</th>
@@ -555,11 +554,10 @@
                 
                 let qrLinkValue = `${currentAppUrl}?device_code=${x.ma_thiet_bi}`;
                 
-                // CẢI TIẾN LỚN: Tăng kích thước (110px) và tối ưu hóa cấp độ sửa lỗi cao (CorrectLevel.H) giúp điện thoại bắt nét cực nhạy
                 setTimeout(() => { 
                     const container = document.getElementById(qrId);
                     if(container) {
-                        container.innerHTML = ""; // Xóa sạch dữ liệu rác cũ trước khi vẽ tránh chồng đè mã
+                        container.innerHTML = "";
                         new QRCode(container, { 
                             text: qrLinkValue, 
                             width: 110, 
@@ -595,6 +593,11 @@
             const kw = document.getElementById('search_suachua').value.toLowerCase().trim();
             let filtered = DB_SUA_CHUA.filter(x => !kw || x.ten_thiet_bi.toLowerCase().includes(kw) || x.ma_thiet_bi.toLowerCase().includes(kw));
             
+            if(filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center" style="color: #999; padding: 20px;">Không tìm thấy nhật ký sửa chữa nào.</td></tr>`;
+                return;
+            }
+
             filtered.forEach(x => {
                 let costOriginal = parseFloat(x.chi_phi) || 0;
                 tbody.innerHTML += `<tr>
@@ -612,18 +615,46 @@
             });
         }
 
+        // SỬA LỖI LƯU THÀNH CÔNG NHƯNG KHÔNG HIỂN THỊ
         async function saveRepairConfig() {
-            const editingRepairId = document.getElementById('editing_repair_id').value; const cpId = document.getElementById('repair_cp_id').value; const damage = document.getElementById('repair_damage').value.trim();
+            const editingRepairId = document.getElementById('editing_repair_id').value; 
+            const cpId = document.getElementById('repair_cp_id').value; 
+            const damage = document.getElementById('repair_damage').value.trim();
+            
             if(!cpId || !damage) { alert("Vui lòng chọn thiết bị và nhập lỗi!"); return; }
             const dev = DB_THIET_BI.find(x => x.id == cpId);
             let costOriginal = parseFloat(document.getElementById('repair_cost').value) || 0;
             let todayStr = new Date().toISOString().split('T')[0];
 
-            let payload = { cap_phat_id: parseInt(cpId), ma_thiet_bi: dev.ma_thiet_bi, ten_thiet_bi: dev.ten_thiet_bi, noi_dung_hong: damage, bien_phap_khac_phuc: document.getElementById('repair_solution').value.trim(), chi_phi: costOriginal, ngay_sua_chua: todayStr };
+            let payload = { 
+                cap_phat_id: parseInt(cpId), 
+                ma_thiet_bi: dev.ma_thiet_bi, 
+                ten_thiet_bi: dev.ten_thiet_bi, 
+                noi_dung_hong: damage, 
+                bien_phap_khac_phuc: document.getElementById('repair_solution').value.trim(), 
+                chi_phi: costOriginal, 
+                ngay_sua_chua: todayStr 
+            };
 
-            if(editingRepairId) { await client.from('lich_su_sua_chua').update(payload).eq('id', editingRepairId); cancelEditRepair(); } 
-            else { payload.trang_thai_thanh_toan = "Chưa thanh toán"; payload.ten_ho_so_thanh_toan = "Hồ sơ sửa chữa " + dev.ten_thiet_bi; await client.from('lich_su_sua_chua').insert([payload]); clearRepairForm(); }
-            await fetchAllData();
+            if(editingRepairId) { 
+                await client.from('lich_su_sua_chua').update(payload).eq('id', editingRepairId); 
+                cancelEditRepair(); 
+            } else { 
+                payload.trang_thai_thanh_toan = "Chưa thanh toán"; 
+                payload.ten_ho_so_thanh_toan = "Hồ sơ sửa chữa " + dev.ten_thiet_bi; 
+                await client.from('lich_su_sua_chua').insert([payload]); 
+                clearRepairForm(); 
+            } 
+            
+            alert("Lưu nhật ký sửa chữa thiết bị thành công!");
+            
+            // ĐỒNG BỘ: Kéo lại data mới và vẽ lại bảng ngay tức thì
+            let r3 = await client.from('lich_su_sua_chua').select('*').order('id', { ascending: false }); 
+            DB_SUA_CHUA = r3.data || [];
+            
+            displayRepairLog();
+            calculatePaymentStats();
+            displayPaymentTable();
         }
 
         function editRepairLog(id) {
@@ -635,12 +666,19 @@
             calculateRealtimeTax(); switchSection('suachua'); document.getElementById('btn_cancel_edit_repair').style.display = "block"; window.scrollTo({ top: 0, behavior: 'smooth' });
         }
         function cancelEditRepair() { document.getElementById('editing_repair_id').value = ""; clearRepairForm(); document.getElementById('btn_cancel_edit_repair').style.display = "none"; }
-        function clearRepairForm() { document.getElementById('repair_dev_search').value = ""; document.getElementById('repair_damage').value = ""; document.getElementById('repair_solution').value = ""; document.getElementById('repair_cost').value = 0; document.getElementById('repair_tax_preview').value = "0 VND"; }
+        function clearRepairForm() { document.getElementById('repair_dev_search').value = ""; document.getElementById('repair_damage').value = ""; document.getElementById('repair_solution').value = ""; document.getElementById('repair_cost').value = 0; document.getElementById('repair_tax_preview').value = "0 VND"; document.getElementById('repair_cp_id').value = ""; }
 
         async function deleteRepairLog(id, name) {
             if(confirm(`Bạn có chắc chắn muốn xóa nhật ký sửa chữa của máy: ${name}?`)) {
                 const { error } = await client.from('lich_su_sua_chua').delete().eq('id', id);
-                if(!error) { alert("Xóa nhật ký sửa chữa thành công!"); await fetchAllData(); }
+                if(!error) { 
+                    alert("Xóa nhật ký sửa chữa thành công!"); 
+                    let r3 = await client.from('lich_su_sua_chua').select('*').order('id', { ascending: false }); 
+                    DB_SUA_CHUA = r3.data || [];
+                    displayRepairLog();
+                    calculatePaymentStats();
+                    displayPaymentTable();
+                }
             }
         }
 
@@ -753,12 +791,18 @@
             }; reader.readAsArrayBuffer(file);
         }
         async function clearDataCloud(table) { if(confirm("Xóa sạch dữ liệu trên đám mây?")) { await client.from(table).delete().neq('id', 0); await fetchAllData(); } }
+        
         function repairSuggest(input) {
             const val = input.value.toLowerCase().trim(); const box = document.getElementById('repair_suggest'); box.innerHTML = "";
             let matches = DB_THIET_BI.filter(t => !val || t.ten_thiet_bi.toLowerCase().includes(val) || t.ma_thiet_bi.toLowerCase().includes(val));
             matches.slice(0, 15).forEach(t => {
                 let div = document.createElement('div'); div.className = 'suggest-item'; div.innerHTML = `<span><b>${t.ma_thiet_bi}</b> - ${t.ten_thiet_bi}</span>`;
-                div.onclick = () => { document.getElementById('repair_dev_search').value = `${t.ma_thiet_bi} [${t.ten_thiet_bi}]`; document.getElementById('repair_cp_id').value = t.id; box.style.display = 'none'; }; box.appendChild(div);
+                div.onclick = () => { 
+                    document.getElementById('repair_dev_search').value = `${t.ma_thiet_bi} [${t.ten_thiet_bi}]`; 
+                    document.getElementById('repair_cp_id').value = t.id; 
+                    box.style.display = 'none'; 
+                }; 
+                box.appendChild(div);
             }); box.style.display = 'block';
         }
         function resetSelectedUser() { document.getElementById('dev_user_search').value = ''; document.getElementById('dev_user_id').value = ''; }
