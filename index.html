@@ -111,7 +111,7 @@
     </div>
 
     <div class="nav-tabs">
-        <div class="nav-tab active" id="tab_hoso" onclick="switchSection('hoso')"><i class="fa-solid fa-users"></i> Hồ Sơ Nhân Sự Gốc (<span id="count_ns">0</span>)</div>
+        <div class="nav-tab active" id="tab_hoso" onclick="switchSection('hoso')"><i class="fa-solid fa-users"></i> Hồ Sò Nhân Sự Gốc (<span id="count_ns">0</span>)</div>
         <div class="nav-tab" id="tab_thietbi" onclick="switchSection('thietbi')"><i class="fa-solid fa-qrcode"></i> Quản Lý & Cấp Phát Thiết Bị QR</div>
         <div class="nav-tab" id="tab_suachua" onclick="switchSection('suachua')"><i class="fa-solid fa-screwdriver-wrench"></i> Nhật Ký Sửa Chữa Thiết Bị</div>
         <div class="nav-tab" id="tab_thanhtoan" onclick="switchSection('thanhtoan')"><i class="fa-solid fa-file-invoice-dollar"></i> Hồ Sơ Thanh Toán Sửa Chữa</div>
@@ -314,9 +314,9 @@
                                 <th>Mã Thiết Bị</th>
                                 <th>Tên Thiết Bị Tài Sản</th>
                                 <th>Nội Dung Hư Hỏng</th>
-                                <th>Biện PháXử Lý</th>
-                                <th style="text-align:right; width:150px; color: var(--primary);">Chi Phí Gốc (VND)</th>
-                                <th class="text-center" style="width:140px;">Thao Tác</th>
+                                <th>Biện Pháp Xử Lý</th>
+                                <th style="text-align:right; width:130px; color: var(--primary);">Chi Phí Gốc (VND)</th>
+                                <th class="text-center" style="width:180px;">Thao Tác</th>
                             </tr>
                         </thead>
                         <tbody id="table_suachua_body"></tbody>
@@ -354,11 +354,11 @@
                             <tr>
                                 <th class="text-center" style="width:110px;">Ngày Lập HS</th>
                                 <th>Tên Hồ Sơ Thanh Toán</th>
-                                <th style="text-align:right; width:160px; color:var(--danger);">Chi Phí (Đã gồm Thuế)</th>
+                                <th style="text-align:right; width:150px; color:var(--danger);">Chi Phí (Đã gồm Thuế)</th>
                                 <th>Đơn Vị Thụ Hưởng</th>
-                                <th class="text-center" style="width:140px;">Trạng Thái</th>
-                                <th class="text-center" style="width:180px;">Phiếu Đính Kèm Toàn Bộ</th>
-                                <th class="text-center" style="width:90px;">Thao Tác</th>
+                                <th class="text-center" style="width:130px;">Trạng Thái</th>
+                                <th class="text-center" style="width:160px;">Phiếu Đính Kèm Toàn Bộ</th>
+                                <th class="text-center" style="width:180px;">Thao Tác</th>
                             </tr>
                         </thead>
                         <tbody id="table_thanhtoan_body"></tbody>
@@ -449,7 +449,7 @@
         }
         function handleTableScroll(container) { if (container.scrollHeight - container.scrollTop <= container.clientHeight + 40) { if (CURRENT_PAGE_SIZE < FILTERED_LIST.length) { CURRENT_PAGE_SIZE += 30; renderNhanSuTable(); } } }
 
-        // --- TAB 3: NHẬT KÝ SỬA CHỮA (CHỈ HIỂN THỊ CHI PHÍ GỐC) ---
+        // --- TAB 3: NHẬT KÝ SỬA CHỮA ---
         function displayRepairLog() {
             const tbody = document.getElementById('table_suachua_body'); tbody.innerHTML = "";
             const kw = document.getElementById('search_suachua').value.toLowerCase().trim();
@@ -465,7 +465,8 @@
                     <td>${x.bien_phap_khac_phuc || ''}</td>
                     <td style="text-align:right; font-weight:bold; color:var(--primary);">${costOriginal.toLocaleString('vi-VN')}</td>
                     <td class="text-center">
-                        <button class="btn-table-edit" onclick="editRepairLog(${x.id})"><i class="fa-solid fa-edit"></i> Sửa gốc</button>
+                        <button class="btn-table-edit" onclick="editRepairLog(${x.id})"><i class="fa-solid fa-edit"></i> Sửa</button>
+                        <button class="btn-table-del" onclick="deleteRepairLog(${x.id}, '${x.ten_thiet_bi}')"><i class="fa-solid fa-trash"></i> Xóa</button>
                     </td>
                 </tr>`;
             });
@@ -496,7 +497,14 @@
         function cancelEditRepair() { document.getElementById('editing_repair_id').value = ""; clearRepairForm(); document.getElementById('btn_cancel_edit_repair').style.display = "none"; }
         function clearRepairForm() { document.getElementById('repair_dev_search').value = ""; document.getElementById('repair_damage').value = ""; document.getElementById('repair_solution').value = ""; document.getElementById('repair_cost').value = 0; document.getElementById('repair_tax_preview').value = "0 VND"; }
 
-        // --- TAB 4: HỒ SƠ THANH TOÁN (HỆ THỐNG CHỈ QUẢN LÝ SỐ TIỀN ĐÃ CÓ THUẾ) ---
+        async function deleteRepairLog(id, name) {
+            if(confirm(`Bạn có chắc chắn muốn xóa nhật ký sửa chữa của máy: ${name}?`)) {
+                const { error } = await client.from('lich_su_sua_chua').delete().eq('id', id);
+                if(!error) { alert("Xóa nhật ký sửa chữa thành công!"); await fetchAllData(); }
+            }
+        }
+
+        // --- TAB 4: HỒ SƠ THANH TOÁN ---
         function calculatePaymentStats() {
             let countPaid = 0, countUnpaid = 0, moneyPaid = 0, moneyUnpaid = 0;
             DB_SUA_CHUA.forEach(x => {
@@ -531,7 +539,10 @@
                     <td>${x.don_vi_thu_huong || '<i style="color:#999">Chưa cập nhật</i>'}</td>
                     <td class="text-center"><span class="badge ${isPaid?'status-using':'status-broken'}">${isPaid?'✅ Đã thanh toán':'❌ Chưa thanh toán'}</span></td>
                     <td class="text-center">${x.url_phieu_yeu_cau?`<a href="${x.url_phieu_yeu_cau}" target="_blank" class="link-file"><i class="fa-solid fa-file-invoice"></i> Xem toàn bộ hồ sơ</a>`:'Chưa đính kèm phiếu'}</td>
-                    <td class="text-center"><button class="btn-table-edit" onclick="selectForPaymentProfile(${x.id})"><i class="fa-solid fa-folder-open"></i> Chọn</button></td>
+                    <td class="text-center">
+                        <button class="btn-table-edit" onclick="selectForPaymentProfile(${x.id})"><i class="fa-solid fa-folder-open"></i> Chọn</button>
+                        <button class="btn-table-del" onclick="clearPaymentProfileOnly(${x.id})"><i class="fa-solid fa-eraser"></i> Xóa HS</button>
+                    </td>
                 </tr>`;
             });
         }
@@ -544,10 +555,7 @@
             else { document.getElementById('pay_date').value = log.ngay_sua_chua ? log.ngay_sua_chua : new Date().toISOString().split('T')[0]; }
 
             document.getElementById('pay_name').value = log.ten_ho_so_thanh_toan || "Hồ sơ thanh toán " + log.ten_thiet_bi;
-            
-            // LOGIC MỚI: Tự động gán thẳng giá trị ĐÃ CỘNG THUẾ 8% vào form quản lý chi phí tổng thể của Tab thanh toán
             document.getElementById('pay_cost').value = log.chi_phi_thanh_toan_tron_goi || (parseFloat(log.chi_phi) * 1.08);
-            
             document.getElementById('pay_beneficiary').value = log.don_vi_thu_huong || "";
             document.getElementById('pay_status_select').value = log.trang_thai_thanh_toan === "Đã thanh toán" ? "Đã thanh toán" : "Chưa thanh toán";
             
@@ -579,6 +587,14 @@
                 alert("Cập nhật bộ hồ sơ thanh toán biến động thành công!");
                 document.getElementById('pay_log_id').value = ""; document.getElementById('pay_name').value = ""; document.getElementById('pay_cost').value = ""; document.getElementById('pay_beneficiary').value = ""; fileInput.value = "";
                 await fetchAllData();
+            }
+        }
+
+        async function clearPaymentProfileOnly(id) {
+            if(confirm("Bạn muốn xóa thông tin thanh toán của hồ sơ này? (Nhật ký sửa chữa kỹ thuật gốc vẫn được giữ nguyên)")) {
+                let resetPayload = { ngay_lap_ho_so: null, ten_ho_so_thanh_toan: null, chi_phi_thanh_toan_tron_goi: null, don_vi_thu_huong: null, trang_thai_thanh_toan: "Chưa thanh toán", url_phieu_yeu_cau: null };
+                const { error } = await client.from('lich_su_sua_chua').update(resetPayload).eq('id', id);
+                if(!error) { alert("Đã xóa sạch bộ hồ sơ quyết toán!"); await fetchAllData(); }
             }
         }
 
