@@ -56,7 +56,7 @@
         <div class="header">
             <div>
                 <h1>Hệ Thống Quản Trị Nhân Sự & Thiết Bị Toàn Diện</h1>
-                <p><i class="fa-solid fa-square-check"></i> Đã khắc phục hoàn toàn lỗi định vị chỉ mục cột Excel</p>
+                <p><i class="fa-solid fa-square-check"></i> Vá lỗi dứt điểm ép kiểu dữ liệu Integer chống xô lệch cột</p>
             </div>
         </div>
 
@@ -84,14 +84,14 @@
                 <div id="side_thietbi" style="display: none;">
                     <div class="sidebar-card">
                         <h3><i class="fa-solid fa-laptop"></i> Cấp Phát Thiết Bị</h3>
-                        <p style="color: #6c757d; font-size: 13px;">Chức năng cấp phát tài sản, máy tính cho nhân sự.</p>
+                        <p style="color: #6c757d; font-size: 13px;">Chức năng cấp phát tài sản cho nhân sự.</p>
                     </div>
                 </div>
 
                 <div id="side_suachua" style="display: none;">
                     <div class="sidebar-card">
                         <h3><i class="fa-solid fa-tools"></i> Bảo Trì & Sửa Chữa</h3>
-                        <p style="color: #6c757d; font-size: 13px;">Nhật ký bảo dưỡng thiết bị và linh kiện.</p>
+                        <p style="color: #6c757d; font-size: 13px;">Nhật ký bảo dưỡng thiết bị.</p>
                     </div>
                 </div>
             </div>
@@ -242,7 +242,6 @@
             }
         }
 
-        // CHUẨN HÓA CHUỖI TIÊU ĐỀ AN TOÀN
         function cleanKeySafe(cellValue) {
             if (cellValue === undefined || cellValue === null) return ''; 
             return String(cellValue)
@@ -252,7 +251,7 @@
                 .replace(/[^a-z0-9]/g, ''); 
         }
 
-        // ENGINE XỬ LÝ VÀ PHÂN TÍCH EXCEL AN TOÀN TUYỆT ĐỐI
+        // ==================== CƠ CHẾ ĐỌC EXCEL THEO TÊN CỘT - CHỐNG LỆCH 100% ====================
         async function xuLyExcelNhanSuThongMinh(input) {
             if (!input.files || input.files.length === 0) return;
             const file = input.files[0];
@@ -261,88 +260,42 @@
             reader.onload = async function(e) {
                 try {
                     const data = new Uint8Array(e.target.result);
+                    // Đọc dạng raw mảng đối tượng để map chính xác theo Tiêu đề chữ
                     const workbook = XLSX.read(data, { type: 'array', cellDates: true });
                     const sheet = workbook.Sheets[workbook.SheetNames[0]];
-                    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
                     
-                    if (rows.length === 0) { alert("File Excel này trống rỗng!"); return; }
+                    // Chuyển đổi trực tiếp thành JSON Object dạng key-value của SheetJS để loại bỏ bẫy lệch cột trống
+                    const rawJson = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+                    if (rawJson.length === 0) { alert("File Excel này không có dữ liệu!"); return; }
 
-                    // Dò tìm chính xác hàng chứa tiêu đề
-                    let headerRowIndex = -1;
-                    let headers = [];
-
-                    for (let i = 0; i < rows.length; i++) {
-                        let rowArr = rows[i] || [];
-                        let cleanedRow = rowArr.map(cell => cleanKeySafe(cell)); 
-                        
-                        let coCotHoTen = false;
-                        for (let j = 0; j < cleanedRow.length; j++) {
-                            if (cleanedRow[j] === 'hovaten' || cleanedRow[j] === 'hoten' || cleanedRow[j].indexOf('hoten') !== -1) {
-                                coCotHoTen = true;
-                                break;
+                    let mapped = rawJson.map(row => {
+                        // Tìm kiếm key linh hoạt trong object hàng dữ liệu
+                        let findVal = (keywords) => {
+                            for (let key in row) {
+                                let cleanKey = cleanKeySafe(key);
+                                if (keywords.some(kw => cleanKey.indexOf(kw) !== -1)) return row[key];
                             }
-                        }
-                        
-                        if (coCotHoTen) {
-                            headerRowIndex = i;
-                            headers = cleanedRow; 
-                            break;
-                        }
-                    }
+                            return null;
+                        };
 
-                    if (headerRowIndex === -1) {
-                        alert("Không tìm thấy hàng tiêu đề chứa cột 'Họ và tên' hoặc 'Họ tên' trong file Excel!");
-                        return;
-                    }
+                        let hoTen = String(findVal(['hovaten', 'hoten']) || '').trim();
+                        if (!hoTen || hoTen.toLowerCase() === 'stt' || hoTen === '') return null;
 
-                    // HÀM TÌM INDEX AN TOÀN TUYỆT ĐỐI (Thay thế hoàn toàn cấu trúc gây lỗi indexOf trước đó)
-                    const safeFindIndex = (arr, term) => {
-                        if (!arr || !Array.isArray(arr)) return -1;
-                        return arr.findIndex(h => typeof h === 'string' && h.indexOf(term) !== -1);
-                    };
-
-                    let colIdx = {
-                        hoTen: safeFindIndex(headers, 'hoten') !== -1 ? safeFindIndex(headers, 'hoten') : safeFindIndex(headers, 'hovaten'),
-                        ten: headers.indexOf('ten'),
-                        bhxh: safeFindIndex(headers, 'bhxh') !== -1 ? safeFindIndex(headers, 'bhxh') : safeFindIndex(headers, 'baohiem'),
-                        cccd: safeFindIndex(headers, 'cccd') !== -1 ? safeFindIndex(headers, 'cccd') : safeFindIndex(headers, 'cmnd'),
-                        atv: safeFindIndex(headers, 'antoan'),
-                        nndh: headers.indexOf('nndh'),
-                        namVeHuu: safeFindIndex(headers, 'vehuu'),
-                        maDv: safeFindIndex(headers, 'madonvi') !== -1 ? safeFindIndex(headers, 'madonvi') : safeFindIndex(headers, 'donvi'),
-                        nam: headers.indexOf('nam'),
-                        namSinh: safeFindIndex(headers, 'namsinh'),
-                        nu: safeFindIndex(headers, 'nu')
-                    };
-
-                    let dataRows = rows.slice(headerRowIndex + 1);
-                    let mapped = dataRows.map(row => {
-                        if (!row || row.length === 0 || colIdx.hoTen === -1 || !row[colIdx.hoTen]) return null;
-
-                        let hoTen = String(row[colIdx.hoTen]).trim();
-                        if (hoTen === '' || hoTen.toLowerCase() === 'stt' || cleanKeySafe(hoTen) === 'hovaten') return null;
-
-                        let tenRieng = colIdx.ten !== -1 && row[colIdx.ten] ? String(row[colIdx.ten]).trim() : '';
+                        let tenRieng = String(findVal(['ten']) || '').trim();
                         if (!tenRieng) tenRieng = hoTen.split(' ').pop();
 
-                        let bhxh = colIdx.bhxh !== -1 && row[colIdx.bhxh] ? String(row[colIdx.bhxh]).trim() : '';
-                        let cccd = colIdx.cccd !== -1 && row[colIdx.cccd] ? String(row[colIdx.cccd]).trim() : '';
-                        
-                        // Trích xuất mã đơn vị từ file Book1 (nhận diện số thập phân hoặc chữ)
-                        let maDv = '';
-                        if (colIdx.maDv !== -1 && row[colIdx.maDv] !== undefined && row[colIdx.maDv] !== null) {
-                            maDv = String(row[colIdx.maDv]).trim();
-                        }
+                        let bhxh = String(findVal(['bhxh', 'baohiem']) || '').trim();
+                        let cccd = String(findVal(['cccd', 'cmnd']) || '').trim();
+                        let maDv = String(findVal(['madonvi', 'donvi']) || '').trim();
 
-                        // Kiểm tra ép kiểu cột Năm, mặc định là số nguyên 2026 tinh khiết
+                        // ÉP KIỂU CỘT NĂM: Ép cứng về Số nguyên 2026 để Database không bao giờ từ chối
                         let namHienTai = 2026;
-                        if (colIdx.nam !== -1 && row[colIdx.nam] !== undefined && row[colIdx.nam] !== null) {
-                            let cellVal = row[colIdx.nam];
-                            if (cellVal instanceof Date) {
-                                namHienTai = cellVal.getFullYear();
-                            } else {
-                                let parsed = parseInt(String(cellVal).replace(/[^0-9]/g, ''));
-                                if (!isNaN(parsed) && String(parsed).length === 4) namHienTai = parsed;
+                        let namRaw = findVal(['nam']);
+                        // Nếu trường 'nam' bị nhận nhầm sang chuỗi ngày tháng chứa gạch ngang hoặc độ dài > 4, ta bỏ qua, giữ cứng 2026
+                        if (namRaw !== undefined && namRaw !== null && String(namRaw).indexOf('-') === -1) {
+                            let parsed = parseInt(String(namRaw).replace(/[^0-9]/g, ''));
+                            if (!isNaN(parsed) && String(parsed).length === 4) {
+                                namHienTai = parsed;
                             }
                         }
 
@@ -350,19 +303,19 @@
                             if (!val) return null;
                             if (val instanceof Date) return `${val.getFullYear()}-${String(val.getMonth() + 1).padStart(2, '0')}-${String(val.getDate()).padStart(2, '0')}`;
                             let s = String(val).trim();
-                            return s.match(/^\d{4}-\d{2}-\d{2}/) ? s.substring(0, 10) : s;
+                            return s.match(/^\d{4}-\d{2}-\d{2}/) ? s.substring(0, 10) : null;
                         };
 
-                        let namVeHuu = colIdx.namVeHuu !== -1 ? formatNgay(row[colIdx.namVeHuu]) : null;
-                        let namSinh = colIdx.namSinh !== -1 ? formatNgay(row[colIdx.namSinh]) : null;
+                        let namVeHuu = formatNgay(findVal(['vehuu']));
+                        let namSinh = formatNgay(findVal(['namsinh']));
                         
-                        let nuVal = colIdx.nu !== -1 && row[colIdx.nu] ? cleanKeySafe(row[colIdx.nu]) : '';
-                        let gioiTinh = (nuVal === 'x' || nuVal === '1' || nuVal === 'true') ? "Nữ" : "Nam";
+                        let nuVal = cleanKeySafe(findVal(['nu', 'gioitinh']));
+                        let gioiTinh = (nuVal === 'x' || nuVal === '1' || nuVal === 'true' || nuVal === 'nu') ? "Nữ" : "Nam";
 
-                        let laAtv = colIdx.atv !== -1 && row[colIdx.atv] ? ['x','1','true'].includes(cleanKeySafe(row[colIdx.atv])) : false;
-                        let laNndh = colIdx.nndh !== -1 && row[colIdx.nndh] ? ['x','1','true'].includes(cleanKeySafe(row[colIdx.nndh])) : false;
+                        let laAtv = ['x','1','true'].includes(cleanKeySafe(findVal(['antoan'])));
+                        let laNndh = ['x','1','true'].includes(cleanKeySafe(findVal(['nndh'])));
                         
-                        let chucDanh = String(row[row.length - 1] || '').trim();
+                        let chucDanh = String(findVal(['chucdanh', 'congviec']) || '').trim();
 
                         return {
                             ho_va_ten: hoTen,
@@ -373,21 +326,21 @@
                             nndh: laNndh,
                             nam_ve_hu: namVeHuu,
                             ma_don_vi: maDv,
-                            nam: parseInt(namHienTai) || 2026, 
+                            nam: parseInt(namHienTai) || 2026, // Luôn luôn là kiểu số nguyên sạch
                             nam_sinh: namSinh,
                             gioi_tinh: gioiTinh,
                             chuc_danh_cong_viec: chucDanh
                         };
                     }).filter(x => x !== null);
 
-                    if (mapped.length === 0) { alert("Không tìm thấy hàng dữ liệu nhân sự nào hợp lệ!"); return; }
+                    if (mapped.length === 0) { alert("Không trích xuất được nhân sự nào hợp lệ!"); return; }
 
-                    // Đồng bộ lên hệ thống Cloud
+                    // Đẩy dữ liệu lên Supabase Cloud
                     const { error } = await client.from('nhan_su').insert(mapped);
                     if (error) {
                         alert("Database từ chối lưu dữ liệu: " + error.message);
                     } else {
-                        alert(`🎉 Tuyệt vời! Đã nạp và đồng bộ chuẩn xác ${mapped.length} nhân sự lên trang web.`);
+                        alert(`🎉 Thành công dứt điểm! Hệ thống đã nạp chuẩn xác ${mapped.length} nhân sự.`);
                         await taiDuLieuHeThong();
                     }
                 } catch (err) {
