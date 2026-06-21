@@ -150,7 +150,7 @@
                 </div>
                 <div class="form-group">
                     <label>Biện pháp khắc phục xử lý</label>
-                    <textarea id="repair_solution" class="form-control" rows="2" placeholder="Ví dụ: Thay tụ điện nguồn, quấn lại cuộn dây..."></textarea>
+                    <textarea id="repair_solution" class="form-control" rows="2" placeholder="Ví dụ: Thay tụ điện nguồn..."></textarea>
                 </div>
                 <div class="form-group">
                     <label>Chi phí sửa chữa (VNĐ)</label>
@@ -255,18 +255,25 @@
 
         let DB_NHAN_SU = [];
         let DB_THIET_BI = [];
-        let DB_SUA_CHUA = []; // Chứa lịch sử sửa chữa trực tuyến
+        let DB_SUA_CHUA = []; 
         let FILTERED_LIST = [];
         let CURRENT_PAGE_SIZE = 30; 
 
         window.onload = async function() { await fetchAllData(); };
 
-        // Đóng tất cả hộp gợi ý khi nhấn ra ngoài màn hình
+        // Đóng các hộp gợi ý nếu click ra ngoài vùng làm việc
         document.addEventListener('click', function(e) {
-            ['dev_suggest', 'repair_suggest'].forEach(id => {
-                let box = document.getElementById(id);
-                if(box) box.style.display = 'none';
-            });
+            const devBox = document.getElementById('dev_suggest');
+            const devInput = document.getElementById('dev_user_search');
+            if (devBox && e.target !== devInput && !devBox.contains(e.target)) {
+                devBox.style.display = 'none';
+            }
+
+            const repBox = document.getElementById('repair_suggest');
+            const repInput = document.getElementById('repair_dev_search');
+            if (repBox && e.target !== repInput && !repBox.contains(e.target)) {
+                repBox.style.display = 'none';
+            }
         });
 
         async function fetchAllData() {
@@ -314,7 +321,6 @@
             document.getElementById('tab_' + target).classList.add('active');
             document.getElementById('sec_' + target).classList.add('active');
             
-            // Ẩn hiện panel sidebar tương ứng
             document.getElementById('form_hoso_panel').style.display = (target === 'hoso') ? 'block' : 'none';
             document.getElementById('form_thietbi_panel').style.display = (target === 'thietbi') ? 'block' : 'none';
             document.getElementById('form_suachua_panel').style.display = (target === 'suachua') ? 'block' : 'none';
@@ -421,27 +427,47 @@
             box.style.display = 'block';
         }
 
-        // MỚI: TỰ ĐỘNG HIỂN THỊ DANH SÁCH THIẾT BỊ ĐỂ CHỌN KHI SỬA CHỮA (FOCUS ĐỔ LIST)
+        // CHUẨN HÓA TOÀN DIỆN - BẤM VÀO XỔ LUÔN DANH SÁCH THIẾT BỊ HƯ HỎNG (100% ĂN NGAY)
         function repairSuggest(input) {
             const val = input.value.toLowerCase().trim();
             const box = document.getElementById('repair_suggest');
             box.innerHTML = "";
 
             let matches = DB_THIET_BI.filter(t => {
-                return !val || t.ten_thiet_bi.toLowerCase().includes(val) || t.ma_thiet_bi.toLowerCase().includes(val) || t.ten_nhan_vien.toLowerCase().includes(val);
+                if (!t.ten_thiet_bi || !t.ma_thiet_bi) return false;
+                
+                // Nếu không gõ chữ gì (mới click), hiển thị tất cả thiết bị hiện có
+                if (!val) return true; 
+                
+                // Nếu có gõ từ khóa, tìm theo Mã, Tên, hoặc Người đang cầm
+                return t.ten_thiet_bi.toLowerCase().includes(val) || 
+                       t.ma_thiet_bi.toLowerCase().includes(val) || 
+                       (t.ten_nhan_vien && t.ten_nhan_vien.toLowerCase().includes(val));
             });
 
-            if(!val) matches = matches.slice(0, 20); // Giới hạn 20 thiết bị ban đầu khi focus chưa gõ chữ
+            // Nếu không gõ từ khóa, tự động sắp xếp và giới hạn để chống lag dropdown
+            if (!val) {
+                matches = matches.sort((a, b) => a.ma_thiet_bi.localeCompare(b.ma_thiet_bi)).slice(0, 30);
+            } else {
+                matches = matches.slice(0, 15);
+            }
 
-            if(matches.length === 0) {
-                box.innerHTML = '<div class="suggest-item" style="color:#999; cursor:default;">Không có thiết bị tài sản này...</div>';
+            if (matches.length === 0) {
+                box.innerHTML = '<div class="suggest-item" style="color:#999; cursor:default; padding: 10px 12px;">⚠️ Không có thiết bị phù hợp...</div>';
                 box.style.display = 'block';
                 return;
             }
 
             matches.forEach(t => {
-                let div = document.createElement('div'); div.className = 'suggest-item';
-                div.innerHTML = `<span><b>${t.ma_thiet_bi}</b> - ${t.ten_thiet_bi}</span> <small style="color:#666;"> Giữ: ${t.ten_nhan_vien}</small>`;
+                let div = document.createElement('div'); 
+                div.className = 'suggest-item';
+                div.style.padding = '10px 12px';
+                div.style.cursor = 'pointer';
+                div.innerHTML = `<span><b>${t.ma_thiet_bi}</b> - ${t.ten_thiet_bi}</span> 
+                                 <small style="color:#666; background:#f4f6f9; padding:2px 6px; border-radius:4px; font-size:11px;">
+                                    <i class="fa-regular fa-user"></i> Giữ: ${t.ten_nhan_vien || 'Chưa rõ'}
+                                 </small>`;
+                
                 div.onclick = (e) => {
                     e.stopPropagation();
                     document.getElementById('repair_dev_search').value = `${t.ma_thiet_bi} [${t.ten_thiet_bi}]`;
@@ -474,7 +500,6 @@
             } else alert(error.message);
         }
 
-        // MỚI: LƯU THÔNG TIN SỬA CHỮA VÀ XỬ LÝ UPLOAD PHIẾU CÔNG VIỆC LÊN ĐÁM MÂY
         async function saveRepairConfig() {
             const cpId = document.getElementById('repair_cp_id').value;
             const damage = document.getElementById('repair_damage').value.trim();
@@ -486,18 +511,15 @@
             const dev = DB_THIET_BI.find(x => x.id == cpId);
 
             let fileUrl = "";
-            // Nếu người dùng chọn đính kèm file phiếu yêu cầu công việc
             if(fileInput.files.length > 0) {
                 const file = fileInput.files[0];
                 const fileExt = file.name.split('.').pop();
                 const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
                 const filePath = `phieu/${fileName}`;
 
-                // Tiến hành đẩy file lên Supabase Storage Bucket
                 let { error: uploadError } = await client.storage.from('phieu_cong_viec').upload(filePath, file);
                 if(uploadError) { alert("Lỗi upload phiếu công việc: " + uploadError.message); return; }
 
-                // Lấy URL công khai để lưu vào cơ sở dữ liệu
                 const { data } = client.storage.from('phieu_cong_viec').getPublicUrl(filePath);
                 fileUrl = data.publicUrl;
             }
@@ -514,10 +536,9 @@
 
             const { error: insertError } = await client.from('lich_su_sua_chua').insert([payload]);
             if(!insertError) {
-                // Tự động chuyển trạng thái của thiết bị sang "Bảo dưỡng"
                 await client.from('cap_phat_thiet_bi').update({ trang_thai: 'Bảo dưỡng' }).eq('id', cpId);
                 
-                alert("Đã ghi nhận lịch sử bảo dưỡng và đồng bộ phiếu công việc trực tuyến thành công!");
+                alert("Đã ghi nhận nhật ký bảo dưỡng và đồng bộ phiếu lên Cloud thành công!");
                 document.getElementById('repair_dev_search').value = "";
                 document.getElementById('repair_cp_id').value = "";
                 document.getElementById('repair_damage').value = "";
@@ -563,7 +584,6 @@
             });
         }
 
-        // MỚI: HIỂN THỊ LOG NHẬT KÝ SỬA CHỮA KÈM LINK FILE DOWNLOAD PHIẾU YÊU CẦU
         function displayRepairLog() {
             const tbody = document.getElementById('table_suachua_body'); tbody.innerHTML = "";
             const kw = document.getElementById('search_suachua').value.toLowerCase().trim();
@@ -578,7 +598,6 @@
             }
 
             list.forEach(x => {
-                // Tạo liên kết tải tệp nếu có dữ liệu upload
                 let fileLinkHtml = `<span style="color:#aaa; font-style:italic;">Không đính kèm</span>`;
                 if(x.url_phieu_yeu_cau) {
                     fileLinkHtml = `<a href="${x.url_phieu_yeu_cau}" target="_blank" class="link-file"><i class="fa-solid fa-file-pdf"></i> Xem / Tải về</a>`;
