@@ -70,18 +70,6 @@
         .badge-female { background-color: #fff0f6; color: #d6336c; border: 1px solid #fcc419; }
         .badge-male { background-color: #e7f5ff; color: #1c7ed6; }
         .badge-info { background-color: #f1f3f5; color: #495057; border: 1px solid #ced4da; }
-        
-        .status-badge { padding: 5px 12px; border-radius: 20px; font-size: 13px; font-weight: 600; text-align: center; display: inline-block; }
-        .status-tot { background-color: #e6f4ea; color: #137333; }
-        .status-suachua { background-color: #fff0d4; color: #b06000; }
-        .status-loi { background-color: #fce8e6; color: #c5221f; }
-
-        .suggestions-box { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ced4da; border-radius: 8px; max-height: 280px; overflow-y: auto; z-index: 1000; display: none; box-shadow: 0 8px 24px rgba(0,0,0,0.15); }
-        .suggestion-item { padding: 12px 16px; cursor: pointer; font-size: 15px; border-bottom: 1px solid #f1f3f5; transition: background 0.15s; }
-        .suggestion-item:hover { background-color: #eef4fc; }
-        
-        .qr-wrapper { width: 70px; height: 70px; margin: 0 auto; background: #fff; padding: 2px; border: 1px solid #e2e8f0; border-radius: 4px; display: flex; align-items: center; justify-content: center; }
-        .qr-wrapper canvas { width: 100% !important; height: 100% !important; display: block; }
     </style>
 </head>
 <body>
@@ -222,15 +210,12 @@
 
         async function taiDuLieuHeThong() {
             try {
-                // Tải dữ liệu nhân sự
                 const resNs = await client.from('nhan_su').select('*').order('ho_va_ten', { ascending: true });
                 CACHE_NHAN_SU = resNs.data || [];
                 
-                // Tải dữ liệu thiết bị
                 const resTb = await client.from('cap_phat_thiet_bi').select('*').order('created_at', { ascending: false });
                 CACHE_THIET_BI = resTb.data || [];
 
-                // Cập nhật lên giao diện
                 capNhatThongKeHeThong();
                 napBoLocDonVi();
                 
@@ -356,7 +341,6 @@
                 </tr>
             `).join('');
 
-            // Khởi tạo QR Code an toàn bằng cách dùng try-catch cho từng phần tử
             filtered.forEach(x => {
                 try {
                     const canvasEl = document.getElementById(`qr_${x.ma_thiet_bi}`);
@@ -365,9 +349,54 @@
                         new QRious({ element: canvasEl, value: linkQuet, size: 120 });
                     }
                 } catch(qrErr) {
-                    console.error("Lỗi tạo QR cho thiết bị " + x.ma_thiet_bi, qrErr);
+                    console.error("Lỗi tạo QR: ", qrErr);
                 }
             });
+        }
+
+        async function xuLyFileExcelNhanSu(input) {
+            if (!input.files || input.files.length === 0) return;
+            const file = input.files[0];
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const sheetName = workbook.SheetNames[0];
+                    const sheet = workbook.Sheets[sheetName];
+                    const json = XLSX.utils.sheet_to_json(sheet);
+                    
+                    const mapped = json.map(row => ({
+                        ho_va_ten: row['Họ và tên'] || row['Họ Tên'] || '',
+                        ten: row['Tên'] || '',
+                        so_so_bhxh: String(row['Số sổ BHXH'] || row['Mã BHXH'] || ''),
+                        so_cccd: String(row['Số CCCD'] || row['CCCD'] || row['Số CMND'] || ''),
+                        an_toan_vien: String(row['An toàn viên']).toLowerCase().includes('x') || !!row['An toàn viên'],
+                        nndh: String(row['NNĐH']).toLowerCase().includes('x') || !!row['NNĐH'],
+                        nam_ve_hu: parseInt(row['Năm về hưu']) || null,
+                        ma_don_vi: String(row['Mã đơn vị'] || row['Phòng ban'] || 'VP'),
+                        nam: parseInt(row['Năm']) || 2026,
+                        nam_sinh: parseInt(row['Năm sinh']) || null,
+                        gioi_tinh: String(row['Giới tính'] || 'Nam').trim(),
+                        chuc_danh_cong_viec: row['Chức danh công việc'] || row['Chức vụ'] || ''
+                    }));
+                    
+                    // 👉 GIẢI PHÁP CHỐNG NGHẼN: Chia nhỏ dữ liệu thành từng cụm 50 dòng để upload
+                    const chunkSize = 50;
+                    for (let i = 0; i < mapped.length; i += chunkSize) {
+                        const chunk = mapped.slice(i, i + chunkSize);
+                        console.log(`Đang tải cụm dữ liệu nhân sự: từ ${i} đến ${i + chunk.length}`);
+                        const { error } = await client.from('nhan_su').insert(chunk);
+                        if(error) throw error;
+                    }
+                    
+                    alert(`🎉 Khởi tạo thành công! Đã đồng bộ toàn bộ ${mapped.length} nhân sự lên Cloud.`);
+                    await taiDuLieuHeThong();
+                } catch (err) {
+                    alert("Lỗi import dữ liệu: " + err.message);
+                }
+            };
+            reader.readAsArrayBuffer(file);
         }
 
         function goiYAnSinhNhanSuThongMinh(input) {
@@ -398,74 +427,34 @@
             let maTb = document.getElementById('form_ma_tb').value.trim().toUpperCase();
             const dv = document.getElementById('form_filter_dv_ns').value;
 
-            if(!tenNs || !tenTb) { alert("Vui lòng điền đầy đủ tên nhân sự và tên thiết bị tài sản!"); return; }
-            if(dv === 'ALL') { alert("Vui lòng xác định mã đơn vị cụ thể của nhân sự!"); return; }
+            if(!tenNs || !tenTb) { alert("Vui lòng điền đầy đủ tên nhân sự và tên thiết bị!"); return; }
+            if(dv === 'ALL') { alert("Vui lòng chọn đơn vị cụ thể!"); return; }
             if(!maTb) { maTb = "EQ-" + Math.floor(100000 + Math.random() * 900000); }
 
             const obj = { ma_thiet_bi: maTb, ten_thiet_bi: tenTb, ten_nhan_vien: tenNs, ma_don_vi: dv, trang_thai: trangThai, ghi_chu: ghiChu, ngay_ban_giao: new Date().toISOString() };
             
             const { error } = await client.from('cap_phat_thiet_bi').insert([obj]);
-            if(error) { alert("Lỗi tải lên máy chủ Cloud: " + error.message); return; }
+            if(error) { alert("Lỗi: " + error.message); return; }
             
             alert(`🎉 Đã cấp phát thành công thiết bị ${tenTb}!`);
             document.getElementById('form_search_ns').value = "";
             document.getElementById('form_ten_tb').value = "";
             document.getElementById('form_ma_tb').value = "";
             document.getElementById('form_ghi_chu').value = "";
-            
             await taiDuLieuHeThong();
         }
 
         async function xoaMotThietBi(ma) {
-            if(!confirm(`Bạn chắc chắn muốn thu hồi tài sản có mã [${ma}] không?`)) return;
+            if(!confirm(`Xác nhận thu hồi mã [${ma}]?`)) return;
             await client.from('cap_phat_thiet_bi').delete().eq('ma_thiet_bi', ma);
             await taiDuLieuHeThong();
         }
 
-        async function xuLyFileExcelNhanSu(input) {
-            if (!input.files || input.files.length === 0) return;
-            const file = input.files[0];
-            const reader = new FileReader();
-            reader.onload = async function(e) {
-                try {
-                    const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
-                    const sheetName = workbook.SheetNames[0];
-                    const sheet = workbook.Sheets[sheetName];
-                    const json = XLSX.utils.sheet_to_json(sheet);
-                    
-                    const mapped = json.map(row => ({
-                        ho_va_ten: row['Họ và tên'] || row['Họ Tên'] || '',
-                        ten: row['Tên'] || '',
-                        so_so_bhxh: String(row['Số sổ BHXH'] || row['Mã BHXH'] || ''),
-                        so_cccd: String(row['Số CCCD'] || row['CCCD'] || row['Số CMND'] || ''),
-                        an_toan_vien: String(row['An toàn viên']).toLowerCase().includes('x') || !!row['An toàn viên'],
-                        nndh: String(row['NNĐH']).toLowerCase().includes('x') || !!row['NNĐH'],
-                        nam_ve_hu: parseInt(row['Năm về hưu']) || null,
-                        ma_don_vi: String(row['Mã đơn vị'] || row['Phòng ban'] || 'VP'),
-                        nam: parseInt(row['Năm']) || 2026,
-                        nam_sinh: parseInt(row['Năm sinh']) || null,
-                        gioi_tinh: String(row['Giới tính'] || 'Nam').trim(),
-                        chuc_danh_cong_viec: row['Chức danh công việc'] || row['Chức vụ'] || ''
-                    }));
-                    
-                    alert(`Đang tải ${mapped.length} nhân sự lên Cloud...`);
-                    const { error } = await client.from('nhan_su').insert(mapped);
-                    if(error) throw error;
-                    alert("Import dữ liệu thành công!");
-                    await taiDuLieuHeThong();
-                } catch (err) {
-                    alert("Lỗi cấu trúc tệp Excel: " + err.message);
-                }
-            };
-            reader.readAsArrayBuffer(file);
-        }
-
         async function xoaToanBoDuLieuCloud() {
-            if(!confirm("CẢNH BÁO: Hành động này sẽ xóa sạch dữ liệu Nhân sự & Cấp phát. Bạn có chắc muốn thực hiện?")) return;
+            if(!confirm("CẢNH BÁO: Xóa toàn bộ dữ liệu trên Cloud?")) return;
             await client.from('nhan_su').delete().neq('id', 0);
             await client.from('cap_phat_thiet_bi').delete().neq('id', 0);
-            alert("Đã làm trống dữ liệu kho.");
+            alert("Đã làm trống dữ liệu.");
             await taiDuLieuHeThong();
         }
 
