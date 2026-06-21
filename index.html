@@ -62,6 +62,12 @@
         .btn-danger { background: var(--danger); color: white; }
         .btn-success { background: var(--success); color: white; }
         .btn-purple { background: var(--purple); color: white; }
+        
+        .btn-table-edit { background: #ebf5fb; color: #2980b9; border: 1px solid #aed6f1; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; margin-right: 4px; }
+        .btn-table-edit:hover { background: #2980b9; color: white; }
+        
+        .btn-table-del { background: #fce4e4; color: #e74c3c; border: 1px solid #f5c2c2; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; }
+        .btn-table-del:hover { background: #e74c3c; color: white; }
 
         .main-panel { display: flex; flex-direction: column; gap: 20px; overflow-x: auto; }
         .app-section { display: none; }
@@ -117,7 +123,8 @@
             </div>
 
             <div class="card s-form" id="form_thietbi_panel" style="display:none;">
-                <h3><i class="fa-solid fa-plus"></i> Cấp Phát Thiết Bị</h3>
+                <h3 id="form_device_title"><i class="fa-solid fa-plus"></i> Cấp Phát Thiết Bị</h3>
+                <input type="hidden" id="editing_device_id" value="">
                 <div class="form-group">
                     <label style="color: var(--primary);">BƯỚC 1: Chọn Nhóm Đơn Vị trước</label>
                     <select id="dev_filter_donvi" class="form-control" style="font-weight:bold;" onchange="resetSelectedUser()">
@@ -147,11 +154,13 @@
                         <option value="Hỏng hóc">Hỏng hóc chờ xử lý</option>
                     </select>
                 </div>
-                <button class="btn btn-success" onclick="saveDeviceCofig()"><i class="fa-solid fa-floppy-disk"></i> Lưu & Xuất Mã QR</button>
+                <button class="btn btn-success" id="btn_save_device" onclick="saveDeviceCofig()"><i class="fa-solid fa-floppy-disk"></i> Lưu & Xuất Mã QR</button>
+                <button class="btn btn-danger" id="btn_cancel_edit_device" style="display:none; margin-top:8px;" onclick="cancelEditDevice()"><i class="fa-solid fa-xmark"></i> Hủy Sửa</button>
             </div>
 
             <div class="card s-form" id="form_suachua_panel" style="display:none;">
-                <h3><i class="fa-solid fa-notes-medical"></i> Khai Báo Sửa Chữa</h3>
+                <h3 id="form_repair_title"><i class="fa-solid fa-notes-medical"></i> Khai Báo Sửa Chữa</h3>
+                <input type="hidden" id="editing_repair_id" value="">
                 <div class="form-group">
                     <label style="color: var(--purple);">Chọn thiết bị hư hỏng (*)</label>
                     <input type="text" id="repair_dev_search" class="form-control" placeholder="Bấm vào để chọn thiết bị..." onfocus="repairSuggest(this)" oninput="repairSuggest(this)">
@@ -174,7 +183,8 @@
                     <label style="color:var(--purple);"><i class="fa-solid fa-file-arrow-up"></i> Tải lên Phiếu yêu cầu công việc</label>
                     <input type="file" id="repair_file" class="form-control" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx">
                 </div>
-                <button class="btn btn-purple" onclick="saveRepairConfig()"><i class="fa-solid fa-cloud-arrow-up"></i> Lưu Nhật Ký & Upload Phiếu</button>
+                <button class="btn btn-purple" id="btn_save_repair" onclick="saveRepairConfig()"><i class="fa-solid fa-cloud-arrow-up"></i> Lưu Nhật Ký & Upload Phiếu</button>
+                <button class="btn btn-danger" id="btn_cancel_edit_repair" style="display:none; margin-top:8px;" onclick="cancelEditRepair()"><i class="fa-solid fa-xmark"></i> Hủy Sửa</button>
             </div>
         </div>
 
@@ -230,7 +240,8 @@
                                 <th>Tên Thiết Bị / Tài Sản</th>
                                 <th>Người Đang Giữ</th>
                                 <th class="text-center">Mã Đơn Vị</th>
-                                <th class="text-center" style="width:160px;">Tình Trạng Thiết Bị</th>
+                                <th class="text-center" style="width:140px;">Tình Trạng Thiết Bị</th>
+                                <th class="text-center" style="width:140px;">Thao Tác</th>
                             </tr>
                         </thead>
                         <tbody id="table_thietbi_body"></tbody>
@@ -246,13 +257,14 @@
                     <table>
                         <thead>
                             <tr>
-                                <th class="text-center" style="width:100px;">Ngày Sửa</th>
+                                <th class="text-center" style="width:100px;">Ngày Nhập</th>
                                 <th>Mã Thiết Bị</th>
                                 <th>Tên Thiết Bị Tài Sản</th>
                                 <th>Nội Dung Hư Hỏng</th>
                                 <th>Biện Pháp Xử Lý</th>
-                                <th style="text-align:right; width:130px;">Chi Phí (VND)</th>
-                                <th class="text-center" style="width:140px;">Phiếu Công Việc</th>
+                                <th style="text-align:right; width:120px;">Chi Phí (VND)</th>
+                                <th class="text-center" style="width:120px;">Phiếu Công Việc</th>
+                                <th class="text-center" style="width:140px;">Thao Tác</th>
                             </tr>
                         </thead>
                         <tbody id="table_suachua_body"></tbody>
@@ -347,6 +359,7 @@
 
         function formatDisplayDate(isoDateString) {
             if(!isoDateString) return "";
+            if(isoDateString.includes("T")) isoDateString = isoDateString.split("T")[0]; // Cắt lấy YYYY-MM-DD từ timestamp
             let parts = isoDateString.split("-");
             if(parts.length !== 3) return isoDateString;
             return `${parts[2]}/${parts[1]}/${parts[0]}`;
@@ -486,7 +499,9 @@
             box.style.display = 'block';
         }
 
+        // CHỨC NĂNG LƯU HOẶC SỬA THIẾT BỊ
         async function saveDeviceCofig() {
+            const editingId = document.getElementById('editing_device_id').value;
             const nsId = document.getElementById('dev_user_id').value;
             const name = document.getElementById('dev_name').value.trim();
             let code = document.getElementById('dev_code').value.trim();
@@ -498,17 +513,77 @@
             const ns = DB_NHAN_SU.find(x => x.id == nsId);
             let payload = { nhan_su_id: parseInt(nsId), ten_nhan_vien: ns.ho_ten, ma_don_vi: ns.ma_don_vi, ten_thiet_bi: name, ma_thiet_bi: code.toUpperCase(), trang_thai: status };
 
-            const { error } = await client.from('cap_phat_thiet_bi').insert([payload]);
-            if(!error) { 
-                alert(`Cấp phát thành công thiết bị ${name}!`); 
-                document.getElementById('dev_name').value = ""; document.getElementById('dev_code').value = "";
-                document.getElementById('dev_user_search').value = ""; document.getElementById('dev_user_id').value = "";
-                await fetchAllData(); 
-            } else alert(error.message);
+            if(editingId) {
+                // ĐANG Ở CHẾ ĐỘ SỬA (CẬP NHẬT)
+                const { error } = await client.from('cap_phat_thiet_bi').update(payload).eq('id', editingId);
+                if(!error) {
+                    alert("Cập nhật thông tin thiết bị thành công!");
+                    cancelEditDevice();
+                    await fetchAllData();
+                } else alert(error.message);
+            } else {
+                // ĐANG Ở CHẾ ĐỘ THÊM MỚI
+                const { error } = await client.from('cap_phat_thiet_bi').insert([payload]);
+                if(!error) { 
+                    alert(`Cấp phát thành công thiết bị ${name}!`); 
+                    clearDeviceForm();
+                    await fetchAllData(); 
+                } else alert(error.message);
+            }
         }
 
-        // SỬA ĐỒNG NHẤT BIẾN ĐỂ THÔNG TIN ĐIỀN ĐẨY ĐỦ VÀO CÁC CỘT TRÊN LƯU TRỮ
+        function editDevice(id) {
+            const dev = DB_THIET_BI.find(x => x.id == id);
+            if(!dev) return;
+
+            document.getElementById('editing_device_id').value = dev.id;
+            document.getElementById('dev_filter_donvi').value = dev.ma_don_vi;
+            document.getElementById('dev_user_id').value = dev.nhan_su_id;
+            document.getElementById('dev_user_search').value = `${dev.ten_nhan_vien} (Đơn vị: ${dev.ma_don_vi})`;
+            document.getElementById('dev_name').value = dev.ten_thiet_bi;
+            document.getElementById('dev_code').value = dev.ma_thiet_bi;
+            document.getElementById('dev_status_select').value = dev.trang_thai || "Đang sử dụng";
+
+            document.getElementById('form_device_title').innerHTML = `<i class="fa-solid fa-pen-to-square"></i> Cập Nhật Thiết Bị`;
+            document.getElementById('btn_save_device').innerHTML = `<i class="fa-solid fa-square-check"></i> Cập Nhật Thiết Bị`;
+            document.getElementById('btn_cancel_edit_device').style.display = "block";
+
+            // Tự cuộn màn hình về phía form nhập bên trái
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function cancelEditDevice() {
+            document.getElementById('editing_device_id').value = "";
+            clearDeviceForm();
+            document.getElementById('form_device_title').innerHTML = `<i class="fa-solid fa-plus"></i> Cấp Phát Thiết Bị`;
+            document.getElementById('btn_save_device').innerHTML = `<i class="fa-solid fa-floppy-disk"></i> Lưu & Xuất Mã QR`;
+            document.getElementById('btn_cancel_edit_device').style.display = "none";
+        }
+
+        function clearDeviceForm() {
+            document.getElementById('dev_name').value = ""; 
+            document.getElementById('dev_code').value = "";
+            document.getElementById('dev_user_search').value = ""; 
+            document.getElementById('dev_user_id').value = "";
+        }
+
+        // CHỨC NĂNG XÓA THIẾT BỊ 
+        async function deleteDevice(id, deviceName) {
+            if(confirm(`Bạn có chắc chắn muốn xóa thiết bị "${deviceName}"? Lưu ý: Mọi lịch sử nhật ký sửa chữa liên quan đến thiết bị này cũng sẽ bị xóa bỏ hoàn toàn!`)) {
+                try {
+                    await client.from('lich_su_sua_chua').delete().eq('cap_phat_id', id);
+                    const { error } = await client.from('cap_phat_thiet_bi').delete().eq('id', id);
+                    if(!error) {
+                        alert("Đã xóa thiết bị thành công!");
+                        await fetchAllData();
+                    } else { alert("Lỗi khi xóa: " + error.message); }
+                } catch (e) { alert("Có lỗi xảy ra: " + e.message); }
+            }
+        }
+
+        // CHỨC NĂNG LƯU HOẶC SỬA NHẬT KÝ SỬA CHỮA
         async function saveRepairConfig() {
+            const editingRepairId = document.getElementById('editing_repair_id').value;
             const cpId = document.getElementById('repair_cp_id').value;
             const damage = document.getElementById('repair_damage').value.trim();
             const solution = document.getElementById('repair_solution').value.trim();
@@ -532,7 +607,9 @@
                 fileUrl = data.publicUrl;
             }
 
-            // Đảm bảo dữ liệu truyền đi đồng bộ chuẩn hóa tên cột
+            // Ngày sửa là ngày nhập tự động theo thời gian thực tế
+            let todayStr = new Date().toISOString().split('T')[0];
+
             let payload = {
                 cap_phat_id: parseInt(cpId),
                 ma_thiet_bi: dev.ma_thiet_bi,
@@ -540,24 +617,74 @@
                 noi_dung_hong: damage,
                 bien_phap_khac_phuc: solution,
                 chi_phi: cost,
-                url_phieu_yeu_cau: fileUrl
+                ngay_sua_chua: todayStr 
             };
 
-            const { error: insertError } = await client.from('lich_su_sua_chua').insert([payload]);
-            if(!insertError) {
-                await client.from('cap_phat_thiet_bi').update({ trang_thai: 'Bảo dưỡng' }).eq('id', cpId);
-                
-                alert("Đã ghi nhận nhật ký bảo dưỡng và đồng bộ phiếu lên Cloud thành công!");
-                document.getElementById('repair_dev_search').value = "";
-                document.getElementById('repair_cp_id').value = "";
-                document.getElementById('repair_damage').value = "";
-                document.getElementById('repair_solution').value = "";
-                document.getElementById('repair_cost').value = "0";
-                fileInput.value = "";
-                
-                await fetchAllData(); // Refresh lại dữ liệu để cập nhật bảng ngay lập tức
+            if(fileUrl) { payload.url_phieu_yeu_cau = fileUrl; }
+
+            if(editingRepairId) {
+                // ĐANG Ở CHẾ ĐỘ SỬA NHẬT KÝ
+                const { error } = await client.from('lich_su_sua_chua').update(payload).eq('id', editingRepairId);
+                if(!error) {
+                    alert("Cập nhật nhật ký bảo dưỡng thành công!");
+                    cancelEditRepair();
+                    await fetchAllData();
+                } else { alert("Lỗi cập nhật: " + error.message); }
             } else {
-                alert("Lỗi lưu dữ liệu: " + insertError.message);
+                // ĐANG THÊM MỚI
+                const { error: insertError } = await client.from('lich_su_sua_chua').insert([payload]);
+                if(!insertError) {
+                    await client.from('cap_phat_thiet_bi').update({ trang_thai: 'Bảo dưỡng' }).eq('id', cpId);
+                    alert("Đã ghi nhận nhật ký bảo dưỡng theo ngày nhập phiếu thành công!");
+                    clearRepairForm();
+                    await fetchAllData(); 
+                } else { alert("Lỗi lưu dữ liệu: " + insertError.message); }
+            }
+        }
+
+        function editRepairLog(id) {
+            const log = DB_SUA_CHUA.find(x => x.id == id);
+            if(!log) return;
+
+            document.getElementById('editing_repair_id').value = log.id;
+            document.getElementById('repair_cp_id').value = log.cap_phat_id;
+            document.getElementById('repair_dev_search').value = `${log.ma_thiet_bi || ''} [${log.ten_thiet_bi || ''}]`;
+            document.getElementById('repair_damage').value = log.noi_dung_hong || '';
+            document.getElementById('repair_solution').value = log.bien_phap_khac_phuc || '';
+            document.getElementById('repair_cost').value = log.chi_phi || 0;
+
+            document.getElementById('form_repair_title').innerHTML = `<i class="fa-solid fa-pen-to-square"></i> Sửa Nhật Ký Sửa Chữa`;
+            document.getElementById('btn_save_repair').innerHTML = `<i class="fa-solid fa-square-check"></i> Cập Nhật Nhật Ký`;
+            document.getElementById('btn_cancel_edit_repair').style.display = "block";
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function cancelEditRepair() {
+            document.getElementById('editing_repair_id').value = "";
+            clearRepairForm();
+            document.getElementById('form_repair_title').innerHTML = `<i class="fa-solid fa-notes-medical"></i> Khai Báo Sửa Chữa`;
+            document.getElementById('btn_save_repair').innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i> Lưu Nhật Ký & Upload Phiếu`;
+            document.getElementById('btn_cancel_edit_repair').style.display = "none";
+        }
+
+        function clearRepairForm() {
+            document.getElementById('repair_dev_search').value = "";
+            document.getElementById('repair_cp_id').value = "";
+            document.getElementById('repair_damage').value = "";
+            document.getElementById('repair_solution').value = "";
+            document.getElementById('repair_cost').value = "0";
+            document.getElementById('repair_file').value = "";
+        }
+
+        // CHỨC NĂNG XÓA DÒNG NHẬT KÝ SỬA CHỮA
+        async function deleteRepairLog(id) {
+            if(confirm("Bạn có chắc chắn muốn xóa dòng nhật ký sửa chữa này không?")) {
+                const { error } = await client.from('lich_su_sua_chua').delete().eq('id', id);
+                if(!error) {
+                    alert("Đã xóa dòng nhật ký sửa chữa thành công!");
+                    await fetchAllData();
+                } else { alert("Lỗi khi xóa nhật ký: " + error.message); }
             }
         }
 
@@ -572,7 +699,7 @@
                 return matchKw && matchStatus;
             });
 
-            if(list.length === 0) { tbody.innerHTML = `<tr><td colspan="6" class="text-center">Chưa có thiết bị nào...</td></tr>`; return; }
+            if(list.length === 0) { tbody.innerHTML = `<tr><td colspan="7" class="text-center">Chưa có thiết bị nào...</td></tr>`; return; }
 
             list.forEach((x, i) => {
                 let qrId = `qr_box_${i}`;
@@ -588,12 +715,15 @@
                     <td><i class="fa-regular fa-user"></i> ${x.ten_nhan_vien}</td>
                     <td class="text-center"><span class="badge" style="background:#f4f6f9; color:#555; border:1px solid #ddd;">${x.ma_don_vi}</span></td>
                     <td class="text-center"><span class="badge ${statusClass}">${x.trang_thai || 'Đang sử dụng'}</span></td>
+                    <td class="text-center">
+                        <button class="btn-table-edit" onclick="editDevice(${x.id})"><i class="fa-solid fa-pen"></i> Sửa</button>
+                        <button class="btn-table-del" onclick="deleteDevice(${x.id}, '${x.ten_thiet_bi}')"><i class="fa-solid fa-trash"></i> Xóa</button>
+                    </td>
                 </tr>`;
                 setTimeout(() => { new QRCode(document.getElementById(qrId), { text: x.ma_thiet_bi, width: 55, height: 55 }); }, 20);
             });
         }
 
-        // ĐỒNG BỘ HIỂN THỊ THÔNG TIN CHÍNH XÁC THEO TÊN BIẾN PHÒNG LỖI CACHE SCHEMA
         function displayRepairLog() {
             const tbody = document.getElementById('table_suachua_body'); tbody.innerHTML = "";
             const kw = document.getElementById('search_suachua').value.toLowerCase().trim();
@@ -606,7 +736,7 @@
             });
 
             if(list.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="text-center">Chưa có lịch sử bảo dưỡng sửa chữa nào được tìm thấy.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="8" class="text-center">Chưa có lịch sử bảo dưỡng sửa chữa nào được tìm thấy.</td></tr>`;
                 return;
             }
 
@@ -616,15 +746,21 @@
                     fileLinkHtml = `<a href="${x.url_phieu_yeu_cau}" target="_blank" class="link-file"><i class="fa-solid fa-file-pdf"></i> Xem / Tải về</a>`;
                 }
 
-                // Cứu cánh hiển thị thông tin bằng toán tử || (hoặc) tránh tình trạng rỗng thông tin cột
+                // Ngày hiển thị lấy chuẩn xác theo ngày nhập
+                let dateDisplay = x.ngay_sua_chua ? formatDisplayDate(x.ngay_sua_chua) : formatDisplayDate(x.created_at);
+
                 tbody.innerHTML += `<tr>
-                    <td class="text-center"><b>${formatDisplayDate(x.ngay_sua_chua)}</b></td>
+                    <td class="text-center"><b>${dateDisplay}</b></td>
                     <td><mark><b>${x.ma_thiet_bi || 'N/A'}</b></mark></td>
                     <td><b>${x.ten_thiet_bi || 'Chưa cập nhật'}</b></td>
                     <td>${x.noi_dung_hong || 'Trống nội dung'}</td>
                     <td>${x.bien_phap_khac_phuc || 'Chưa ghi nhận'}</td>
                     <td style="text-align:right; font-weight:bold; color:#c0392b;">${Number(x.chi_phi || 0).toLocaleString('vi-VN')}</td>
                     <td class="text-center">${fileLinkHtml}</td>
+                    <td class="text-center">
+                        <button class="btn-table-edit" onclick="editRepairLog(${x.id})"><i class="fa-solid fa-pen"></i> Sửa</button>
+                        <button class="btn-table-del" onclick="deleteRepairLog(${x.id})"><i class="fa-solid fa-trash"></i> Xóa</button>
+                    </td>
                 </tr>`;
             });
         }
