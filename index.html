@@ -195,7 +195,7 @@
     </div>
 
     <script>
-        // Cấu hình kết nối cơ sở dữ liệu Supabase
+        // Cấu hình kết nối cơ sở dữ liệu Supabase của bạn
         const SUPABASE_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co"; 
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ";
         const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -225,18 +225,20 @@
             } catch (e) { console.error("Lỗi đồng bộ dữ liệu: ", e); }
         }
 
+        // Chuyển đổi tab thông minh (Ẩn/hiện cả form nhập và bảng hiển thị tương ứng)
         function switchSection(target) {
             document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.app-section').forEach(el => el.classList.remove('active'));
             document.getElementById('tab_' + target).classList.add('active');
             document.getElementById('sec_' + target).classList.add('active');
             
+            // Chuyển đổi panel form bên trái
             document.getElementById('form_hoso_panel').style.display = (target === 'hoso') ? 'block' : 'none';
             document.getElementById('form_thietbi_panel').style.display = (target === 'thietbi') ? 'block' : 'none';
             document.getElementById('form_suachua_panel').style.display = (target === 'suachua') ? 'block' : 'none';
         }
 
-        // HÀM XỬ LÝ EXCEL QUÉT CỘT ĐỘNG TOÀN DIỆN
+        // HÀM XỬ LÝ EXCEL MỚI - KHỬ TRÙNG ID TUYỆT ĐỐI CHỐNG LỖI PKEY DUPLICATE
         function importExcelNhanSu(input) {
             const file = input.files[0]; if(!file) return;
             const reader = new FileReader();
@@ -247,6 +249,7 @@
                     const sheet = workbook.Sheets[workbook.SheetNames[0]];
                     const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
 
+                    // 1. Quét dòng tiêu đề
                     let headerIdx = 0;
                     for (let i = 0; i < Math.min(rows.length, 15); i++) {
                         let txt = rows[i].join("").toLowerCase().replace(/[\s_\-]/g, "");
@@ -258,7 +261,6 @@
                     }
 
                     let colMap = { id: -1, ho_ten: -1, ma_don_vi: -1, chuc_danh: -1, so_cccd: -1, gioi_tinh: -1 };
-                    
                     rows[headerIdx].forEach((cell, idx) => {
                         let c = String(cell).toLowerCase().trim()
                                     .normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd')
@@ -277,7 +279,9 @@
                         return;
                     }
 
-                    let bulkData = [];
+                    // 2. Khử trùng ID ngay trong bộ nhớ Client-side trước khi truyền tải
+                    let uniqueDataMap = new Map();
+                    
                     for(let i = headerIdx + 1; i < rows.length; i++) {
                         let r = rows[i];
                         if(!r || r.length === 0) continue;
@@ -288,8 +292,7 @@
                         let rawId = colMap.id !== -1 ? String(r[colMap.id] || "").replace(/[^\d]/g, "") : "";
                         let idVal = parseInt(rawId) || i;
 
-                        // Các thuộc tính đối tượng bên dưới đã được đồng bộ chuẩn xác với cấu trúc cột SQL mới
-                        bulkData.push({
+                        uniqueDataMap.set(idVal, {
                             id: idVal,
                             ho_ten: hoTenStr.toUpperCase(),
                             ma_don_vi: colMap.ma_don_vi !== -1 ? String(r[colMap.ma_don_vi] || "CHƯA RÕ").trim() : "CHƯA RÕ",
@@ -299,12 +302,18 @@
                         });
                     }
 
+                    let bulkData = Array.from(uniqueDataMap.values());
+
                     if(bulkData.length === 0) { alert("Không tìm thấy hàng dữ liệu nào hợp lệ!"); return; }
 
+                    // 3. Thực hiện XÓA TRƯỚC một cách tuần tự (Chờ xóa hoàn tất)
                     const targetIds = bulkData.map(d => d.id);
-                    // Dọn dẹp bản ghi trùng ID cũ để tránh lỗi ON CONFLICT
-                    await client.from('nhan_su').delete().in('id', targetIds);
+                    const deleteResult = await client.from('nhan_su').delete().in('id', targetIds);
+                    if(deleteResult.error) {
+                        throw new Error("Không thể dọn dẹp ID trùng cũ: " + deleteResult.error.message);
+                    }
 
+                    // 4. Chèn dữ liệu sạch mới lên Cloud
                     const { error } = await client.from('nhan_su').insert(bulkData);
                     if(error) throw error;
 
@@ -312,6 +321,7 @@
                     await fetchAllData();
                 } catch(err) { 
                     alert("Lỗi xử lý hệ thống: " + err.message); 
+                    console.error(err);
                 } finally { 
                     input.value = ""; 
                 }
@@ -319,6 +329,7 @@
             reader.readAsArrayBuffer(file);
         }
 
+        // Gợi ý nhân sự và thiết bị liên kết thông minh
         function smartSuggest(input, mode) {
             const val = input.value.toLowerCase().trim();
             const box = document.getElementById(mode + '_suggest');
@@ -353,6 +364,7 @@
             box.style.display = 'block';
         }
 
+        // Lưu cấp phát thiết bị tài sản
         async function saveDeviceCofig() {
             const nsId = document.getElementById('dev_user_id').value;
             const name = document.getElementById('dev_name').value.trim();
@@ -374,6 +386,7 @@
             if(!error) { alert("Cấp phát thiết bị thành công!"); await fetchAllData(); }
         }
 
+        // Lưu hồ sơ sửa chữa
         async function saveRepairRecord() {
             const devId = document.getElementById('rep_device_id').value;
             const issue = document.getElementById('rep_issue').value.trim();
@@ -395,6 +408,7 @@
             if(!error) { alert("Đã ghi nhận hồ sơ chi phí sửa chữa!"); await fetchAllData(); }
         }
 
+        // Hiển thị các bảng dữ liệu
         function displayNhanSu() {
             const tbody = document.getElementById('table_hoso_body'); tbody.innerHTML = "";
             const kw = document.getElementById('search_hoso').value.toLowerCase();
