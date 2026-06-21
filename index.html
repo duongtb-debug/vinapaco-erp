@@ -6,7 +6,6 @@
     <title>Hệ Thống Quản Trị Nhân Sự & Thiết Bị Toàn Diện</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     
     <style>
@@ -38,6 +37,8 @@
         .filter-toolbar { display: flex; gap: 15px; margin-bottom: 18px; }
         .search-bar { flex: 1; padding: 11px 16px; border: 1px solid #ced4da; border-radius: 6px; font-size: 15px; }
         .select-filter { padding: 11px; border: 1px solid #ced4da; border-radius: 6px; background: white; min-width: 180px; }
+        .btn-primary { background-color: var(--primary-color); color: white; border: none; padding: 12px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; justify-content: center; width: 100%; }
+        .btn-danger { background-color: var(--danger-color); color: white; border: none; padding: 12px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; justify-content: center; width: 100%; }
         .table-responsive { overflow-x: auto; border: 1px solid var(--border-color); border-radius: 6px; background: white; max-height: 550px; }
         table { width: 100%; border-collapse: collapse; }
         table th, table td { padding: 12px 14px; text-align: left; font-size: 14px; border-bottom: 1px solid var(--border-color); }
@@ -54,7 +55,7 @@
         <div class="header">
             <div>
                 <h1>Hệ Thống Quản Trị Nhân Sự & Thiết Bị Toàn Diện</h1>
-                <p>Sửa lỗi định dạng: Đọc dữ liệu tuyệt đối theo vị trí cột vật lý</p>
+                <p>Mã nguồn Chuyên gia: Ép kiểu dữ liệu an toàn & Chống lệch cột</p>
             </div>
         </div>
 
@@ -80,15 +81,11 @@
                 </div>
                 
                 <div id="side_thietbi" style="display: none;">
-                    <div class="sidebar-card">
-                        <h3><i class="fa-solid fa-laptop"></i> Quản lý tài sản</h3>
-                    </div>
+                    <div class="sidebar-card"><h3><i class="fa-solid fa-laptop"></i> Quản lý tài sản</h3></div>
                 </div>
 
                 <div id="side_suachua" style="display: none;">
-                    <div class="sidebar-card">
-                        <h3><i class="fa-solid fa-tools"></i> Lịch sử bảo dưỡng</h3>
-                    </div>
+                    <div class="sidebar-card"><h3><i class="fa-solid fa-tools"></i> Lịch sử bảo dưỡng</h3></div>
                 </div>
             </div>
 
@@ -119,7 +116,7 @@
                                         <th style="text-align:center;">NNĐH</th>
                                         <th style="text-align:center;">Năm về hưu</th>
                                         <th style="text-align:center;">Mã đơn vị</th>
-                                        <th style="text-align:center;">Năm hiện tại</th>
+                                        <th style="text-align:center;">Năm</th>
                                         <th style="text-align:center;">Năm sinh</th>
                                         <th style="text-align:center;">Giới tính</th>
                                         <th>Chức danh công việc</th>
@@ -240,7 +237,20 @@
             return str;
         }
 
-        // ENGINE ĐỌC TUYỆT ĐỐI THEO TỌA ĐỘ VỊ TRÍ CỘT 
+        // BỘ XỬ LÝ SỐ NGUYÊN AN TOÀN TUYỆT ĐỐI
+        function parseCleanInteger(val) {
+            if (!val) return 2026;
+            if (val instanceof Date) return val.getFullYear(); // Nếu là đối tượng Date, trích xuất năm nguyên bản
+            let str = String(val).trim();
+            if (str.includes('-')) {
+                let parts = str.split('-');
+                let year = parseInt(parts[0]);
+                return isNaN(year) ? 2026 : year; // Trích xuất "1974" từ chuỗi "1974-07-31"
+            }
+            let parsed = parseInt(str);
+            return isNaN(parsed) ? 2026 : parsed;
+        }
+
         async function xuLyExcelNhanSuChuyenGia(input) {
             if (!input.files || input.files.length === 0) return;
             const file = input.files[0];
@@ -252,16 +262,14 @@
                     const workbook = XLSX.read(data, { type: 'array', cellDates: true });
                     const sheet = workbook.Sheets[workbook.SheetNames[0]];
                     
-                    // Đọc dạng mảng hai chiều để lấy đúng vị trí cột, không phụ thuộc vào chuỗi text tiêu đề
                     const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-                    if (rows.length < 3) { alert("File Excel không đủ dữ liệu dòng!"); return; }
+                    if (rows.length < 3) { alert("File Excel thiếu dữ liệu dòng!"); return; }
 
-                    let dataRows = rows.slice(2); // Cắt bỏ dòng 0 (trống) và dòng 1 (tiêu đề)
+                    let dataRows = rows.slice(2); 
                     
                     let mapped = dataRows.map(row => {
-                        if (!row || row.length < 2 || !row[1]) return null; // Dòng rỗng không có họ tên
+                        if (!row || row.length < 2 || !row[1]) return null;
 
-                        // Bản đồ ánh xạ chính xác tuyệt đối theo vị trí các cột trong file gốc của bạn
                         let hoTen = String(row[1] || '').trim();
                         let tenRieng = String(row[2] || '').trim() || hoTen.split(' ').pop();
                         let bhxh = String(row[3] || '').trim();
@@ -273,8 +281,8 @@
                         let namVeHuu = formatExcelDate(row[8]);
                         let maDv = String(row[9] || '').trim();
                         
-                        // Cố định ép kiểu Integer cho cột 'nam' để database không từ chối lưu
-                        let namHienTai = parseInt(row[10]) || 2026; 
+                        // SỬA ĐÚNG TRỌNG TÂM: Ép kiểu Số nguyên an toàn tuyệt đối cho trường 'nam'
+                        let namHienTai = parseCleanInteger(row[10]); 
                         let namSinh = formatExcelDate(row[11]);
                         
                         let nuVal = String(row[12] || '').toLowerCase().trim();
@@ -293,7 +301,7 @@
                             nndh: laNndh,
                             nam_ve_hu: namVeHuu,
                             ma_don_vi: maDv,
-                            nam: namHienTai, // Đã được ép kiểu Số chuẩn 100%
+                            nam: namHienTai, 
                             nam_sinh: namSinh,
                             gioi_tinh: gioiTinh,
                             chuc_danh_cong_viec: chucDanh
@@ -302,14 +310,13 @@
 
                     if (mapped.length === 0) { alert("Không trích xuất được nhân sự hợp lệ nào!"); return; }
 
-                    // Thực hiện nạp thẳng lên Cloud Database
                     const { error } = await client.from('nhan_su').insert(mapped);
                     
                     if (error) {
                         console.error("Lỗi gửi dữ liệu:", error);
                         alert("Database từ chối lưu dữ liệu: " + error.message);
                     } else {
-                        alert(`🎉 Thành công! Dữ liệu đã khớp chuẩn 100%. Đã nạp thành công ${mapped.length} nhân sự lên Cloud.`);
+                        alert(`🎉 Thành công! Dữ liệu đã được chuẩn hóa và vượt qua kiểm duyệt. Đã nạp thành công ${mapped.length} nhân sự lên Cloud.`);
                         await taiDuLieuHeThong();
                     }
                 } catch (err) {
