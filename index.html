@@ -185,7 +185,15 @@
                     <input type="number" id="repair_cost" class="form-control" value="0" oninput="calculateRealtimeTax()">
                 </div>
                 <div class="form-group">
-                    <label style="color: var(--danger)">Thành tiền dự kiến (Chi phí gốc + 8% Thuế)</label>
+                    <label style="color: var(--primary)">Chọn mức Thuế suất (%)</label>
+                    <select id="repair_tax_rate" class="form-control" style="font-weight: bold;" onchange="calculateRealtimeTax()">
+                        <option value="1.08" selected>+8% Thuế suất VAT</option>
+                        <option value="1.10">+10% Thuế suất VAT</option>
+                        <option value="1.00">Không tính Thuế (0%)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label style="color: var(--danger)">Thành tiền dự kiến (Chi phí gốc + Thuế chọn)</label>
                     <input type="text" id="repair_tax_preview" class="form-control" style="background:#f8f9fa; font-weight:bold; color:var(--danger);" readonly value="0 VND">
                 </div>
                 <button class="btn btn-purple" id="btn_save_repair" onclick="saveRepairConfig()"><i class="fa-solid fa-cloud-arrow-up"></i> Lưu Nhật Ký Sửa Chữa</button>
@@ -290,14 +298,14 @@
                     <div class="db-card paid"><h4>Tổng lượt sửa chữa</h4><div class="value" id="stat_count_total">0 danh mục</div></div>
                     <div class="db-card working"><h4>Sửa đổi gần đây</h4><div class="value" id="stat_latest_repair_device" style="font-size:14px;">N/A</div></div>
                     <div class="db-card paid"><h4>Tổng chi phí gốc</h4><div class="value" id="stat_money_original" style="color: var(--success);">0 VND</div></div>
-                    <div class="db-card unpaid"><h4>Quyết toán gồm thuế (+8%)</h4><div class="value" id="stat_money_taxed" style="color: var(--danger);">0 VND</div></div>
+                    <div class="db-card unpaid"><h4>Quyết toán gồm thuế (Tổng hợp)</h4><div class="value" id="stat_money_taxed" style="color: var(--danger);">0 VND</div></div>
                 </div>
                 <div class="filter-wrapper"><input type="text" id="search_thanhtoan" class="search-bar" placeholder="Tìm nhanh thiết bị, đơn vị thụ hưởng..." oninput="displayPaymentTable()"></div>
                 <div class="table-container">
                     <table>
                         <thead>
                             <tr>
-                                <th class="text-center" style="width:100px;">Ngày Nhập</th><th style="width:140px;" class="text-center">Trạng Thái Hồ Sơ</th><th>Mã / Tên Thiết Bị Sửa Chữa</th><th style="text-align:right; width:130px; color:var(--primary);">Chi Phí Gốc</th><th style="text-align:right; width:140px; color:var(--danger);">Quyết Toán (+8%)</th><th>Đơn Vị Thụ Hưởng</th><th style="width:220px;" class="text-center">Hóa Đơn & Đa Chứng Từ Trực Tuyến</th><th class="text-center" style="width:140px;">Thao Tác</th>
+                                <th class="text-center" style="width:100px;">Ngày Nhập</th><th style="width:140px;" class="text-center">Trạng Thái Hồ Sơ</th><th>Mã / Tên Thiết Bị Sửa Chữa</th><th style="text-align:right; width:130px; color:var(--primary);">Chi Phí Gốc</th><th style="text-align:right; width:150px; color:var(--danger);">Quyết Toán Có Thuế</th><th>Đơn Vị Thụ Hưởng</th><th style="width:220px;" class="text-center">Hóa Đơn & Đa Chứng Từ Trực Tuyến</th><th class="text-center" style="width:140px;">Thao Tác</th>
                             </tr>
                         </thead>
                         <tbody id="table_thanhtoan_body"></tbody>
@@ -316,9 +324,11 @@
         
         window.onload = async function() { await fetchAllData(); };
 
+        // --- HÀM TÍNH THÀNH TIỀN THỜI GIAN THỰC THEO % THUẾ CHỌN ---
         function calculateRealtimeTax() {
             let cost = parseFloat(document.getElementById('repair_cost').value) || 0;
-            document.getElementById('repair_tax_preview').value = (cost * 1.08).toLocaleString('vi-VN') + " VND";
+            let taxRate = parseFloat(document.getElementById('repair_tax_rate').value) || 1.08;
+            document.getElementById('repair_tax_preview').value = (cost * taxRate).toLocaleString('vi-VN') + " VND";
         }
 
         async function fetchAllData() {
@@ -380,7 +390,6 @@
         }
         function handleTableScroll(container) { if (container.scrollHeight - container.scrollTop <= container.clientHeight + 40) { if (CURRENT_PAGE_SIZE < FILTERED_LIST.length) { CURRENT_PAGE_SIZE += 30; renderNhanSuTable(); } } }
 
-        // --- TẢI MULTIPLE FILES & FOLDERS LÊN SUPABASE STORAGE (ĐÃ FIX LỖI PATH THƯ MỤC TRÙNG) ---
         async function uploadMultipleFilesToCloud(input) {
             const files = input.files; if(files.length === 0) return;
             let currentUrls = document.getElementById('pay_document_links_area').value.trim();
@@ -391,7 +400,6 @@
             for (let i = 0; i < files.length; i++) {
                 let file = files[i];
                 let fileExt = file.name.split('.').pop();
-                // Loại bỏ hoàn toàn tiền tố "documents/" thừa để tránh đúp thư mục
                 let fileNameNew = `${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
                 let filePath = `${fileNameNew}`; 
 
@@ -486,33 +494,102 @@
             });
         }
 
+        // --- LƯU THÔNG TIN SỬA CHỮA (LƯU KÈM THEO TỶ LỆ THUẾ ĐÃ CHỌN) ---
         async function saveRepairConfig() {
             const editingRepairId = document.getElementById('editing_repair_id').value; const cpId = document.getElementById('repair_cp_id').value; const damage = document.getElementById('repair_damage').value.trim(); const searchText = document.getElementById('repair_dev_search').value.trim();
             if(!damage) { alert("Vui lòng nhập nội dung hư hỏng!"); return; }
             let dev = cpId ? DB_THIET_BI.find(x => x.id == cpId) : DB_THIET_BI.find(x => searchText.toUpperCase().includes(x.ma_thiet_bi.toUpperCase()));
             if(!dev) { alert("Không tìm thấy thông tin thiết bị!"); return; }
-            let payload = { cap_phat_id: parseInt(dev.id), ma_thiet_bi: dev.ma_thiet_bi.toUpperCase(), ten_thiet_bi: dev.ten_thiet_bi, noi_dung_hong: damage, bien_phap_khac_phuc: document.getElementById('repair_solution').value.trim(), chi_phi: parseFloat(document.getElementById('repair_cost').value) || 0 };
-            if(editingRepairId) { await client.from('lich_su_sua_chua').update(payload).eq('id', editingRepairId); cancelEditRepair(); } 
-            else { await client.from('lich_su_sua_chua').insert([payload]); clearRepairForm(); } 
-            await fetchAllData(); alert("Lưu nhật ký thành công!");
+            
+            // Đọc ghi chú giải pháp cũ để không đè lên cấu trúc JSON hồ sơ
+            let baseSolution = document.getElementById('repair_solution').value.trim();
+            let currentTaxRate = document.getElementById('repair_tax_rate').value;
+
+            let payload = { 
+                cap_phat_id: parseInt(dev.id), 
+                ma_thiet_bi: dev.ma_thiet_bi.toUpperCase(), 
+                ten_thiet_bi: dev.ten_thiet_bi, 
+                noi_dung_hong: damage, 
+                bien_phap_khac_phuc: baseSolution, 
+                chi_phi: parseFloat(document.getElementById('repair_cost').value) || 0 
+            };
+
+            // Nếu đang sửa bản ghi có sẵn, ta đính kèm lại cục JSON cũ nhưng cập nhật lại thuế mới vào chuỗi
+            if(editingRepairId) {
+                const oldLog = DB_SUA_CHUA.find(x => x.id == editingRepairId);
+                if(oldLog && oldLog.bien_phap_khac_phuc.includes("===PAYMENT_PROFILE===")) {
+                    try {
+                        let segs = oldLog.bien_phap_khac_phuc.split("===PAYMENT_PROFILE===");
+                        let jsonProfile = JSON.parse(segs[1].trim());
+                        jsonProfile.tax_rate = currentTaxRate; // Cập nhật tỷ lệ thuế mới chọn
+                        payload.bien_phap_khac_phuc = `${baseSolution.split("===PAYMENT_PROFILE===")[0].trim()}\n\n===PAYMENT_PROFILE===\n${JSON.stringify(jsonProfile)}`;
+                    } catch(e){}
+                } else {
+                    // Nếu chưa có cục JSON, tạo mới một cục mẫu đính kèm mức thuế
+                    let defaultProfile = { trang_thai_hs: "Chưa xử lý", don_vi_thu_huong: "", links: "", tax_rate: currentTaxRate };
+                    payload.bien_phap_khac_phuc = `${baseSolution}\n\n===PAYMENT_PROFILE===\n${JSON.stringify(defaultProfile)}`;
+                }
+                await client.from('lich_su_sua_chua').update(payload).eq('id', editingRepairId); 
+                cancelEditRepair(); 
+            } else {
+                // Thêm mới hoàn toàn: Gán mặc định cục JSON cấu hình thuế ban đầu
+                let defaultProfile = { trang_thai_hs: "Chưa xử lý", don_vi_thu_huong: "", links: "", tax_rate: currentTaxRate };
+                payload.bien_phap_khac_phuc = `${baseSolution}\n\n===PAYMENT_PROFILE===\n${JSON.stringify(defaultProfile)}`;
+                await client.from('lich_su_sua_chua').insert([payload]); 
+                clearRepairForm(); 
+            } 
+            await fetchAllData(); alert("Lưu nhật ký sửa chữa thành công!");
         }
 
         function editRepairLog(id) {
             const log = DB_SUA_CHUA.find(x => x.id == id); if(!log) return;
-            document.getElementById('editing_repair_id').value = log.id; document.getElementById('repair_cp_id').value = log.cap_phat_id; document.getElementById('repair_dev_search').value = log.ma_thiet_bi ? `${log.ma_thiet_bi} [${log.ten_thiet_bi}]` : (log.ten_thiet_bi || ''); document.getElementById('repair_damage').value = log.noi_dung_hong || ''; document.getElementById('repair_solution').value = log.bien_phap_khac_phuc || ''; document.getElementById('repair_cost').value = log.chi_phi || 0;
+            document.getElementById('editing_repair_id').value = log.id; document.getElementById('repair_cp_id').value = log.cap_phat_id; document.getElementById('repair_dev_search').value = log.ma_thiet_bi ? `${log.ma_thiet_bi} [${log.ten_thiet_bi}]` : (log.ten_thiet_bi || ''); document.getElementById('repair_damage').value = log.noi_dung_hong || ''; 
+            
+            let cleanSolution = log.bien_phap_khac_phuc || "";
+            let selectedTax = "1.08"; // Mặc định nếu bản ghi cũ chưa cấu hình thuế
+
+            if(cleanSolution.includes("===PAYMENT_PROFILE===")) {
+                try {
+                    let segs = cleanSolution.split("===PAYMENT_PROFILE===");
+                    cleanSolution = segs[0].trim();
+                    let profileData = JSON.parse(segs[1].trim());
+                    if(profileData.tax_rate) selectedTax = profileData.tax_rate;
+                } catch(e){}
+            }
+
+            document.getElementById('repair_solution').value = cleanSolution; 
+            document.getElementById('repair_cost').value = log.chi_phi || 0;
+            document.getElementById('repair_tax_rate').value = selectedTax;
+
             calculateRealtimeTax(); switchSection('suachua'); document.getElementById('btn_cancel_edit_repair').style.display = "block"; window.scrollTo({ top: 0, behavior: 'smooth' });
         }
         function cancelEditRepair() { document.getElementById('editing_repair_id').value = ""; clearRepairForm(); document.getElementById('btn_cancel_edit_repair').style.display = "none"; }
-        function clearRepairForm() { document.getElementById('repair_dev_search').value = ""; document.getElementById('repair_damage').value = ""; document.getElementById('repair_solution').value = ""; document.getElementById('repair_cost').value = 0; document.getElementById('repair_tax_preview').value = "0 VND"; document.getElementById('repair_cp_id').value = ""; }
+        function clearRepairForm() { document.getElementById('repair_dev_search').value = ""; document.getElementById('repair_damage').value = ""; document.getElementById('repair_solution').value = ""; document.getElementById('repair_cost').value = 0; document.getElementById('repair_tax_rate').value = "1.08"; document.getElementById('repair_tax_preview').value = "0 VND"; document.getElementById('repair_cp_id').value = ""; }
         async function deleteRepairLog(id, name) { if(confirm(`Xóa nhật ký sửa chữa của máy: ${name}?`)) { await client.from('lich_su_sua_chua').delete().eq('id', id); await fetchAllData(); } }
 
+        // --- ĐỌC VÀ TÍNH TỔNG QUYẾT TOÁN THEO THUẾ SUẤT TỪNG DÒNG (ĐA MÁY THỜI GIAN THỰC) ---
         function calculatePaymentStats() {
-            let orig = 0, tax = 0;
-            DB_SUA_CHUA.forEach((x, idx) => { let c = parseFloat(x.chi_phi) || 0; orig += c; tax += (c * 1.08); if(idx === 0) document.getElementById('stat_latest_repair_device').innerText = x.ten_thiet_bi || 'N/A'; });
-            document.getElementById('stat_count_total').innerText = DB_SUA_CHUA.length + " danh mục"; document.getElementById('stat_money_original').innerText = orig.toLocaleString('vi-VN') + " VND"; document.getElementById('stat_money_taxed').innerText = tax.toLocaleString('vi-VN') + " VND";
+            let orig = 0, totalTaxedSum = 0;
+            DB_SUA_CHUA.forEach((x, idx) => { 
+                let c = parseFloat(x.chi_phi) || 0; 
+                orig += c; 
+                
+                let rate = 1.08; // Thuế mặc định cũ
+                if(x.bien_phap_khac_phuc && x.bien_phap_khac_phuc.includes("===PAYMENT_PROFILE===")) {
+                    try {
+                        let p = JSON.parse(x.bien_phap_khac_phuc.split("===PAYMENT_PROFILE===")[1].trim());
+                        if(p.tax_rate) rate = parseFloat(p.tax_rate);
+                    } catch(e){}
+                }
+                totalTaxedSum += (c * rate);
+                if(idx === 0) document.getElementById('stat_latest_repair_device').innerText = x.ten_thiet_bi || 'N/A'; 
+            });
+            document.getElementById('stat_count_total').innerText = DB_SUA_CHUA.length + " danh mục"; 
+            document.getElementById('stat_money_original').innerText = orig.toLocaleString('vi-VN') + " VND"; 
+            document.getElementById('stat_money_taxed').innerText = totalTaxedSum.toLocaleString('vi-VN') + " VND";
         }
 
-        // --- HIỂN THỊ DANH SÁCH BẢNG THANH TOÁN (SỬA LỖI ĐỌC DỮ LIỆU ĐỂ HIỂN THỊ FILE CHỨNG TỪ) ---
+        // --- HIỂN THỊ CỘT THÀNH TIỀN THEO ĐÚNG MỨC THUẾ 8% HOẶC 10% ĐÃ LỰA CHỌN ---
         function displayPaymentTable() {
             const tbody = document.getElementById('table_thanhtoan_body'); tbody.innerHTML = "";
             const kw = document.getElementById('search_thanhtoan').value.toLowerCase().trim();
@@ -527,6 +604,7 @@
                 let statusHS = "Chưa xử lý";
                 let donVi = "Chưa khai báo";
                 let linkString = "";
+                let currentRate = 1.08; 
 
                 if (rawText.includes("===PAYMENT_PROFILE===")) {
                     try {
@@ -535,12 +613,13 @@
                         statusHS = jsonData.trang_thai_hs || "Chưa xử lý";
                         donVi = jsonData.don_vi_thu_huong || "Chưa khai báo";
                         linkString = jsonData.links || "";
-                    } catch(e) { console.log("Hồ sơ cũ chưa format JSON"); }
+                        if(jsonData.tax_rate) currentRate = parseFloat(jsonData.tax_rate);
+                    } catch(e) { console.log("Hồ sơ cũ"); }
                 }
 
                 let badgeClass = statusHS === "Đã hoàn thành" ? "hs-done" : (statusHS === "Đang xác minh" ? "hs-doing" : "hs-todo");
+                let ratePercentText = currentRate === 1.10 ? " (10%)" : (currentRate === 1.00 ? " (0%)" : " (8%)");
 
-                // Tạo chuỗi danh sách các link chứng từ download trực quan
                 let docCell = `<i style="color:#aaa">Trống</i>`;
                 if(linkString && linkString.trim() !== "") {
                     docCell = "";
@@ -559,7 +638,7 @@
                     <td class="text-center"><span class="badge ${badgeClass}">${statusHS}</span></td>
                     <td><b>[${x.ma_thiet_bi || 'N/A'}] - ${x.ten_thiet_bi || ''}</b></td>
                     <td style="text-align:right; font-weight:bold; color:#1e56a0;">${costOriginal.toLocaleString('vi-VN')}</td>
-                    <td style="text-align:right; font-weight:bold; color:#c0392b;">${(costOriginal * 1.08).toLocaleString('vi-VN')}</td>
+                    <td style="text-align:right; font-weight:bold; color:#c0392b;">${(costOriginal * currentRate).toLocaleString('vi-VN')}<br><span style="font-size:11px; font-weight:normal; color:#777;">VAT ${ratePercentText}</span></td>
                     <td><b>${donVi}</b></td>
                     <td>${docCell}</td>
                     <td class="text-center"><button class="btn-table-edit" onclick="selectForPaymentProfile(${x.id})"><i class="fa-solid fa-folder-open"></i> Xử lý HS</button></td>
@@ -592,7 +671,6 @@
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        // --- LƯU THÔNG TIN ĐỒNG BỘ CLOUD ĐA MÁY TUYỆT ĐỐI KHÔNG LỖI SCHEMA ---
         async function updateCloudPaymentProfile() {
             const logId = document.getElementById('pay_log_id').value;
             if(!logId) { alert("Vui lòng bấm nút 'Xử lý HS' ở bảng dữ liệu chi phí trước!"); return; }
@@ -605,14 +683,20 @@
             let allLinks = document.getElementById('pay_document_links_area').value.trim();
 
             let baseSolution = log.bien_phap_khac_phuc || "";
+            let existingTaxRate = "1.08"; 
             if (baseSolution.includes("===PAYMENT_PROFILE===")) {
+                try {
+                    let oldJson = JSON.parse(baseSolution.split("===PAYMENT_PROFILE===")[1].trim());
+                    if(oldJson.tax_rate) existingTaxRate = oldJson.tax_rate;
+                } catch(e){}
                 baseSolution = baseSolution.split("===PAYMENT_PROFILE===")[0].trim();
             }
 
             let profileJson = {
                 trang_thai_hs: status,
                 don_vi_thu_huong: beneficiary,
-                links: allLinks
+                links: allLinks,
+                tax_rate: existingTaxRate
             };
 
             let finalSolutionField = `${baseSolution}\n\n===PAYMENT_PROFILE===\n${JSON.stringify(profileJson)}`;
