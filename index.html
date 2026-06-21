@@ -56,7 +56,7 @@
         <div class="header">
             <div>
                 <h1>Hệ Thống Quản Trị Nhân Sự & Thiết Bị Toàn Diện</h1>
-                <p>Bộ lọc Chuyên Gia: Tự động chuẩn hóa tiêu đề và khớp mờ trường dữ liệu</p>
+                <p>Sửa lỗi hiển thị: Đồng bộ và ép kiểu dữ liệu chuẩn xác lên bảng</p>
             </div>
         </div>
 
@@ -71,7 +71,7 @@
                 <div id="side_hoso" style="display: block;">
                     <div class="sidebar-card">
                         <h3><i class="fa-solid fa-file-excel"></i> Nhập Bản Gốc Excel</h3>
-                        <input type="file" id="excel_file_input" accept=".xlsx, .xls, .csv" style="display: none;" onchange="xuLyExcelNhanSuFuzzyEngine(this)">
+                        <input type="file" id="excel_file_input" accept=".xlsx, .xls, .csv" style="display: none;" onchange="xuLyExcelNhanSuChuyenGia(this)">
                         <button class="btn-primary" style="margin-bottom: 12px;" onclick="document.getElementById('excel_file_input').click()">
                             <i class="fa-solid fa-file-import"></i> TẢI FILE EXCEL DANH SÁCH
                         </button>
@@ -84,14 +84,12 @@
                 <div id="side_thietbi" style="display: none;">
                     <div class="sidebar-card">
                         <h3><i class="fa-solid fa-laptop"></i> Quản lý tài sản</h3>
-                        <p style="color:#6c757d; font-size:13px;">Chức năng quản lý, cấp phát, và theo dõi thiết bị nhân sự sử dụng.</p>
                     </div>
                 </div>
 
                 <div id="side_suachua" style="display: none;">
                     <div class="sidebar-card">
                         <h3><i class="fa-solid fa-tools"></i> Lịch sử bảo dưỡng</h3>
-                        <p style="color:#6c757d; font-size:13px;">Theo dõi tiến độ sửa chữa thiết bị, linh kiện hư hỏng.</p>
                     </div>
                 </div>
             </div>
@@ -204,10 +202,10 @@
                     <td>${x.so_cccd || ''}</td>
                     <td style="text-align:center;">${x.an_toan_vien ? '✅' : ''}</td>
                     <td style="text-align:center;">${x.nndh ? '✅' : ''}</td>
-                    <td style="text-align:center;">${x.nam_ve_hu ? x.nam_ve_hu.substring(0, 10) : ''}</td>
+                    <td style="text-align:center;">${x.nam_ve_hu ? String(x.nam_ve_hu).substring(0, 10) : ''}</td>
                     <td style="text-align:center;"><span class="badge badge-info">${x.ma_don_vi || ''}</span></td>
                     <td style="text-align:center;">${x.nam || '2026'}</td>
-                    <td style="text-align:center;"><b>${x.nam_sinh ? x.nam_sinh.substring(0, 10) : ''}</b></td>
+                    <td style="text-align:center;"><b>${x.nam_sinh ? String(x.nam_sinh).substring(0, 10) : ''}</b></td>
                     <td style="text-align:center;"><span class="badge ${x.gioi_tinh === 'Nữ' ? 'badge-female' : 'badge-male'}">${x.gioi_tinh || 'Nam'}</span></td>
                     <td>${x.chuc_danh_cong_viec || ''}</td>
                 </tr>
@@ -236,17 +234,13 @@
             }
         }
 
-        // HÀM CHUẨN HÓA KHÓA TIÊU ĐỀ: XÓA DẤU, XÓA KÝ TỰ XUỐNG DÒNG, XÓA KHOẢNG TRẮNG
+        // CHUẨN HÓA TIÊU ĐỀ KHÔNG SỢ LỆCH ĐỊNH DẠNG
         function cleanKey(str) {
             if (!str) return '';
-            return String(str)
-                .toLowerCase()
-                .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // Xóa dấu tiếng Việt
-                .replace(/\r?\n|\r/g, '')                         // Xóa ký tự xuống dòng (\n)
-                .replace(/\s+/g, '');                             // Xóa mọi khoảng trắng
+            return String(str).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\r?\n|\r/g, '').replace(/\s+/g, '');
         }
 
-        // ĐỊNH DẠNG CHUỖI NGÀY THÁNG CHUẨN YYYY-MM-DD
+        // ÉP KIỂU NGÀY ĐÚNG ĐỊNH DẠNG ISO DATE
         function formatExcelDate(val) {
             if (!val) return null;
             if (val instanceof Date) {
@@ -257,8 +251,8 @@
             return str;
         }
 
-        // BỘ ĐỘC ENGINE CHUÊN GIA KHỚP MỜ ĐA ĐIỂM
-        async function xuLyExcelNhanSuFuzzyEngine(input) {
+        // ENGINE ĐỌC FILE EXCEL ĐỒNG BỘ THẬT LÊN DATABASE
+        async function xuLyExcelNhanSuChuyenGia(input) {
             if (!input.files || input.files.length === 0) return;
             const file = input.files[0];
             const reader = new FileReader();
@@ -269,18 +263,14 @@
                     const workbook = XLSX.read(data, { type: 'array', cellDates: true });
                     const sheet = workbook.Sheets[workbook.SheetNames[0]];
                     
-                    // Quét tự động từ dòng số 2 (bỏ qua dòng trống đầu tiên nếu có)
+                    // QUAN TRỌNG: Quét bắt đầu từ dòng số 2 để loại bỏ dòng trống đầu tiên của file gốc
                     const json = XLSX.utils.sheet_to_json(sheet, { range: 1 });
-                    if(json.length === 0) { alert("File Excel rỗng!"); return; }
+                    if (json.length === 0) { alert("File Excel rỗng!"); return; }
                     
                     const mapped = json.map(row => {
-                        // Chuẩn hóa toàn bộ các key trong row hiện tại thành mảng đối tượng sạch
                         let cleanRow = {};
-                        Object.keys(row).forEach(k => {
-                            cleanRow[cleanKey(k)] = row[k];
-                        });
+                        Object.keys(row).forEach(k => { cleanRow[cleanKey(k)] = row[k]; });
 
-                        // Hàm trích xuất giá trị linh hoạt theo bộ alias đã làm sạch
                         const extract = (aliases) => {
                             for (let a of aliases) {
                                 if (cleanRow[a] !== undefined && cleanRow[a] !== null) return cleanRow[a];
@@ -288,61 +278,65 @@
                             return '';
                         };
 
-                        let hoTen = String(extract(['hovaten', 'hoten', 'nhanvien'])).trim();
+                        let hoTen = String(extract(['hovaten', 'hoten'])).trim();
                         let tenRieng = String(extract(['ten'])).trim() || (hoTen ? hoTen.split(' ').pop() : '');
-                        let bhxh = String(extract(['sosobhxh', 'bhxh', 'baohiem'])).trim();
-                        let cccd = String(extract(['socccd', 'cccd', 'cmnd', 'cancuoc'])).trim();
+                        let bhxh = String(extract(['sosobhxh', 'bhxh'])).trim();
+                        let cccd = String(extract(['socccd', 'cccd', 'cmnd'])).trim();
                         
                         let atvRaw = String(extract(['antoanvien', 'atv'])).toLowerCase().trim();
-                        let nndhRaw = String(extract(['nndh', 'dochai', 'nangnhoc'])).toLowerCase().trim();
+                        let nndhRaw = String(extract(['nndh', 'dochai'])).toLowerCase().trim();
                         
-                        let maDv = String(extract(['madonvi', 'donvi', 'phongban', 'bophan'])).trim();
+                        let maDv = String(extract(['madonvi', 'donvi'])).trim();
                         let namHienTai = parseInt(extract(['nam', 'namhientai'])) || 2026;
 
-                        let namSinh = formatExcelDate(extract(['namsinh', 'sinh', 'ngaysinh']));
-                        let namVeHuu = formatExcelDate(extract(['namvehuu', 'vehuu', 'huu']));
+                        let namSinh = formatExcelDate(extract(['namsinh', 'sinh']));
+                        let namVeHuu = formatExcelDate(extract(['namvehuu', 'vehuu']));
 
-                        // Xử lý Giới tính: Khớp mờ cột Nữ(x)
-                        let nuVal = String(extract(['nux', 'nu', 'gioitinhnu'])).toLowerCase().trim();
+                        // Ép chuẩn Boolean (true/false) để Supabase chấp nhận lưu vào Cloud
+                        let nuVal = String(extract(['nux', 'nu'])).toLowerCase().trim();
                         let gioiTinh = "Nam";
-                        if (nuVal === 'x' || nuVal === '1' || nuVal === 'true') {
-                            gioiTinh = "Nữ";
-                        }
+                        if (nuVal === 'x' || nuVal === '1' || nuVal === 'true') { gioiTinh = "Nữ"; }
+
+                        let laAtv = (atvRaw === 'x' || atvRaw === '1' || atvRaw === 'true');
+                        let laNndh = (nndhRaw === 'x' || nndhRaw === '1' || nndhRaw === 'true');
 
                         return {
                             ho_va_ten: hoTen,
                             ten: tenRieng,
                             so_so_bhxh: bhxh,
                             so_cccd: cccd,
-                            an_toan_vien: (atvRaw !== "" && atvRaw !== "0" && atvRaw !== "false"),
-                            nndh: (nndhRaw !== "" && nndhRaw !== "0" && nndhRaw !== "false"),
+                            an_toan_vien: laAtv,
+                            nndh: laNndh,
                             nam_ve_hu: namVeHuu,
                             ma_don_vi: maDv,
                             nam: namHienTai,
                             nam_sinh: namSinh,
                             gioi_tinh: gioiTinh,
-                            chuc_danh_cong_viec: String(extract(['chucdanhcongviec', 'chucdanh', 'chucvu'])).trim()
+                            chuc_danh_cong_viec: String(extract(['chucdanhcongviec', 'chucdanh'])).trim()
                         };
-                    }).filter(x => x.ho_va_ten !== ''); // Loại bỏ bản ghi trống
+                    }).filter(x => x.ho_va_ten !== '');
 
-                    // Thực hiện nạp dữ liệu chia đoạn (Chunking) tránh nghẽn mạng Cloud DB
-                    const chunkSize = 50;
-                    for (let i = 0; i < mapped.length; i += chunkSize) {
-                        const chunk = mapped.slice(i, i + chunkSize);
-                        await client.from('nhan_su').insert(chunk);
-                    }
+                    if (mapped.length === 0) { alert("Không tìm thấy dữ liệu hợp lệ!"); return; }
+
+                    // Đẩy dữ liệu lên Cloud và kiểm tra phản hồi lỗi trực tiếp từ Database
+                    const { error } = await client.from('nhan_su').insert(mapped);
                     
-                    alert(`🎉 Thành công! Đã đồng bộ cấu trúc chuẩn hóa toàn diện ${mapped.length} nhân sự.`);
-                    await taiDuLieuHeThong();
+                    if (error) {
+                        console.error("Lỗi từ Database:", error);
+                        alert("Database từ chối lưu dữ liệu: " + error.message);
+                    } else {
+                        alert(`🎉 Thành công! Đã đồng bộ và lưu thực tế ${mapped.length} nhân sự lên hệ thống.`);
+                        await taiDuLieuHeThong();
+                    }
                 } catch (err) {
-                    alert("Lỗi xử lý file Excel: " + err.message);
+                    alert("Lỗi xử lý hệ thống: " + err.message);
                 }
             };
             reader.readAsArrayBuffer(file);
         }
 
         async function xoaToanBoDuLieuCloud() {
-            if(!confirm("Xác nhận xóa sạch kho dữ liệu cũ trên Cloud để chuẩn bị nạp lại?")) return;
+            if(!confirm("Xác nhận xóa sạch kho dữ liệu cũ trên Cloud để nạp lại?")) return;
             await client.from('nhan_su').delete().neq('id', 0);
             await taiDuLieuHeThong();
         }
