@@ -347,11 +347,9 @@
                         <div class="value" id="stat_money_unpaid" style="color: var(--danger);">0 VND</div>
                     </div>
                 </div>
-
                 <div class="filter-wrapper">
                     <input type="text" id="search_thanhtoan" class="search-bar" placeholder="Tìm theo tên hồ sơ, đơn vị thụ hưởng..." oninput="displayPaymentTable()">
                 </div>
-
                 <div class="table-container">
                     <table>
                         <thead>
@@ -441,7 +439,6 @@
             let parts = isoDateString.split("-"); if(parts.length !== 3) return isoDateString; return `${parts[2]}/${parts[1]}/${parts[0]}`;
         }
 
-        // --- TAB 1: NHÂN SỰ ---
         function triggerFilterReset() {
             const kw = document.getElementById('search_hoso').value.toLowerCase().trim(); const selectedDonVi = document.getElementById('filter_donvi').value;
             FILTERED_LIST = DB_NHAN_SU.filter(x => { let matchKeyword = !kw || x.ho_ten.toLowerCase().includes(kw) || (x.so_cccd && x.so_cccd.includes(kw)); return matchKeyword && (!selectedDonVi || x.ma_don_vi === selectedDonVi); });
@@ -455,7 +452,6 @@
         }
         function handleTableScroll(container) { if (container.scrollHeight - container.scrollTop <= container.clientHeight + 40) { if (CURRENT_PAGE_SIZE < FILTERED_LIST.length) { CURRENT_PAGE_SIZE += 30; renderNhanSuTable(); } } }
 
-        // --- TAB 2: THIẾT BỊ QR ---
         async function saveDeviceCofig() {
             const editingId = document.getElementById('editing_device_id').value; 
             const nsNameRaw = document.getElementById('dev_user_search').value.trim();
@@ -475,9 +471,7 @@
                 nsId = matchedNs.id;
                 finalEmployeeName = matchedNs.ho_ten;
                 finalDonVi = matchedNs.ma_don_vi;
-            } else {
-                nsId = null; 
-            }
+            } else { nsId = null; }
 
             let payload = { 
                 nhan_su_id: nsId ? parseInt(nsId) : null, 
@@ -514,12 +508,10 @@
                     box.appendChild(div);
                 }); 
                 box.style.display = 'block';
-            } else {
-                box.style.display = 'none';
-            }
+            } else { box.style.display = 'none'; }
         }
 
-        // --- FIX DỨT ĐIỂM: ĐỒNG BỘ QR LINK ĐẾN TRANG VIEW.HTML ---
+        // --- GÁN CỨNG LINK GITHUB PAGES CHÍNH XÁC ---
         function displayThietBi() {
             const tbody = document.getElementById('table_thietbi_body'); tbody.innerHTML = "";
             const kw = document.getElementById('search_thietbi').value.toLowerCase().trim();
@@ -530,9 +522,8 @@
                 return;
             }
 
-            // Tạo đường dẫn đến file view.html nằm cùng thư mục
-            const currentAppUrl = window.location.origin + window.location.pathname;
-            const viewPageUrl = currentAppUrl.substring(0, currentAppUrl.lastIndexOf('/')) + '/view.html';
+            // URL GitHub Pages đã gán cố định dứt điểm lỗi 404
+            const viewPageUrl = "https://duongtb-debug.github.io/vinapaco-erp/view.html";
 
             filtered.forEach((x, i) => {
                 let qrId = `qr_box_${i}`;
@@ -549,7 +540,6 @@
                     </td>
                 </tr>`;
                 
-                // Mã QR trỏ chính xác đến view.html?device_code=...
                 let qrLinkValue = `${viewPageUrl}?device_code=${x.ma_thiet_bi}`;
                 
                 setTimeout(() => { 
@@ -585,7 +575,6 @@
         function clearDeviceForm() { document.getElementById('dev_name').value = ""; document.getElementById('dev_code').value = ""; document.getElementById('dev_user_search').value = ""; document.getElementById('dev_user_id').value = ""; }
         async function deleteDevice(id, name) { if(confirm(`Xóa thiết bị ${name}? (Lưu ý: Các nhật ký sửa chữa liên quan thiết bị này cũng sẽ bị xóa)`)) { await client.from('lich_su_sua_chua').delete().eq('cap_phat_id', id); await client.from('cap_phat_thiet_bi').delete().eq('id', id); await fetchAllData(); } }
 
-        // --- TAB 3: NHẬT KÝ SỬA CHỮA ---
         function displayRepairLog() {
             const tbody = document.getElementById('table_suachua_body'); tbody.innerHTML = "";
             const kw = document.getElementById('search_suachua').value.toLowerCase().trim();
@@ -662,14 +651,10 @@
         async function deleteRepairLog(id, name) {
             if(confirm(`Bạn có chắc chắn muốn xóa nhật ký sửa chữa của máy: ${name}?`)) {
                 const { error } = await client.from('lich_su_sua_chua').delete().eq('id', id);
-                if(!error) { 
-                    alert("Xóa nhật ký sửa chữa thành công!"); 
-                    await fetchAllData();
-                }
+                if(!error) { alert("Xóa nhật ký sửa chữa thành công!"); await fetchAllData(); }
             }
         }
 
-        // --- TAB 4: HỒ SƠ THANH TOÁN ---
         function calculatePaymentStats() {
             let countPaid = 0, countUnpaid = 0, moneyPaid = 0, moneyUnpaid = 0;
             DB_SUA_CHUA.forEach(x => {
@@ -715,15 +700,12 @@
         function selectForPaymentProfile(id) {
             const log = DB_SUA_CHUA.find(x => x.id == id); if(!log) return;
             document.getElementById('pay_log_id').value = log.id;
-            
             if(log.ngay_lap_ho_so) { document.getElementById('pay_date').value = log.ngay_lap_ho_so; }
             else { document.getElementById('pay_date').value = log.ngay_sua_chua ? log.ngay_sua_chua : new Date().toISOString().split('T')[0]; }
-
             document.getElementById('pay_name').value = log.ten_ho_so_thanh_toan || "Hồ sơ thanh toán " + log.ten_thiet_bi;
             document.getElementById('pay_cost').value = log.chi_phi_thanh_toan_tron_goi || (parseFloat(log.chi_phi) * 1.08);
             document.getElementById('pay_beneficiary').value = log.don_vi_thu_huong || "";
             document.getElementById('pay_status_select').value = log.trang_thai_thanh_toan === "Đã thanh toán" ? "Đã thanh toán" : "Chưa thanh toán";
-            
             switchSection('thanhtoan'); window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
@@ -763,7 +745,6 @@
             }
         }
 
-        // --- CÁC HÀM PHỤ TRỢ KHÁC ---
         function cleanStr(s) { return String(s || "").toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/[\s_\-\t\n\r]/g, ""); }
         function importExcelNhanSu(input) {
             const file = input.files[0]; if(!file) return; const reader = new FileReader();
