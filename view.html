@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thông Tin Kiểm Tra Thiết Bị</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { 
+            font-family: 'Times New Roman', serif; 
+            background: #f4f6f9; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            margin: 0; 
+        }
+        .card { 
+            background: white; 
+            padding: 25px; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
+            width: 90%; 
+            max-width: 400px; 
+            border-top: 6px solid #1e56a0; 
+        }
+        h2 { 
+            color: #1e56a0; 
+            margin-top: 0; 
+            text-align: center; 
+            text-transform: uppercase; 
+            border-bottom: 2px solid #eee; 
+            padding-bottom: 10px; 
+        }
+        .info-group { 
+            margin-bottom: 15px; 
+            font-size: 16px; 
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px dashed #eee;
+            padding-bottom: 8px;
+        }
+        .label { font-weight: normal; color: #555; }
+        .value { color: #111; font-weight: bold; text-align: right; }
+        .badge { padding: 4px 10px; border-radius: 4px; font-size: 14px; color: white; font-weight: bold; text-transform: uppercase;}
+        .bg-success { background: #2ecc71; } 
+        .bg-danger { background: #e74c3c; } 
+        .bg-warning { background: #f39c12; }
+        .loading { text-align: center; font-style: italic; color: #777; padding: 20px 0; }
+    </style>
+</head>
+<body>
+
+<div class="card" id="content">
+    <div class="loading">Đang kết nối hệ thống dữ liệu...</div>
+</div>
+
+<script>
+    const SUPABASE_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co"; 
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ";
+    const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    window.onload = async function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('device_code');
+        const container = document.getElementById('content');
+
+        if (!code) {
+            container.innerHTML = `<h2>Lỗi Hệ Thống</h2><p style="color:red; text-align:center;">Mã QR không hợp lệ hoặc thiếu mã thiết bị!</p>`;
+            return;
+        }
+
+        // Truy vấn thời gian thực từ Supabase
+        let { data, error } = await client.from('cap_phat_thiet_bi').select('*').eq('ma_thiet_bi', code.trim()).single();
+
+        if (error || !data) {
+            container.innerHTML = `<h2>Không Tìm Thấy</h2><p style="color:red; text-align:center;">Thiết bị có mã <b>${code}</b> không tồn tại trên hệ thống.</p>`;
+            return;
+        }
+
+        let badgeClass = 'bg-warning';
+        if (data.trang_thai === 'Đang sử dụng') badgeClass = 'bg-success';
+        if (data.trang_thai === 'Hỏng hóc' || data.trang_thai === 'Hỏng hóc chờ xử lý') badgeClass = 'bg-danger';
+
+        // Kết quả hiển thị sạch sẽ trên điện thoại
+        container.innerHTML = `
+            <h2>Thông Tin Thiết Bị</h2>
+            <div class="info-group"><span class="label">Mã thiết bị:</span> <span class="value" style="color: #e74c3c;">${data.ma_thiet_bi}</span></div>
+            <div class="info-group"><span class="label">Tên tài sản:</span> <span class="value">${data.ten_thiet_bi}</span></div>
+            <div class="info-group"><span class="label">Người chịu trách nhiệm:</span> <span class="value">${data.ten_nhan_vien}</span></div>
+            <div class="info-group"><span class="label">Mã bộ phận / đơn vị:</span> <span class="value">${data.ma_don_vi || 'Chưa rõ'}</span></div>
+            <div class="info-group" style="border:none;"><span class="label">Trạng thái hiện tại:</span> <span class="badge ${badgeClass}">${data.trang_thai || 'Đang sử dụng'}</span></div>
+        `;
+    };
+</script>
+</body>
+</html>
