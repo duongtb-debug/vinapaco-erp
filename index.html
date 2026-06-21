@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hệ Thống Quản Lý Nhân Sự - Thiết Bị QR</title>
+    <title>Hệ Thống Quản Lý Nhân Sự - Thiết Bị QR - Sửa Chữa</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -15,6 +15,7 @@
             --success: #2ecc71;
             --warning: #f39c12;
             --danger: #e74c3c;
+            --purple: #9b59b6;
             --dark: #2c3e50;
             --bg: #f4f6f9;
             --border: #e1e8ed;
@@ -37,7 +38,6 @@
         .form-control { padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; outline: none; box-sizing: border-box; width: 100%; }
         .form-control:focus { border-color: var(--primary); }
         
-        /* Box danh sách nhân sự đổ xuống */
         .suggest-box { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ccc; border-radius: 6px; max-height: 250px; overflow-y: auto; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: none; }
         .suggest-item { padding: 10px 12px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #f2f2f2; display: flex; justify-content: space-between; align-items: center; }
         .suggest-item:hover { background: #ebf3fc; }
@@ -47,6 +47,7 @@
         .btn:hover { opacity: 0.9; }
         .btn-danger { background: var(--danger); }
         .btn-success { background: var(--success); }
+        .btn-purple { background: var(--purple); }
 
         .main-panel { display: flex; flex-direction: column; gap: 20px; overflow-x: auto; }
         .app-section { display: none; }
@@ -72,6 +73,9 @@
         
         .qr-canvas { width: 55px; height: 55px; background: #eee; margin: 0 auto; display: flex; align-items: center; justify-content: center; }
         .load-more-indicator { text-align: center; padding: 15px; font-size: 13px; color: #777; font-style: italic; background: #fafafa; border-top: 1px solid var(--border); }
+        
+        .link-file { color: var(--primary); text-decoration: none; font-weight: bold; }
+        .link-file:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
@@ -84,6 +88,7 @@
     <div class="nav-tabs">
         <div class="nav-tab active" id="tab_hoso" onclick="switchSection('hoso')"><i class="fa-solid fa-users"></i> Hồ Sơ Nhân Sự Gốc (<span id="count_ns">0</span>)</div>
         <div class="nav-tab" id="tab_thietbi" onclick="switchSection('thietbi')"><i class="fa-solid fa-qrcode"></i> Quản Lý & Cấp Phát Thiết Bị QR</div>
+        <div class="nav-tab" id="tab_suachua" onclick="switchSection('suachua')"><i class="fa-solid fa-screwdriver-wrench"></i> Nhật Ký Sửa Chữa Thiết Bị</div>
     </div>
 
     <div class="wrapper">
@@ -99,21 +104,18 @@
 
             <div class="card s-form" id="form_thietbi_panel" style="display:none;">
                 <h3><i class="fa-solid fa-plus"></i> Cấp Phát Thiết Bị</h3>
-                
                 <div class="form-group">
                     <label style="color: var(--primary); font-weight: bold;">BƯỚC 1: Chọn Nhóm Đơn Vị trước</label>
-                    <select id="dev_filter_donvi" class="form-control" style="font-weight:600; border: 1px solid var(--primary);" onchange="resetSelectedUser()">
+                    <select id="dev_filter_donvi" class="form-control" style="font-weight:600;" onchange="resetSelectedUser()">
                         <option value="">-- Tất cả các đơn vị --</option>
                     </select>
                 </div>
-                
                 <div class="form-group">
                     <label style="font-weight: bold;">BƯỚC 2: Click vào để chọn Nhân Sự (*)</label>
-                    <input type="text" id="dev_user_search" class="form-control" placeholder="Kích chuột để xem list hoặc gõ tìm..." onfocus="smartSuggest(this)" oninput="smartSuggest(this)">
+                    <input type="text" id="dev_user_search" class="form-control" placeholder="Kích chuột xem danh sách..." onfocus="smartSuggest(this)" oninput="smartSuggest(this)">
                     <div id="dev_suggest" class="suggest-box"></div>
                     <input type="hidden" id="dev_user_id">
                 </div>
-
                 <div class="form-group">
                     <label>Tên thiết bị tài sản (*)</label>
                     <input type="text" id="dev_name" class="form-control" placeholder="Ví dụ: Máy hàn, Máy tính Dell...">
@@ -122,7 +124,6 @@
                     <label>Mã thiết bị (Số Seri)</label>
                     <input type="text" id="dev_code" class="form-control" placeholder="Bỏ trống hệ thống tự sinh mã">
                 </div>
-                
                 <div class="form-group">
                     <label>Tình trạng thiết bị ban đầu</label>
                     <select id="dev_status_select" class="form-control">
@@ -132,8 +133,34 @@
                         <option value="Hỏng hóc">Hỏng hóc chờ xử lý</option>
                     </select>
                 </div>
-                
                 <button class="btn btn-success" onclick="saveDeviceCofig()"><i class="fa-solid fa-floppy-disk"></i> Lưu & Xuất Mã QR</button>
+            </div>
+
+            <div class="card s-form" id="form_suachua_panel" style="display:none;">
+                <h3><i class="fa-solid fa-notes-medical"></i> Khai Báo Sửa Chữa</h3>
+                <div class="form-group">
+                    <label style="color: var(--purple); font-weight: bold;">Chọn thiết bị hư hỏng (*)</label>
+                    <input type="text" id="repair_dev_search" class="form-control" placeholder="Bấm vào để chọn thiết bị..." onfocus="repairSuggest(this)" oninput="repairSuggest(this)">
+                    <div id="repair_suggest" class="suggest-box"></div>
+                    <input type="hidden" id="repair_cp_id">
+                </div>
+                <div class="form-group">
+                    <label>Nội dung hư hỏng / Hiện tượng (*)</label>
+                    <textarea id="repair_damage" class="form-control" rows="2" placeholder="Ví dụ: Máy không lên nguồn, kêu to..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Biện pháp khắc phục xử lý</label>
+                    <textarea id="repair_solution" class="form-control" rows="2" placeholder="Ví dụ: Thay tụ điện nguồn, quấn lại cuộn dây..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Chi phí sửa chữa (VNĐ)</label>
+                    <input type="number" id="repair_cost" class="form-control" value="0">
+                </div>
+                <div class="form-group">
+                    <label style="color:var(--purple); font-weight:600;"><i class="fa-solid fa-file-arrow-up"></i> Tải lên Phiếu yêu cầu công việc</label>
+                    <input type="file" id="repair_file" class="form-control" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx">
+                </div>
+                <button class="btn btn-purple" onclick="saveRepairConfig()"><i class="fa-solid fa-cloud-arrow-up"></i> Lưu Nhật Ký & Upload Phiếu</button>
             </div>
         </div>
 
@@ -145,7 +172,6 @@
                         <option value="">-- Tất cả Mã Đơn Vị --</option>
                     </select>
                 </div>
-                
                 <div class="table-container" id="hoso_scroll_container" onscroll="handleTableScroll(this)">
                     <table>
                         <thead>
@@ -181,7 +207,6 @@
                         <option value="Hỏng hóc">Hỏng hóc</option>
                     </select>
                 </div>
-                
                 <div class="table-container">
                     <table>
                         <thead>
@@ -198,6 +223,28 @@
                     </table>
                 </div>
             </div>
+
+            <div id="sec_suachua" class="app-section">
+                <div class="filter-wrapper">
+                    <input type="text" id="search_suachua" class="search-bar" placeholder="Tìm theo tên máy, mã máy hoặc nội dung lỗi..." oninput="displayRepairLog()">
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th class="text-center" style="width:100px;">Ngày Sửa</th>
+                                <th>Mã Thiết Bị</th>
+                                <th>Tên Thiết Bị Tài Sản</th>
+                                <th>Nội Dung Hư Hỏng</th>
+                                <th>Biện Pháp Xử Lý</th>
+                                <th style="text-align:right;">Chi Phí (VND)</th>
+                                <th class="text-center" style="width:140px;">Phiếu Công Việc</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table_suachua_body"></tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -208,18 +255,18 @@
 
         let DB_NHAN_SU = [];
         let DB_THIET_BI = [];
+        let DB_SUA_CHUA = []; // Chứa lịch sử sửa chữa trực tuyến
         let FILTERED_LIST = [];
         let CURRENT_PAGE_SIZE = 30; 
 
         window.onload = async function() { await fetchAllData(); };
 
-        // Đóng list gợi ý nếu click ra ngoài màn hình
+        // Đóng tất cả hộp gợi ý khi nhấn ra ngoài màn hình
         document.addEventListener('click', function(e) {
-            const box = document.getElementById('dev_suggest');
-            const input = document.getElementById('dev_user_search');
-            if (e.target !== input && !box.contains(e.target)) {
-                box.style.display = 'none';
-            }
+            ['dev_suggest', 'repair_suggest'].forEach(id => {
+                let box = document.getElementById(id);
+                if(box) box.style.display = 'none';
+            });
         });
 
         async function fetchAllData() {
@@ -231,9 +278,13 @@
                 let r2 = await client.from('cap_phat_thiet_bi').select('*').order('created_at', { ascending: false });
                 DB_THIET_BI = r2.data || [];
 
+                let r3 = await client.from('lich_su_sua_chua').select('*').order('ngay_sua_chua', { ascending: false });
+                DB_SUA_CHUA = r3.data || [];
+
                 buildDropdowns();
                 triggerFilterReset(); 
                 displayThietBi();
+                displayRepairLog();
             } catch (e) { console.error(e); }
         }
 
@@ -254,7 +305,6 @@
         function resetSelectedUser() {
             document.getElementById('dev_user_search').value = ''; 
             document.getElementById('dev_user_id').value = '';
-            // Tự động mở list nhân viên của đơn vị mới chọn ngay lập tức
             smartSuggest(document.getElementById('dev_user_search'));
         }
 
@@ -263,25 +313,17 @@
             document.querySelectorAll('.app-section').forEach(el => el.classList.remove('active'));
             document.getElementById('tab_' + target).classList.add('active');
             document.getElementById('sec_' + target).classList.add('active');
+            
+            // Ẩn hiện panel sidebar tương ứng
             document.getElementById('form_hoso_panel').style.display = (target === 'hoso') ? 'block' : 'none';
             document.getElementById('form_thietbi_panel').style.display = (target === 'thietbi') ? 'block' : 'none';
+            document.getElementById('form_suachua_panel').style.display = (target === 'suachua') ? 'block' : 'none';
         }
 
         function cleanStr(s) {
             return String(s || "").toLowerCase().trim()
                 .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
                 .replace(/đ/g, 'd').replace(/[\s_\-\t\n\r]/g, "");
-        }
-
-        function excelDateToISO(val) {
-            if (!val) return null;
-            if (String(val).includes("-")) return val;
-            let serial = parseFloat(val);
-            if (isNaN(serial)) return null;
-            let utc_days  = Math.floor(serial - 25569);
-            let utc_value = utc_days * 86400;                                        
-            let date_info = new Date(utc_value * 1000);
-            return `${date_info.getFullYear()}-${String(date_info.getMonth() + 1).padStart(2, '0')}-${String(date_info.getDate()).padStart(2, '0')}`;
         }
 
         function formatDisplayDate(isoDateString) {
@@ -303,9 +345,7 @@
                 let matchDonVi = !selectedDonVi || x.ma_don_vi === selectedDonVi;
                 return matchKeyword && matchDonVi;
             });
-
             CURRENT_PAGE_SIZE = 30;
-            document.getElementById('hoso_scroll_container').scrollTop = 0;
             renderNhanSuTable();
         }
 
@@ -313,10 +353,8 @@
             const tbody = document.getElementById('table_hoso_body');
             if(FILTERED_LIST.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="12" class="text-center">Không tìm thấy kết quả phù hợp.</td></tr>`;
-                document.getElementById('load_more_msg').style.display = 'none';
                 return;
             }
-
             let chunk = FILTERED_LIST.slice(0, CURRENT_PAGE_SIZE);
             let html = "";
             chunk.forEach((x) => {
@@ -336,13 +374,6 @@
                 </tr>`;
             });
             tbody.innerHTML = html;
-
-            if (CURRENT_PAGE_SIZE < FILTERED_LIST.length) {
-                document.getElementById('load_more_msg').style.display = 'block';
-                document.getElementById('load_more_msg').innerText = `Đang hiển thị ${chunk.length}/${FILTERED_LIST.length} dòng. Cuộn xuống để xem tiếp...`;
-            } else {
-                document.getElementById('load_more_msg').style.display = 'none';
-            }
         }
 
         function handleTableScroll(container) {
@@ -354,35 +385,24 @@
             }
         }
 
-        /* TỐI ƯU ĐỘT PHÁ: ĐỔ TOÀN BỘ LIST CỦA NHÓM KHI KÍCH CHUỘT VÀO */
         function smartSuggest(input) {
             const val = input.value.toLowerCase().trim();
             const box = document.getElementById('dev_suggest');
             const targetDonVi = document.getElementById('dev_filter_donvi').value; 
-            
             box.innerHTML = "";
 
-            // Lọc danh sách nhân sự
             let matches = DB_NHAN_SU.filter(n => {
-                // Nếu có gõ từ khóa, lọc theo từ khóa, ngược lại lấy toàn bộ
-                let matchName = !val || n.ho_ten.toLowerCase().includes(val) || (val.includes("đơn vị") === false && n.ma_don_vi === val);
+                let matchName = !val || n.ho_ten.toLowerCase().includes(val);
                 let matchDv = !targetDonVi || n.ma_don_vi === targetDonVi;
                 return matchName && matchDv;
             });
 
-            // Nếu không gõ gì và cũng không chọn Đơn vị, giới hạn 20 người để tránh lag giao diện gợi ý
-            if(!val && !targetDonVi) {
-                matches = matches.slice(0, 20);
-            } else if (!val && targetDonVi) {
-                // Nếu đã chọn Mã đơn vị cụ thể, xổ ra toàn bộ nhân sự của đơn vị đó để chọn nhanh
-                matches = matches.sort((a,b) => a.ho_ten.localeCompare(b.ho_ten));
-            } else {
-                // Nếu đang gõ tìm kiếm, giới hạn 15 kết quả khớp nhất
-                matches = matches.slice(0, 15);
-            }
+            if(!val && !targetDonVi) matches = matches.slice(0, 20);
+            else if(!val && targetDonVi) matches = matches.sort((a,b) => a.ho_ten.localeCompare(b.ho_ten));
+            else matches = matches.slice(0, 15);
 
             if(matches.length === 0) {
-                box.innerHTML = '<div class="suggest-item" style="color:#999; cursor:default;">Không tìm thấy nhân viên nào...</div>';
+                box.innerHTML = '<div class="suggest-item" style="color:#999; cursor:default;">Không tìm thấy nhân viên...</div>';
                 box.style.display = 'block';
                 return;
             }
@@ -391,9 +411,41 @@
                 let div = document.createElement('div'); div.className = 'suggest-item';
                 div.innerHTML = `<span><b>${n.ho_ten}</b></span> <span class="badge-dv">Đơn vị: ${n.ma_don_vi}</span>`;
                 div.onclick = (e) => {
-                    e.stopPropagation(); // Ngăn chặn sự kiện click lan ra ngoài
+                    e.stopPropagation();
                     document.getElementById('dev_user_search').value = `${n.ho_ten} (Đơn vị: ${n.ma_don_vi})`;
                     document.getElementById('dev_user_id').value = n.id;
+                    box.style.display = 'none';
+                };
+                box.appendChild(div);
+            });
+            box.style.display = 'block';
+        }
+
+        // MỚI: TỰ ĐỘNG HIỂN THỊ DANH SÁCH THIẾT BỊ ĐỂ CHỌN KHI SỬA CHỮA (FOCUS ĐỔ LIST)
+        function repairSuggest(input) {
+            const val = input.value.toLowerCase().trim();
+            const box = document.getElementById('repair_suggest');
+            box.innerHTML = "";
+
+            let matches = DB_THIET_BI.filter(t => {
+                return !val || t.ten_thiet_bi.toLowerCase().includes(val) || t.ma_thiet_bi.toLowerCase().includes(val) || t.ten_nhan_vien.toLowerCase().includes(val);
+            });
+
+            if(!val) matches = matches.slice(0, 20); // Giới hạn 20 thiết bị ban đầu khi focus chưa gõ chữ
+
+            if(matches.length === 0) {
+                box.innerHTML = '<div class="suggest-item" style="color:#999; cursor:default;">Không có thiết bị tài sản này...</div>';
+                box.style.display = 'block';
+                return;
+            }
+
+            matches.forEach(t => {
+                let div = document.createElement('div'); div.className = 'suggest-item';
+                div.innerHTML = `<span><b>${t.ma_thiet_bi}</b> - ${t.ten_thiet_bi}</span> <small style="color:#666;"> Giữ: ${t.ten_nhan_vien}</small>`;
+                div.onclick = (e) => {
+                    e.stopPropagation();
+                    document.getElementById('repair_dev_search').value = `${t.ma_thiet_bi} [${t.ten_thiet_bi}]`;
+                    document.getElementById('repair_cp_id').value = t.id;
                     box.style.display = 'none';
                 };
                 box.appendChild(div);
@@ -407,29 +459,75 @@
             let code = document.getElementById('dev_code').value.trim();
             const status = document.getElementById('dev_status_select').value; 
             
-            if(!nsId || !name) { alert("Vui lòng kích chọn chính xác nhân sự trong danh sách xổ xuống!"); return; }
+            if(!nsId || !name) { alert("Vui lòng kích chọn chính xác nhân sự!"); return; }
             if(!code) code = "EQ-" + Date.now().toString().slice(-6);
 
             const ns = DB_NHAN_SU.find(x => x.id == nsId);
-            let payload = { 
-                nhan_su_id: parseInt(nsId), 
-                ten_nhan_vien: ns.ho_ten, 
-                ma_don_vi: ns.ma_don_vi, 
-                ten_thiet_bi: name, 
-                ma_thiet_bi: code.toUpperCase(),
-                trang_thai: status 
-            };
+            let payload = { nhan_su_id: parseInt(nsId), ten_nhan_vien: ns.ho_ten, ma_don_vi: ns.ma_don_vi, ten_thiet_bi: name, ma_thiet_bi: code.toUpperCase(), trang_thai: status };
 
             const { error } = await client.from('cap_phat_thiet_bi').insert([payload]);
             if(!error) { 
-                alert(`Cấp phát thành công thiết bị ${name} dạng [${status}]!`); 
-                document.getElementById('dev_name').value = "";
-                document.getElementById('dev_code').value = "";
-                document.getElementById('dev_user_search').value = "";
-                document.getElementById('dev_user_id').value = "";
+                alert(`Cấp phát thành công thiết bị ${name}!`); 
+                document.getElementById('dev_name').value = ""; document.getElementById('dev_code').value = "";
+                document.getElementById('dev_user_search').value = ""; document.getElementById('dev_user_id').value = "";
                 await fetchAllData(); 
+            } else alert(error.message);
+        }
+
+        // MỚI: LƯU THÔNG TIN SỬA CHỮA VÀ XỬ LÝ UPLOAD PHIẾU CÔNG VIỆC LÊN ĐÁM MÂY
+        async function saveRepairConfig() {
+            const cpId = document.getElementById('repair_cp_id').value;
+            const damage = document.getElementById('repair_damage').value.trim();
+            const solution = document.getElementById('repair_solution').value.trim();
+            const cost = parseFloat(document.getElementById('repair_cost').value) || 0;
+            const fileInput = document.getElementById('repair_file');
+
+            if(!cpId || !damage) { alert("Vui lòng chọn thiết bị và nhập nội dung lỗi hư hỏng!"); return; }
+            const dev = DB_THIET_BI.find(x => x.id == cpId);
+
+            let fileUrl = "";
+            // Nếu người dùng chọn đính kèm file phiếu yêu cầu công việc
+            if(fileInput.files.length > 0) {
+                const file = fileInput.files[0];
+                const fileExt = file.name.split('.').pop();
+                const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+                const filePath = `phieu/${fileName}`;
+
+                // Tiến hành đẩy file lên Supabase Storage Bucket
+                let { error: uploadError } = await client.storage.from('phieu_cong_viec').upload(filePath, file);
+                if(uploadError) { alert("Lỗi upload phiếu công việc: " + uploadError.message); return; }
+
+                // Lấy URL công khai để lưu vào cơ sở dữ liệu
+                const { data } = client.storage.from('phieu_cong_viec').getPublicUrl(filePath);
+                fileUrl = data.publicUrl;
+            }
+
+            let payload = {
+                cap_phat_id: parseInt(cpId),
+                ma_thiet_bi: dev.ma_thiet_bi,
+                ten_thiet_bi: dev.ten_thiet_bi,
+                noi_dung_hong: damage,
+                bien_phap_khac_phuc: solution,
+                chi_phi: cost,
+                url_phieu_yeu_cau: fileUrl
+            };
+
+            const { error: insertError } = await client.from('lich_su_sua_chua').insert([payload]);
+            if(!insertError) {
+                // Tự động chuyển trạng thái của thiết bị sang "Bảo dưỡng"
+                await client.from('cap_phat_thiet_bi').update({ trang_thai: 'Bảo dưỡng' }).eq('id', cpId);
+                
+                alert("Đã ghi nhận lịch sử bảo dưỡng và đồng bộ phiếu công việc trực tuyến thành công!");
+                document.getElementById('repair_dev_search').value = "";
+                document.getElementById('repair_cp_id').value = "";
+                document.getElementById('repair_damage').value = "";
+                document.getElementById('repair_solution').value = "";
+                document.getElementById('repair_cost').value = "0";
+                fileInput.value = "";
+                
+                await fetchAllData();
             } else {
-                alert("Lỗi cấp phát: " + error.message);
+                alert("Lỗi lưu dữ liệu: " + insertError.message);
             }
         }
 
@@ -439,17 +537,12 @@
             const selectedStatus = document.getElementById('filter_thietbi_status').value; 
 
             let list = DB_THIET_BI.filter(x => {
-                let matchKw = !kw || x.ten_thiet_bi.toLowerCase().includes(kw) || 
-                              x.ma_thiet_bi.toLowerCase().includes(kw) || 
-                              x.ten_nhan_vien.toLowerCase().includes(kw);
+                let matchKw = !kw || x.ten_thiet_bi.toLowerCase().includes(kw) || x.ma_thiet_bi.toLowerCase().includes(kw) || x.ten_nhan_vien.toLowerCase().includes(kw);
                 let matchStatus = !selectedStatus || x.trang_thai === selectedStatus;
                 return matchKw && matchStatus;
             });
 
-            if(list.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="text-center">Chưa có thiết bị nào phù hợp với bộ lọc hiện tại.</td></tr>`;
-                return;
-            }
+            if(list.length === 0) { tbody.innerHTML = `<tr><td colspan="6" class="text-center">Chưa có thiết bị nào...</td></tr>`; return; }
 
             list.forEach((x, i) => {
                 let qrId = `qr_box_${i}`;
@@ -466,8 +559,40 @@
                     <td class="text-center"><span class="badge" style="background:#f4f6f9; color:#555; border:1px solid #ddd;">${x.ma_don_vi}</span></td>
                     <td class="text-center"><span class="badge ${statusClass}">${x.trang_thai || 'Đang sử dụng'}</span></td>
                 </tr>`;
-                
                 setTimeout(() => { new QRCode(document.getElementById(qrId), { text: x.ma_thiet_bi, width: 55, height: 55 }); }, 20);
+            });
+        }
+
+        // MỚI: HIỂN THỊ LOG NHẬT KÝ SỬA CHỮA KÈM LINK FILE DOWNLOAD PHIẾU YÊU CẦU
+        function displayRepairLog() {
+            const tbody = document.getElementById('table_suachua_body'); tbody.innerHTML = "";
+            const kw = document.getElementById('search_suachua').value.toLowerCase().trim();
+
+            let list = DB_SUA_CHUA.filter(x => {
+                return !kw || x.ten_thiet_bi.toLowerCase().includes(kw) || x.ma_thiet_bi.toLowerCase().includes(kw) || x.noi_dung_hong.toLowerCase().includes(kw);
+            });
+
+            if(list.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center">Chưa có lịch sử bảo dưỡng nào trùng khớp.</td></tr>`;
+                return;
+            }
+
+            list.forEach(x => {
+                // Tạo liên kết tải tệp nếu có dữ liệu upload
+                let fileLinkHtml = `<span style="color:#aaa; font-style:italic;">Không đính kèm</span>`;
+                if(x.url_phieu_yeu_cau) {
+                    fileLinkHtml = `<a href="${x.url_phieu_yeu_cau}" target="_blank" class="link-file"><i class="fa-solid fa-file-pdf"></i> Xem / Tải về</a>`;
+                }
+
+                tbody.innerHTML += `<tr>
+                    <td class="text-center"><b>${formatDisplayDate(x.ngay_sua_chua)}</b></td>
+                    <td><mark><b>${x.ma_thiet_bi}</b></mark></td>
+                    <td><b>${x.ten_thiet_bi}</b></td>
+                    <td>${x.noi_dung_hong}</td>
+                    <td>${x.bien_phap_khac_phuc || ''}</td>
+                    <td style="text-align:right; font-weight:bold; color:#c0392b;">${Number(x.chi_phi).toLocaleString('vi-VN')}</td>
+                    <td class="text-center">${fileLinkHtml}</td>
+                </tr>`;
             });
         }
 
@@ -492,16 +617,7 @@
                         let c = cleanStr(cell);
                         if (c === "stt" || c === "id") colMap.stt = idx;
                         else if (c.includes("hovaten") || c === "hoten") colMap.ho_ten = idx;
-                        else if (c === "ten") colMap.ten = idx;
-                        else if (c.includes("bhxh") || c.includes("baohiem")) colMap.bhxh = idx;
-                        else if (c.includes("cccd") || c.includes("cancuoc") || c.includes("cmnd")) colMap.cccd = idx;
-                        else if (c.includes("antoanvien") || c === "atv") colMap.atv = idx;
-                        else if (c.includes("nndh") || c.includes("dochai") || c.includes("nangnhoc")) colMap.nndh = idx;
-                        else if (c.includes("namvehuu") || c.includes("vehuu")) colMap.nam_huu = idx;
-                        else if (c.includes("madonvi") || c === "madv" || c.includes("phongban")) colMap.madv = idx;
-                        else if (c.includes("namsinh")) colMap.nam_sinh = idx;
-                        else if (c.includes("nu")) colMap.nu = idx;
-                        else if (c.includes("chucdanh") || c.includes("congviec") || c.includes("chucvu")) colMap.chuc_danh = idx;
+                        else if (c.includes("madonvi") || c === "madv") colMap.madv = idx;
                     });
 
                     let bulkData = [];
@@ -510,26 +626,11 @@
                         let hoTenStr = colMap.ho_ten !== -1 ? String(r[colMap.ho_ten] || "").trim() : "";
                         if(!hoTenStr || hoTenStr.toUpperCase().includes("HỌ VÀ TÊN")) continue;
 
-                        let rawStt = colMap.stt !== -1 ? parseInt(String(r[colMap.stt]).replace(/[^\d]/g, "")) || null : null;
-                        let gTinh = "Nam";
-                        if(colMap.nu !== -1) {
-                            let valNu = String(r[colMap.nu]).toLowerCase().trim();
-                            if(valNu === "x" || valNu.includes("nữ") || valNu === "1") gTinh = "Nữ";
-                        }
-
                         bulkData.push({
-                            stt_excel: rawStt,
+                            stt_excel: colMap.stt !== -1 ? parseInt(String(r[colMap.stt]).replace(/[^\d]/g, "")) || null : null,
                             ho_ten: hoTenStr.toUpperCase(),
-                            ten: colMap.ten !== -1 ? String(r[colMap.ten] || "").trim() : "",
-                            so_so_bhxh: colMap.bhxh !== -1 ? String(r[colMap.bhxh] || "").trim() : "",
-                            so_cccd: colMap.so_cccd !== -1 ? String(r[colMap.cccd] || "").trim() : "",
-                            an_toan_vien: colMap.atv !== -1 ? String(r[colMap.atv] || "").trim() : "",
-                            nndh: colMap.nndh !== -1 ? String(r[colMap.nndh] || "").trim() : "",
-                            nam_ve_huu: colMap.nam_huu !== -1 ? excelDateToISO(r[colMap.nam_huu]) : null,
                             ma_don_vi: colMap.madv !== -1 ? String(r[colMap.madv] || "CHƯA RÕ").trim() : "CHƯA RÕ",
-                            nam_sinh: colMap.nam_sinh !== -1 ? excelDateToISO(r[colMap.nam_sinh]) : null,
-                            gioi_tinh: gTinh,
-                            chuc_danh_cong_viec: colMap.chuc_danh !== -1 ? String(r[colMap.chuc_danh] || "").trim() : ""
+                            gioi_tinh: "Nam"
                         });
                     }
 
@@ -544,7 +645,7 @@
         }
 
         async function clearDataCloud(table) {
-            if(confirm("Xác nhận xóa sạch TOÀN BỘ dữ liệu nhân sự trên Supabase?")) {
+            if(confirm("Xác nhận xóa sạch toàn bộ nhân sự trên Supabase?")) {
                 await client.from(table).delete().neq('id', 0);
                 await fetchAllData();
             }
