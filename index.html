@@ -379,7 +379,6 @@
 
         let DB_NHAN_SU = []; let DB_THIET_BI = []; let DB_SUA_CHUA = []; let FILTERED_LIST = []; let CURRENT_PAGE_SIZE = 30;
 
-        // SỬA LỖI ĐỒNG BỘ: Bắt buộc tải xong data từ Supabase mới xử lý tham số QR
         window.onload = async function() { 
             await fetchAllData(); 
             checkUrlParamsForQrScan();
@@ -593,7 +592,7 @@
         function clearDeviceForm() { document.getElementById('dev_name').value = ""; document.getElementById('dev_code').value = ""; document.getElementById('dev_user_search').value = ""; document.getElementById('dev_user_id').value = ""; }
         async function deleteDevice(id, name) { if(confirm(`Xóa thiết bị ${name}? (Lưu ý: Các nhật ký sửa chữa liên quan thiết bị này cũng sẽ bị xóa)`)) { await client.from('lich_su_sua_chua').delete().eq('cap_phat_id', id); await client.from('cap_phat_thiet_bi').delete().eq('id', id); await fetchAllData(); } }
 
-        // --- TAB 3: NHẬT KÝ SỬA CHỮA ---
+        // --- TAB 3: NHẬT KÝ SỬA CHỮA (ĐÃ FIX LỖI ĐỒNG BỘ ĐỂ KHÔNG BỊ TRỐNG THÔNG TIN) ---
         function displayRepairLog() {
             const tbody = document.getElementById('table_suachua_body'); tbody.innerHTML = "";
             const kw = document.getElementById('search_suachua').value.toLowerCase().trim();
@@ -641,6 +640,7 @@
                 ngay_sua_chua: todayStr 
             };
 
+            // FIX: Đã thêm lệnh await để bắt buộc Supabase ghi nhận dữ liệu xong mới chạy tiếp
             if(editingRepairId) { 
                 await client.from('lich_su_sua_chua').update(payload).eq('id', editingRepairId); 
                 cancelEditRepair(); 
@@ -653,12 +653,8 @@
             
             alert("Lưu nhật ký sửa chữa thiết bị thành công!");
             
-            let r3 = await client.from('lich_su_sua_chua').select('*').order('id', { ascending: false }); 
-            DB_SUA_CHUA = r3.data || [];
-            
-            displayRepairLog();
-            calculatePaymentStats();
-            displayPaymentTable();
+            // Tải lại toàn bộ dữ liệu mới từ đám mây để cập nhật hiển thị lên bảng
+            await fetchAllData();
         }
 
         function editRepairLog(id) {
@@ -677,11 +673,7 @@
                 const { error } = await client.from('lich_su_sua_chua').delete().eq('id', id);
                 if(!error) { 
                     alert("Xóa nhật ký sửa chữa thành công!"); 
-                    let r3 = await client.from('lich_su_sua_chua').select('*').order('id', { ascending: false }); 
-                    DB_SUA_CHUA = r3.data || [];
-                    displayRepairLog();
-                    calculatePaymentStats();
-                    displayPaymentTable();
+                    await fetchAllData();
                 }
             }
         }
