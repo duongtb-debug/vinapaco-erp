@@ -37,15 +37,16 @@
         .form-control { padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; outline: none; box-sizing: border-box; width: 100%; }
         .form-control:focus { border-color: var(--primary); }
         
+        /* Box danh sách nhân sự đổ xuống */
+        .suggest-box { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ccc; border-radius: 6px; max-height: 250px; overflow-y: auto; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: none; }
+        .suggest-item { padding: 10px 12px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #f2f2f2; display: flex; justify-content: space-between; align-items: center; }
+        .suggest-item:hover { background: #ebf3fc; }
+        .suggest-item .badge-dv { background: #e8f4f8; color: #1e56a0; padding: 3px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; border: 1px solid #bce; }
+
         .btn { background: var(--primary); color: white; border: none; padding: 10px 15px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px; width: 100%; transition: opacity 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
         .btn:hover { opacity: 0.9; }
         .btn-danger { background: var(--danger); }
         .btn-success { background: var(--success); }
-        
-        .suggest-box { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ccc; border-radius: 6px; max-height: 220px; overflow-y: auto; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: none; }
-        .suggest-item { padding: 10px 12px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #f2f2f2; display: flex; justify-content: space-between; align-items: center; }
-        .suggest-item:hover { background: #ebf3fc; }
-        .suggest-item .badge-dv { background: #e8f4f8; color: #1e56a0; padding: 3px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; border: 1px solid #bce; }
 
         .main-panel { display: flex; flex-direction: column; gap: 20px; overflow-x: auto; }
         .app-section { display: none; }
@@ -100,15 +101,15 @@
                 <h3><i class="fa-solid fa-plus"></i> Cấp Phát Thiết Bị</h3>
                 
                 <div class="form-group">
-                    <label style="color:#777;">Lọc nhanh theo Đơn vị (Nếu muốn)</label>
-                    <select id="dev_filter_donvi" class="form-control" style="font-weight:600;" onchange="document.getElementById('dev_user_search').value=''; document.getElementById('dev_user_id').value='';">
+                    <label style="color: var(--primary); font-weight: bold;">BƯỚC 1: Chọn Nhóm Đơn Vị trước</label>
+                    <select id="dev_filter_donvi" class="form-control" style="font-weight:600; border: 1px solid var(--primary);" onchange="resetSelectedUser()">
                         <option value="">-- Tất cả các đơn vị --</option>
                     </select>
                 </div>
                 
                 <div class="form-group">
-                    <label>Tìm và Chọn Nhân sự nhận (*)</label>
-                    <input type="text" id="dev_user_search" class="form-control" placeholder="Nhập tên nhân viên..." oninput="smartSuggest(this)">
+                    <label style="font-weight: bold;">BƯỚC 2: Click vào để chọn Nhân Sự (*)</label>
+                    <input type="text" id="dev_user_search" class="form-control" placeholder="Kích chuột để xem list hoặc gõ tìm..." onfocus="smartSuggest(this)" oninput="smartSuggest(this)">
                     <div id="dev_suggest" class="suggest-box"></div>
                     <input type="hidden" id="dev_user_id">
                 </div>
@@ -172,7 +173,6 @@
             <div id="sec_thietbi" class="app-section">
                 <div class="filter-wrapper">
                     <input type="text" id="search_thietbi" class="search-bar" placeholder="Tìm nhanh thiết bị..." oninput="displayThietBi()">
-                    
                     <select id="filter_thietbi_status" class="filter-select" onchange="displayThietBi()">
                         <option value="">-- Tất cả Tình trạng --</option>
                         <option value="Đang sử dụng">Đang sử dụng</option>
@@ -208,11 +208,19 @@
 
         let DB_NHAN_SU = [];
         let DB_THIET_BI = [];
-        
         let FILTERED_LIST = [];
         let CURRENT_PAGE_SIZE = 30; 
 
         window.onload = async function() { await fetchAllData(); };
+
+        // Đóng list gợi ý nếu click ra ngoài màn hình
+        document.addEventListener('click', function(e) {
+            const box = document.getElementById('dev_suggest');
+            const input = document.getElementById('dev_user_search');
+            if (e.target !== input && !box.contains(e.target)) {
+                box.style.display = 'none';
+            }
+        });
 
         async function fetchAllData() {
             try {
@@ -241,6 +249,13 @@
                 selectHoso.innerHTML += `<option value="${dv}">${txt}</option>`;
                 selectDevForm.innerHTML += `<option value="${dv}">${txt}</option>`;
             });
+        }
+
+        function resetSelectedUser() {
+            document.getElementById('dev_user_search').value = ''; 
+            document.getElementById('dev_user_id').value = '';
+            // Tự động mở list nhân viên của đơn vị mới chọn ngay lập tức
+            smartSuggest(document.getElementById('dev_user_search'));
         }
 
         function switchSection(target) {
@@ -339,33 +354,44 @@
             }
         }
 
-        // CẢI TIẾN: GẮN CHẶT MÃ ĐƠN VỊ VÀO Ô GỢI Ý ĐỂ NHÌN THẤY VÀ CHỌN TRỰC TIẾP
+        /* TỐI ƯU ĐỘT PHÁ: ĐỔ TOÀN BỘ LIST CỦA NHÓM KHI KÍCH CHUỘT VÀO */
         function smartSuggest(input) {
             const val = input.value.toLowerCase().trim();
             const box = document.getElementById('dev_suggest');
             const targetDonVi = document.getElementById('dev_filter_donvi').value; 
             
-            if(!val) { box.style.display = 'none'; return; }
             box.innerHTML = "";
 
+            // Lọc danh sách nhân sự
             let matches = DB_NHAN_SU.filter(n => {
-                let matchName = n.ho_ten.toLowerCase().includes(val);
+                // Nếu có gõ từ khóa, lọc theo từ khóa, ngược lại lấy toàn bộ
+                let matchName = !val || n.ho_ten.toLowerCase().includes(val) || (val.includes("đơn vị") === false && n.ma_don_vi === val);
                 let matchDv = !targetDonVi || n.ma_don_vi === targetDonVi;
                 return matchName && matchDv;
-            }).slice(0, 10); // Hiển thị tối đa 10 gợi ý
+            });
+
+            // Nếu không gõ gì và cũng không chọn Đơn vị, giới hạn 20 người để tránh lag giao diện gợi ý
+            if(!val && !targetDonVi) {
+                matches = matches.slice(0, 20);
+            } else if (!val && targetDonVi) {
+                // Nếu đã chọn Mã đơn vị cụ thể, xổ ra toàn bộ nhân sự của đơn vị đó để chọn nhanh
+                matches = matches.sort((a,b) => a.ho_ten.localeCompare(b.ho_ten));
+            } else {
+                // Nếu đang gõ tìm kiếm, giới hạn 15 kết quả khớp nhất
+                matches = matches.slice(0, 15);
+            }
 
             if(matches.length === 0) {
-                box.innerHTML = '<div class="suggest-item" style="color:#999; cursor:default;">Không tìm thấy nhân viên phù hợp...</div>';
+                box.innerHTML = '<div class="suggest-item" style="color:#999; cursor:default;">Không tìm thấy nhân viên nào...</div>';
                 box.style.display = 'block';
                 return;
             }
 
             matches.forEach(n => {
                 let div = document.createElement('div'); div.className = 'suggest-item';
-                // Thiết kế nhãn mã đơn vị to rõ nằm ngay bên cạnh tên nhân viên
-                div.innerHTML = `<span><b>${n.ho_ten}</b></span> <span class="badge-dv">Mã Đơn Vị: ${n.ma_don_vi}</span>`;
-                div.onclick = () => {
-                    // Khi click chọn, điền cả Tên và Mã đơn vị vào ô input cho dễ quản lý
+                div.innerHTML = `<span><b>${n.ho_ten}</b></span> <span class="badge-dv">Đơn vị: ${n.ma_don_vi}</span>`;
+                div.onclick = (e) => {
+                    e.stopPropagation(); // Ngăn chặn sự kiện click lan ra ngoài
                     document.getElementById('dev_user_search').value = `${n.ho_ten} (Đơn vị: ${n.ma_don_vi})`;
                     document.getElementById('dev_user_id').value = n.id;
                     box.style.display = 'none';
@@ -381,7 +407,7 @@
             let code = document.getElementById('dev_code').value.trim();
             const status = document.getElementById('dev_status_select').value; 
             
-            if(!nsId || !name) { alert("Vui lòng gõ và chọn chính xác nhân sự từ danh sách gợi ý!"); return; }
+            if(!nsId || !name) { alert("Vui lòng kích chọn chính xác nhân sự trong danh sách xổ xuống!"); return; }
             if(!code) code = "EQ-" + Date.now().toString().slice(-6);
 
             const ns = DB_NHAN_SU.find(x => x.id == nsId);
