@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ Thống ERP Toàn Diện - Phiên Bản Viết Lại Mới Tinh 100%</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <style>
+        :root { 
+            --primary: #1a365d; 
+            --success: #28a745; 
+            --warning: #ffc107; 
+            --danger: #dc3545; 
+            --dark: #212529;
+            --bg-light: #f4f6f9; 
+            --border: #dfdfdf; 
+        }
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { margin: 0; padding: 0; background-color: var(--bg-light); color: var(--dark); font-size: 13px; }
+        
+        /* HEADER VÀ THANH ĐIỀU HƯỚNG */
+        .app-header { background: linear-gradient(135deg, #1a365d 0%, #0a192f 100%); color: white; padding: 20px 30px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .app-header h1 { margin: 0; font-size: 24px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
+        .app-header p { margin: 5px 0 0 0; opacity: 0.8; font-size: 13px; }
+        
+        .menu-tabs { display: flex; background: white; border-bottom: 2px solid var(--border); padding: 0 30px; }
+        .tab-item { padding: 15px 25px; font-weight: 600; color: #555; cursor: pointer; border-bottom: 4px solid transparent; display: flex; align-items: center; gap: 8px; transition: all 0.3s ease; }
+        .tab-item:hover { color: var(--primary); background: #f8f9fa; }
+        .tab-item.active { color: var(--primary); border-bottom-color: var(--primary); background-color: #f0f4f8; font-weight: 700; }
+        
+        /* CẤU TRÚC LAYOUT CHÍNH */
+        .workspace { display: flex; gap: 25px; padding: 25px; max-width: 100%; margin: 0 auto; }
+        .control-panel { flex: 1; min-width: 320px; display: flex; flex-direction: column; gap: 20px; }
+        .data-display { flex: 4; display: flex; flex-direction: column; gap: 20px; overflow: hidden; }
+        
+        /* THÀNH PHẦN GIAO DIỆN (CARD) */
+        .widget-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.02); border: 1px solid var(--border); }
+        .widget-card h3 { margin-top: 0; margin-bottom: 15px; font-size: 15px; color: var(--primary); border-bottom: 2px solid #edf2f7; padding-bottom: 8px; display: flex; align-items: center; gap: 8px; text-transform: uppercase; }
+        
+        /* THỐNG KÊ DASHBOARD */
+        .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; width: 100%; }
+        .metric-card { background: white; padding: 15px 20px; border-radius: 8px; border-left: 5px solid var(--primary); box-shadow: 0 2px 8px rgba(0,0,0,0.02); border: 1px solid var(--border); }
+        .metric-label { font-size: 11px; text-transform: uppercase; color: #718096; font-weight: 700; }
+        .metric-value { font-size: 26px; font-weight: 800; margin-top: 5px; color: var(--dark); }
+        
+        /* FORM VÀ ĐIỀU KHIỂN */
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-weight: 600; margin-bottom: 6px; color: #4a5568; }
+        .form-input { width: 100%; padding: 10px; border: 1px solid #cbd5e0; border-radius: 5px; font-size: 13px; outline: none; transition: border 0.2s; }
+        .form-input:focus { border-color: var(--primary); }
+        
+        .toolbar { display: flex; gap: 15px; margin-bottom: 15px; }
+        .input-search { flex: 1; padding: 10px 15px; border: 1px solid #cbd5e0; border-radius: 5px; font-size: 13px; outline: none; }
+        .select-filter { padding: 10px; border: 1px solid #cbd5e0; border-radius: 5px; background: white; min-width: 180px; font-size: 13px; }
+        
+        /* NÚT BẤM BUTTON */
+        .action-btn { padding: 11px 16px; border-radius: 5px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; justify-content: center; font-size: 13px; border: none; transition: all 0.2s ease; }
+        .btn-full { width: 100%; }
+        .btn-navy { background-color: var(--primary); color: white; }
+        .btn-navy:hover { opacity: 0.9; }
+        .btn-green { background-color: var(--success); color: white; }
+        .btn-green:hover { opacity: 0.9; }
+        .btn-clear-cloud { background-color: #fff5f5; color: var(--danger); border: 1px solid #feb2b2; }
+        .btn-clear-cloud:hover { background-color: var(--danger); color: white; }
+        
+        /* BẢNG DỮ LIỆU CHUẨN MỰC */
+        .table-container { overflow-x: auto; border: 1px solid var(--border); border-radius: 6px; background: white; max-height: 520px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.01); }
+        table { width: 100%; border-collapse: collapse; }
+        table th, table td { padding: 12px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+        table th { background-color: #f7fafc; color: #4a5568; font-weight: 700; position: sticky; top: 0; z-index: 10; border-bottom: 2px solid #e2e8f0; text-align: center; }
+        table tbody tr:hover { background-color: #f8fafc; }
+        
+        .pill { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; display: inline-block; }
+        .pill-blue { background-color: #ebf8ff; color: #2b6cb0; border: 1px solid #bee3f8; }
+        .pill-green { background-color: #f0fff4; color: #38a169; border: 1px solid #c6f6d5; }
+        .pill-orange { background-color: #fffaf0; color: #dd6b20; border: 1px solid #feebc8; }
+        
+        .view-section { display: none; flex-direction: column; gap: 20px; }
+        .view-section.active { display: flex; }
+        .qr-wrapper { text-align: center; background: #fafafa; padding: 10px; border-radius: 6px; border: 1px dashed #cbd5e0; display: inline-block; }
+        .qr-wrapper canvas { max-width: 100px; height: auto; display: block; margin: 0 auto; }
+    </style>
+</head>
+<body>
+
+    <div class="app-header">
+        <div>
+            <h1>Hệ Thống Quản Trị ERP Doanh Nghiệp Toàn Diện</h1>
+            <p><i class="fa-solid fa-code-branch"></i> Core v2.0 - Viết lại mới tinh, tự động làm sạch và gọt giũa dữ liệu Excel trước khi đưa lên Cloud</p>
+        </div>
+    </div>
+
+    <div class="menu-tabs">
+        <div class="tab-item active" id="tab_hoso" onclick="changeAppModule('hoso')"><i class="fa-solid fa-users-gear"></i> Hồ Sơ Nhân Sự</div>
+        <div class="tab-item" id="tab_thietbi" onclick="changeAppModule('thietbi')"><i class="fa-solid fa-boxes-stacked"></i> Tài Sản & Cấp Phát Máy</div>
+        <div class="tab-item" id="tab_suachua" onclick="changeAppModule('suachua')"><i class="fa-solid fa-toolbox"></i> Sửa Chữa & Chi Phí</div>
+    </div>
+
+    <div class="workspace">
+        
+        <div class="control-panel">
+            
+            <div id="panel_hoso" style="display: block;">
+                <div class="widget-card">
+                    <h3><i class="fa-solid fa-cloud-arrow-up"></i> Nạp Dữ Liệu Nhân Sự</h3>
+                    <p style="color:#718096; font-size:11px; margin-top:-10px; line-height: 1.4;">Hệ thống tự nhận diện cột Năm, bẻ gãy định dạng ngày tháng lỗi để trả về số nguyên sạch.</p>
+                    <input type="file" id="excel_uploader" accept=".xlsx, .xls, .csv" style="display: none;" onchange="executeExcelParsingEngine(this)">
+                    <button class="action-btn btn-navy btn-full" style="margin-bottom: 12px;" onclick="document.getElementById('excel_uploader').click()">
+                        <i class="fa-solid fa-file-excel"></i> CHỌN FILE EXCEL GỐC
+                    </button>
+                    <button class="action-btn btn-clear-cloud btn-full" onclick="purgeCloudTableData('nhan_su')">
+                        <i class="fa-solid fa-circle-xmark"></i> XÓA TRẮNG DỮ LIỆU CLOUD
+                    </button>
+                </div>
+            </div>
+
+            <div id="panel_thietbi" style="display: none;">
+                <div class="widget-card">
+                    <h3><i class="fa-solid fa-circle-plus"></i> Cấp Phát Tài Sản Mới</h3>
+                    <form id="form_create_asset" onsubmit="submitNewAssetToCloud(event)">
+                        <div class="form-group">
+                            <label>Mã tài sản định danh</label>
+                            <input type="text" id="input_tb_ma" class="form-input" placeholder="Ví dụ: LAP-2026-001" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Tên thiết bị / Tài sản</label>
+                            <input type="text" id="input_tb_ten" class="form-input" placeholder="Ví dụ: Máy tính Dell Latitude" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Nhân sự chịu trách nhiệm sử dụng</label>
+                            <select id="select_tb_nhansu" class="form-input"><option value="">-- Chọn người sử dụng --</option></select>
+                        </div>
+                        <div class="form-group">
+                            <label>Trạng thái ban đầu</label>
+                            <select id="select_tb_status" class="form-input">
+                                <option value="Đang sử dụng">Đang sử dụng</option>
+                                <option value="Kho dự phòng">Kho dự phòng</option>
+                                <option value="Đang hỏng/Bảo trì">Đang hỏng/Bảo trì</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="action-btn btn-green btn-full"><i class="fa-solid fa-qrcode"></i> LƯU & TỰ ĐỘNG GENERATE QR</button>
+                    </form>
+                </div>
+            </div>
+
+            <div id="panel_suachua" style="display: none;">
+                <div class="widget-card">
+                    <h3><i class="fa-solid fa-file-invoice"></i> Nhật Ký Quyết Toán Sửa Chữa</h3>
+                    <form id="form_create_maintenance" onsubmit="submitNewMaintenanceToCloud(event)">
+                        <div class="form-group">
+                            <label>Chọn thiết bị lỗi</label>
+                            <select id="select_sc_asset" class="form-input" required><option value="">-- Chọn mã thiết bị --</option></select>
+                        </div>
+                        <div class="form-group">
+                            <label>Nội dung hỏng hóc & Bảo trì</label>
+                            <input type="text" id="input_sc_content" class="form-input" placeholder="Ví dụ: Thay màn hình, sửa nguồn" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Chi phí quyết toán thực tế (VNĐ)</label>
+                            <input type="number" id="input_sc_cost" class="form-input" placeholder="Ví dụ: 1200000" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Trạng thái dòng tiền hồ sơ</label>
+                            <select id="select_sc_status" class="form-input">
+                                <option value="Chờ duyệt hồ sơ">Chờ duyệt hồ sơ</option>
+                                <option value="Đã duyệt quyết toán">Đã duyệt quyết toán</option>
+                                <option value="Đã thanh chi trả">Đã thanh chi trả</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="action-btn btn-navy btn-full"><i class="fa-solid fa-receipt"></i> LẬP HỒ SƠ QUYẾT TOÁN</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="data-display">
+            
+            <div class="summary-grid">
+                <div class="metric-card"><div class="metric-label">Tổng Nhân Sự Hệ Thống</div><div class="metric-value" id="val_ns">0</div></div>
+                <div class="metric-card" style="border-left-color: var(--success);"><div class="metric-label">Tài Sản Đã Cấp Phát</div><div class="metric-value" id="val_tb">0</div></div>
+                <div class="metric-card" style="border-left-color: var(--warning);"><div class="metric-label">Hồ Sơ Sửa Chữa Chờ Duyệt</div><div class="metric-value" id="val_sc">0</div></div>
+                <div class="metric-card" style="border-left-color: var(--danger);"><div class="metric-label">Tổng Chi Phí Bảo Trì</div><div class="metric-value" id="val_cost">0 đ</div></div>
+            </div>
+
+            <div id="sec_hoso" class="view-section active">
+                <div class="widget-card">
+                    <div class="toolbar">
+                        <input type="text" id="query_ns" class="input-search" placeholder="Tìm nhanh theo họ tên nhân sự hoặc số định danh CCCD..." oninput="displayNhanSuDataToTable()">
+                        <select id="query_filter_dv" class="select-filter" onchange="displayNhanSuDataToTable()"><option value="ALL">-- Tất cả phòng ban --</option></select>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="width:45px;">STT</th>
+                                    <th>Họ và tên</th>
+                                    <th>Mã đơn vị</th>
+                                    <th style="color:#2b6cb0;">Năm (Mã)</th>
+                                    <th>Số CCCD</th>
+                                    <th>Số BHXH</th>
+                                    <th>Giới tính</th>
+                                    <th>Năm sinh</th>
+                                    <th>Năm về hưu</th>
+                                    <th>Chức danh công việc</th>
+                                </tr>
+                            </thead>
+                            <tbody id="render_tbody_nhansu"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="sec_thietbi" class="view-section">
+                <div class="widget-card">
+                    <div class="toolbar">
+                        <input type="text" id="query_tb" class="input-search" placeholder="Tìm kiếm theo mã tài sản hoặc tên vật tư..." oninput="displayThietBiDataToTable()">
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="width:45px;">STT</th>
+                                    <th>Mã tài sản</th>
+                                    <th>Tên thiết bị / Tài sản</th>
+                                    <th>Nhân sự đang giữ</th>
+                                    <th>Mã QR Quét Thông Tin</th>
+                                    <th>Trạng thái tài sản</th>
+                                </tr>
+                            </thead>
+                            <tbody id="render_tbody_thietbi"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="sec_suachua" class="view-section">
+                <div class="widget-card">
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="width:45px;">STT</th>
+                                    <th>Mã tài sản</th>
+                                    <th>Tên thiết bị / Vật tư</th>
+                                    <th>Nội dung khắc phục hỏng hóc</th>
+                                    <th style="text-align:right;">Chi phí thanh toán</th>
+                                    <th>Trạng thái chứng từ</th>
+                                    <th>Thời gian lập</th>
+                                </tr>
+                            </thead>
+                            <tbody id="render_tbody_suachua"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // CẤU HÌNH SUPABASE CLOUD CHÍNH XÁC CỦA BẠN
+        const CLOUD_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co";
+        const CLOUD_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ";
+        const supabaseClient = supabase.createClient(CLOUD_URL, CLOUD_KEY);
+
+        let APP_STORE_NHAN_SU = [];
+        let APP_STORE_THIET_BI = [];
+        let APP_STORE_SUA_CHUA = [];
+
+        window.onload = async function() {
+            await synchronizeAllCloudData();
+        };
+
+        // ĐỒNG BỘ TOÀN BỘ DỮ LIỆU TỪ MẠNG VỀ ỨNG DỤNG
+        async function synchronizeAllCloudData() {
+            try {
+                const resNs = await supabaseClient.from('nhan_su').select('*').order('id', { ascending: true });
+                APP_STORE_NHAN_SU = resNs.data || [];
+                
+                const resTb = await supabaseClient.from('thiet_bi').select('*').order('id', { ascending: true });
+                APP_STORE_THIET_BI = resTb.data || [];
+
+                const resSc = await supabaseClient.from('sua_chua').select('*').order('id', { ascending: true });
+                APP_STORE_SUA_CHUA = resSc.data || [];
+
+                refreshDashboardCounters();
+                rebuildFormDropdownLists();
+                displayNhanSuDataToTable();
+                displayThietBiDataToTable();
+                displaySuaChuaDataToTable();
+            } catch (ex) {
+                console.error("Lỗi đồng bộ lõi: ", ex);
+            }
+        }
+
+        function refreshDashboardCounters() {
+            document.getElementById('val_ns').innerText = APP_STORE_NHAN_SU.length;
+            document.getElementById('val_tb').innerText = APP_STORE_THIET_BI.length;
+            document.getElementById('val_sc').innerText = APP_STORE_SUA_CHUA.filter(x => x.trang_thai_thanh_toan === 'Chờ duyệt hồ sơ').length;
+            
+            let totalCost = APP_STORE_SUA_CHUA.reduce((sum, current) => sum + (Number(current.chi_phi) || 0), 0);
+            document.getElementById('val_cost').innerText = totalCost.toLocaleString('vi-VN') + " đ";
+        }
+
+        function rebuildFormDropdownLists() {
+            const dropdownTbNs = document.getElementById('select_tb_nhansu');
+            if (dropdownTbNs) {
+                let optionsHtml = '<option value="">-- Chọn người sử dụng --</option>';
+                APP_STORE_NHAN_SU.forEach(ns => {
+                    optionsHtml += `<option value="${ns.id}">${ns.ho_va_ten} (CCCD: ${ns.so_cccd || 'Không có'})</option>`;
+                });
+                dropdownTbNs.innerHTML = optionsHtml;
+            }
+
+            const dropdownScAsset = document.getElementById('select_sc_asset');
+            if (dropdownScAsset) {
+                let optionsHtml = '<option value="">-- Chọn mã thiết bị --</option>';
+                APP_STORE_THIET_BI.forEach(tb => {
+                    optionsHtml += `<option value="${tb.ma_tai_san}">${tb.ma_tai_san} - ${tb.ten_tai_san}</option>`;
+                });
+                dropdownScAsset.innerHTML = optionsHtml;
+            }
+
+            const dropdownFilterDv = document.getElementById('query_filter_dv');
+            if (dropdownFilterDv) {
+                const uniqueDv = [...new Set(APP_STORE_NHAN_SU.map(item => item.ma_don_vi).filter(Boolean))].sort();
+                let optionsHtml = '<option value="ALL">-- Tất cả phòng ban --</option>';
+                uniqueDv.forEach(dv => { optionsHtml += `<option value="${dv}">${dv}</option>`; });
+                dropdownFilterDv.innerHTML = optionsHtml;
+            }
+        }
+
+        function displayNhanSuDataToTable() {
+            const tbody = document.getElementById('render_tbody_nhansu');
+            if (!tbody) return;
+            
+            const keyword = document.getElementById('query_ns').value.toLowerCase().trim();
+            const selectedDv = document.getElementById('query_filter_dv').value;
+
+            let records = APP_STORE_NHAN_SU.filter(x => {
+                const isMatchKw = !keyword || (x.ho_va_ten && x.ho_va_ten.toLowerCase().includes(keyword)) || (x.so_cccd && String(x.so_cccd).includes(keyword));
+                const isMatchDv = selectedDv === 'ALL' || String(x.ma_don_vi) === String(selectedDv);
+                return isMatchKw && isMatchDv;
+            });
+
+            if (records.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; color:#999; padding:30px;">Danh sách nhân sự trống hoặc không tìm thấy kết quả khớp...</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = records.map((x, i) => `
+                <tr>
+                    <td style="text-align:center; color:#888;">${i + 1}</td>
+                    <td><b>${x.ho_va_ten || ''}</b></td>
+                    <td><span class="pill pill-blue">${x.ma_don_vi || ''}</span></td>
+                    <td style="text-align:center; font-weight:700; color:#d97706;">${x.nam !== undefined && x.nam !== null ? x.nam : ''}</td>
+                    <td>${x.so_cccd || ''}</td>
+                    <td>${x.so_so_bhxh || ''}</td>
+                    <td style="text-align:center;">${x.gioi_tinh || 'Nam'}</td>
+                    <td>${x.nam_sinh ? String(x.nam_sinh).substring(0, 10) : ''}</td>
+                    <td>${x.nam_ve_hu ? String(x.nam_ve_hu).substring(0, 10) : ''}</td>
+                    <td style="color:#4a5568; font-size:12px;">${x.chuc_danh_cong_viec || ''}</td>
+                </tr>
+            `).join('');
+        }
+
+        function normalizeHeaderString(str) {
+            if (str === undefined || str === null) return '';
+            return String(str)
+                .replace(/[\r\n]+/g, ' ') 
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/[^a-z0-9]/g, '');
+        }
+
+        // ==================== ENGINE XỬ LÝ VÀ CHUẨN HÓA CỨNG ĐỊNH DẠNG EXCEL ====================
+        async function executeExcelParsingEngine(element) {
+            if (!element.files || element.files.length === 0) return;
+            const targetFile = element.files[0];
+            const fileReader = new FileReader();
+
+            fileReader.onload = async function(evt) {
+                try {
+                    const binaryData = new Uint8Array(evt.target.result);
+                    const parsedWorkbook = XLSX.read(binaryData, { type: 'array', cellDates: true });
+                    const targetedSheet = parsedWorkbook.Sheets[parsedWorkbook.SheetNames[0]];
+
+                    const spreadsheetRows = XLSX.utils.sheet_to_json(targetedSheet, { header: 1, defval: "" });
+                    if (spreadsheetRows.length === 0) { alert("File Excel rỗng dữ liệu!"); return; }
+
+                    let locatedHeaderIndex = -1;
+                    let processedHeaders = [];
+
+                    // Khóa dòng tiêu đề bắt buộc phải có cả Họ Tên và CCCD/BHXH
+                    for (let rIdx = 0; rIdx < spreadsheetRows.length; rIdx++) {
+                        let singleRow = spreadsheetRows[rIdx] || [];
+                        let cleanedArr = singleRow.map(c => normalizeHeaderString(c));
+                        if ((cleanedArr.includes('hovaten') || cleanedArr.includes('hoten')) && (cleanedArr.includes('socccd') || cleanedArr.includes('sosobhxh'))) {
+                            locatedHeaderIndex = rIdx;
+                            processedHeaders = cleanedArr;
+                            break;
+                        }
+                    }
+
+                    if (locatedHeaderIndex === -1) {
+                        alert("Không thể quét thấy hàng tiêu đề chuẩn (Bắt buộc chứa cột Họ tên & Số CCCD)!");
+                        return;
+                    }
+
+                    let indexHoTen = processedHeaders.findIndex(h => h === 'hovaten' || h === 'hoten');
+                    let indexTen = processedHeaders.findIndex(h => h === 'ten');
+                    let indexBhxh = processedHeaders.findIndex(h => h.includes('bhxh') || h.includes('baohiem'));
+                    let indexCccd = processedHeaders.findIndex(h => h.includes('cccd') || h.includes('cmnd'));
+                    let indexVeHuu = processedHeaders.findIndex(h => h.includes('vehuu'));
+                    let indexMaDv = processedHeaders.findIndex(h => h.includes('madonvi') || h.includes('donvi'));
+                    
+                    // Khóa chết cột Năm bằng so sánh tuyệt đối '===', ngăn hoàn toàn việc nuốt cột Năm Sinh
+                    let indexNam = processedHeaders.findIndex(h => h === 'nam');
+                    let indexNamSinh = processedHeaders.findIndex(h => h === 'namsinh' || h.includes('namsinh'));
+                    
+                    let indexNu = processedHeaders.findIndex(h => h.includes('nu'));
+                    let indexChucDanh = processedHeaders.findIndex(h => h.includes('chucdanh') || h.includes('congviec'));
+
+                    let dataRowsOnly = spreadsheetRows.slice(locatedHeaderIndex + 1);
+                    
+                    let securePackets = dataRowsOnly.map(currentRow => {
+                        if (!currentRow || currentRow.length === 0) return null;
+
+                        let valHoTen = indexHoTen !== -1 && currentRow[indexHoTen] ? String(currentRow[indexHoTen]).trim() : '';
+                        if (!valHoTen || valHoTen.toLowerCase() === 'stt' || normalizeHeaderString(valHoTen) === 'hovaten') return null;
+
+                        let valTen = indexTen !== -1 && currentRow[indexTen] ? String(currentRow[indexTen]).trim() : valHoTen.split(' ').pop();
+                        let valBhxh = indexBhxh !== -1 && currentRow[indexBhxh] ? String(currentRow[indexBhxh]).trim() : '';
+                        let valCccd = indexCccd !== -1 && currentRow[indexCccd] ? String(currentRow[indexCccd]).trim() : '';
+                        let valMaDv = indexMaDv !== -1 && currentRow[indexMaDv] !== undefined ? String(currentRow[indexMaDv]).trim() : '';
+
+                        // 🔥 [CHỐNG LỖI LẶP LẠI]: PHÂN TÁCH BIẾN ĐỔI Ô NĂM THÀNH SỐ NGUYÊN SẠCH SẼ
+                        let cleanIntegerNam = 2026; 
+                        if (indexNam !== -1 && currentRow[indexNam] !== undefined && currentRow[indexNam] !== null && currentRow[indexNam] !== "") {
+                            let originVal = currentRow[indexNam];
+                            if (originVal instanceof Date) {
+                                // Nếu bị Excel hóa thành Date object, chủ động trích xuất năm nguyên bản
+                                cleanIntegerNam = originVal.getFullYear();
+                            } else {
+                                let literalStr = String(originVal).trim();
+                                if (literalStr.indexOf('-') !== -1) {
+                                    let fragments = literalStr.split('-');
+                                    if (fragments[0] && fragments[0].length === 4) cleanIntegerNam = parseInt(fragments[0]);
+                                } else {
+                                    // Chuyển chuỗi hoặc số thập phân như (14.2) về dạng số nguyên (14) chuẩn Database
+                                    let numericCast = parseInt(parseFloat(literalStr));
+                                    if (!isNaN(numericCast)) cleanIntegerNam = numericCast;
+                                }
+                            }
+                        }
+
+                        // 🔥 TRÍCH XUẤT ĐỊNH DẠNG DATE CHUẨN ISO YYYY-MM-DD CHO SUPABASE
+                        let parseToStandardDate = (v) => {
+                            if (!v) return null;
+                            if (v instanceof Date) return `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, '0')}-${String(v.getDate()).padStart(2, '0')}`;
+                            let sVal = String(v).trim();
+                            if (sVal.match(/^\d{4}-\d{2}-\d{2}/)) return sVal.substring(0, 10);
+                            let matchedParts = sVal.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+                            if (matchedParts) return `${matchedParts[3]}-${matchedParts[2].padStart(2,'0')}-${matchedParts[1].padStart(2,'0')}`;
+                            return null;
+                        };
+
+                        let valNamSinh = indexNamSinh !== -1 ? parseToStandardDate(currentRow[indexNamSinh]) : null;
+                        let valNamVeHuu = indexVeHuu !== -1 ? parseToStandardDate(currentRow[indexVeHuu]) : null;
+
+                        let stringNu = indexNu !== -1 && currentRow[indexNu] ? normalizeHeaderString(currentRow[indexNu]) : '';
+                        let computedGender = (stringNu === 'x' || stringNu === '1' || stringNu === 'true') ? "Nữ" : "Nam";
+
+                        let valChucDanh = indexChucDanh !== -1 && currentRow[indexChucDanh] ? String(currentRow[indexChucDanh]).trim() : '';
+
+                        return {
+                            ho_va_ten: valHoTen,
+                            ten: valTen,
+                            so_so_bhxh: valBhxh,
+                            so_cccd: valCccd,
+                            nam_ve_hu: valNamVeHuu,
+                            ma_don_vi: valMaDv,
+                            nam: parseInt(cleanIntegerNam), // Khóa cứng kiểu số nguyên
+                            nam_sinh: valNamSinh,         // Khóa cứng kiểu chuỗi ngày
+                            gioi_tinh: computedGender,
+                            chuc_danh_cong_viec: valChucDanh,
+                            an_toan_vien: false,
+                            nndh: false
+                        };
+                    }).filter(packet => packet !== null);
+
+                    if (securePackets.length === 0) { alert("Không trích xuất được hồ sơ nhân sự nào hợp lệ!"); return; }
+
+                    // ĐẨY KHỐI DỮ LIỆU ĐÃ LÀM SẠCH LÊN SUPABASE
+                    const { error } = await supabaseClient.from('nhan_su').insert(securePackets);
+                    if (error) {
+                        alert("Database báo lỗi từ chối lưu: " + error.message);
+                    } else {
+                        alert(`🎉 Tuyệt hảo! Hệ thống đã ép kiểu thành công và đồng bộ an toàn ${securePackets.length} nhân sự.`);
+                        await synchronizeAllCloudData();
+                    }
+                } catch (err) {
+                    alert("Lỗi Engine Phân Tích Excel: " + err.message);
+                }
+            };
+            fileReader.readAsArrayBuffer(targetFile);
+        }
+
+        // ==================== QUẢN LÝ TÀI SẢN VÀ CẤP PHÁT MÁY MÓC ====================
+        async function submitNewAssetToCloud(evt) {
+            evt.preventDefault();
+            const maTs = document.getElementById('input_tb_ma').value.trim();
+            const tenTs = document.getElementById('input_tb_ten').value.trim();
+            const nsOwnerId = document.getElementById('select_tb_nhansu').value;
+            const statusTs = document.getElementById('select_tb_status').value;
+
+            if (!maTs || !tenTs) return;
+            let currentOwnerName = null;
+            if (nsOwnerId) {
+                let foundPerson = APP_STORE_NHAN_SU.find(p => String(p.id) === String(nsOwnerId));
+                if (foundPerson) currentOwnerName = foundPerson.ho_va_ten;
+            }
+
+            const { error } = await supabaseClient.from('thiet_bi').insert([{
+                ma_tai_san: maTs,
+                ten_tai_san: tenTs,
+                nhan_su_id: nsOwnerId ? parseInt(nsOwnerId) : null,
+                nguoi_su_dung: currentOwnerName,
+                trang_thai: statusTs
+            }]);
+            
+            if (error) alert(error.message);
+            else {
+                alert("Cấp phát tài sản thành công!");
+                document.getElementById('form_create_asset').reset();
+                await synchronizeAllCloudData();
+            }
+        }
+
+        function displayThietBiDataToTable() {
+            const tbody = document.getElementById('render_tbody_thietbi');
+            if (!tbody) return;
+
+            const kw = document.getElementById('query_tb').value.toLowerCase().trim();
+            let records = APP_STORE_THIET_BI.filter(x => !kw || x.ma_tai_san.toLowerCase().includes(kw) || x.ten_tai_san.toLowerCase().includes(kw));
+
+            if (records.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#999; padding:30px;">Chưa có tài sản thiết bị nào được cấp...</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = records.map((x, i) => `
+                <tr>
+                    <td style="text-align:center; color:#888;">${i + 1}</td>
+                    <td><b>${x.ma_tai_san}</b></td>
+                    <td>${x.ten_tai_san}</td>
+                    <td><i class="fa-solid fa-user-tag" style="color:#718096;"></i> ${x.nguoi_su_dung || '<span style="color:#aaa;">Kho dự phòng</span>'}</td>
+                    <td style="text-align:center;">
+                        <div class="qr-wrapper">
+                            <canvas id="canvas_qr_${x.ma_tai_san}"></canvas>
+                        </div>
+                    </td>
+                    <td style="text-align:center;">
+                        <span class="pill ${x.trang_thai === 'Đang sử dụng' ? 'pill-green' : 'pill-orange'}">${x.trang_thai}</span>
+                    </td>
+                </tr>
+            `).join('');
+
+            // Khởi tạo mã QR Code động cho từng tài sản
+            records.forEach(x => {
+                const targetCanvas = document.getElementById(`canvas_qr_${x.ma_tai_san}`);
+                if (targetCanvas) {
+                    let qrInformationStr = `MÃ_TS: ${x.ma_tai_san}\nTÊN: ${x.ten_tai_san}\nNGƯỜI_GIỮ: ${x.nguoi_su_dung || 'KHO_TỔNG'}`;
+                    QRCode.toCanvas(targetCanvas, qrInformationStr, { width: 90, margin: 1, errorCorrectionLevel: 'M' });
+                }
+            });
+        }
+
+        // ==================== NHẬT KÝ BẢO TRÌ SỬA CHỮA ====================
+        async function submitNewMaintenanceToCloud(evt) {
+            evt.preventDefault();
+            const maAsset = document.getElementById('select_sc_asset').value;
+            const content = document.getElementById('input_sc_content').value.trim();
+            const costValue = document.getElementById('input_sc_cost').value;
+            const flowStatus = document.getElementById('select_sc_status').value;
+
+            let correspondingAsset = APP_STORE_THIET_BI.find(a => a.ma_tai_san === maAsset);
+            let nameOfAsset = correspondingAsset ? correspondingAsset.ten_tai_san : '';
+
+            const { error } = await supabaseClient.from('sua_chua').insert([{
+                ma_tai_san: maAsset,
+                ten_tai_san: nameOfAsset,
+                noi_dung_bao_tri: content,
+                chi_phi: parseFloat(costValue),
+                trang_thai_thanh_toan: flowStatus
+            }]);
+
+            if (error) alert(error.message);
+            else {
+                alert("Đã lưu hồ sơ quyết toán chi phí sửa chữa!");
+                document.getElementById('form_create_maintenance').reset();
+                await synchronizeAllCloudData();
+            }
+        }
+
+        function displaySuaChuaDataToTable() {
+            const tbody = document.getElementById('render_tbody_suachua');
+            if (!tbody) return;
+
+            tbody.innerHTML = APP_STORE_SUA_CHUA.map((x, i) => `
+                <tr>
+                    <td style="text-align:center; color:#888;">${i + 1}</td>
+                    <td><span class="pill pill-blue">${x.ma_tai_san}</span></td>
+                    <td><b>${x.ten_tai_san || ''}</b></td>
+                    <td>${x.noi_dung_bao_tri || ''}</td>
+                    <td style="text-align:right; font-weight:700; color:#e53e3e;">${(window.Number(x.chi_phi) || 0).toLocaleString('vi-VN')} đ</td>
+                    <td style="text-align:center;">
+                        <span class="pill ${x.trang_thai_thanh_toan === 'Đã thanh chi trả' ? 'pill-green' : 'pill-orange'}">${x.trang_thai_thanh_toan}</span>
+                    </td>
+                    <td style="font-size:11px; color:#a0aec0;">${x.created_at ? new Date(x.created_at).toLocaleDateString('vi-VN') : ''}</td>
+                </tr>
+            `).join('');
+        }
+
+        function changeAppModule(targetModuleId) {
+            document.querySelectorAll('.tab-item').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+            document.getElementById('panel_hoso').style.display = 'none';
+            document.getElementById('panel_thietbi').style.display = 'none';
+            document.getElementById('panel_suachua').style.display = 'none';
+
+            document.getElementById(`tab_${targetModuleId}`).classList.add('active');
+            document.getElementById(`sec_${targetModuleId}`).classList.add('active');
+            document.getElementById(`panel_${targetModuleId}`).style.display = 'block';
+        }
+
+        async function purgeCloudTableData(nameOfTable) {
+            if (!confirm(`CẢNH BÁO: Bạn đang thực hiện xóa sạch toàn bộ bản ghi của bảng [${nameOfTable}] trên mạng Cloud!\nHành động này không thể hoàn tác, bạn có chắc muốn reset lại không?`)) return;
+            await supabaseClient.from(nameOfTable).delete().neq('id', 0);
+            await synchronizeAllCloudData();
+        }
+    </script>
+</body>
+</html>
