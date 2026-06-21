@@ -384,12 +384,16 @@
             checkUrlParamsForQrScan();
         };
 
+        // --- SỬA ĐỔI CHÍNH: HÀM LOGIC XỬ LÝ KHI QUÉT QR CODE ---
         function checkUrlParamsForQrScan() {
             const urlParams = new URLSearchParams(window.location.search);
             const qrCodeParam = urlParams.get('device_code');
             if (qrCodeParam) {
+                // 1. Chuyển sang màn hình quản lý Thiết bị
                 switchSection('thietbi');
+                // 2. Điền mã QR vừa quét vào thanh tìm kiếm
                 document.getElementById('search_thietbi').value = qrCodeParam.trim();
+                // 3. Thực thi hàm lọc để hiển thị ngay dòng thông tin thiết bị đó lên bảng
                 displayThietBi();
             }
         }
@@ -552,7 +556,7 @@
                     <td class="text-center"><span class="badge" style="background:#eee; color:#333;">${x.ma_don_vi || ''}</span></td>
                     <td class="text-center"><span class="badge ${x.trang_thai==='Bảo dưỡng'?'status-repair': x.trang_thai==='Hỏng hóc'?'status-broken':'status-using'}">${x.trang_thai || 'Đang sử dụng'}</span></td>
                     <td class="text-center">
-                        <button class="btn-table-edit" onclick="editDevice(${x.id})">Sửa</button>
+                        <button class="btn-table-edit" onclick="editDevice(${x.id})">Sửa / Xem</button>
                         <button class="btn-table-del" onclick="deleteDevice(${x.id}, '${x.ten_thiet_bi}')">Xóa</button>
                     </td>
                 </tr>`;
@@ -582,8 +586,8 @@
             document.getElementById('dev_name').value = dev.ten_thiet_bi; 
             document.getElementById('dev_code').value = dev.ma_thiet_bi; 
             document.getElementById('dev_status_select').value = dev.trang_thai || "Đang sử dụng";
-            document.getElementById('form_device_title').innerHTML = `Cập Nhật Thiết Bị`; 
-            document.getElementById('btn_save_device').innerHTML = `Cập Nhật`; 
+            document.getElementById('form_device_title').innerHTML = `Thông Tin Chi Tiết Thiết Bị`; 
+            document.getElementById('btn_save_device').innerHTML = `Cập Nhật Thay Đổi`; 
             document.getElementById('btn_cancel_edit_device').style.display = "block"; 
             switchSection('thietbi');
             window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -592,7 +596,7 @@
         function clearDeviceForm() { document.getElementById('dev_name').value = ""; document.getElementById('dev_code').value = ""; document.getElementById('dev_user_search').value = ""; document.getElementById('dev_user_id').value = ""; }
         async function deleteDevice(id, name) { if(confirm(`Xóa thiết bị ${name}? (Lưu ý: Các nhật ký sửa chữa liên quan thiết bị này cũng sẽ bị xóa)`)) { await client.from('lich_su_sua_chua').delete().eq('cap_phat_id', id); await client.from('cap_phat_thiet_bi').delete().eq('id', id); await fetchAllData(); } }
 
-        // --- TAB 3: NHẬT KÝ SỬA CHỮA (ĐÃ FIX LỖI ĐỒNG BỘ ĐỂ KHÔNG BỊ TRỐNG THÔNG TIN) ---
+        // --- TAB 3: NHẬT KÝ SỬA CHỮA ---
         function displayRepairLog() {
             const tbody = document.getElementById('table_suachua_body'); tbody.innerHTML = "";
             const kw = document.getElementById('search_suachua').value.toLowerCase().trim();
@@ -640,7 +644,6 @@
                 ngay_sua_chua: todayStr 
             };
 
-            // FIX: Đã thêm lệnh await để bắt buộc Supabase ghi nhận dữ liệu xong mới chạy tiếp
             if(editingRepairId) { 
                 await client.from('lich_su_sua_chua').update(payload).eq('id', editingRepairId); 
                 cancelEditRepair(); 
@@ -652,8 +655,6 @@
             } 
             
             alert("Lưu nhật ký sửa chữa thiết bị thành công!");
-            
-            // Tải lại toàn bộ dữ liệu mới từ đám mây để cập nhật hiển thị lên bảng
             await fetchAllData();
         }
 
