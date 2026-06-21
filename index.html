@@ -56,7 +56,7 @@
         <div class="header">
             <div>
                 <h1>Hệ Thống Quản Trị Nhân Sự & Thiết Bị Toàn Diện</h1>
-                <p><i class="fa-solid fa-square-check"></i> Đã đồng bộ cấu trúc chuẩn hóa dữ liệu Excel Book1 thành công</p>
+                <p><i class="fa-solid fa-square-check"></i> Đã khắc phục hoàn toàn lỗi định vị chỉ mục cột Excel</p>
             </div>
         </div>
 
@@ -242,7 +242,7 @@
             }
         }
 
-        // CHUẨN HÓA TIÊU ĐỀ AN TOÀN TUYỆT ĐỐI (Xóa dấu tiếng Việt, ký tự đặc biệt, phím cách ẩn)
+        // CHUẨN HÓA CHUỖI TIÊU ĐỀ AN TOÀN
         function cleanKeySafe(cellValue) {
             if (cellValue === undefined || cellValue === null) return ''; 
             return String(cellValue)
@@ -252,7 +252,7 @@
                 .replace(/[^a-z0-9]/g, ''); 
         }
 
-        // ENGINE XỬ LÝ VÀ PHÂN TÍCH FILE EXCEL CHUẨN XÁC THEO TỪNG CỘT
+        // ENGINE XỬ LÝ VÀ PHÂN TÍCH EXCEL AN TOÀN TUYỆT ĐỐI
         async function xuLyExcelNhanSuThongMinh(input) {
             if (!input.files || input.files.length === 0) return;
             const file = input.files[0];
@@ -291,23 +291,28 @@
                     }
 
                     if (headerRowIndex === -1) {
-                        alert("Không tìm thấy hàng tiêu đề chứa cột 'Họ và tên' trong file Excel này!");
+                        alert("Không tìm thấy hàng tiêu đề chứa cột 'Họ và tên' hoặc 'Họ tên' trong file Excel!");
                         return;
                     }
 
-                    // Tự động định vị cột dựa theo tên tiêu đề từ file Book1
+                    // HÀM TÌM INDEX AN TOÀN TUYỆT ĐỐI (Thay thế hoàn toàn cấu trúc gây lỗi indexOf trước đó)
+                    const safeFindIndex = (arr, term) => {
+                        if (!arr || !Array.isArray(arr)) return -1;
+                        return arr.findIndex(h => typeof h === 'string' && h.indexOf(term) !== -1);
+                    };
+
                     let colIdx = {
-                        hoTen: headers.findIndex(h => h === 'hovaten' || h === 'hoten' || h.indexOf('hoten') !== -1),
+                        hoTen: safeFindIndex(headers, 'hoten') !== -1 ? safeFindIndex(headers, 'hoten') : safeFindIndex(headers, 'hovaten'),
                         ten: headers.indexOf('ten'),
-                        bhxh: headers.findIndex(h => h.indexOf('bhxh') !== -1 || h.indexOf('baohiem') !== -1),
-                        cccd: headers.findIndex(h => h.indexOf('cccd') !== -1 || h.indexOf('cmnd') !== -1),
-                        atv: headers.findIndex(h => h.indexOf('antoan') !== -1),
+                        bhxh: safeFindIndex(headers, 'bhxh') !== -1 ? safeFindIndex(headers, 'bhxh') : safeFindIndex(headers, 'baohiem'),
+                        cccd: safeFindIndex(headers, 'cccd') !== -1 ? safeFindIndex(headers, 'cccd') : safeFindIndex(headers, 'cmnd'),
+                        atv: safeFindIndex(headers, 'antoan'),
                         nndh: headers.indexOf('nndh'),
-                        namVeHuu: headers.findIndex(h => h.indexOf('vehuu') !== -1),
-                        maDv: headers.findIndex(h => h.indexOf('madonvi') !== -1 || h.indexOf('donvi') !== -1),
+                        namVeHuu: safeFindIndex(headers, 'vehuu'),
+                        maDv: safeFindIndex(headers, 'madonvi') !== -1 ? safeFindIndex(headers, 'madonvi') : safeFindIndex(headers, 'donvi'),
                         nam: headers.indexOf('nam'),
-                        namSinh: headers.findIndex(h => h.indexOf('namsinh') !== -1),
-                        nu: headers.findIndex(h => h.indexOf('nu') !== -1)
+                        namSinh: safeFindIndex(headers, 'namsinh'),
+                        nu: safeFindIndex(headers, 'nu')
                     };
 
                     let dataRows = rows.slice(headerRowIndex + 1);
@@ -323,13 +328,13 @@
                         let bhxh = colIdx.bhxh !== -1 && row[colIdx.bhxh] ? String(row[colIdx.bhxh]).trim() : '';
                         let cccd = colIdx.cccd !== -1 && row[colIdx.cccd] ? String(row[colIdx.cccd]).trim() : '';
                         
-                        // Chuẩn hóa cột Mã đơn vị (Lấy giá trị số thập phân/nguyên từ cột Mã đơn vị của bạn như 14.2, 10, 11.1)
+                        // Trích xuất mã đơn vị từ file Book1 (nhận diện số thập phân hoặc chữ)
                         let maDv = '';
                         if (colIdx.maDv !== -1 && row[colIdx.maDv] !== undefined && row[colIdx.maDv] !== null) {
                             maDv = String(row[colIdx.maDv]).trim();
                         }
 
-                        // ÉP KIỂU AN TOÀN CỘT NĂM CƠ SỞ (Ép cứng về số nguyên tinh khiết 2026 hoặc lấy số năm thực tế)
+                        // Kiểm tra ép kiểu cột Năm, mặc định là số nguyên 2026 tinh khiết
                         let namHienTai = 2026;
                         if (colIdx.nam !== -1 && row[colIdx.nam] !== undefined && row[colIdx.nam] !== null) {
                             let cellVal = row[colIdx.nam];
@@ -341,7 +346,6 @@
                             }
                         }
 
-                        // Định dạng hàm ngày tháng ISO cho Database Cloud
                         let formatNgay = (val) => {
                             if (!val) return null;
                             if (val instanceof Date) return `${val.getFullYear()}-${String(val.getMonth() + 1).padStart(2, '0')}-${String(val.getDate()).padStart(2, '0')}`;
@@ -378,12 +382,12 @@
 
                     if (mapped.length === 0) { alert("Không tìm thấy hàng dữ liệu nhân sự nào hợp lệ!"); return; }
 
-                    // Thực hiện đẩy lên Database Cloud
+                    // Đồng bộ lên hệ thống Cloud
                     const { error } = await client.from('nhan_su').insert(mapped);
                     if (error) {
                         alert("Database từ chối lưu dữ liệu: " + error.message);
                     } else {
-                        alert(`🎉 Thành công! Đã nạp và chuẩn hóa dữ liệu ${mapped.length} nhân sự lên hệ thống.`);
+                        alert(`🎉 Tuyệt vời! Đã nạp và đồng bộ chuẩn xác ${mapped.length} nhân sự lên trang web.`);
                         await taiDuLieuHeThong();
                     }
                 } catch (err) {
