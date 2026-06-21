@@ -19,6 +19,8 @@
             --dark: #2c3e50;
             --bg: #f4f6f9;
             --border: #e1e8ed;
+            --blue-light: #3498db;
+            --pink: #e91e63;
         }
         
         * {
@@ -45,13 +47,18 @@
         .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
         .card h3 { margin: 0 0 15px 0; font-size: 15px; color: var(--primary); text-transform: uppercase; border-bottom: 2px solid var(--border); padding-bottom: 5px; font-weight: bold; }
         
-        /* Dashboard Thống Kê Thanh Toán */
+        /* Dashboard Thống Kê Chung */
         .dashboard-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 15px; }
         .db-card { background: white; padding: 15px; border-radius: 8px; border-left: 5px solid #ccc; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .db-card.male { border-left-color: var(--blue-light); }
+        .db-card.female { border-left-color: var(--pink); }
+        .db-card.active-working { border-left-color: var(--success); }
+        .db-card.retired { border-left-color: #7f8c8d; }
         .db-card.paid { border-left-color: var(--success); }
         .db-card.unpaid { border-left-color: var(--danger); }
         .db-card h4 { margin: 0 0 5px 0; font-size: 13px; text-transform: uppercase; color: #777; }
         .db-card .value { font-size: 17px; font-weight: bold; color: var(--dark); }
+        .db-card .sub-value { font-size: 12px; color: #888; margin-top: 3px; }
 
         .form-group { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; position: relative; }
         .form-group label { font-size: 13px; font-weight: bold; color: #333; }
@@ -217,6 +224,30 @@
 
         <div class="main-panel">
             <div id="sec_hoso" class="app-section active">
+                
+                <div class="dashboard-grid">
+                    <div class="db-card male">
+                        <h4>Lao động Nam</h4>
+                        <div class="value" id="hr_stat_male">0 người</div>
+                        <div class="sub-value" id="hr_ratio_male">Tỷ lệ: 0%</div>
+                    </div>
+                    <div class="db-card female">
+                        <h4>Lao động Nữ</h4>
+                        <div class="value" id="hr_stat_female">0 người</div>
+                        <div class="sub-value" id="hr_ratio_female">Tỷ lệ: 0%</div>
+                    </div>
+                    <div class="db-card active-working">
+                        <h4>Đang làm việc</h4>
+                        <div class="value" id="hr_stat_working">0 người</div>
+                        <div class="sub-value" id="hr_stat_pending_retired" style="color: var(--warning); font-weight: bold;">Sắp nghỉ hưu (2026): 0 người</div>
+                    </div>
+                    <div class="db-card retired">
+                        <h4>Đã nghỉ hưu</h4>
+                        <div class="value" id="hr_stat_retired">0 người</div>
+                        <div class="sub-value">Hồ sơ lưu trữ gốc</div>
+                    </div>
+                </div>
+
                 <div class="filter-wrapper">
                     <input type="text" id="search_hoso" class="search-bar" placeholder="Tìm nhanh theo Họ Tên, Số CCCD..." oninput="triggerFilterReset()">
                     <select id="filter_donvi" class="filter-select" onchange="triggerFilterReset()">
@@ -288,7 +319,7 @@
                                 <th>Mã Thiết Bị</th>
                                 <th>Tên Thiết Bị Tài Sản</th>
                                 <th>Nội Dung Hư Hỏng</th>
-                                <th>Biện Pháp Xử Lý</th>
+                                <th>Biện PháXử Lý</th>
                                 <th style="text-align:right; width:120px;">Chi Phí (VND)</th>
                                 <th class="text-center" style="width:120px;">Phiếu Công Việc</th>
                                 <th class="text-center" style="width:140px;">Thao Tác</th>
@@ -384,6 +415,7 @@
                 let r3 = await client.from('lich_su_sua_chua').select('*').order('id', { ascending: false });
                 DB_SUA_CHUA = r3.data || [];
 
+                calculateHRStats(); // Tính toán thống kê nhân sự mới
                 buildDropdowns();
                 triggerFilterReset();
                 calculatePaymentStats();
@@ -391,6 +423,62 @@
                 displayThietBi();
                 displayRepairLog();
             } catch (e) { console.error(e); }
+        }
+
+        // HÀM TÍNH TOÁN DASHBOARD NHÂN SỰ TỰ ĐỘNG
+        function calculateHRStats() {
+            let total = DB_NHAN_SU.length;
+            if(total === 0) return;
+
+            let countMale = 0, countFemale = 0;
+            let countWorking = 0, countRetired = 0, countPendingRetired = 0;
+            
+            // Lấy năm hiện tại để tính mốc hưu trí
+            let currentYear = new Date().getFullYear(); 
+
+            DB_NHAN_SU.forEach(x => {
+                // 1. Thống kê giới tính
+                let gt = String(x.gioi_tinh || "").trim().toLowerCase();
+                if(gt === "nam" || gt === "m") countMale++;
+                else countFemale++;
+
+                // 2. Thống kê tình trạng làm việc dựa vào năm về hưu
+                if(x.nam_ve_huu) {
+                    let rYear = null;
+                    if(x.nam_ve_huu.includes("-")) {
+                        rYear = parseInt(x.nam_ve_huu.split("-")[0]); // Định dạng ISO YYYY-MM-DD
+                    } else {
+                        rYear = parseInt(x.nam_ve_huu); // Định dạng chuỗi số năm YYYY
+                    }
+
+                    if(rYear && rYear < currentYear) {
+                        countRetired++; // Đã nghỉ hưu trước năm nay
+                    } else if(rYear && rYear === currentYear) {
+                        countPendingRetired++; // Sắp nghỉ hưu trong năm nay
+                        countWorking++; // Vẫn tính thuộc nhóm đang làm việc
+                    } else {
+                        countWorking++; // Năm về hưu lớn hơn năm nay -> Đang làm việc
+                    }
+                } else {
+                    countWorking++; // Không có dữ liệu hưu -> Mặc định đang làm việc
+                }
+            });
+
+            // Tính tỷ lệ phần trăm %
+            let ratioMale = ((countMale / total) * 100).toFixed(1);
+            let ratioFemale = ((countFemale / total) * 100).toFixed(1);
+
+            // Đẩy dữ liệu hiển thị lên các thẻ Dashboard
+            document.getElementById('hr_stat_male').innerText = countMale + " người";
+            document.getElementById('hr_ratio_male').innerText = "Tỷ lệ: " + ratioMale + "%";
+            
+            document.getElementById('hr_stat_female').innerText = countFemale + " người";
+            document.getElementById('hr_ratio_female').innerText = "Tỷ lệ: " + ratioFemale + "%";
+            
+            document.getElementById('hr_stat_working').innerText = countWorking + " người";
+            document.getElementById('hr_stat_pending_retired').innerText = "Sắp nghỉ hưu (" + currentYear + "): " + countPendingRetired + " người";
+            
+            document.getElementById('hr_stat_retired').innerText = countRetired + " người";
         }
 
         function buildDropdowns() {
@@ -508,12 +596,14 @@
                         if(combined.includes("hoten") || combined.includes("cccd") || combined.includes("bhxh")) { headerIdx = i; break; }
                     }
 
-                    let colMap = { stt: -1, ho_ten: -1, madv: -1 };
+                    let colMap = { stt: -1, ho_ten: -1, madv: -1, gioi_tinh: -1, nam_ve_huu: -1 };
                     rows[headerIdx].forEach((cell, idx) => {
                         let c = cleanStr(cell);
                         if (c === "stt" || c === "id") colMap.stt = idx;
                         else if (c.includes("hovaten") || c === "hoten") colMap.ho_ten = idx;
                         else if (c.includes("madonvi") || c === "madv") colMap.madv = idx;
+                        else if (c.includes("gioitinh")) colMap.gioi_tinh = idx;
+                        else if (c.includes("namvehuu")) colMap.nam_ve_huu = idx;
                     });
 
                     let bulkData = [];
@@ -526,7 +616,8 @@
                             stt_excel: colMap.stt !== -1 ? parseInt(String(r[colMap.stt]).replace(/[^\d]/g, "")) || null : null,
                             ho_ten: hoTenStr.toUpperCase(),
                             ma_don_vi: colMap.madv !== -1 ? String(r[colMap.madv] || "CHƯA RÕ").trim() : "CHƯA RÕ",
-                            gioi_tinh: "Nam"
+                            gioi_tinh: colMap.gioi_tinh !== -1 ? String(r[colMap.gioi_tinh] || "Nam").trim() : "Nam",
+                            nam_ve_huu: colMap.nam_ve_huu !== -1 ? String(r[colMap.nam_ve_huu] || "").trim() : null
                         });
                     }
 
