@@ -32,13 +32,14 @@
         .nav-tab { padding: 12px 20px; font-weight: bold; font-size: 15px; color: #555; cursor: pointer; border-bottom: 3px solid transparent; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
         .nav-tab.active { color: var(--primary); border-bottom-color: var(--primary); background: #f9fbfd; }
         
-        /* Cấu trúc Grid linh hoạt tự thích ứng thiết bị */
+        /* Cấu trúc Grid hệ thống */
         .wrapper { max-width: 100%; margin: 20px auto; padding: 0 20px; display: grid; grid-template-columns: 340px 1fr; gap: 20px; }
         .sidebar { display: flex; flex-direction: column; gap: 20px; }
         .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
         .card h3 { margin: 0 0 15px 0; font-size: 15px; color: var(--primary); text-transform: uppercase; border-bottom: 2px solid var(--border); padding-bottom: 5px; font-weight: bold; }
         
-        .dashboard-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 15px; }
+        /* Khối thống kê mặc định trên PC */
+        .dashboard-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 15px; width: 100%; }
         .db-card { background: white; padding: 15px; border-radius: 8px; border-left: 5px solid #ccc; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
         .db-card.male { border-left-color: var(--blue-light); }
         .db-card.female { border-left-color: var(--pink); }
@@ -77,8 +78,8 @@
         .filter-wrapper { display: flex; gap: 15px; margin-bottom: 15px; background: white; padding: 12px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.02); flex-wrap: wrap; }
         .search-bar { flex: 1; min-width: 200px; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; outline: none; }
         .filter-select { width: 240px; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; background-color: #fff; font-weight: bold; color: var(--dark); outline: none; }
-        @media (max-width: 768px) { .filter-select { width: 100%; } }
 
+        /* Khung chứa bảng cuộn */
         .table-container { width: 100%; max-height: 70vh; overflow-y: auto; overflow-x: auto; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border: 1px solid var(--border); -webkit-overflow-scrolling: touch; }
         table { width: 100%; border-collapse: collapse; min-width: 1000px; }
         th { position: sticky; top: 0; background: #f8f9fa; color: #2c3e50; font-weight: bold; white-space: nowrap; z-index: 10; border-bottom: 2px solid var(--border); font-size: 14px; }
@@ -103,14 +104,16 @@
         .upload-zone { border: 2px dashed #ccc; padding: 15px; border-radius: 6px; text-align: center; background: #fafafa; cursor: pointer; }
         .upload-zone:hover { border-color: var(--primary); background: #f4f8fd; }
 
-        /* --- ĐOẠN CSS THAY ĐỔI CẤU TRÚC PHÙ HỢP CHO ĐIỆN THOẠI (RESPONSIVE MOIBLE) --- */
+        /* --- SỬA ĐỔI TOÀN DIỆN CHO DI ĐỘNG --- */
         @media (max-width: 992px) {
             .wrapper { grid-template-columns: 1fr; padding: 0 10px; margin: 10px auto; }
-            .dashboard-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+            /* Khôi phục và chia lưới thống kê thành 2 cột đều nhau trên Mobile */
+            .dashboard-grid { display: grid !important; grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
             .header h1 { font-size: 18px; text-align: center; width: 100%; }
             #cloud_status { text-align: center; width: 100%; font-size: 12px; }
             body { font-size: 13px; }
             th, td { padding: 8px 10px; font-size: 13px; }
+            .filter-select { width: 100%; }
         }
     </style>
 </head>
@@ -341,6 +344,7 @@
         const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         let DB_NHAN_SU = []; let DB_THIET_BI = []; let DB_SUA_CHUA = []; let FILTERED_LIST = []; let CURRENT_PAGE_SIZE = 30;
+        let isPageLoading = false; // Biến chặn tải lặp để chống lỗi nảy trang
         
         window.onload = async function() { await fetchAllData(); };
 
@@ -407,7 +411,21 @@
             chunk.forEach((x) => { html += `<tr><td class="text-center">#${x.id}</td><td class="text-center">${x.stt_excel||''}</td><td><b>${x.ho_ten}</b></td><td>${x.so_so_bhxh||''}</td><td><mark>${x.so_cccd||''}</mark></td><td class="text-center">${x.gioi_tinh}</td><td class="text-center">${formatDisplayDate(x.nam_sinh)}</td><td class="text-center"><span class="badge" style="background:#e8f4f8; color:#1e56a0;">${x.ma_don_vi}</span></td><td>${x.an_toan_vien||''}</td><td>${x.nndh||''}</td><td class="text-center">${formatDisplayDate(x.nam_ve_huu)}</td><td><small>${x.chuc_danh_cong_viec||''}</small></td></tr>`; });
             tbody.innerHTML = html;
         }
-        function handleTableScroll(container) { if (container.scrollHeight - container.scrollTop <= container.clientHeight + 40) { if (CURRENT_PAGE_SIZE < FILTERED_LIST.length) { CURRENT_PAGE_SIZE += 30; renderNhanSuTable(); } } }
+
+        // Tối ưu thuật toán cuộn trang để chống nảy (Debounce & Thêm sai số đệm an toàn)
+        function handleTableScroll(container) { 
+            if (isPageLoading) return;
+            const threshold = 60; // Khoảng cách đệm an toàn tính từ đáy bảng (pixel)
+            if (container.scrollHeight - container.scrollTop <= container.clientHeight + threshold) { 
+                if (CURRENT_PAGE_SIZE < FILTERED_LIST.length) { 
+                    isPageLoading = true;
+                    CURRENT_PAGE_SIZE += 30; 
+                    renderNhanSuTable();
+                    // Giải phóng luồng sau khi DOM đã vẽ xong dữ liệu mới
+                    setTimeout(() => { isPageLoading = false; }, 100);
+                } 
+            } 
+        }
 
         async function uploadMultipleFilesToCloud(input) {
             const files = input.files; if(files.length === 0) return;
