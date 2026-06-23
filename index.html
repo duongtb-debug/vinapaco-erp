@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hệ Thống Tổng Hợp: Nhân Sự - Thiết Bị QR - Sửa Chữa & Thanh Toán</title>
+    
+    <link rel="icon" href="data:,">
+
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -32,13 +35,11 @@
         .nav-tab { padding: 12px 20px; font-weight: bold; font-size: 15px; color: #555; cursor: pointer; border-bottom: 3px solid transparent; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
         .nav-tab.active { color: var(--primary); border-bottom-color: var(--primary); background: #f9fbfd; }
         
-        /* Cấu trúc Grid hệ thống */
         .wrapper { max-width: 100%; margin: 20px auto; padding: 0 20px; display: grid; grid-template-columns: 340px 1fr; gap: 20px; }
         .sidebar { display: flex; flex-direction: column; gap: 20px; }
         .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
         .card h3 { margin: 0 0 15px 0; font-size: 15px; color: var(--primary); text-transform: uppercase; border-bottom: 2px solid var(--border); padding-bottom: 5px; font-weight: bold; }
         
-        /* Khối thống kê mặc định trên PC */
         .dashboard-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 15px; width: 100%; }
         .db-card { background: white; padding: 15px; border-radius: 8px; border-left: 5px solid #ccc; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
         .db-card.male { border-left-color: var(--blue-light); }
@@ -79,7 +80,6 @@
         .search-bar { flex: 1; min-width: 200px; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; outline: none; }
         .filter-select { width: 240px; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; background-color: #fff; font-weight: bold; color: var(--dark); outline: none; }
 
-        /* Khung chứa bảng cuộn */
         .table-container { width: 100%; max-height: 70vh; overflow-y: auto; overflow-x: auto; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border: 1px solid var(--border); -webkit-overflow-scrolling: touch; }
         table { width: 100%; border-collapse: collapse; min-width: 1000px; }
         th { position: sticky; top: 0; background: #f8f9fa; color: #2c3e50; font-weight: bold; white-space: nowrap; z-index: 10; border-bottom: 2px solid var(--border); font-size: 14px; }
@@ -104,10 +104,8 @@
         .upload-zone { border: 2px dashed #ccc; padding: 15px; border-radius: 6px; text-align: center; background: #fafafa; cursor: pointer; }
         .upload-zone:hover { border-color: var(--primary); background: #f4f8fd; }
 
-        /* --- ĐỒNG BỘ HIỂN THỊ TRÊN DI ĐỘNG --- */
         @media (max-width: 992px) {
             .wrapper { grid-template-columns: 1fr; padding: 0 10px; margin: 10px auto; }
-            /* Khôi phục và ép chia lưới thống kê thành 2 cột đều nhau trên Mobile */
             .dashboard-grid { display: grid !important; grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
             .header h1 { font-size: 18px; text-align: center; width: 100%; }
             #cloud_status { text-align: center; width: 100%; font-size: 12px; }
@@ -405,25 +403,16 @@
             tbody.innerHTML = html;
         }
 
-        /* --- THUẬT TOÁN KHÓA CỨNG CHỐNG NẢY (HARD-LOCKING SCROLL) --- */
+        /* THUẬT TOÁN KHÓA CỨNG CHỐNG NẢY TAB NHÂN SỰ */
         function handleTableScroll(container) { 
             if (isPageLoading) return;
-
-            // Tính khoảng cách thực tế tới đáy (bằng tổng chiều cao trừ đi lượng đã cuộn và chiều cao khung nhìn)
             const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
-
-            // Kích hoạt khi cách đáy dưới 80px
             if (distanceFromBottom <= 80) { 
                 if (CURRENT_PAGE_SIZE < FILTERED_LIST.length) { 
-                    isPageLoading = true; // Khóa ngay lập tức để chặn các luồng cuộn đồng thời
-                    
+                    isPageLoading = true; 
                     CURRENT_PAGE_SIZE += 30; 
                     renderNhanSuTable();
-
-                    // Đóng băng sự kiện cuộn trong 250ms chờ trình duyệt ổn định lại thanh cuộn
-                    setTimeout(() => { 
-                        isPageLoading = false; 
-                    }, 250); 
+                    setTimeout(() => { isPageLoading = false; }, 250); 
                 } 
             } 
         }
@@ -488,9 +477,19 @@
                     <td class="text-center"><span class="badge ${x.trang_thai==='Bảo dưỡng'?'status-repair': x.trang_thai==='Hỏng hóc'?'status-broken':'status-using'}">${x.trang_thai || 'Đang sử dụng'}</span></td>
                     <td class="text-center"><button class="btn-table-edit" onclick="editDevice(${x.id})">Sửa</button><button class="btn-table-del" onclick="deleteDevice(${x.id}, '${x.ten_thiet_bi}')">Xóa</button></td>
                 </tr>`;
+                
+                // Cơ chế tự động thêm đuôi timestamp (?t=...) để chống trình duyệt lưu Cache cũ của QR code
                 setTimeout(() => { 
                     const container = document.getElementById(qrId);
-                    if(container) { container.innerHTML = ""; new QRCode(container, { text: `https://duongtb-debug.github.io/vinapaco-erp/view.html?device_code=${x.ma_thiet_bi}`, width: 110, height: 110, correctLevel: QRCode.CorrectLevel.H }); }
+                    if(container) { 
+                        container.innerHTML = ""; 
+                        new QRCode(container, { 
+                            text: `https://duongtb-debug.github.io/vinapaco-erp/view.html?device_code=${x.ma_thiet_bi}&t=${Date.now()}`, 
+                            width: 110, 
+                            height: 110, 
+                            correctLevel: QRCode.CorrectLevel.H 
+                        }); 
+                    }
                 }, 30);
             });
         }
