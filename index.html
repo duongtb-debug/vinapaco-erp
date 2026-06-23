@@ -80,7 +80,6 @@
         .search-bar { flex: 1; min-width: 200px; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; outline: none; }
         .filter-select { width: 240px; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; background-color: #fff; font-weight: bold; color: var(--dark); outline: none; }
 
-        /* TỐI ƯU CUỘN SIÊU MƯỢT: Khai báo lớp tăng tốc phần cứng GPU chống giật */
         .table-container { 
             width: 100%; 
             max-height: 70vh; 
@@ -96,7 +95,7 @@
         table { width: 100%; border-collapse: collapse; min-width: 1000px; }
         th { position: sticky; top: 0; background: #f8f9fa; color: #2c3e50; font-weight: bold; white-space: nowrap; z-index: 10; border-bottom: 2px solid var(--border); font-size: 14px; }
         th, td { border: 1px solid var(--border); padding: 10px 12px; font-size: 14px; text-align: left; }
-        tr { contain: tight; } /* Tối ưu công cụ vẽ trình duyệt (Rendering performance) */
+        tr { contain: tight; }
         tr:hover { background: #fdfdfd; }
         
         .text-center { text-align: center; }
@@ -348,7 +347,7 @@
 
         let DB_NHAN_SU = []; let DB_THIET_BI = []; let DB_SUA_CHUA = []; let FILTERED_LIST = []; let CURRENT_PAGE_SIZE = 30;
         let isPageLoading = false; 
-        let lastScrollCheck = 0; // Biến kiểm soát thời gian của cơ chế chống lag (Throttling)
+        let lastScrollCheck = 0; 
         
         window.onload = async function() { await fetchAllData(); };
 
@@ -417,10 +416,8 @@
             tbody.innerHTML = html;
         }
 
-        /* 👑 THUẬT TOÁN CHỐNG GIẶT CUỘN ĐÃ ĐƯỢC TỐI ƯU HOÀN TOÀN (THROTTLED SCROLL) */
         function handleTableScroll(container) { 
             let now = Date.now();
-            // Chỉ cho phép tính toán khoảng cách cuộn sau mỗi 80ms để chống treo CPU
             if (now - lastScrollCheck < 80) return; 
             lastScrollCheck = now;
 
@@ -430,7 +427,7 @@
             if (distanceFromBottom <= 120) { 
                 if (CURRENT_PAGE_SIZE < FILTERED_LIST.length) { 
                     isPageLoading = true; 
-                    CURRENT_PAGE_SIZE += 40; // Tăng bước nhảy tải trang để giảm tần suất kích hoạt hàm
+                    CURRENT_PAGE_SIZE += 40; 
                     renderNhanSuTable();
                     setTimeout(() => { isPageLoading = false; }, 100); 
                 } 
@@ -458,19 +455,71 @@
             input.value = ""; 
         }
 
+        /* 🚀 TỐI ƯU CẢI TIẾN LOGIC CHỐNG TRÙNG MÃ QR THEO "NGƯỜI GIỮ" + "MÃ ĐƠN VỊ" */
         async function saveDeviceCofig() {
             const editingId = document.getElementById('editing_device_id').value; 
             const nsNameRaw = document.getElementById('dev_user_search').value.trim();
-            const name = document.getElementById('dev_name').value.trim(); let code = document.getElementById('dev_code').value.trim();
+            const name = document.getElementById('dev_name').value.trim(); 
+            let code = document.getElementById('dev_code').value.trim();
             let selectedDonVi = document.getElementById('dev_filter_donvi').value;
+
             if(!nsNameRaw || !name) { alert("Vui lòng điền đủ Tên Nhân sự và Tên Thiết bị!"); return; } 
-            if(!code) code = "EQ-" + Date.now().toString().slice(-6);
-            let nsId = document.getElementById('dev_user_id').value; let finalEmployeeName = nsNameRaw; let finalDonVi = selectedDonVi || "KHO_LE";
+
+            let nsId = document.getElementById('dev_user_id').value; 
+            let finalEmployeeName = nsNameRaw; 
+            let finalDonVi = selectedDonVi || "KHO_LE";
+
             const matchedNs = DB_NHAN_SU.find(x => x.ho_ten.toUpperCase() === nsNameRaw.toUpperCase());
-            if (matchedNs) { nsId = matchedNs.id; finalEmployeeName = matchedNs.ho_ten; finalDonVi = matchedNs.ma_don_vi; } else { nsId = null; }
-            let payload = { nhan_su_id: nsId ? parseInt(nsId) : null, ten_nhan_vien: finalEmployeeName.toUpperCase(), ma_don_vi: finalDonVi, ten_thiet_bi: name, ma_thiet_bi: code.toUpperCase(), trang_thai: document.getElementById('dev_status_select').value };
-            if(editingId) { await client.from('cap_phat_thiet_bi').update(payload).eq('id', editingId); cancelEditDevice(); } else { await client.from('cap_phat_thiet_bi').insert([payload]); clearDeviceForm(); } 
-            await fetchAllData(); alert("Ghi nhận cấp phát thiết bị hoàn thành!");
+            if (matchedNs) { 
+                nsId = matchedNs.id; 
+                finalEmployeeName = matchedNs.ho_ten; 
+                finalDonVi = matchedNs.ma_don_vi; 
+            } else { 
+                nsId = null; 
+            }
+
+            let payload = { 
+                nhan_su_id: nsId ? parseInt(nsId) : null, 
+                ten_nhan_vien: finalEmployeeName.toUpperCase(), 
+                ma_don_vi: finalDonVi, 
+                ten_thiet_bi: name, 
+                trang_thai: document.getElementById('dev_status_select').value 
+            };
+
+            // Trường hợp 1: Đang ở chế độ Sửa thủ công (Bấm nút Sửa trên dòng)
+            if(editingId) {
+                if(code) payload.ma_thiet_bi = code.toUpperCase();
+                await client.from('cap_phat_thiet_bi').update(payload).eq('id', editingId); 
+                cancelEditDevice();
+                alert("Cập nhật thay đổi thiết bị hoàn thành!");
+            } else {
+                // Trường hợp 2: Thêm mới -> Tiến hành quét tìm trùng lặp "Tên nhân viên" + "Mã đơn vị" thời gian thực trên Cloud
+                let checkName = finalEmployeeName.toUpperCase();
+                let { data: existingRecords, error: checkError } = await client
+                    .from('cap_phat_thiet_bi')
+                    .select('*')
+                    .eq('ten_nhan_vien', checkName)
+                    .eq('ma_don_vi', finalDonVi);
+
+                if (existingRecords && existingRecords.length > 0) {
+                    // Nếu ĐÃ CÓ người này giữ thiết bị ở đơn vị này -> Gom dữ liệu, giữ nguyên mã QR cũ, cập nhật thông tin mới
+                    let oldRecord = existingRecords[0];
+                    payload.ma_thiet_bi = oldRecord.ma_thiet_bi; // Giữ nguyên mã cũ tuyệt đối
+                    
+                    await client.from('cap_phat_thiet_bi').update(payload).eq('id', oldRecord.id);
+                    clearDeviceForm();
+                    alert(`Phát hiện trùng lặp! Hệ thống đã tự động cập nhật thiết bị vào Mã QR cũ: ${oldRecord.ma_thiet_bi}`);
+                } else {
+                    // Nếu CHƯA CÓ bản ghi nào -> Tiến hành cấp mã QR mới
+                    if(!code) code = "EQ-" + Date.now().toString().slice(-6);
+                    payload.ma_thiet_bi = code.toUpperCase();
+                    
+                    await client.from('cap_phat_thiet_bi').insert([payload]); 
+                    clearDeviceForm();
+                    alert("Cấp phát thiết bị và sinh mã QR mới thành công!");
+                }
+            } 
+            await fetchAllData(); 
         }
 
         function smartSuggest(input) {
@@ -498,7 +547,6 @@
                     <td class="text-center"><button class="btn-table-edit" onclick="editDevice(${x.id})">Sửa</button><button class="btn-table-del" onclick="deleteDevice(${x.id}, '${x.ten_thiet_bi}')">Xóa</button></td>
                 </tr>`;
                 
-                // Cơ chế tự động thêm đuôi timestamp (?t=...) để chống trình duyệt lưu Cache cũ của QR code
                 setTimeout(() => { 
                     const container = document.getElementById(qrId);
                     if(container) { 
