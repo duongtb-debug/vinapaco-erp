@@ -80,10 +80,23 @@
         .search-bar { flex: 1; min-width: 200px; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; outline: none; }
         .filter-select { width: 240px; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; background-color: #fff; font-weight: bold; color: var(--dark); outline: none; }
 
-        .table-container { width: 100%; max-height: 70vh; overflow-y: auto; overflow-x: auto; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border: 1px solid var(--border); -webkit-overflow-scrolling: touch; }
+        /* TỐI ƯU CUỘN SIÊU MƯỢT: Khai báo lớp tăng tốc phần cứng GPU chống giật */
+        .table-container { 
+            width: 100%; 
+            max-height: 70vh; 
+            overflow-y: auto; 
+            overflow-x: auto; 
+            background: white; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05); 
+            border: 1px solid var(--border); 
+            -webkit-overflow-scrolling: touch; 
+            will-change: scroll-position;
+        }
         table { width: 100%; border-collapse: collapse; min-width: 1000px; }
         th { position: sticky; top: 0; background: #f8f9fa; color: #2c3e50; font-weight: bold; white-space: nowrap; z-index: 10; border-bottom: 2px solid var(--border); font-size: 14px; }
         th, td { border: 1px solid var(--border); padding: 10px 12px; font-size: 14px; text-align: left; }
+        tr { contain: tight; } /* Tối ưu công cụ vẽ trình duyệt (Rendering performance) */
         tr:hover { background: #fdfdfd; }
         
         .text-center { text-align: center; }
@@ -335,6 +348,7 @@
 
         let DB_NHAN_SU = []; let DB_THIET_BI = []; let DB_SUA_CHUA = []; let FILTERED_LIST = []; let CURRENT_PAGE_SIZE = 30;
         let isPageLoading = false; 
+        let lastScrollCheck = 0; // Biến kiểm soát thời gian của cơ chế chống lag (Throttling)
         
         window.onload = async function() { await fetchAllData(); };
 
@@ -403,16 +417,22 @@
             tbody.innerHTML = html;
         }
 
-        /* THUẬT TOÁN KHÓA CỨNG CHỐNG NẢY TAB NHÂN SỰ */
+        /* 👑 THUẬT TOÁN CHỐNG GIẶT CUỘN ĐÃ ĐƯỢC TỐI ƯU HOÀN TOÀN (THROTTLED SCROLL) */
         function handleTableScroll(container) { 
+            let now = Date.now();
+            // Chỉ cho phép tính toán khoảng cách cuộn sau mỗi 80ms để chống treo CPU
+            if (now - lastScrollCheck < 80) return; 
+            lastScrollCheck = now;
+
             if (isPageLoading) return;
             const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
-            if (distanceFromBottom <= 80) { 
+            
+            if (distanceFromBottom <= 120) { 
                 if (CURRENT_PAGE_SIZE < FILTERED_LIST.length) { 
                     isPageLoading = true; 
-                    CURRENT_PAGE_SIZE += 30; 
+                    CURRENT_PAGE_SIZE += 40; // Tăng bước nhảy tải trang để giảm tần suất kích hoạt hàm
                     renderNhanSuTable();
-                    setTimeout(() => { isPageLoading = false; }, 250); 
+                    setTimeout(() => { isPageLoading = false; }, 100); 
                 } 
             } 
         }
