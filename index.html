@@ -118,7 +118,6 @@
             overflow: hidden;
         }
         .db-card:hover { transform: translateY(-4px); box-shadow: 0 20px 25px -5px rgba(0,0,0,0.06); }
-        .db-card::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: #cbd5e1; }
         .db-card.male::before { background: var(--blue-light); }
         .db-card.female::before { background: var(--pink); }
         .db-card.active-working::before { background: var(--success); }
@@ -594,7 +593,6 @@
             });
         }
 
-        /* TỐI ƯU HÓA HOÀN TOÀN TRÊN GITHUB PAGES / LIVE PREVIEW */
         function displayThietBi() {
             const kw = document.getElementById('search_thietbi').value.toLowerCase().trim();
             const tbody = document.getElementById('table_thietbi_body'); 
@@ -633,7 +631,6 @@
                 `;
                 tbody.appendChild(tr);
                 
-                // Trực tiếp vẽ mã QR với cơ chế trì hoãn thích ứng (Adaptive Timeout)
                 setTimeout(() => {
                     let container = document.getElementById(qrId);
                     if(container && typeof QRCode !== 'undefined') {
@@ -811,14 +808,46 @@
                     const workbook = XLSX.read(data, { type: 'array', cellDates: true });
                     const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
                     let listRows = [];
+                    
                     json.forEach((row) => {
-                        let keys = Object.keys(row); let name = row[keys[1]] || "";
+                        let keys = Object.keys(row); 
+                        let name = row[keys[1]] || "";
                         if(name && String(name).trim() !== "" && String(name).toLowerCase() !== "họ và tên") {
+                            
+                            // KIỂM TRA NGÀY THÁNG AN TOÀN TRÁNH LỖI INVALID TIME VALUE
+                            let namSinhISO = null;
+                            if (row[keys[5]]) {
+                                let d = new Date(row[keys[5]]);
+                                if (!isNaN(d.getTime())) { namSinhISO = d.toISOString(); }
+                            }
+
+                            let namVeHuuISO = null;
+                            if (row[keys[9]]) {
+                                let d = new Date(row[keys[9]]);
+                                if (!isNaN(d.getTime())) { namVeHuuISO = d.toISOString(); }
+                            }
+
                             listRows.push({
-                                stt_excel: String(row[keys[0]]||'').trim(), ho_ten: String(name).trim(), so_so_bhxh: String(row[keys[2]]||'').trim(), so_cccd: String(row[keys[3]]||'').trim(), gioi_tinh: String(row[keys[4]]||'').trim(), nam_sinh: row[keys[5]] ? new Date(row[keys[5]]).toISOString() : null, ma_don_vi: String(row[keys[6]]||'').trim(), an_toan_vien: String(row[keys[7]]||'').trim(), nndh: String(row[keys[8]]||'').trim(), nam_ve_huu: row[keys[9]] ? new Date(row[keys[9]]).toISOString() : null, chuc_danh_cong_viec: String(row[keys[10]]||'').trim()
+                                stt_excel: String(row[keys[0]]||'').trim(), 
+                                ho_ten: String(name).trim(), 
+                                so_so_bhxh: String(row[keys[2]]||'').trim(), 
+                                so_cccd: String(row[keys[3]]||'').trim(), 
+                                gioi_tinh: String(row[keys[4]]||'').trim(), 
+                                nam_sinh: namSinhISO, 
+                                ma_don_vi: String(row[keys[6]]||'').trim(), 
+                                an_toan_vien: String(row[keys[7]]||'').trim(), 
+                                nndh: String(row[keys[8]]||'').trim(), 
+                                nam_ve_huu: namVeHuuISO, 
+                                chuc_danh_cong_viec: String(row[keys[10]]||'').trim()
                             });
                         }
                     });
+                    
+                    if (listRows.length === 0) {
+                        alert("Không tìm thấy dữ liệu nhân sự hợp lệ trong file Excel!");
+                        return;
+                    }
+
                     alert(`Đang đẩy dữ liệu ${listRows.length} nhân sự lên Cloud...`);
                     for (let i = 0; i < listRows.length; i += 100) {
                         await client.from('nhan_su').insert(listRows.slice(i, i + 100));
