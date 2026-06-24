@@ -123,6 +123,8 @@
         .db-card.female::before { background: var(--pink); }
         .db-card.active-working::before { background: var(--success); }
         .db-card.retired::before { background: #64748b; }
+        .db-card .value { font-size: 20px; font-weight: 700; margin-top: 5px; color: var(--dark); }
+        .db-card h4 { margin: 0; color: #64748b; font-size: 13px; font-weight: 600; text-transform: uppercase; }
         
         .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; position: relative; }
         .form-group label { font-size: 13px; font-weight: 600; color: #475569; }
@@ -166,7 +168,6 @@
         .btn-primary { background: var(--primary); color: white; }
         .btn-danger { background: var(--danger); color: white; }
         .btn-success { background: var(--success); color: white; }
-        .btn-purple { background: var(--purple); color: white; }
         
         .btn-table-edit { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600; margin-right: 5px; transition: all 0.2s; }
         .btn-table-edit:hover { background: #16a34a; color: white; }
@@ -395,7 +396,7 @@
                 let gt = String(x.gioi_tinh || "").trim().toLowerCase();
                 if(gt === "nữ" || gt === "nu" || gt === "f") f++; else m++;
                 if(x.nam_ve_huu) {
-                    let rY = parseInt(x.nam_ve_huu.split("/")[2]);
+                    let rY = parseInt(x.nam_ve_huu.split("-")[0]); // Format yyyy-mm-dd
                     if(rY && rY < 2026) rt++; else wk++;
                 } else wk++;
             });
@@ -426,7 +427,6 @@
             document.getElementById('tab_' + target).classList.add('active'); 
             document.getElementById('sec_' + target).classList.add('active');
             
-            // Hiện form điều khiển tương ứng ở Sidebar
             document.getElementById('form_hoso_panel').style.display = (target === 'hoso') ? 'block' : 'none';
             document.getElementById('form_thietbi_panel').style.display = (target === 'thietbi') ? 'block' : 'none';
         }
@@ -442,6 +442,17 @@
             renderNhanSuTable(false);
         }
         
+        // HÀM CHUYỂN ĐỔI NGÀY TỪ CLOUD (YYYY-MM-DD) THÀNH DD/MM/YYYY ĐỂ HIỂN THỊ
+        function formatDisplayDate(dateStr) {
+            if(!dateStr) return "";
+            if(!dateStr.includes("-")) return dateStr;
+            let parts = dateStr.split("-");
+            if(parts.length === 3) {
+                return `${parts[2]}/${parts[1]}/${parts[0]}`;
+            }
+            return dateStr;
+        }
+
         function renderNhanSuTable(append = false) {
             const tbody = document.getElementById('table_hoso_body'); 
             if(!append) tbody.innerHTML = "";
@@ -462,11 +473,11 @@
                     <td>${x.so_so_bhxh||''}</td>
                     <td><mark>${x.so_cccd||''}</mark></td>
                     <td class="text-center">${x.gioi_tinh}</td>
-                    <td class="text-center">${x.nam_sinh||''}</td>
+                    <td class="text-center">${formatDisplayDate(x.nam_sinh)}</td>
                     <td class="text-center"><span class="badge" style="background:#f1f5f9; color:#1e293b;">${x.ma_don_vi}</span></td>
                     <td class="text-center">${atvDisplay}</td>
                     <td class="text-center">${nndhDisplay}</td>
-                    <td class="text-center">${x.nam_ve_huu||''}</td>
+                    <td class="text-center">${formatDisplayDate(x.nam_ve_huu)}</td>
                     <td><small>${x.chuc_danh_cong_viec||''}</small></td>
                 </tr>`; 
             });
@@ -490,7 +501,6 @@
             } 
         }
 
-        // PHÂN HỆ THIẾT BỊ QR: XỬ LÝ HIỂN THỊ VÀ QR CODE
         function displayThietBi() {
             const tbody = document.getElementById('table_thietbi_body');
             tbody.innerHTML = "";
@@ -524,7 +534,6 @@
                 `;
                 tbody.appendChild(tr);
 
-                // Khởi tạo mã QR Code nội dung 3D liên kết dữ liệu
                 new QRCode(document.getElementById(`qr_${x.device_code}`), {
                     text: `DEVICE:${x.device_code}\nNAME:${x.device_name}\nHOLDER:${x.user_name}`,
                     width: 95,
@@ -534,7 +543,6 @@
             });
         }
 
-        // TÌM KIẾM SUGGEST NHÂN SỰ KHI CẤP THIẾT BỊ
         function smartSuggest(input) {
             const val = input.value.toLowerCase().trim();
             const box = document.getElementById('dev_suggest');
@@ -570,7 +578,6 @@
             document.getElementById('dev_user_id').value = "";
         }
 
-        // LƯU CẤP PHÁT THIẾT BỊ LÊN SUPABASE
         async function saveDeviceConfig() {
             const devName = document.getElementById('dev_name').value.trim();
             let devCode = document.getElementById('dev_code').value.trim();
@@ -601,7 +608,6 @@
                     alert("Thêm cấp phát thiết bị mới thành công!");
                 }
                 
-                // Reset form
                 document.getElementById('editing_device_id').value = "";
                 document.getElementById('dev_name').value = "";
                 document.getElementById('dev_code').value = "";
@@ -635,36 +641,53 @@
             } catch (e) { alert(e.message); }
         }
 
-        // HÀM CHUYỂN ĐỔI NGÀY THÁNG CHUẨN XÁC TỪ FILE GỐC (SỬA LỖI LỆCH NGÀY)
-        function parseExcelDate(cellValue) {
-            if (!cellValue) return "";
+        // HÀM CHUYỂN ĐỔI NGÀY SANG ĐỊNH DẠNG ISO (YYYY-MM-DD) ĐỂ ĐẨY LÊN SUPABASE KHÔNG BỊ LỖI
+        function parseToISODate(cellValue) {
+            if (!cellValue) return null;
+            
+            // Trường hợp thư viện đọc ra đối tượng Date
             if (cellValue instanceof Date) {
                 let d = cellValue;
                 let tzOffset = d.getTimezoneOffset() * 60000;
                 let localTime = new Date(d.getTime() + tzOffset);
-                if (isNaN(localTime.getTime())) return "";
+                if (isNaN(localTime.getTime())) return null;
                 let day = String(localTime.getDate()).padStart(2, '0');
                 let month = String(localTime.getMonth() + 1).padStart(2, '0');
                 let year = localTime.getFullYear();
-                return `${day}/${month}/${year}`;
+                return `${year}-${month}-${day}`;
             }
+            
+            // Trường hợp Excel Serial Number (Ví dụ: 25445)
             if (typeof cellValue === 'number') {
                 let dateObj = XLSX.SSF.parse_date_code(cellValue);
                 let day = String(dateObj.d).padStart(2, '0');
                 let month = String(dateObj.m).padStart(2, '0');
                 let year = dateObj.y;
-                return `${day}/${month}/${year}`;
+                return `${year}-${month}-${day}`;
             }
+            
+            // Trường hợp chuỗi văn bản thô (Ví dụ: "31/08/2026" hoặc "2026-08-31")
             let str = String(cellValue).trim();
             if (str.includes("T")) str = str.split("T")[0];
+            
+            if (str.includes("/")) {
+                let p = str.split("/");
+                if (p.length === 3) {
+                    // Nếu chuỗi có dạng dd/mm/yyyy
+                    if(p[2].length === 4) return `${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`;
+                    // Nếu chuỗi có dạng yyyy/mm/dd
+                    if(p[0].length === 4) return `${p[0]}-${p[1].padStart(2,'0')}-${p[2].padStart(2,'0')}`;
+                }
+            }
             if (str.includes("-")) {
                 let p = str.split("-");
-                if (p[0].length === 4) return `${p[2]}/${p[1]}/${p[0]}`;
+                if (p.length === 3 && p[0].length === 4) return str; // Đã đúng chuẩn yyyy-mm-dd
+                if (p.length === 3 && p[2].length === 4) return `${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`;
             }
-            return str;
+            
+            return null;
         }
 
-        // HÀM IMPORT EXCEL THUẬT TOÁN ÁNH XẠ TIÊU ĐỀ ĐỘNG CHUẨN XÁC
         async function importExcelNhanSu(input) {
             const file = input.files[0]; if(!file) return;
             const reader = new FileReader();
@@ -697,11 +720,13 @@
                         let maDonViVal = String(getValByKeywords(["mãđơnvị", "madonvi", "đơnvị"])).trim() || "10";
                         let chucDanhVal = String(getValByKeywords(["chứcdanh", "côngviệc", "chứcdanhcôngviệc"])).trim();
                         
+                        // Đảo định dạng ngày về ISO yyyy-mm-dd một cách an toàn
                         let rawNamSinh = getValByKeywords(["nămsinh", "namsinh", "ngàysinh"]);
                         let rawNamVeHuu = getValByKeywords(["vềhưu", "vehuu", "ngàyvềhưu"]);
-                        let namSinhValue = parseExcelDate(rawNamSinh);
-                        let namVeHuuValue = parseExcelDate(rawNamVeHuu);
+                        let namSinhValue = parseToISODate(rawNamSinh);
+                        let namVeHuuValue = parseToISODate(rawNamVeHuu);
 
+                        // Giữ nguyên mã số gốc thô hoàn toàn
                         let valATV = String(getValByKeywords(["toànviên", "atv", "antoànviên"])).trim();
                         let valNNDH = String(getValByKeywords(["nnđh", "nndh", "độchại"])).trim();
 
@@ -739,6 +764,7 @@
                     await fetchAllData();
                 } catch(err) { 
                     alert("Lỗi nạp dữ liệu: " + err.message); 
+                    console.error(err);
                 }
             };
             reader.readAsArrayBuffer(file);
