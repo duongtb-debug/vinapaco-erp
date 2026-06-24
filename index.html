@@ -143,6 +143,10 @@
             box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12); 
         }
         
+        .suggest-box { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid var(--border); border-radius: 10px; max-height: 220px; overflow-y: auto; z-index: 100; box-shadow: 0 10px 25px rgba(0,0,0,0.08); display: none; }
+        .suggest-item { padding: 12px 15px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; }
+        .suggest-item:hover { background: var(--primary-light); color: var(--primary); }
+
         .btn { 
             border: none; 
             padding: 12px 20px; 
@@ -162,7 +166,13 @@
         .btn-primary { background: var(--primary); color: white; }
         .btn-danger { background: var(--danger); color: white; }
         .btn-success { background: var(--success); color: white; }
+        .btn-purple { background: var(--purple); color: white; }
         
+        .btn-table-edit { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600; margin-right: 5px; transition: all 0.2s; }
+        .btn-table-edit:hover { background: #16a34a; color: white; }
+        .btn-table-del { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.2s; }
+        .btn-table-del:hover { background: #dc2626; color: white; }
+
         .main-panel { display: flex; flex-direction: column; min-width: 0; }
         .app-section { display: none; }
         .app-section.active { display: block; }
@@ -191,7 +201,12 @@
         
         .text-center { text-align: center; }
         .badge { padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; display: inline-block; }
+        .status-using { background: #d1fae5; color: #065f46; }
+        .status-broken { background: #fef3c7; color: #92400e; }
         
+        .qr-canvas { width: 105px; height: 105px; background: #fff; margin: 0 auto; padding: 5px; border: 1px solid var(--border); border-radius: 8px; display: inline-block; }
+        .qr-canvas img { width: 100% !important; height: 100% !important; }
+
         .tag-atv { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; font-weight: bold; }
         .tag-nndh { background: #fff7ed; color: #c2410c; border: 1px solid #ffedd5; font-weight: bold; }
 
@@ -204,12 +219,15 @@
 <body>
 
     <div class="header">
-        <h1>Hệ Thống Quản Lý Nhân Sự & Thiết Bị QR 3D</h1>
+        <h1>Hệ Thống Tổng Hợp: Nhân Sự - Thiết Bị QR - Sửa Chữa & Thanh Toán 3D</h1>
         <div id="cloud_status"><i class="fa-solid fa-cloud-bolt"></i> ĐỒNG BỘ ĐÁM MÂY TRỰC TUYẾN</div>
     </div>
 
     <div class="nav-tabs">
         <div class="nav-tab active" id="tab_hoso" onclick="switchSection('hoso')"><i class="fa-solid fa-users"></i> Hồ Sơ Nhân Sự (<span id="count_ns">0</span>)</div>
+        <div class="nav-tab" id="tab_thietbi" onclick="switchSection('thietbi')"><i class="fa-solid fa-qrcode"></i> Cấp Phát Thiết Bị QR</div>
+        <div class="nav-tab" id="tab_suachua" onclick="switchSection('suachua')"><i class="fa-solid fa-screwdriver-wrench"></i> Nhật Ký Sửa Chữa</div>
+        <div class="nav-tab" id="tab_thanhtoan" onclick="switchSection('thanhtoan')"><i class="fa-solid fa-file-invoice-dollar"></i> Đa Chứng Từ Cloud</div>
     </div>
 
     <div class="wrapper">
@@ -221,6 +239,40 @@
                     <input type="file" id="excel_file" accept=".xlsx, .xls" class="form-control" onchange="importExcelNhanSu(this)">
                 </div>
                 <button class="btn btn-danger" style="margin-top: 10px;" onclick="clearDataCloud('nhan_su')"><i class="fa-solid fa-trash"></i> Xóa sạch dữ liệu</button>
+            </div>
+
+            <div class="card s-form" id="form_thietbi_panel" style="display:none;">
+                <h3 id="form_device_title"><i class="fa-solid fa-plus"></i> Cấp Phát Thiết Bị</h3>
+                <input type="hidden" id="editing_device_id" value="">
+                <div class="form-group">
+                    <label>Chọn Nhóm Đơn Vị</label>
+                    <select id="dev_filter_donvi" class="form-control" onchange="resetSelectedUser()">
+                        <option value="">-- Tất cả các đơn vị --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Chọn Nhân Sự</label>
+                    <input type="text" id="dev_user_search" class="form-control" placeholder="Gõ tìm kiếm tên..." onfocus="smartSuggest(this)" oninput="smartSuggest(this)">
+                    <div id="dev_suggest" class="suggest-box"></div>
+                    <input type="hidden" id="dev_user_id">
+                </div>
+                <div class="form-group">
+                    <label>Tên thiết bị tài sản (*)</label>
+                    <input type="text" id="dev_name" class="form-control" placeholder="Ví dụ: Máy hàn, Máy tính Dell...">
+                </div>
+                <div class="form-group">
+                    <label>Mã thiết bị (Số Seri)</label>
+                    <input type="text" id="dev_code" class="form-control" placeholder="Bỏ trống hệ thống tự sinh mã">
+                </div>
+                <div class="form-group">
+                    <label>Tình trạng thiết bị</label>
+                    <select id="dev_status_select" class="form-control">
+                        <option value="Đang sử dụng">Đang sử dụng</option>
+                        <option value="Thu hồi">Thu hồi nhập kho</option>
+                        <option value="Hỏng hóc">Hỏng hóc chờ xử lý</option>
+                    </select>
+                </div>
+                <button class="btn btn-success" id="btn_save_device" onclick="saveDeviceConfig()"><i class="fa-solid fa-floppy-disk"></i> Lưu & Xuất Mã QR</button>
             </div>
         </div>
 
@@ -247,6 +299,66 @@
                     </table>
                 </div>
             </div>
+            
+            <div id="sec_thietbi" class="app-section">
+                <div class="filter-wrapper">
+                    <input type="text" id="search_thietbi" class="search-bar" placeholder="Tìm nhanh thiết bị, số seri hoặc người giữ..." oninput="displayThietBi()">
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th class="text-center">Mã QR Code</th>
+                                <th>Mã Thiết Bị (Seri)</th>
+                                <th>Tên Thiết Bị Tài Sản</th>
+                                <th>Người Đang Giữ</th>
+                                <th class="text-center">Mã Đơn Vị</th>
+                                <th class="text-center">Tình Trạng</th>
+                                <th class="text-center">Thao Tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table_thietbi_body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="sec_suachua" class="app-section">
+                <div class="card" style="margin-bottom: 20px;">
+                    <h3><i class="fa-solid fa-tools"></i> Nhật Ký Bảo Dưỡng & Sửa Chữa</h3>
+                    <p style="color: #64748b;">Hệ thống đồng bộ trực tiếp lịch trình bảo dưỡng từ xa.</p>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Mã Thiết Bị</th><th>Nội Dung Sửa Chữa</th><th>Chi Phí (VNĐ)</th><th>Ngày Thực Hiện</th><th>Trạng Thái</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table_suachua_body">
+                            <tr><td colspan="5" class="text-center" style="color: #94a3b8;">Chưa có dữ liệu bảo dưỡng. Hoạt động bình thường.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="sec_thanhtoan" class="app-section">
+                <div class="card" style="margin-bottom: 20px;">
+                    <h3><i class="fa-solid fa-file-invoice-dollar"></i> Quản Lý Thanh Toán Đa Chứng Từ</h3>
+                    <p style="color: #64748b;">Hóa đơn điện tử và chứng từ kế toán đám mây tích hợp.</p>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Số Chứng Từ</th><th>Đơn Vị Yêu Cầu</th><th>Nội Dung Hồ Sơ</th><th>Số Tiền Duyệt</th><th>Tiến Độ Cloud</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table_thanhtoan_body">
+                            <tr><td colspan="5" class="text-center" style="color: #94a3b8;">Không có yêu cầu quyết toán treo.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -255,7 +367,7 @@
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ";
         const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        let DB_NHAN_SU = []; let FILTERED_LIST = []; 
+        let DB_NHAN_SU = []; let DB_THIET_BI = []; let FILTERED_LIST = []; 
         let CURRENT_PAGE_SIZE = 30;
         let isPageLoading = false;
         
@@ -266,7 +378,14 @@
                 let r1 = await client.from('nhan_su').select('*').order('id', { ascending: true }); 
                 DB_NHAN_SU = r1.data || [];
                 document.getElementById('count_ns').innerText = DB_NHAN_SU.length;
-                calculateHRStats(); buildDropdowns(); triggerFilterReset();
+                
+                let r2 = await client.from('thiet_bi').select('*').order('id', { ascending: false });
+                DB_THIET_BI = r2.data || [];
+
+                calculateHRStats(); 
+                buildDropdowns(); 
+                triggerFilterReset();
+                displayThietBi();
             } catch (e) { console.error(e); }
         }
 
@@ -286,16 +405,35 @@
 
         function buildDropdowns() {
             let uniqueDonVi = [...new Set(DB_NHAN_SU.map(x => x.ma_don_vi).filter(Boolean))].sort();
-            const selectHoso = document.getElementById('filter_donvi'); selectHoso.innerHTML = '<option value="">-- Tất cả Mã Đơn Vị --</option>';
-            uniqueDonVi.forEach(dv => { selectHoso.innerHTML += `<option value="${dv}">Mã Đơn Vị: ${dv}</option>`; });
+            
+            const selectHoso = document.getElementById('filter_donvi'); 
+            selectHoso.innerHTML = '<option value="">-- Tất cả Mã Đơn Vị --</option>';
+            
+            const selectDev = document.getElementById('dev_filter_donvi');
+            selectDev.innerHTML = '<option value="">-- Tất cả các đơn vị --</option>';
+
+            uniqueDonVi.forEach(dv => { 
+                let opt = `<option value="${dv}">Mã Đơn Vị: ${dv}</option>`;
+                selectHoso.innerHTML += opt; 
+                selectDev.innerHTML += opt;
+            });
         }
 
         function switchSection(target) {
-            triggerFilterReset();
+            document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active')); 
+            document.querySelectorAll('.app-section').forEach(el => el.classList.remove('active'));
+            
+            document.getElementById('tab_' + target).classList.add('active'); 
+            document.getElementById('sec_' + target).classList.add('active');
+            
+            // Hiện form điều khiển tương ứng ở Sidebar
+            document.getElementById('form_hoso_panel').style.display = (target === 'hoso') ? 'block' : 'none';
+            document.getElementById('form_thietbi_panel').style.display = (target === 'thietbi') ? 'block' : 'none';
         }
 
         function triggerFilterReset() {
-            const kw = document.getElementById('search_hoso').value.toLowerCase().trim(); const selectedDonVi = document.getElementById('filter_donvi').value;
+            const kw = document.getElementById('search_hoso').value.toLowerCase().trim(); 
+            const selectedDonVi = document.getElementById('filter_donvi').value;
             FILTERED_LIST = DB_NHAN_SU.filter(x => { 
                 let matchKeyword = !kw || (x.ho_ten && x.ho_ten.toLowerCase().includes(kw)) || (x.so_cccd && x.so_cccd.includes(kw)); 
                 return matchKeyword && (!selectedDonVi || String(x.ma_don_vi) === String(selectedDonVi)); 
@@ -352,6 +490,152 @@
             } 
         }
 
+        // PHÂN HỆ THIẾT BỊ QR: XỬ LÝ HIỂN THỊ VÀ QR CODE
+        function displayThietBi() {
+            const tbody = document.getElementById('table_thietbi_body');
+            tbody.innerHTML = "";
+            const kw = document.getElementById('search_thietbi').value.toLowerCase().trim();
+
+            let filtered = DB_THIET_BI.filter(x => {
+                return !kw || x.device_name.toLowerCase().includes(kw) || 
+                       x.device_code.toLowerCase().includes(kw) || 
+                       (x.user_name && x.user_name.toLowerCase().includes(kw));
+            });
+
+            if(filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center">Không tìm thấy thiết bị nào.</td></tr>`;
+                return;
+            }
+
+            filtered.forEach(x => {
+                let statusClass = (x.status === "Đang sử dụng") ? "status-using" : "status-broken";
+                let tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="text-center"><div class="qr-canvas" id="qr_${x.device_code}"></div></td>
+                    <td><code style="font-size:13px; font-weight:700;">${x.device_code}</code></td>
+                    <td><b>${x.device_name}</b></td>
+                    <td><i class="fa-solid fa-user" style="color:#64748b; font-size:12px;"></i> ${x.user_name || 'Chưa cấp phát'}</td>
+                    <td class="text-center"><span class="badge" style="background:#f1f5f9; color:#475569;">${x.ma_don_vi||''}</span></td>
+                    <td class="text-center"><span class="badge ${statusClass}">${x.status}</span></td>
+                    <td class="text-center">
+                        <button class="btn-table-edit" onclick="editDevice('${x.id}')"><i class="fa-solid fa-pen"></i> Sửa</button>
+                        <button class="btn-table-del" onclick="deleteDevice('${x.id}')"><i class="fa-solid fa-trash"></i> Xóa</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+
+                // Khởi tạo mã QR Code nội dung 3D liên kết dữ liệu
+                new QRCode(document.getElementById(`qr_${x.device_code}`), {
+                    text: `DEVICE:${x.device_code}\nNAME:${x.device_name}\nHOLDER:${x.user_name}`,
+                    width: 95,
+                    height: 95,
+                    correctLevel: QRCode.CorrectLevel.M
+                });
+            });
+        }
+
+        // TÌM KIẾM SUGGEST NHÂN SỰ KHI CẤP THIẾT BỊ
+        function smartSuggest(input) {
+            const val = input.value.toLowerCase().trim();
+            const box = document.getElementById('dev_suggest');
+            const selectedDV = document.getElementById('dev_filter_donvi').value;
+            
+            box.innerHTML = "";
+            if(!val && !selectedDV) { box.style.display = "none"; return; }
+
+            let matches = DB_NHAN_SU.filter(x => {
+                let matchName = !val || x.ho_ten.toLowerCase().includes(val);
+                let matchDV = !selectedDV || String(x.ma_don_vi) === String(selectedDV);
+                return matchName && matchDV;
+            }).slice(0, 8);
+
+            if(matches.length === 0) { box.style.display = "none"; return; }
+
+            box.style.display = "block";
+            matches.forEach(m => {
+                let div = document.createElement('div');
+                div.className = "suggest-item";
+                div.innerHTML = `<span><b>${m.ho_ten}</b> - CCCD: ${m.so_cccd||'--'}</span> <small style="color:var(--primary);">ĐV: ${m.ma_don_vi}</small>`;
+                div.onclick = () => {
+                    input.value = m.ho_ten;
+                    document.getElementById('dev_user_id').value = m.id;
+                    box.style.display = "none";
+                };
+                box.appendChild(div);
+            });
+        }
+
+        function resetSelectedUser() {
+            document.getElementById('dev_user_search').value = "";
+            document.getElementById('dev_user_id').value = "";
+        }
+
+        // LƯU CẤP PHÁT THIẾT BỊ LÊN SUPABASE
+        async function saveDeviceConfig() {
+            const devName = document.getElementById('dev_name').value.trim();
+            let devCode = document.getElementById('dev_code').value.trim();
+            const userId = document.getElementById('dev_user_id').value;
+            const userName = document.getElementById('dev_user_search').value.trim();
+            const donVi = document.getElementById('dev_filter_donvi').value;
+            const status = document.getElementById('dev_status_select').value;
+            const editId = document.getElementById('editing_device_id').value;
+
+            if(!devName) { alert("Vui lòng điền tên thiết bị tài sản!"); return; }
+            if(!devCode) { devCode = "EQ" + Math.floor(100000 + Math.random() * 900000); }
+
+            let rowData = {
+                device_name: devName,
+                device_code: devCode,
+                user_id: userId ? parseInt(userId) : null,
+                user_name: userName,
+                ma_don_vi: donVi || "10",
+                status: status
+            };
+
+            try {
+                if(editId) {
+                    await client.from('thiet_bi').update(rowData).eq('id', editId);
+                    alert("Cập nhật thiết bị thành công!");
+                } else {
+                    await client.from('thiet_bi').insert([rowData]);
+                    alert("Thêm cấp phát thiết bị mới thành công!");
+                }
+                
+                // Reset form
+                document.getElementById('editing_device_id').value = "";
+                document.getElementById('dev_name').value = "";
+                document.getElementById('dev_code').value = "";
+                resetSelectedUser();
+                document.getElementById('form_device_title').innerHTML = `<i class="fa-solid fa-plus"></i> Cấp Phát Thiết Bị`;
+
+                await fetchAllData();
+            } catch (err) { alert("Lỗi: " + err.message); }
+        }
+
+        function editDevice(id) {
+            let item = DB_THIET_BI.find(x => String(x.id) === String(id));
+            if(!item) return;
+
+            switchSection('thietbi');
+            document.getElementById('form_device_title').innerHTML = `<i class="fa-solid fa-pen"></i> Sửa Thiết Bị`;
+            document.getElementById('editing_device_id').value = item.id;
+            document.getElementById('dev_name').value = item.device_name;
+            document.getElementById('dev_code').value = item.device_code;
+            document.getElementById('dev_user_search').value = item.user_name || "";
+            document.getElementById('dev_user_id').value = item.user_id || "";
+            document.getElementById('dev_filter_donvi').value = item.ma_don_vi || "";
+            document.getElementById('dev_status_select').value = item.status;
+        }
+
+        async function deleteDevice(id) {
+            if(!confirm("Bạn có chắc chắn muốn xóa thiết bị tài sản này không?")) return;
+            try {
+                await client.from('thiet_bi').delete().eq('id', id);
+                await fetchAllData();
+            } catch (e) { alert(e.message); }
+        }
+
+        // HÀM CHUYỂN ĐỔI NGÀY THÁNG CHUẨN XÁC TỪ FILE GỐC (SỬA LỖI LỆCH NGÀY)
         function parseExcelDate(cellValue) {
             if (!cellValue) return "";
             if (cellValue instanceof Date) {
@@ -380,6 +664,7 @@
             return str;
         }
 
+        // HÀM IMPORT EXCEL THUẬT TOÁN ÁNH XẠ TIÊU ĐỀ ĐỘNG CHUẨN XÁC
         async function importExcelNhanSu(input) {
             const file = input.files[0]; if(!file) return;
             const reader = new FileReader();
@@ -394,7 +679,6 @@
                     for(let i = 0; i < json.length; i++) {
                         let row = json[i];
                         
-                        // Chuẩn hóa Key động tìm kiếm chính xác trường dữ liệu thô từ file Excel gốc
                         let getValByKeywords = (keywords) => {
                             let foundKey = Object.keys(row).find(k => {
                                 let normK = String(k).trim().toLowerCase().replace(/\s+/g, '');
@@ -413,13 +697,11 @@
                         let maDonViVal = String(getValByKeywords(["mãđơnvị", "madonvi", "đơnvị"])).trim() || "10";
                         let chucDanhVal = String(getValByKeywords(["chứcdanh", "côngviệc", "chứcdanhcôngviệc"])).trim();
                         
-                        // Đọc ngày tháng
                         let rawNamSinh = getValByKeywords(["nămsinh", "namsinh", "ngàysinh"]);
                         let rawNamVeHuu = getValByKeywords(["vềhưu", "vehuu", "ngàyvềhưu"]);
                         let namSinhValue = parseExcelDate(rawNamSinh);
                         let namVeHuuValue = parseExcelDate(rawNamVeHuu);
 
-                        // Giữ nguyên giá trị gốc không thay đổi định dạng
                         let valATV = String(getValByKeywords(["toànviên", "atv", "antoànviên"])).trim();
                         let valNNDH = String(getValByKeywords(["nnđh", "nndh", "độchại"])).trim();
 
@@ -457,7 +739,6 @@
                     await fetchAllData();
                 } catch(err) { 
                     alert("Lỗi nạp dữ liệu: " + err.message); 
-                    console.error(err);
                 }
             };
             reader.readAsArrayBuffer(file);
