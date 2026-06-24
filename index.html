@@ -112,6 +112,20 @@
             border-color: var(--accent);
             background-color: #eff6ff;
         }
+
+        /* Autocomplete Suggestions Box */
+        .suggest-box {
+            position: absolute;
+            z-index: 50;
+            background: white;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            max-height: 250px;
+            overflow-y: auto;
+            width: 100%;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -193,7 +207,7 @@
         </div>
 
         <div class="toolbar bg-slate-50 p-5 rounded-xl flex flex-wrap gap-4 items-center justify-between mb-6 border border-slate-200">
-            <div class="search-box flex gap-3 flex-1 min-width-[320px]">
+            <div class="search-box flex gap-3 flex-1 min-w-[320px]">
                 <input type="text" id="search_hoso" oninput="triggerFilterReset()" placeholder="Tìm nhanh theo Họ Tên hoặc số CCCD..." class="border border-slate-300 rounded-lg flex-1">
                 <select id="filter_donvi" onchange="triggerFilterReset()" class="border border-slate-300 rounded-lg bg-white w-64">
                     <option value="">-- Tất cả Mã Đơn Vị --</option>
@@ -210,7 +224,7 @@
             </div>
         </div>
 
-        <div class="table-container overflow-x-auto border border-slate-200 rounded-xl max-h-[600px]">
+        <div class="table-container overflow-x-auto border border-slate-200 rounded-xl max-h-[600px]" onscroll="handleTableScroll(this)">
             <table class="w-full text-left border-collapse">
                 <thead>
                     <tr class="bg-slate-100 text-slate-700 border-b border-slate-200">
@@ -240,62 +254,82 @@
     <!-- TAB 2: THIẾT BỊ TÀI SẢN -->
     <!-- ========================================== -->
     <div class="app-section bg-white p-6 rounded-xl border border-slate-200 shadow-sm" id="sec_thietbi">
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            <!-- Form panel (Left-hand side) -->
-            <div class="form-panel lg:col-span-4 bg-slate-50 p-6 rounded-xl border border-slate-200 shadow-sm">
-                <h3 id="form_device_title" class="mb-5 text-slate-800 border-b pb-3 flex items-center gap-2"><i class="fa-solid fa-square-plus text-blue-600"></i> Cấp Thiết Bị Mới</h3>
+        <div class="flex flex-col gap-8">
+            
+            <!-- Upgraded: Full-Width horizontal elegant form layout -->
+            <div class="form-panel bg-slate-50 p-6 rounded-xl border border-slate-200 shadow-sm">
+                <h3 id="form_device_title" class="mb-5 text-slate-800 border-b pb-3 flex items-center gap-2 text-lg font-bold">
+                    <i class="fa-solid fa-square-plus text-blue-600"></i> BIỂU MẪU CẤP THIẾT BỊ / TÀI SẢN MỚI
+                </h3>
                 <input type="hidden" id="editing_device_id">
                 
-                <div class="form-group mb-4">
-                    <label>Mã đơn vị tiếp quản</label>
-                    <select id="dev_filter_donvi" onchange="handleUnitChange()" class="w-full bg-white border border-slate-300 rounded-lg">
-                        <option value="">-- Chọn đơn vị --</option>
-                    </select>
-                </div>
-                <div class="form-group mb-4">
-                    <label>Nhân sự bàn giao</label>
-                    <input type="text" id="dev_user_search" oninput="smartSuggest(this)" onfocus="smartSuggest(this)" onclick="smartSuggest(this)" placeholder="Kích chuột hiển thị nhanh nhân viên..." class="w-full bg-white border border-slate-300 rounded-lg relative">
-                    <input type="hidden" id="dev_user_id">
-                    <div class="suggest-box" id="dev_suggest"></div>
-                </div>
-                <div class="form-group mb-4">
-                    <label>Tên thiết bị tài sản *</label>
-                    <input type="text" id="dev_name" placeholder="Ví dụ: Máy tính Laptop Dell Latitude 5440" class="w-full bg-white border border-slate-300 rounded-lg">
-                </div>
-                <div class="form-group mb-4">
-                    <label>Số Sê-ri / Mã tài sản (Bỏ trống tự tạo)</label>
-                    <input type="text" id="dev_code" placeholder="Ví dụ: EQ-DELL-8829" class="w-full bg-white border border-slate-300 rounded-lg">
-                </div>
-                <div class="form-group mb-5">
-                    <label>Trạng thái vận hành</label>
-                    <select id="dev_status_select" class="w-full bg-white border border-slate-300 rounded-lg">
-                        <option value="Đang sử dụng">Đang sử dụng</option>
-                        <option value="Hỏng hóc / Đang sửa">Hỏng hóc / Đang sửa</option>
-                    </select>
-                </div>
-                <button class="btn bg-blue-600 hover:bg-blue-700 text-white font-bold w-full justify-center py-3 flex items-center gap-2 rounded-lg" onclick="saveDeviceConfig()">
-                    <i class="fa-solid fa-floppy-disk text-lg"></i> Ghi nhận Hệ thống
-                </button>
-            </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Column 1 -->
+                    <div class="flex flex-col justify-between gap-4">
+                        <div class="form-group">
+                            <label>Mã đơn vị tiếp quản</label>
+                            <select id="dev_filter_donvi" onchange="handleUnitChange()" class="w-full bg-white border border-slate-300 rounded-lg">
+                                <option value="">-- Chọn đơn vị --</option>
+                            </select>
+                        </div>
+                        <div class="form-group relative">
+                            <label>Nhân sự bàn giao</label>
+                            <input type="text" id="dev_user_search" oninput="smartSuggest(this)" onfocus="smartSuggest(this)" onclick="smartSuggest(this)" placeholder="Kích chuột hiển thị nhanh nhân viên..." class="w-full bg-white border border-slate-300 rounded-lg">
+                            <input type="hidden" id="dev_user_id">
+                            <div class="suggest-box" id="dev_suggest"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Column 2 -->
+                    <div class="flex flex-col justify-between gap-4">
+                        <div class="form-group">
+                            <label>Tên thiết bị tài sản *</label>
+                            <input type="text" id="dev_name" placeholder="Ví dụ: Máy tính Laptop Dell Latitude 5440" class="w-full bg-white border border-slate-300 rounded-lg">
+                        </div>
+                        <div class="form-group">
+                            <label>Số Sê-ri / Mã tài sản (Bỏ trống tự tạo)</label>
+                            <input type="text" id="dev_code" placeholder="Ví dụ: EQ-DELL-8829" class="w-full bg-white border border-slate-300 rounded-lg">
+                        </div>
+                    </div>
 
-            <!-- List panel (Right-hand side) -->
-            <div class="lg:col-span-8">
-                <div class="toolbar bg-slate-50 p-5 rounded-xl flex items-center mb-5 border border-slate-200">
-                    <div class="search-box w-full">
-                        <input type="text" id="search_thietbi" oninput="displayThietBi()" placeholder="Tìm thiết bị theo tên, mã sê-ri hoặc nhân sự tiếp quản..." class="w-full bg-white border border-slate-300 rounded-lg">
+                    <!-- Column 3 -->
+                    <div class="flex flex-col justify-between gap-4">
+                        <div class="form-group">
+                            <label>Trạng thái vận hành</label>
+                            <select id="dev_status_select" class="w-full bg-white border border-slate-300 rounded-lg">
+                                <option value="Đang sử dụng">Đang sử dụng</option>
+                                <option value="Hỏng hóc / Đang sửa">Hỏng hóc / Đang sửa</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group flex items-end h-full">
+                            <button class="btn bg-blue-600 hover:bg-blue-700 text-white font-bold w-full justify-center py-3.5 flex items-center gap-2 rounded-lg shadow-md transition-all duration-300" onclick="saveDeviceConfig()">
+                                <i class="fa-solid fa-floppy-disk text-lg"></i> Ghi nhận vào Hệ thống
+                            </button>
+                        </div>
                     </div>
                 </div>
+            </div>
+
+            <!-- Upgraded: Spacious Full-Width Table List Layout -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+                <div class="toolbar bg-slate-50 p-5 rounded-xl flex items-center mb-6 border border-slate-200">
+                    <div class="search-box w-full">
+                        <input type="text" id="search_thietbi" oninput="displayThietBi()" placeholder="Tìm thiết bị nhanh theo tên, mã sê-ri hoặc nhân sự tiếp quản..." class="w-full bg-white border border-slate-300 rounded-lg">
+                    </div>
+                </div>
+                
                 <div class="table-container overflow-x-auto border border-slate-200 rounded-xl">
                     <table class="w-full text-left border-collapse">
                         <thead>
                             <tr class="bg-slate-100 text-slate-700 border-b border-slate-200">
-                                <th class="text-center font-bold">Thẻ QR</th>
+                                <th class="text-center font-bold w-36">Thẻ QR</th>
                                 <th class="font-bold">Mã Tài Sản</th>
                                 <th class="font-bold">Tên Thiết Bị / Tài Sản</th>
                                 <th class="font-bold">Nhân Sự Quản Lý</th>
                                 <th class="text-center font-bold">Đơn Vị</th>
                                 <th class="text-center font-bold">Trạng Thái</th>
-                                <th class="text-center font-bold">Hành Động</th>
+                                <th class="text-center font-bold w-72">Hành Động</th>
                             </tr>
                         </thead>
                         <tbody id="table_thietbi_body" class="divide-y divide-slate-200">
@@ -304,6 +338,7 @@
                     </table>
                 </div>
             </div>
+            
         </div>
     </div>
 
@@ -350,120 +385,145 @@
                     <canvas id="repairCostChart"></canvas>
                 </div>
             </div>
-            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
                 <h4 class="mb-4 text-slate-800 border-l-4 border-teal-500 pl-3">Tình trạng thanh toán hồ sơ quyết toán</h4>
-                <div class="h-64 relative flex justify-center">
+                <div class="h-56 relative flex justify-center">
                     <canvas id="repairPaymentChart" class="max-w-[320px]"></canvas>
                 </div>
             </div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            <!-- Form panel -->
-            <div class="lg:col-span-4 bg-slate-50 p-6 rounded-xl border border-slate-200 shadow-sm h-fit">
-                <h3 class="mb-5 text-slate-800 border-b pb-3 flex items-center gap-2"><i class="fa-solid fa-file-invoice text-emerald-600"></i> Hạch toán & Chứng từ</h3>
+        <div class="flex flex-col gap-8">
+            
+            <!-- Upgraded: Full-Width Horizontal elegant Repair Invoice Form -->
+            <div class="bg-slate-50 p-6 rounded-xl border border-slate-200 shadow-sm">
+                <h3 class="mb-5 text-slate-800 border-b pb-3 flex items-center gap-2 text-lg font-bold">
+                    <i class="fa-solid fa-file-invoice text-emerald-600"></i> HỒ SƠ QUYẾT TOÁN & HẠCH TOÁN SỬA CHỮA MỚI
+                </h3>
                 
-                <div class="form-group mb-4">
-                    <label>Tên hồ sơ quyết toán *</label>
-                    <input type="text" id="rep_file_name" placeholder="Ví dụ: HSQT-2026-XN02" class="w-full bg-white border border-slate-300 rounded-lg">
-                </div>
-                <div class="form-group mb-4">
-                    <label>Đơn vị thụ hưởng *</label>
-                    <select id="rep_beneficiary" class="w-full bg-white border border-slate-300 rounded-lg">
-                        <option value="">-- Chọn đơn vị thụ hưởng --</option>
-                    </select>
-                </div>
-                
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                    <div class="form-group">
-                        <label>Số tài khoản thụ hưởng</label>
-                        <input type="text" id="rep_account_number" placeholder="Ví dụ: 1903..." class="w-full bg-white border border-slate-300 rounded-lg">
-                    </div>
-                    <div class="form-group">
-                        <label>Ngân hàng thụ hưởng</label>
-                        <input type="text" id="rep_bank_name" placeholder="Ví dụ: Techcombank" class="w-full bg-white border border-slate-300 rounded-lg">
-                    </div>
-                </div>
-
-                <div class="form-group mb-4">
-                    <label>Thiết bị bảo dưỡng * (Tìm chọn)</label>
-                    <input type="text" id="rep_device_search" oninput="suggestRepairDevice(this)" onfocus="suggestRepairDevice(this)" onclick="suggestRepairDevice(this)" placeholder="Nhấn chuột tìm nhanh..." class="w-full bg-white border border-slate-300 rounded-lg">
-                    <input type="hidden" id="rep_device_code">
-                    <input type="hidden" id="rep_device_name">
-                    <div class="suggest-box" id="rep_device_suggest"></div>
-                </div>
-                <div class="form-group mb-4">
-                    <label>Nội dung sửa chữa *</label>
-                    <textarea id="rep_content" rows="3" placeholder="Ghi nhận chi tiết các hạng mục đã thay thế/bảo dưỡng..." class="w-full bg-white border border-slate-300 rounded-lg"></textarea>
-                </div>
-                
-                <!-- NEW: Integrated Document upload section with drag & drop & instant preview -->
-                <div class="form-group mb-4">
-                    <label>Đính kèm tài liệu / Hóa đơn quyết toán</label>
-                    <div class="upload-zone rounded-lg p-5 text-center cursor-pointer bg-white" onclick="document.getElementById('rep_document_file').click()" id="upload_drop_zone">
-                        <i class="fa-solid fa-cloud-arrow-up text-3xl text-slate-400 mb-2 block"></i>
-                        <span class="text-sm font-semibold text-slate-600 block">Kéo thả file hoặc nhấn để tải lên</span>
-                        <span class="text-xs text-slate-400 block mt-1">Hỗ trợ định dạng Ảnh (JPG, PNG, WebP) hoặc tài liệu</span>
-                        <input type="file" id="rep_document_file" class="hidden" onchange="handleDocumentUpload(this)">
-                    </div>
-                    <!-- Small preview of selected document -->
-                    <div id="file_uploaded_preview" class="hidden mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
-                        <div class="flex items-center gap-2">
-                            <i class="fa-solid fa-file-shield text-blue-600 text-lg"></i>
-                            <span class="text-sm font-semibold text-slate-700 truncate max-w-[180px]" id="uploaded_file_name">doc.png</span>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+                    <!-- Column 1: Core Document Details -->
+                    <div class="space-y-4">
+                        <div class="form-group">
+                            <label>Tên hồ sơ quyết toán *</label>
+                            <input type="text" id="rep_file_name" placeholder="Ví dụ: HSQT-2026-XN02" class="w-full bg-white border border-slate-300 rounded-lg">
                         </div>
-                        <button onclick="clearUploadedFile()" class="text-rose-600 hover:text-rose-800"><i class="fa-solid fa-circle-xmark"></i></button>
+                        <div class="form-group">
+                            <label>Đơn vị thụ hưởng *</label>
+                            <select id="rep_beneficiary" class="w-full bg-white border border-slate-300 rounded-lg">
+                                <option value="">-- Chọn đơn vị thụ hưởng --</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Ngày làm quyết toán</label>
+                            <input type="date" id="rep_date" class="w-full bg-white border border-slate-300 rounded-lg">
+                        </div>
+                    </div>
+                    
+                    <!-- Column 2: Financial Account & Target Asset -->
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div class="form-group">
+                                <label>Số tài khoản</label>
+                                <input type="text" id="rep_account_number" placeholder="Ví dụ: 1903..." class="w-full bg-white border border-slate-300 rounded-lg">
+                            </div>
+                            <div class="form-group">
+                                <label>Ngân hàng thụ hưởng</label>
+                                <input type="text" id="rep_bank_name" placeholder="Ví dụ: Techcombank" class="w-full bg-white border border-slate-300 rounded-lg">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group relative">
+                            <label>Thiết bị bảo dưỡng * (Tìm chọn)</label>
+                            <input type="text" id="rep_device_search" oninput="suggestRepairDevice(this)" onfocus="suggestRepairDevice(this)" onclick="suggestRepairDevice(this)" placeholder="Nhấn chuột tìm nhanh..." class="w-full bg-white border border-slate-300 rounded-lg">
+                            <input type="hidden" id="rep_device_code">
+                            <input type="hidden" id="rep_device_name">
+                            <div class="suggest-box" id="rep_device_suggest"></div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Trạng thái hồ sơ thanh toán</label>
+                            <select id="rep_payment_status" class="w-full bg-white border border-slate-300 rounded-lg">
+                                <option value="Chưa thanh toán">Chưa thanh toán</option>
+                                <option value="Chờ duyệt">Chờ duyệt</option>
+                                <option value="Đã thanh toán">Đã thanh toán</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Column 3: Maintenance Content -->
+                    <div class="flex flex-col justify-between gap-4">
+                        <div class="form-group h-full flex flex-col">
+                            <label>Nội dung sửa chữa, thay thế linh kiện *</label>
+                            <textarea id="rep_content" rows="6" placeholder="Ghi nhận chi tiết các hạng mục đã thay thế, nâng cấp hoặc bảo dưỡng thiết bị..." class="w-full bg-white border border-slate-300 rounded-lg flex-1 resize-none"></textarea>
+                        </div>
                     </div>
                 </div>
 
-                <div class="form-group mb-4">
-                    <label>Chi phí trước thuế (VNĐ) *</label>
-                    <input type="number" id="rep_cost_before" value="0" oninput="calculateFlexibleTax()" class="w-full bg-white border border-slate-300 rounded-lg">
-                </div>
-                <div class="form-group mb-4">
-                    <label>Thuế suất VAT</label>
-                    <select id="rep_tax_rate" onchange="toggleCustomTaxField()" class="w-full bg-white border border-slate-300 rounded-lg">
-                        <option value="0">0% (Không thuế)</option>
-                        <option value="5">5%</option>
-                        <option value="8">8%</option>
-                        <option value="10" selected>10%</option>
-                        <option value="custom">Thuế suất tùy chỉnh (%)</option>
-                    </select>
-                </div>
-                <div class="form-group mb-4" id="custom_tax_group" style="display:none;">
-                    <label>Nhập mức thuế riêng (%)</label>
-                    <input type="number" id="rep_tax_custom_val" value="0" oninput="calculateFlexibleTax()" class="w-full bg-white border border-slate-300 rounded-lg">
-                </div>
-                <div class="form-group mb-4">
-                    <label>Ngày làm quyết toán</label>
-                    <input type="date" id="rep_date" class="w-full bg-white border border-slate-300 rounded-lg">
-                </div>
-                <div class="form-group mb-5">
-                    <label>Trạng thái hồ sơ</label>
-                    <select id="rep_payment_status" class="w-full bg-white border border-slate-300 rounded-lg">
-                        <option value="Chưa thanh toán">Chưa thanh toán</option>
-                        <option value="Chờ duyệt">Chờ duyệt</option>
-                        <option value="Đã thanh toán">Đã thanh toán</option>
-                    </select>
-                </div>
-                
-                <div class="bg-slate-200 p-4 rounded-lg mb-5 border border-slate-300">
-                    <div class="flex justify-between text-base mb-1"><span>Tiền thuế tính riêng:</span><b id="lbl_tax_money">0 VNĐ</b></div>
-                    <div class="flex justify-between text-lg font-extrabold text-emerald-800"><span>TỔNG CỘNG:</span><span id="lbl_total_cost">0 VNĐ</span></div>
-                </div>
+                <!-- Financial calculations & Document Attachment in horizontal grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 pt-4 border-t border-slate-200">
+                    <!-- Attachment Uploder -->
+                    <div class="form-group lg:col-span-1">
+                        <label>Đính kèm tài liệu / Hóa đơn quyết toán</label>
+                        <div class="upload-zone rounded-lg p-5 text-center cursor-pointer bg-white" onclick="document.getElementById('rep_document_file').click()" id="upload_drop_zone">
+                            <i class="fa-solid fa-cloud-arrow-up text-3xl text-slate-400 mb-2 block"></i>
+                            <span class="text-sm font-semibold text-slate-600 block">Kéo thả file hoặc nhấn để tải lên</span>
+                            <span class="text-xs text-slate-400 block mt-1">Hỗ trợ định dạng Ảnh (JPG, PNG, WebP) hoặc tài liệu</span>
+                            <input type="file" id="rep_document_file" class="hidden" onchange="handleDocumentUpload(this)">
+                        </div>
+                        <!-- Small preview of selected document -->
+                        <div id="file_uploaded_preview" class="hidden mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <i class="fa-solid fa-file-shield text-blue-600 text-lg"></i>
+                                <span class="text-sm font-semibold text-slate-700 truncate max-w-[180px]" id="uploaded_file_name">doc.png</span>
+                            </div>
+                            <button onclick="clearUploadedFile()" class="text-rose-600 hover:text-rose-800"><i class="fa-solid fa-circle-xmark"></i></button>
+                        </div>
+                    </div>
 
-                <button class="btn bg-blue-600 hover:bg-blue-700 text-white font-bold w-full justify-center py-3 flex items-center gap-2 rounded-lg shadow-md" onclick="saveRepairLog()">
-                    <i class="fa-solid fa-calculator text-lg"></i> Chốt Quyết Toán
-                </button>
+                    <!-- Financial input factors -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:col-span-1">
+                        <div class="form-group">
+                            <label>Chi phí trước thuế (VNĐ) *</label>
+                            <input type="number" id="rep_cost_before" value="0" oninput="calculateFlexibleTax()" class="w-full bg-white border border-slate-300 rounded-lg">
+                        </div>
+                        <div class="form-group">
+                            <label>Thuế suất VAT</label>
+                            <select id="rep_tax_rate" onchange="toggleCustomTaxField()" class="w-full bg-white border border-slate-300 rounded-lg">
+                                <option value="0">0% (Không thuế)</option>
+                                <option value="5">5%</option>
+                                <option value="8">8%</option>
+                                <option value="10" selected>10%</option>
+                                <option value="custom">Thuế suất tùy chỉnh (%)</option>
+                            </select>
+                        </div>
+                        <div class="form-group sm:col-span-2" id="custom_tax_group" style="display:none;">
+                            <label>Nhập mức thuế riêng (%)</label>
+                            <input type="number" id="rep_tax_custom_val" value="0" oninput="calculateFlexibleTax()" class="w-full bg-white border border-slate-300 rounded-lg">
+                        </div>
+                    </div>
+
+                    <!-- Calculation Feedback Card & Submission -->
+                    <div class="flex flex-col justify-between gap-4 lg:col-span-1">
+                        <div class="bg-slate-200 p-4 rounded-lg border border-slate-300 flex flex-col justify-center flex-1 min-h-[100px]">
+                            <div class="flex justify-between text-base mb-1"><span>Tiền thuế tính riêng:</span><b id="lbl_tax_money">0 VNĐ</b></div>
+                            <div class="flex justify-between text-lg font-extrabold text-emerald-800 border-t border-slate-300 pt-1 mt-1"><span>TỔNG CỘNG:</span><span id="lbl_total_cost">0 VNĐ</span></div>
+                        </div>
+                        <button class="btn bg-emerald-600 hover:bg-emerald-700 text-white font-bold w-full justify-center py-3.5 flex items-center gap-2 rounded-lg shadow-md transition-all duration-300" onclick="saveRepairLog()">
+                            <i class="fa-solid fa-calculator text-lg"></i> Chốt Quyết Toán Chi Phí
+                        </button>
+                    </div>
+                </div>
             </div>
 
-            <!-- Table panel -->
-            <div class="lg:col-span-8">
-                <div class="toolbar bg-slate-50 p-5 rounded-xl flex items-center mb-5 border border-slate-200">
+            <!-- Upgraded: Spacious Full-Width Repair Logs List -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+                <div class="toolbar bg-slate-50 p-5 rounded-xl flex items-center mb-6 border border-slate-200">
                     <div class="search-box w-full">
-                        <input type="text" id="search_suachua_input" oninput="displayRepairLogs()" placeholder="Lọc nhật ký theo thiết bị, tên hồ sơ, đơn vị thụ hưởng..." class="w-full bg-white border border-slate-300 rounded-lg">
+                        <input type="text" id="search_suachua_input" oninput="displayRepairLogs()" placeholder="Lọc nhật ký bảo trì theo thiết bị, tên hồ sơ, đơn vị thụ hưởng..." class="w-full bg-white border border-slate-300 rounded-lg">
                     </div>
                 </div>
+                
                 <div class="table-container overflow-x-auto border border-slate-200 rounded-xl">
                     <table class="w-full text-left border-collapse">
                         <thead>
@@ -471,10 +531,10 @@
                                 <th class="font-bold">Mã Tài Sản</th>
                                 <th class="font-bold">Tên Thiết Bị</th>
                                 <th class="font-bold">Tên Hồ Sơ</th>
-                                <th class="text-center font-bold">ĐV Thụ Hưởng</th>
-                                <th class="font-bold">Nội Dung Chi Tiết</th>
+                                <th class="text-center font-bold">ĐV Thụ Hưởng & Tài Khoản</th>
+                                <th class="font-bold w-72">Nội Dung Chi Tiết</th>
                                 <th class="font-bold">Giá Trước Thuế</th>
-                                <th class="font-bold">Thuế VAT</th>
+                                <th class="font-bold">VAT</th>
                                 <th class="font-bold">Tổng Quyết Toán</th>
                                 <th class="text-center font-bold">Thanh Toán</th>
                                 <th class="text-center font-bold">Chứng Từ</th>
@@ -487,6 +547,7 @@
                     </table>
                 </div>
             </div>
+            
         </div>
     </div>
 
@@ -1174,7 +1235,7 @@
                 let tr = document.createElement('tr');
                 tr.className = "hover:bg-slate-50 transition-colors";
                 tr.innerHTML = `
-                    <td class="text-center align-middle py-4"><div class="qr-canvas border border-slate-300 rounded p-1 bg-white inline-block shadow-sm" id="qr_${x.device_code}"></div></td>
+                    <td class="text-center align-middle py-4"><div class="qr-canvas border border-slate-300 rounded p-1 bg-white inline-block shadow-sm mx-auto" id="qr_${x.device_code}"></div></td>
                     <td><code class="font-bold text-slate-900 font-mono tracking-wider">${x.device_code}</code></td>
                     <td><b class="text-slate-800 text-lg">${x.device_name}</b></td>
                     <td><i class="fa-solid fa-user text-slate-400 mr-2"></i><b>${x.user_name || 'Hệ Thống Kho'}</b></td>
@@ -1188,7 +1249,7 @@
                 `;
                 tbody.appendChild(tr);
 
-                // Dùng cơ chế QRCode-Generator chuẩn tạo thẻ <img> Base64 trực tiếp không lo tab ẩn
+                // Tạo QRCode chuẩn UTF-8 bền vững không lỗi font tiếng Việt
                 setTimeout(() => {
                     const qrContainer = document.getElementById(`qr_${x.device_code}`);
                     if(qrContainer) {
@@ -1320,6 +1381,7 @@
             document.getElementById('editing_device_id').value = ""; 
             document.getElementById('dev_name').value = ""; 
             document.getElementById('dev_code').value = ""; 
+            if(document.getElementById('form_device_title')) document.getElementById('form_device_title').innerHTML = `<i class="fa-solid fa-square-plus text-blue-600"></i> BIỂU MẪU CẤP THIẾT BỊ / TÀI SẢN MỚI`;
             resetSelectedUser();
             await fetchAndReloadThietBi();
         }
@@ -1334,6 +1396,9 @@
             document.getElementById('dev_user_id').value = item.user_id || ""; 
             document.getElementById('dev_filter_donvi').value = item.ma_don_vi || "";
             document.getElementById('dev_status_select').value = item.status || "Đang sử dụng";
+            
+            // Cuộn mượt lên khung nhập liệu
+            document.getElementById('form_device_title').scrollIntoView({ behavior: 'smooth' });
         }
 
         function confirmDeleteDevice(id) {
