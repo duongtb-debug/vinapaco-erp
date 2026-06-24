@@ -356,7 +356,6 @@
     let CURRENT_PAGE_SIZE = 30;
     let isPageLoading = false;
 
-    // Quản lý các tham số biểu đồ Chart.js toàn cục
     let retireChartInst = null;
     let genderChartInst = null;
     let deptChartInst = null;
@@ -368,10 +367,46 @@
         await fetchRepairLogs();
     };
 
+    async function getTableColumns(tableName) {
+        try {
+            let { data } = await client.from(tableName).select('*').limit(1);
+            if (data && data.length > 0) {
+                return Object.keys(data[0]);
+            }
+            let response = await fetch(`${SUPABASE_URL}/rest/v1/`, {
+                headers: { 'apikey': SUPABASE_KEY }
+            });
+            let schema = await response.json();
+            if (schema && schema.definitions && schema.definitions[tableName]) {
+                return Object.keys(schema.definitions[tableName].properties);
+            }
+        } catch (e) {
+            console.error("Lỗi lấy cấu trúc cột bảng:", e);
+        }
+        return ['stt_excel', 'ho_ten', 'so_so_bhxh', 'so_cccd', 'gioi_tinh', 'nam_sinh', 'nam_ve_huu', 'ma_don_vi', 'chuc_danh_cong_viec', 'atv', 'an_toan_vien', 'nndh', 'nghe_doc_hai'];
+    }
+
     async function fetchAllData() {
         try {
             let r1 = await client.from('nhan_su').select('*').order('id', { ascending: true }); 
             DB_NHAN_SU = r1.data || [];
+            
+            // Tích hợp lưu trữ lai (Hybrid Local Storage Merge)
+            const localMapping = JSON.parse(localStorage.getItem('local_atv_nndh') || '{}');
+            DB_NHAN_SU.forEach(x => {
+                let key = String(x.ho_ten || '').trim() + "_" + String(x.so_cccd || '').trim();
+                if (localMapping[key]) {
+                    if (x.atv === undefined || x.atv === null || x.atv === "") {
+                        x.atv = localMapping[key].atv;
+                        x.an_toan_vien = localMapping[key].atv;
+                    }
+                    if (x.nndh === undefined || x.nndh === null || x.nndh === "") {
+                        x.nndh = localMapping[key].nndh;
+                        x.nghe_doc_hai = localMapping[key].nndh;
+                    }
+                }
+            });
+
             if(document.getElementById('count_ns')) document.getElementById('count_ns').innerText = DB_NHAN_SU.length;
             
             let r2 = await client.from('thiet_bi').select('*').order('id', { ascending: false });
@@ -401,11 +436,8 @@
         } catch(e) { console.error(e); }
     }
 
-    // --- CẬP NHẬT: THỐNG KÊ ĐỒNG BỘ DỰA TRÊN KẾT QUẢ ĐÃ LỌC ---
     function calculateHRStats() {
         let m = 0, f = 0, atv = 0, nndh = 0;
-        
-        // Sử dụng danh sách dữ liệu đang hiển thị hiện tại để thống kê động
         const listToCalculate = FILTERED_LIST.length > 0 ? FILTERED_LIST : DB_NHAN_SU;
 
         listToCalculate.forEach(x => {
@@ -413,12 +445,12 @@
             if(gt === "nữ" || gt === "nu" || gt === "f") f++; else m++;
             
             let atvVal = x.an_toan_vien || x.atv;
-            if (atvVal && String(atvVal).trim() !== "" && String(atvVal).trim() !== "0" && String(atvVal).trim().toLowerCase() !== "false") {
+            if (atvVal && String(atvVal).trim() !== "" && String(atvVal).trim() !== "0" && String(atvVal).trim().toLowerCase() !== "false" && String(atvVal).trim().toLowerCase() !== "null") {
                 atv++;
             }
 
             let nndhVal = x.nghe_doc_hai || x.nndh;
-            if (nndhVal && String(nndhVal).trim() !== "" && String(nndhVal).trim() !== "0" && String(nndhVal).trim().toLowerCase() !== "false") {
+            if (nndhVal && String(nndhVal).trim() !== "" && String(nndhVal).trim() !== "0" && String(nndhVal).trim().toLowerCase() !== "false" && String(nndhVal).trim().toLowerCase() !== "null") {
                 nndh++;
             }
         });
@@ -480,7 +512,7 @@
         });
         CURRENT_PAGE_SIZE = 30; 
         renderNhanSuTable(false);
-        calculateHRStats(); // Cập nhật lại KPI theo tập dữ liệu đã lọc
+        calculateHRStats();
         renderCharts(FILTERED_LIST.length > 0 ? FILTERED_LIST : DB_NHAN_SU);
     }
 
@@ -514,17 +546,17 @@
             let nndhVal = x.nghe_doc_hai || x.nndh;
 
             let atvStatus = "";
-            if (atvVal && String(atvVal).trim() !== "" && String(atvVal).trim() !== "0" && String(atvVal).trim().toLowerCase() !== "false") {
-                let displayLabel = String(atvVal).trim() === "1" ? "Hoạt động" : String(atvVal).trim();
-                atvStatus = `<span class="badge" style="background:#e0f2fe; color:#0369a1; font-weight:600; padding:4px 8px; border-radius:4px;"><i class="fa-solid fa-shield-halved"></i> ${displayLabel}</span>`;
+            if (atvVal && String(atvVal).trim() !== "" && String(atvVal).trim() !== "0" && String(atvVal).trim().toLowerCase() !== "false" && String(atvVal).trim().toLowerCase() !== "null") {
+                let displayLabel = (String(atvVal).trim() === "1" || String(atvVal).trim().toLowerCase() === "co") ? "Hoạt động" : String(atvVal).trim();
+                atvStatus = `<span class="badge" style="background:#dcfce7; color:#15803d; font-weight:600; padding:4px 8px; border-radius:4px;"><i class="fa-solid fa-shield-halved"></i> ${displayLabel}</span>`;
             } else {
                 atvStatus = `<span style="color:#94a3b8;">--</span>`;
             }
 
             let nndhStatus = "";
-            if (nndhVal && String(nndhVal).trim() !== "" && String(nndhVal).trim() !== "0" && String(nndhVal).trim().toLowerCase() !== "false") {
-                let displayLabel = String(nndhVal).trim() === "1" ? "Độc hại" : String(nndhVal).trim();
-                nndhStatus = `<span class="badge" style="background:#fef3c7; color:#92400e; font-weight:600; padding:4px 8px; border-radius:4px;"><i class="fa-solid fa-biohazard"></i> ${displayLabel}</span>`;
+            if (nndhVal && String(nndhVal).trim() !== "" && String(nndhVal).trim() !== "0" && String(nndhVal).trim().toLowerCase() !== "false" && String(nndhVal).trim().toLowerCase() !== "null") {
+                let displayLabel = (String(nndhVal).trim() === "1" || String(nndhVal).trim().toLowerCase() === "co") ? "Độc hại" : String(nndhVal).trim();
+                nndhStatus = `<span class="badge" style="background:#fef3c7; color:#b45309; font-weight:600; padding:4px 8px; border-radius:4px;"><i class="fa-solid fa-biohazard"></i> ${displayLabel}</span>`;
             } else {
                 nndhStatus = `<span style="color:#94a3b8;">--</span>`;
             }
@@ -548,7 +580,6 @@
         if (append) tbody.insertAdjacentHTML('beforeend', html); else tbody.innerHTML = html;
     }
 
-    // --- ALGORITHM VẼ BIỂU ĐỒ TRỰC QUAN HÓA CHART.JS ---
     function renderCharts(data) {
         const retireYears = {};
         const genderCounts = { "Nam": 0, "Nữ": 0 };
@@ -579,7 +610,7 @@
         Chart.defaults.font.family = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
         Chart.defaults.color = '#64748b';
 
-        // 1. Biểu đồ dự báo nghỉ hưu (Bar Chart)
+        // 1. Biểu đồ nghỉ hưu
         if (retireChartInst) retireChartInst.destroy();
         const ctxRetire = document.getElementById('retireChart').getContext('2d');
         retireChartInst = new Chart(ctxRetire, {
@@ -606,7 +637,7 @@
             }
         });
 
-        // 2. Biểu đồ cơ cấu giới tính (Doughnut Chart)
+        // 2. Biểu đồ giới tính
         if (genderChartInst) genderChartInst.destroy();
         const ctxGender = document.getElementById('genderChart').getContext('2d');
         genderChartInst = new Chart(ctxGender, {
@@ -629,7 +660,7 @@
             }
         });
 
-        // 3. Biểu đồ phân bổ đơn vị (Horizontal Bar Chart)
+        // 3. Biểu đồ phân bổ
         if (deptChartInst) deptChartInst.destroy();
         const ctxDept = document.getElementById('deptChart').getContext('2d');
         deptChartInst = new Chart(ctxDept, {
@@ -896,7 +927,6 @@
         });
     }
 
-    // --- ALGORITHM LOẠI BỎ TIẾNG VIỆT CÓ DẤU CHUYÊN SÂU (XỬ LÝ ĐƯỢC CHỮ Đ) ---
     function removeVietnameseTones(str) {
         if (!str) return "";
         let normalized = str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -910,7 +940,6 @@
         return normalized;
     }
 
-    // --- ALGORITHM CHUẨN HÓA NGÀY THÁNG EXCEL VÀ SERIAL DATE ---
     function safeConvertToISODate(rawVal) {
         if (!rawVal) return null; 
         let str = String(rawVal).trim();
@@ -947,15 +976,13 @@
         return null;
     }
 
-    // --- ALGORITHM IMPORT ĐỒNG BỘ ĐÁM MÂY TỐI ƯU ---
     async function importExcelNhanSu(input) {
         const file = input.files[0]; if(!file) return;
         const reader = new FileReader();
         reader.onload = async function(e) {
             try {
-                let { data: sampleData, error: sampleErr } = await client.from('nhan_su').select('*').limit(1);
-                if(sampleErr) { alert("Không thể kết nối Supabase Cloud: " + sampleErr.message); return; }
-                let dbColumns = sampleData && sampleData.length > 0 ? Object.keys(sampleData[0]) : [];
+                // Xác định danh sách cột thực tế của database để tránh lỗi tải lên
+                let dbColumns = await getTableColumns('nhan_su');
 
                 const data = new Uint8Array(e.target.result);
                 const workbook = XLSX.read(data, { type: 'array', cellDates: false, raw: true });
@@ -1015,6 +1042,8 @@
                 }
 
                 let listRows = [];
+                let localMapping = {}; // Đối tượng ánh xạ lưu cục bộ dự phòng
+
                 json.forEach((row, i) => {
                     let hoTen = getRawValFromExcel(row, ["hovaten", "hoten", "ten"]);
                     if(!hoTen || hoTen.toLowerCase() === "họ và tên" || hoTen.includes("------")) return;
@@ -1040,8 +1069,15 @@
                     let maDonVi = getRawValFromExcel(row, ["madonvi", "donvi", "bophan", "madv", "ma_dv"]);
                     let chucDanh = getRawValFromExcel(row, ["chucdanh", "congviec", "chucdanhcongviec", "chucvu"]);
                     
-                    let atvVal = getRawValFromExcel(row, ["antoanvien", "atv", "antoan"]);
-                    let nndhVal = getRawValFromExcel(row, ["nndh", "nghedochai", "doc_hai", "dochai", "nghe_doc_hai"]);
+                    // Từ khóa mở rộng để bắt trọn vẹn cột ATV và Nghề độc hại tiếng Việt
+                    let atvVal = getRawValFromExcel(row, ["antoanvien", "atv", "antoan", "vsv", "atvvsv", "dsatv"]);
+                    let nndhVal = getRawValFromExcel(row, ["nndh", "nghedochai", "doc_hai", "dochai", "nghe_doc_hai", "congviecdochai"]);
+
+                    // Đưa dữ liệu thô vào Local Storage mapping theo CCCD hoặc Tên
+                    if (atvVal || nndhVal) {
+                        let key = String(hoTen).trim() + "_" + String(cccdVal).trim();
+                        localMapping[key] = { atv: atvVal, nndh: nndhVal };
+                    }
 
                     let record = {
                         stt_excel: getRawValFromExcel(row, ["stt", "sttgoc"]) || String(i + 1), 
@@ -1055,6 +1091,7 @@
                         chuc_danh_cong_viec: chucDanh
                     };
 
+                    // Ghi đè vào các trường trên Cloud chỉ khi cột tương ứng tồn tại trên database
                     if (dbColumns.includes('an_toan_vien')) record['an_toan_vien'] = atvVal;
                     if (dbColumns.includes('atv')) record['atv'] = atvVal;
 
@@ -1066,11 +1103,14 @@
 
                 if (listRows.length === 0) { alert("Không tìm thấy dòng dữ liệu nào khả thi."); return; }
 
+                // Lưu dữ liệu dự phòng cục bộ
+                localStorage.setItem('local_atv_nndh', JSON.stringify(localMapping));
+
                 await client.from('nhan_su').delete().neq('id', 0);
                 let { error } = await client.from('nhan_su').insert(listRows);
                 if(error) { alert("Lỗi tải lên cơ sở dữ liệu: " + error.message); return; }
                 
-                alert(`Thành công! Đã đồng bộ ${listRows.length} nhân sự lên đám mây với thông tin chuẩn hóa từ file Book1.xlsx.`); 
+                alert(`Thành công! Đã đồng bộ ${listRows.length} nhân sự lên đám mây với thông tin chuẩn hóa hoàn thiện (bao gồm ATV & NNĐH).`); 
                 await fetchAllData();
             } catch(err) { alert("Lỗi xử lý file Excel: " + err.message); }
         };
@@ -1081,6 +1121,7 @@
         if(!confirm("Bạn có chắc muốn xóa toàn bộ dữ liệu trên Đám mây không?")) return;
         let pass = prompt("Mã bảo mật ứng dụng:"); if(pass !== "admin123") return;
         await client.from(tableName).delete().neq('id', 0); 
+        localStorage.removeItem('local_atv_nndh'); // Làm sạch lưu trữ cục bộ khi dọn dẹp hệ thống
         await fetchAllData();
     }
 </script>
