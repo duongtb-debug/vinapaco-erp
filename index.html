@@ -1,3 +1,12 @@
+<!-- Chosen Palette: Slate Navy & Blue Accent -->
+<!-- Application Structure Plan: Centralized HR dashboard layout that brings back the interactive Chart.js visualizations alongside the master employee data grid. Tab 1 hosts three essential analytic charts (Retirement Forecast, Gender Diversity, and Department Split) along with top-level KPI counters. Tab 2 manages assets with automated UTF-8 QR code generation. Tab 3 covers maintenance expenses with a real-time VAT tax calculator and billing metrics. -->
+<!-- Visualization & Content Choices: 
+    - Total Stats -> Goal: Inform -> Dynamic KPI cards -> Real-time counts
+    - Retirement Forecast -> Goal: Change over time -> Bar Chart (Chart.js) -> Yearly trends up to 2050
+    - Gender Diversity -> Goal: Proportions -> Doughnut Chart (Chart.js) -> Percentage breakdown of Nam vs Nữ
+    - Department Distribution -> Goal: Compare -> Horizontal Bar Chart (Chart.js) -> Top 5 department sizes
+    No SVG/Mermaid used. -->
+<!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -5,11 +14,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hệ Thống Quản Trị Nhân Sự & Thiết Bị</title>
 
-    <!-- Các thư viện bổ trợ -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
         :root {
@@ -78,6 +87,15 @@
         .qr-canvas img { margin: 0 auto; width: 75px; height: 75px; }
         .btn-table-edit { background: none; border: none; color: var(--accent); font-weight: 600; cursor: pointer; margin-right: 10px; }
         .btn-table-del { background: none; border: none; color: var(--danger); font-weight: 600; cursor: pointer; }
+
+        .chart-grid { display: grid; grid-template-columns: 2fr 1fr 1.2fr; gap: 20px; margin-bottom: 25px; }
+        .chart-box { background: white; padding: 18px; border-radius: 8px; border: 1px solid var(--border-color); }
+        .chart-box h4 { font-size: 15px; color: var(--primary-light); margin-bottom: 12px; font-weight: 700; text-transform: uppercase; border-left: 4px solid var(--accent); padding-left: 8px; }
+        .chart-container { position: relative; width: 100%; height: 260px; max-height: 280px; }
+
+        @media (max-width: 1024px) {
+            .chart-grid { grid-template-columns: 1fr; }
+        }
     </style>
 </head>
 <body>
@@ -102,6 +120,28 @@
             <div class="stat-card"><h3>Lao động Nữ</h3><div class="value" id="hr_stat_female">0 người</div></div>
             <div class="stat-card"><h3>Đang làm việc</h3><div class="value" id="hr_stat_working">0 người</div></div>
             <div class="stat-card"><h3>Đã nghỉ hưu</h3><div class="value" id="hr_stat_retired">0 người</div></div>
+        </div>
+
+        <!-- KHU VỰC BIỂU ĐỒ TRỰC QUAN HÓA -->
+        <div class="chart-grid">
+            <div class="chart-box">
+                <h4>Dự báo nghỉ hưu tương lai</h4>
+                <div class="chart-container">
+                    <canvas id="retireChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-box">
+                <h4>Cơ cấu giới tính</h4>
+                <div class="chart-container">
+                    <canvas id="genderChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-box">
+                <h4>Phân bổ đơn vị chủ lực</h4>
+                <div class="chart-container">
+                    <canvas id="deptChart"></canvas>
+                </div>
+            </div>
         </div>
 
         <div class="toolbar">
@@ -316,6 +356,11 @@
     let CURRENT_PAGE_SIZE = 30;
     let isPageLoading = false;
 
+    // Quản lý các tham số biểu đồ Chart.js toàn cục
+    let retireChartInst = null;
+    let genderChartInst = null;
+    let deptChartInst = null;
+
     window.onload = async function() { 
         let datePicker = document.getElementById('rep_date');
         if(datePicker) datePicker.value = new Date().toISOString().split('T')[0];
@@ -429,6 +474,7 @@
         });
         CURRENT_PAGE_SIZE = 30; 
         renderNhanSuTable(false);
+        renderCharts(FILTERED_LIST);
     }
 
     function formatDateVietNam(isoString) {
@@ -477,7 +523,7 @@
             }
 
             html += `<tr>
-                <td class="text-center">#${x.stt_excel||x.id}</td>
+                <td class="text-center">#${x.id}</td>
                 <td class="text-center">${x.stt_excel||''}</td>
                 <td><b>${x.ho_ten}</b></td>
                 <td>${x.so_so_bhxh||''}</td>
@@ -493,6 +539,115 @@
             </tr>`; 
         });
         if (append) tbody.insertAdjacentHTML('beforeend', html); else tbody.innerHTML = html;
+    }
+
+    // --- ALGORITHM VẼ BIỂU ĐỒ TRỰC QUAN HÓA CHART.JS ---
+    function renderCharts(data) {
+        const retireYears = {};
+        const genderCounts = { "Nam": 0, "Nữ": 0 };
+        const deptCounts = {};
+
+        data.forEach(emp => {
+            if(emp.nam_ve_huu) {
+                const year = emp.nam_ve_huu.split("-")[0];
+                retireYears[year] = (retireYears[year] || 0) + 1;
+            }
+            
+            let gt = String(emp.gioi_tinh || "").trim();
+            if(gt === "Nữ" || gt === "F") genderCounts["Nữ"]++;
+            else genderCounts["Nam"]++;
+
+            if(emp.ma_don_vi) {
+                deptCounts[emp.ma_don_vi] = (deptCounts[emp.ma_don_vi] || 0) + 1;
+            }
+        });
+
+        const retireLabels = Object.keys(retireYears).sort();
+        const retireData = retireLabels.map(y => retireYears[y]);
+
+        const sortedDepts = Object.entries(deptCounts).sort((a,b) => b[1] - a[1]).slice(0, 5);
+        const deptLabels = sortedDepts.map(d => `ĐV ${d[0]}`);
+        const deptData = sortedDepts.map(d => d[1]);
+
+        Chart.defaults.font.family = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
+        Chart.defaults.color = '#64748b';
+
+        // 1. Biểu đồ dự báo nghỉ hưu (Bar Chart)
+        if (retireChartInst) retireChartInst.destroy();
+        const ctxRetire = document.getElementById('retireChart').getContext('2d');
+        retireChartInst = new Chart(ctxRetire, {
+            type: 'bar',
+            data: {
+                labels: retireLabels,
+                datasets: [{
+                    label: 'Nhân sự nghỉ hưu',
+                    data: retireData,
+                    backgroundColor: 'rgba(37, 99, 235, 0.8)',
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { backgroundColor: 'rgba(15, 23, 42, 0.9)' }
+                },
+                scales: {
+                    y: { beginAtZero: true, ticks: { stepSize: 1 } }
+                }
+            }
+        });
+
+        // 2. Biểu đồ cơ cấu giới tính (Doughnut Chart)
+        if (genderChartInst) genderChartInst.destroy();
+        const ctxGender = document.getElementById('genderChart').getContext('2d');
+        genderChartInst = new Chart(ctxGender, {
+            type: 'doughnut',
+            data: {
+                labels: ['Nam', 'Nữ'],
+                datasets: [{
+                    data: [genderCounts["Nam"], genderCounts["Nữ"]],
+                    backgroundColor: ['rgba(59, 130, 246, 0.8)', 'rgba(244, 63, 94, 0.8)'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '70%',
+                plugins: {
+                    legend: { position: 'bottom' }
+                }
+            }
+        });
+
+        // 3. Biểu đồ phân bổ đơn vị (Horizontal Bar Chart)
+        if (deptChartInst) deptChartInst.destroy();
+        const ctxDept = document.getElementById('deptChart').getContext('2d');
+        deptChartInst = new Chart(ctxDept, {
+            type: 'bar',
+            data: {
+                labels: deptLabels,
+                datasets: [{
+                    label: 'Nhân sự',
+                    data: deptData,
+                    backgroundColor: 'rgba(16, 185, 129, 0.8)',
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: { beginAtZero: true, ticks: { stepSize: 1 } }
+                }
+            }
+        });
     }
 
     function handleTableScroll(container) { 
@@ -940,3 +1095,5 @@
         await fetchAllData();
     }
 </script>
+</body>
+</html>
