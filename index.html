@@ -1,420 +1,890 @@
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Báo Cáo Phân Tích & Quản Trị Nhân Sự</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<!-- Các thư viện bổ trợ -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+<style>
+    :root {
+        --primary: #0f172a;
+        --primary-light: #1e293b;
+        --accent: #2563eb;
+        --accent-hover: #1d4ed8;
+        --success: #166534;
+        --danger: #dc2626;
+        --bg-main: #f8fafc;
+        --border-color: #e2e8f0;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background-color: var(--bg-main); color: #334155; padding: 20px; }
+
+    header { background: var(--primary); color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+    header h1 { font-size: 24px; display: flex; align-items: center; gap: 10px; }
     
-    <!-- Chosen Palette: Slate background (bg-slate-50), White cards (bg-white), Blue-600 for primary accents, Emerald-600 and Rose-500 for status highlights. -->
-    <!-- Application Structure Plan: A centralized HR dashboard layout prioritizing top-level metrics (KPI cards) for quick consumption, followed by visual analytics (charts) for demographic and forecasting insights, concluding with a detailed, filterable data grid for granular exploration. This structure allows administrators to move from macroscopic trends down to individual employee records seamlessly. -->
-    <!-- Visualization & Content Choices: 
-    1. KPI Cards: Goal is to provide immediate aggregate numbers (Total, Gender mix, Special roles) using dynamic text.
-    2. Retirement Forecast (Bar Chart): Goal is to visualize future workforce attrition. Bar chart chosen (Chart.js) to easily compare volume across upcoming years.
-    3. Gender Distribution (Doughnut Chart): Goal is to show proportion. Doughnut (Chart.js) is standard and space-efficient.
-    4. Department Distribution (Horizontal Bar Chart): Goal is to compare team sizes. Horizontal bar (Chart.js) accommodates potentially long department codes better than vertical bars.
-    5. Interactive Table: Goal is to allow search and filtering of individual records based on the parsed CSV data. -->
-    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    .nav-container { display: flex; gap: 10px; margin-bottom: 20px; }
+    .nav-tab { padding: 12px 24px; background: white; border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer; font-weight: 600; color: #64748b; transition: all 0.2s; display: flex; align-items: center; gap: 8px; }
+    .nav-tab.active { background: var(--accent); color: white; border-color: var(--accent); }
 
-    <style>
-        body {
-            background-color: #f8fafc;
-            color: #334155;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        
-        .chart-container {
-            position: relative;
-            width: 100%;
-            max-width: 800px;
-            margin-left: auto;
-            margin-right: auto;
-            height: 300px;
-            max-height: 400px;
-        }
-        
-        @media (min-width: 768px) {
-            .chart-container {
-                height: 350px;
-            }
-        }
-    </style>
-</head>
-<body class="p-4 md:p-8">
+    .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin-bottom: 20px; }
+    .stat-card { background: white; padding: 20px; border-radius: 8px; border: 1px solid var(--border-color); box-shadow: 0 1px 3px rgb(0 0 0 / 0.05); }
+    .stat-card h3 { font-size: 14px; color: #64748b; text-transform: uppercase; margin-bottom: 8px; }
+    .stat-card .value { font-size: 24px; font-weight: 700; color: var(--primary); }
 
-    <div class="max-w-7xl mx-auto space-y-8">
-        
-        <header class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div>
-                <h1 class="text-3xl font-bold text-slate-800"><i class="fa-solid fa-chart-pie text-blue-600 mr-2"></i> Tổng Quan Nhân Sự</h1>
-                <p class="text-slate-500 mt-2 max-w-3xl">Báo cáo phân tích tương tác dựa trên danh sách nhân sự gốc. Ứng dụng cung cấp cái nhìn toàn cảnh về cơ cấu nhân sự, dự báo biến động nghỉ hưu và các vị trí đặc thù (ATV, NNĐH), hỗ trợ ra quyết định chiến lược nguồn nhân lực.</p>
-            </div>
-            <div class="bg-blue-50 text-blue-700 px-4 py-2 rounded-lg font-semibold border border-blue-100 flex items-center gap-2">
-                <i class="fa-solid fa-cloud-arrow-down"></i> Dữ Liệu Đồng Bộ
-            </div>
-        </header>
+    .app-section { display: none; background: white; padding: 20px; border-radius: 8px; border: 1px solid var(--border-color); box-shadow: 0 1px 3px rgb(0 0 0 / 0.05); }
+    .app-section.active { display: block; }
 
-        <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex items-center gap-4">
-                <div class="w-12 h-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xl">
-                    <i class="fa-solid fa-users"></i>
-                </div>
-                <div>
-                    <p class="text-sm font-semibold text-slate-500 uppercase">Tổng Nhân Sự</p>
-                    <p class="text-2xl font-bold text-slate-800" id="kpi-total">0</p>
-                </div>
-            </div>
-            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex items-center gap-4">
-                <div class="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center text-xl">
-                    <i class="fa-solid fa-venus"></i>
-                </div>
-                <div>
-                    <p class="text-sm font-semibold text-slate-500 uppercase">Lao Động Nữ</p>
-                    <p class="text-2xl font-bold text-slate-800" id="kpi-female">0</p>
-                </div>
-            </div>
-            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex items-center gap-4">
-                <div class="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xl">
-                    <i class="fa-solid fa-shield-halved"></i>
-                </div>
-                <div>
-                    <p class="text-sm font-semibold text-slate-500 uppercase">An Toàn Viên</p>
-                    <p class="text-2xl font-bold text-slate-800" id="kpi-atv">0</p>
-                </div>
-            </div>
-            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex items-center gap-4">
-                <div class="w-12 h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center text-xl">
-                    <i class="fa-solid fa-biohazard"></i>
-                </div>
-                <div>
-                    <p class="text-sm font-semibold text-slate-500 uppercase">Nghề Độc Hại</p>
-                    <p class="text-2xl font-bold text-slate-800" id="kpi-nndh">0</p>
-                </div>
-            </div>
-        </section>
+    .toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 25px; align-items: center; justify-content: space-between; background: #f1f5f9; padding: 15px; border-radius: 6px; }
+    .search-box { display: flex; gap: 10px; flex: 1; min-width: 300px; }
+    .search-box input, .toolbar select, .form-group input, .form-group select, .form-group textarea { padding: 10px 14px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 14px; width: 100%; outline: none; }
+    .search-box input:focus { border-color: var(--accent); }
 
-        <section class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            
-            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col">
-                <h2 class="text-xl font-bold text-slate-800 mb-2">Dự Báo Nghỉ Hưu</h2>
-                <p class="text-sm text-slate-500 mb-6">Biểu đồ thể hiện số lượng nhân sự dự kiến đến tuổi nghỉ hưu theo từng năm, giúp lên kế hoạch tuyển dụng thay thế.</p>
-                <div class="flex-grow flex items-center justify-center w-full">
-                    <div class="chart-container">
-                        <canvas id="retireChart"></canvas>
-                    </div>
-                </div>
-            </div>
+    .btn { padding: 10px 18px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; font-size: 14px; transition: background 0.2s; }
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-danger { background: var(--danger); color: white; }
+    .btn-file { background: #0ea5e9; color: white; position: relative; overflow: hidden; }
+    .btn-file input { position: absolute; left: 0; top: 0; opacity: 0; cursor: pointer; height: 100%; width: 100%; }
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col">
-                    <h2 class="text-xl font-bold text-slate-800 mb-2">Cơ Cấu Giới Tính</h2>
-                    <p class="text-sm text-slate-500 mb-6">Tỷ lệ nam và nữ trong lực lượng lao động.</p>
-                    <div class="flex-grow flex items-center justify-center w-full">
-                        <div class="chart-container" style="max-width: 250px;">
-                            <canvas id="genderChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col">
-                    <h2 class="text-xl font-bold text-slate-800 mb-2">Phân Bổ Đơn Vị</h2>
-                    <p class="text-sm text-slate-500 mb-6">Số lượng nhân sự tại các đơn vị phòng ban.</p>
-                    <div class="flex-grow flex items-center justify-center w-full">
-                        <div class="chart-container">
-                            <canvas id="deptChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-        </section>
+    .table-container { overflow-x: auto; max-height: 550px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 6px; }
+    table { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; }
+    thead { background: #f8fafc; position: sticky; top: 0; z-index: 10; box-shadow: 0 1px 0 var(--border-color); }
+    th { padding: 14px; font-weight: 600; color: #475569; border-bottom: 1px solid var(--border-color); }
+    td { padding: 14px; border-bottom: 1px solid var(--border-color); vertical-align: middle; color: #334155; }
+    tr:hover { background-color: #f8fafc; }
+    
+    .text-center { text-align: center; }
+    .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; }
+    .status-using { background: #dcfce7; color: #166534; }
+    .status-broken { background: #fee2e2; color: #991b1b; }
+    
+    .panel-layout { display: grid; grid-template-columns: 350px 1fr; gap: 20px; }
+    .form-panel { background: #f8fafc; padding: 20px; border-radius: 8px; border: 1px solid var(--border-color); height: fit-content; }
+    .form-group { margin-bottom: 15px; position: relative; }
+    .form-group label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 13px; color: #475569; }
+    
+    .suggest-box { position: absolute; top: 100%; left: 0; width: 100%; background: white; border: 1px solid var(--border-color); border-top: none; border-radius: 0 0 6px 6px; max-height: 200px; overflow-y: auto; z-index: 100; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); display: none; }
+    .suggest-item { padding: 10px; cursor: pointer; border-bottom: 1px solid #f1f5f9; font-size: 13px; }
+    .suggest-item:hover { background: #f1f5f9; }
+    .suggest-item b { color: var(--accent); }
 
-        <section class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                <div>
-                    <h2 class="text-xl font-bold text-slate-800">Danh Sách Nhân Sự</h2>
-                    <p class="text-sm text-slate-500 mt-1">Dữ liệu chi tiết trích xuất từ file gốc. Sử dụng bộ lọc bên dưới để tra cứu cụ thể.</p>
-                </div>
-                
-                <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-                    <div class="relative w-full sm:w-64">
-                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-                            <i class="fa-solid fa-search"></i>
-                        </span>
-                        <input type="text" id="searchInput" placeholder="Tìm theo Tên hoặc CCCD..." class="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
-                    </div>
-                    <select id="deptFilter" class="w-full sm:w-48 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white">
-                        <option value="">Tất cả Đơn vị</option>
-                    </select>
-                </div>
-            </div>
+    .qr-canvas img { margin: 0 auto; width: 75px; height: 75px; }
+    .btn-table-edit { background: none; border: none; color: var(--accent); font-weight: 600; cursor: pointer; margin-right: 10px; }
+    .btn-table-del { background: none; border: none; color: var(--danger); font-weight: 600; cursor: pointer; }
+</style>
 
-            <div class="overflow-x-auto rounded-lg border border-slate-200 max-h-[500px]">
-                <table class="w-full text-sm text-left whitespace-nowrap">
-                    <thead class="text-xs text-slate-600 uppercase bg-slate-50 sticky top-0 z-10 shadow-[0_1px_0_#e2e8f0]">
-                        <tr>
-                            <th class="px-4 py-3 text-center">STT</th>
-                            <th class="px-4 py-3">Họ và Tên</th>
-                            <th class="px-4 py-3">Số CCCD</th>
-                            <th class="px-4 py-3 text-center">Giới Tính</th>
-                            <th class="px-4 py-3 text-center">Ngày Sinh</th>
-                            <th class="px-4 py-3 text-center">Ngày Về Hưu</th>
-                            <th class="px-4 py-3 text-center">Đơn Vị</th>
-                            <th class="px-4 py-3 text-center">ATV</th>
-                            <th class="px-4 py-3 text-center">NNĐH</th>
-                            <th class="px-4 py-3">Chức Danh</th>
-                        </tr>
-                    </thead>
-                    <tbody id="employeeTableBody" class="divide-y divide-slate-200">
-                    </tbody>
-                </table>
-            </div>
-            <div id="noResults" class="hidden text-center py-8 text-slate-500">
-                <i class="fa-solid fa-folder-open text-3xl mb-2"></i>
-                <p>Không tìm thấy dữ liệu phù hợp với bộ lọc.</p>
-            </div>
-        </section>
 
+<header>
+    <h1><i class="fa-solid fa-layer-group"></i> HỆ THỐNG ĐIỀU HÀNH & QUẢN TRỊ DOANH NGHIỆP</h1>
+    <div><span id="count_ns" class="badge" style="background:var(--accent); font-size:14px;">0</span> nhân sự đám mây</div>
+</header>
+
+<div class="nav-container">
+    <div class="nav-tab active" id="tab_hoso" onclick="switchSection('hoso')"><i class="fa-solid fa-address-card"></i> Hồ sơ Nhân sự</div>
+    <div class="nav-tab" id="tab_thietbi" onclick="switchSection('thietbi')"><i class="fa-solid fa-laptop-code"></i> Cấp phát Thiết bị / TS</div>
+    <div class="nav-tab" id="tab_suachua" onclick="switchSection('suachua')"><i class="fa-solid fa-screwdriver-wrench"></i> Nhật ký Sửa chữa / Bảo dưỡng</div>
+</div>
+
+<!-- ========================================== -->
+<!-- TAB 1: HỒ SƠ NHÂN SỰ -->
+<!-- ========================================== -->
+<div class="app-section active" id="sec_hoso">
+    <div class="dashboard-grid">
+        <div class="stat-card"><h3>Lao động Nam</h3><div class="value" id="hr_stat_male">0 người</div></div>
+        <div class="stat-card"><h3>Lao động Nữ</h3><div class="value" id="hr_stat_female">0 người</div></div>
+        <div class="stat-card"><h3>Đang làm việc</h3><div class="value" id="hr_stat_working">0 người</div></div>
+        <div class="stat-card"><h3>Đã nghỉ hưu</h3><div class="value" id="hr_stat_retired">0 người</div></div>
     </div>
 
-    <script>
-        const rawData = [
-            { stt: 538, name: "TRIỆU THỊ NĂM", cccd: "025169015152", isFemale: "X", birth: "1969-08-10", retire: "2026-09-01", dept: "14.2", atv: "", nndh: "", role: "Công nhân nguội sửa chữa cơ khí" },
-            { stt: 679, name: "NGUYỄN THỊ THẠCH", cccd: "042174013492", isFemale: "X", birth: "1974-08-01", retire: "2026-09-01", dept: "10", atv: "", nndh: "", role: "Thủ kho giấy thành phẩm" },
-            { stt: 434, name: "NGÔ THỊ THU LAN", cccd: "025169012622", isFemale: "X", birth: "1969-09-01", retire: "2026-10-01", dept: "11.1", atv: "", nndh: "1", role: "Công nhân vận hành máy bóc vỏ gỗ" },
-            { stt: 2, name: "NGÔ THỊ THU HẰNG", cccd: "025169012096", isFemale: "X", birth: "1969-07-27", retire: "2026-08-01", dept: "2", atv: "", nndh: "", role: "Chủ tịch Công đoàn" },
-            { stt: 3, name: "NGUYỄN QUẾ SƠN", cccd: "008066000025", isFemale: "", birth: "1966-02-14", retire: "2027-12-01", dept: "2", atv: "1", nndh: "", role: "Thành viên Hội đồng thành viên" },
-            { stt: 4, name: "ĐÀO NGỌC CƯỜNG", cccd: "025077009527", isFemale: "", birth: "1977-10-17", retire: "2038-10-17", dept: "2", atv: "", nndh: "", role: "Phó Bí thư Đảng ủy" },
-            { stt: 5, name: "MẠC MẠNH ĐANG", cccd: "030075013293", isFemale: "", birth: "1975-05-11", retire: "2037-05-11", dept: "2", atv: "", nndh: "", role: "Phó Tổng giám đốc" },
-            { stt: 852, name: "NGUYỄN HỮU TUẤN", cccd: "025070013261", isFemale: "", birth: "1970-08-30", retire: "2027-06-01", dept: "14.2", atv: "", nndh: "1", role: "Đốc công, trực tiếp hàn điện" },
-            { stt: 932, name: "VI VŨ YÊN", cccd: "01070023735", isFemale: "", birth: "1970-08-22", retire: "2027-06-01", dept: "14", atv: "1", nndh: "1", role: "Công nhân sửa chữa điện" },
-            { stt: 42, name: "HOÀNG ĐỨC BAN", cccd: "025070001336", isFemale: "", birth: "1970-10-08", retire: "2027-08-01", dept: "14.2", atv: "", nndh: "1", role: "Công nhân hàn điện" },
-            { stt: 45, name: "NGUYỄN HỮU BẢY", cccd: "25065012533", isFemale: "", birth: "1965-10-27", retire: "2027-08-01", dept: "11.3", atv: "", nndh: "", role: "Phó Quản đốc Phân xưởng giấy" },
-            { stt: 824, name: "DƯƠNG ĐỨC TRỌNG", cccd: "025070012644", isFemale: "", birth: "1970-10-25", retire: "2027-08-01", dept: "14.2", atv: "1", nndh: "1", role: "Công nhân sửa chữa xe cơ giới" },
-            { stt: 194, name: "LÊ THỊ HƯƠNG GIANG", cccd: "015170000678", isFemale: "X", birth: "1970-04-25", retire: "2027-09-01", dept: "11.2", atv: "", nndh: "1", role: "Công nhân vận hành xử lý nước" },
-            { stt: 607, name: "PHẠM ĐÌNH PHƯƠNG", cccd: "025065002473", isFemale: "", birth: "1965-11-14", retire: "2027-09-01", dept: "15.2", atv: "", nndh: "", role: "Nhân viên bảo vệ" },
-            { stt: 745, name: "NGUYỄN THỊ MAI THƠM", cccd: "025170008699", isFemale: "X", birth: "1970-04-20", retire: "2027-09-01", dept: "6", atv: "", nndh: "", role: "Công nhân kiểm nghiệm (KCS)" }
-        ];
+    <div class="toolbar">
+        <div class="search-box">
+            <input type="text" id="search_hoso" oninput="triggerFilterReset()" placeholder="Tìm nhanh theo Họ Tên hoặc số CCCD...">
+            <select id="filter_donvi" onchange="triggerFilterReset()">
+                <option value="">-- Tất cả Mã Đơn Vị --</option>
+            </select>
+        </div>
+        <div style="display: flex; gap: 8px;">
+            <div class="btn btn-file"><i class="fa-solid fa-file-excel"></i> Đồng bộ File gốc Excel<input type="file" onchange="importExcelNhanSu(this)" accept=".xlsx, .xls"></div>
+            <button class="btn btn-danger" onclick="clearDataCloud('nhan_su')"><i class="fa-solid fa-trash-can"></i> Xóa dữ liệu Đám mây</button>
+        </div>
+    </div>
 
-        let retireChartInst = null;
-        let genderChartInst = null;
-        let deptChartInst = null;
+    <div class="table-container" onscroll="handleTableScroll(this)">
+        <table>
+            <thead>
+                <tr>
+                    <th class="text-center">Hệ thống</th>
+                    <th class="text-center">STT gốc</th>
+                    <th>Họ và Tên</th>
+                    <th>Số Sổ BHXH</th>
+                    <th>Số CCCD</th>
+                    <th class="text-center">Giới Tính</th>
+                    <th class="text-center">Ngày Sinh</th>
+                    <th class="text-center">Tuổi</th>
+                    <th class="text-center">ATV</th>
+                    <th class="text-center">NNDH</th>
+                    <th class="text-center">Ngày Về Hưu</th>
+                    <th class="text-center">Mã Đơn Vị</th>
+                    <th>Chức Danh Công Việc</th>
+                </tr>
+            </thead>
+            <tbody id="table_hoso_body">
+                <tr><td colspan="13" class="text-center" style="color:#64748b; padding: 30px;">Đang tải dữ liệu đám mây...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
 
-        const uiElements = {
-            total: document.getElementById('kpi-total'),
-            female: document.getElementById('kpi-female'),
-            atv: document.getElementById('kpi-atv'),
-            nndh: document.getElementById('kpi-nndh'),
-            tbody: document.getElementById('employeeTableBody'),
-            noResults: document.getElementById('noResults'),
-            searchInput: document.getElementById('searchInput'),
-            deptFilter: document.getElementById('deptFilter')
+<!-- ========================================== -->
+<!-- TAB 2: THIẾT BỊ TÀI SẢN -->
+<!-- ========================================== -->
+<div class="app-section" id="sec_thietbi">
+    <div class="panel-layout">
+        <div class="form-panel">
+            <h3 id="form_device_title" style="margin-bottom:15px; color:var(--primary);"><i class="fa-solid fa-square-plus"></i> Cấp Thiết Bị Mới</h3>
+            <input type="hidden" id="editing_device_id">
+            
+            <div class="form-group">
+                <label>Tên thiết bị tài sản *</label>
+                <input type="text" id="dev_name" placeholder="Ví dụ: Máy tính Laptop Dell XPS">
+            </div>
+            <div class="form-group">
+                <label>Số Sê-ri / Mã tài sản (Để trống tự tạo)</label>
+                <input type="text" id="dev_code" placeholder="Ví dụ: EQ882910">
+            </div>
+            <div class="form-group">
+                <label>Tìm nhân sự bàn giao</label>
+                <input type="text" id="dev_user_search" oninput="smartSuggest(this)" placeholder="Nhập tên nhân viên để tìm...">
+                <input type="hidden" id="dev_user_id">
+                <div class="suggest-box" id="dev_suggest"></div>
+            </div>
+            <div class="form-group">
+                <label>Mã đơn vị tiếp quản</label>
+                <select id="dev_filter_donvi">
+                    <option value="">-- Chọn đơn vị --</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Trạng thái vận hành</label>
+                <select id="dev_status_select">
+                    <option value="Đang sử dụng">Đang sử dụng</option>
+                    <option value="Hỏng hóc / Đang sửa">Hỏng hóc / Đang sửa</option>
+                </select>
+            </div>
+            <button class="btn btn-primary" style="width:100%; justify-content: center; margin-top:10px;" onclick="saveDeviceConfig()"><i class="fa-solid fa-floppy-disk"></i> Ghi nhận Hệ thống</button>
+        </div>
+
+        <div>
+            <div class="toolbar" style="margin-bottom:15px;">
+                <div class="search-box">
+                    <input type="text" id="search_thietbi" oninput="displayThietBi()" placeholder="Tìm thiết bị theo tên, mã tài sản hoặc người dùng...">
+                </div>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th class="text-center" style="width:100px;">Thẻ QR</th>
+                            <th>Mã Tài Sản</th>
+                            <th>Tên Thiết Bị / Tài Sản</th>
+                            <th>Nhân Sự Quản Lý</th>
+                            <th class="text-center">Đơn Vị</th>
+                            <th class="text-center">Trạng Thái</th>
+                            <th class="text-center">Hành Động</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table_thietbi_body"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================== -->
+<!-- TAB 3: NHẬT KÝ SỬA CHỮA -->
+<!-- ========================================== -->
+<div class="app-section" id="sec_suachua">
+    <div class="dashboard-grid">
+        <div class="stat-card"><h3>Số lượng hạch toán</h3><div class="value" id="lbl_stat_rep_count">0 hồ sơ</div></div>
+        <div class="stat-card"><h3>Chi phí trước thuế</h3><div class="value" id="lbl_stat_total_before" style="color:#b45309;">0 đ</div></div>
+        <div class="stat-card"><h3>Tổng tiền quyết toán (Có Thuế)</h3><div class="value" id="lbl_stat_total_after" style="color:var(--success);">0 đ</div></div>
+    </div>
+
+    <div class="panel-layout">
+        <div class="form-panel">
+            <h3 style="margin-bottom:15px; color:var(--primary);"><i class="fa-solid fa-receipt"></i> Phiếu Hạch Toán</h3>
+            
+            <div class="form-group">
+                <label>Tìm thiết bị cần sửa chữa *</label>
+                <input type="text" id="rep_device_search" oninput="suggestRepairDevice(this)" placeholder="Nhập tên hoặc mã tài sản...">
+                <input type="hidden" id="rep_device_code">
+                <input type="hidden" id="rep_device_name">
+                <div class="suggest-box" id="rep_device_suggest"></div>
+            </div>
+            <div class="form-group">
+                <label>Nội dung bảo dưỡng / sửa chữa *</label>
+                <textarea id="rep_content" rows="3" placeholder="Ghi nhận chi tiết hạng mục sửa chữa..."></textarea>
+            </div>
+            <div class="form-group">
+                <label>Chi phí trước thuế (VNĐ) *</label>
+                <input type="number" id="rep_cost_before" value="0" oninput="calculateFlexibleTax()">
+            </div>
+            <div class="form-group">
+                <label>Thuế suất VAT</label>
+                <select id="rep_tax_rate" onchange="toggleCustomTaxField()">
+                    <option value="0">0% (Không thuế)</option>
+                    <option value="5">5%</option>
+                    <option value="8">8%</option>
+                    <option value="10" selected>10%</option>
+                    <option value="custom">Thuế suất tùy chỉnh (%)</option>
+                </select>
+            </div>
+            <div class="form-group" id="custom_tax_group" style="display:none;">
+                <label>Nhập mức thuế riêng (%)</label>
+                <input type="number" id="rep_tax_custom_val" value="0" oninput="calculateFlexibleTax()">
+            </div>
+            <div class="form-group">
+                <label>Ngày thực hiện</label>
+                <input type="date" id="rep_date">
+            </div>
+            <div class="form-group">
+                <label>Trạng thái thanh toán</label>
+                <select id="rep_payment_status">
+                    <option value="Chưa thanh toán">Chưa thanh toán</option>
+                    <option value="Chờ duyệt">Chờ duyệt</option>
+                    <option value="Đã thanh toán">Đã thanh toán</option>
+                </select>
+            </div>
+            
+            <div style="background:#f1f5f9; padding:12px; border-radius:6px; margin-bottom:15px; font-size:13px;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span>Tiền thuế tính riêng:</span><b id="lbl_tax_money">0 VNĐ</b></div>
+                <div style="display:flex; justify-content:space-between; font-weight:700; color:var(--success)"><span>TỔNG CHI PHÍ:</span><span id="lbl_total_cost">0 VNĐ</span></div>
+            </div>
+
+            <button class="btn btn-primary" style="width:100%; justify-content: center;" onclick="saveRepairLog()"><i class="fa-solid fa-calculator"></i> Chốt Quyết Toán</button>
+        </div>
+
+        <div>
+            <div class="toolbar" style="margin-bottom:15px;">
+                <div class="search-box">
+                    <input type="text" id="search_suachua_input" oninput="displayRepairLogs()" placeholder="Lọc nhật ký theo thiết bị, nội dung bảo dưỡng...">
+                </div>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Mã Tài Sản</th>
+                            <th>Tên Thiết Bị</th>
+                            <th>Nội Dung Chi Tiết</th>
+                            <th>Giá Trước Thuế</th>
+                            <th>Thuế VAT</th>
+                            <th>Tiền Thuế</th>
+                            <th>Tổng Quyết Toán</th>
+                            <th class="text-center">Thanh Toán</th>
+                            <th>Ngày Làm</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table_suachua_body"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================== -->
+<!-- LOGIC PHẦN MỀM ĐIỀU HÀNH -->
+<!-- ========================================== -->
+<script>
+    const SUPABASE_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co"; 
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ";
+    const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let DB_NHAN_SU = []; 
+    let DB_THIET_BI = []; 
+    let DB_NHAT_KY = []; 
+    let FILTERED_LIST = []; 
+    let CURRENT_PAGE_SIZE = 30;
+    let isPageLoading = false;
+
+    window.onload = async function() { 
+        let datePicker = document.getElementById('rep_date');
+        if(datePicker) datePicker.value = new Date().toISOString().split('T')[0];
+        await fetchAllData(); 
+        await fetchRepairLogs();
+    };
+
+    async function fetchAllData() {
+        try {
+            let r1 = await client.from('nhan_su').select('*').order('id', { ascending: true }); 
+            DB_NHAN_SU = r1.data || [];
+            if(document.getElementById('count_ns')) document.getElementById('count_ns').innerText = DB_NHAN_SU.length;
+            
+            let r2 = await client.from('thiet_bi').select('*').order('id', { ascending: false });
+            DB_THIET_BI = r2.data || [];
+
+            calculateHRStats(); 
+            buildDropdowns(); 
+            triggerFilterReset();
+            displayThietBi();
+        } catch (e) { console.error("Lỗi tải dữ liệu:", e); }
+    }
+
+    async function fetchAndReloadThietBi() {
+        try {
+            let r2 = await client.from('thiet_bi').select('*').order('id', { ascending: false });
+            DB_THIET_BI = r2.data || [];
+            displayThietBi();
+        } catch (e) { console.error(e); }
+    }
+
+    async function fetchRepairLogs() {
+        try {
+            let r3 = await client.from('nhat_ky_sua_chua').select('*').order('id', { ascending: false });
+            DB_NHAT_KY = r3.data || [];
+            calculateRepairDashboard();
+            displayRepairLogs();
+        } catch(e) { console.error(e); }
+    }
+
+    function calculateHRStats() {
+        let m = 0, f = 0, wk = 0, rt = 0;
+        const currentYear = 2026; 
+        DB_NHAN_SU.forEach(x => {
+            let gt = String(x.gioi_tinh || "").trim().toLowerCase();
+            if(gt === "nữ" || gt === "nu" || gt === "f") f++; else m++;
+            
+            let birthYear = null;
+            if(x.nam_sinh) birthYear = parseInt(x.nam_sinh.split("-")[0]);
+            
+            let retireYear = null;
+            if(x.nam_ve_huu) retireYear = parseInt(x.nam_ve_huu.split("-")[0]);
+            else if(birthYear) retireYear = (gt === "nữ" || gt === "nu" || gt === "f") ? (birthYear + 60) : (birthYear + 62);
+
+            if(retireYear && retireYear < currentYear) rt++; else wk++;
+        });
+        if(document.getElementById('hr_stat_male')) document.getElementById('hr_stat_male').innerText = m + " người"; 
+        if(document.getElementById('hr_stat_female')) document.getElementById('hr_stat_female').innerText = f + " người";
+        if(document.getElementById('hr_stat_working')) document.getElementById('hr_stat_working').innerText = wk + " người"; 
+        if(document.getElementById('hr_stat_retired')) document.getElementById('hr_stat_retired').innerText = rt + " người";
+    }
+
+    function calculateRepairDashboard() {
+        let totalRecords = DB_NHAT_KY ? DB_NHAT_KY.length : 0;
+        let sumBefore = 0; let sumAfter = 0;
+        if (DB_NHAT_KY && DB_NHAT_KY.length > 0) {
+            DB_NHAT_KY.forEach(x => {
+                sumBefore += parseFloat(x.chi_phi_truoc_thue) || 0;
+                sumAfter += parseFloat(x.tong_chi_phi) || 0;
+            });
+        }
+        if(document.getElementById('lbl_stat_rep_count')) document.getElementById('lbl_stat_rep_count').innerText = totalRecords + " hồ sơ";
+        if(document.getElementById('lbl_stat_total_before')) document.getElementById('lbl_stat_total_before').innerText = Math.round(sumBefore).toLocaleString('vi-VN') + " đ";
+        if(document.getElementById('lbl_stat_total_after')) document.getElementById('lbl_stat_total_after').innerText = Math.round(sumAfter).toLocaleString('vi-VN') + " đ";
+    }
+
+    function buildDropdowns() {
+        let uniqueDonVi = [...new Set(DB_NHAN_SU.map(x => String(x.ma_don_vi || '').trim()).filter(Boolean))].sort((a, b) => parseFloat(a) - parseFloat(b));
+        const selectHoso = document.getElementById('filter_donvi'); 
+        if(selectHoso) selectHoso.innerHTML = '<option value="">-- Tất cả Mã Đơn Vị --</option>';
+        const selectDev = document.getElementById('dev_filter_donvi');
+        if(selectDev) selectDev.innerHTML = '<option value="">-- Tất cả các đơn vị --</option>';
+
+        uniqueDonVi.forEach(dv => { 
+            let opt = `<option value="${dv}">Mã Đơn Vị: ${dv}</option>`;
+            if(selectHoso) selectHoso.innerHTML += opt; 
+            if(selectDev) selectDev.innerHTML += opt;
+        });
+    }
+
+    function switchSection(target) {
+        document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active')); 
+        document.querySelectorAll('.app-section').forEach(el => el.classList.remove('active'));
+        
+        const tabEl = document.getElementById('tab_' + target);
+        const secEl = document.getElementById('sec_' + target);
+        if(tabEl) tabEl.classList.add('active'); 
+        if(secEl) secEl.classList.add('active');
+        
+        if(target === 'thietbi') displayThietBi();
+        if(target === 'suachua') fetchRepairLogs();
+    }
+
+    function triggerFilterReset() {
+        const kw = document.getElementById('search_hoso') ? document.getElementById('search_hoso').value.toLowerCase().trim() : ""; 
+        const selectedDonVi = document.getElementById('filter_donvi') ? document.getElementById('filter_donvi').value : "";
+        FILTERED_LIST = DB_NHAN_SU.filter(x => { 
+            let matchKeyword = !kw || (x.ho_ten && x.ho_ten.toLowerCase().includes(kw)) || (x.so_cccd && x.so_cccd.includes(kw)); 
+            let matchDV = !selectedDonVi || String(x.ma_don_vi).trim() === String(selectedDonVi).trim();
+            return matchKeyword && matchDV; 
+        });
+        CURRENT_PAGE_SIZE = 30; 
+        renderNhanSuTable(false);
+    }
+
+    function formatDateVietNam(isoString) {
+        if (!isoString) return "--";
+        let parts = isoString.split("-");
+        if (parts.length >= 3) {
+            return `${parts[2].substring(0,2)}/${parts[1]}/${parts[0]}`;
+        }
+        return isoString;
+    }
+
+    function renderNhanSuTable(append = false) {
+        const tbody = document.getElementById('table_hoso_body'); if(!tbody) return;
+        if(!append) tbody.innerHTML = "";
+        if(FILTERED_LIST.length === 0) { tbody.innerHTML = `<tr><td colspan="13" class="text-center">Không tìm thấy kết quả phù hợp trong danh sách.</td></tr>`; return; }
+        
+        let start = append ? tbody.children.length : 0;
+        let chunk = FILTERED_LIST.slice(start, CURRENT_PAGE_SIZE);
+        let html = "";
+        const currentYear = 2026;
+
+        chunk.forEach((x) => { 
+            let birthYear = x.nam_sinh ? parseInt(x.nam_sinh.split("-")[0]) : null;
+            let age = birthYear ? (currentYear - birthYear) : "--";
+            
+            let formattedBirth = x.nam_sinh ? formatDateVietNam(x.nam_sinh) : "--";
+            let formattedRetire = x.nam_ve_huu ? formatDateVietNam(x.nam_ve_huu) : "--";
+
+            let atvVal = x.an_toan_vien || x.atv;
+            let nndhVal = x.nghe_doc_hai || x.nndh;
+
+            let atvStatus = (atvVal && String(atvVal).trim() !== "" && String(atvVal).trim() !== "0") ? `<span class="badge" style="background:#e0f2fe; color:#0369a1; font-weight:600; padding:4px 8px; border-radius:4px;">${atvVal}</span>` : ``;
+            let nndhStatus = (nndhVal && String(nndhVal).trim() !== "" && String(nndhVal).trim() !== "0") ? `<span class="badge" style="background:#fef3c7; color:#92400e; font-weight:600; padding:4px 8px; border-radius:4px;">${nndhVal}</span>` : ``;
+
+            html += `<tr>
+                <td class="text-center">#${x.stt_excel||x.id}</td>
+                <td class="text-center">${x.stt_excel||''}</td>
+                <td><b>${x.ho_ten}</b></td>
+                <td>${x.so_so_bhxh||''}</td>
+                <td><mark style="background-color: #fef08a; padding: 2px 4px; border-radius:4px;">${x.so_cccd||''}</mark></td>
+                <td class="text-center">${x.gioi_tinh}</td>
+                <td class="text-center">${formattedBirth}</td>
+                <td class="text-center"><b>${age}</b></td>
+                <td class="text-center">${atvStatus}</td>
+                <td class="text-center">${nndhStatus}</td>
+                <td class="text-center" style="color:#dc2626; font-weight:700;">${formattedRetire}</td>
+                <td class="text-center"><span class="badge" style="background:#f1f5f9; color:#1e293b; font-weight:700; padding: 4px 10px; border-radius:4px; border:1px solid #cbd5e1;">${x.ma_don_vi || '--'}</span></td>
+                <td><small>${x.chuc_danh_cong_viec||''}</small></td>
+            </tr>`; 
+        });
+        if (append) tbody.insertAdjacentHTML('beforeend', html); else tbody.innerHTML = html;
+    }
+
+    function handleTableScroll(container) { 
+        if (isPageLoading) return;
+        if (container.scrollHeight - container.scrollTop <= container.clientHeight + 60) { 
+            if (CURRENT_PAGE_SIZE < FILTERED_LIST.length) { 
+                isPageLoading = true; 
+                CURRENT_PAGE_SIZE = Math.min(CURRENT_PAGE_SIZE + 40, FILTERED_LIST.length); 
+                renderNhanSuTable(true); 
+                setTimeout(() => { isPageLoading = false; }, 80); 
+            } 
+        } 
+    }
+
+    function displayThietBi() {
+        const tbody = document.getElementById('table_thietbi_body'); if(!tbody) return;
+        tbody.innerHTML = "";
+        const kw = document.getElementById('search_thietbi') ? document.getElementById('search_thietbi').value.toLowerCase().trim() : "";
+
+        if (!DB_THIET_BI) DB_THIET_BI = [];
+
+        let filtered = DB_THIET_BI.filter(x => {
+            if (!kw) return true; 
+            return (x.device_name && x.device_name.toLowerCase().includes(kw)) || (x.device_code && x.device_code.toLowerCase().includes(kw)) || (x.user_name && x.user_name.toLowerCase().includes(kw));
+        });
+
+        if(filtered.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" class="text-center" style="color:#64748b; padding:30px;">Chưa có thiết bị nào được cấp phát.</td></tr>`; return;
+        }
+
+        filtered.forEach(x => {
+            let currentStatus = x.status || "Đang sử dụng";
+            let statusClass = (currentStatus === "Đang sử dụng") ? "status-using" : "status-broken";
+            let tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="text-center"><div class="qr-canvas" id="qr_${x.device_code}"></div></td>
+                <td><code style="font-size:13px; font-weight:700;">${x.device_code}</code></td>
+                <td><b>${x.device_name}</b></td>
+                <td><i class="fa-solid fa-user" style="color:#64748b; font-size:12px;"></i> ${x.user_name || 'Hệ Thống Kho'}</td>
+                <td class="text-center"><span class="badge" style="background:#f1f5f9; color:#475569;">${x.ma_don_vi||''}</span></td>
+                <td class="text-center"><span class="badge ${statusClass}">${currentStatus}</span></td>
+                <td class="text-center">
+                    <button class="btn-table-edit" onclick="editDevice('${x.id}')"><i class="fa-solid fa-pen"></i> Sửa</button>
+                    <button class="btn-table-del" onclick="deleteDevice('${x.id}')"><i class="fa-solid fa-trash"></i> Xóa</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+
+            setTimeout(() => {
+                const qrContainer = document.getElementById(`qr_${x.device_code}`);
+                if(qrContainer) {
+                    qrContainer.innerHTML = "";
+                    let rawTagString = 
+                        `MÃ TÀI SẢN\n` +
+                        `-----------\n` +
+                        `Mã: ${x.device_code}\n` +
+                        `Tên: ${x.device_name}\n` +
+                        `Bộ phận: ĐV-${x.ma_don_vi || ''}\n` +
+                        `Nhân sự: ${x.user_name || 'KHO'}\n` +
+                        `Trạng thái: ${currentStatus.toUpperCase()}`;
+                    new QRCode(qrContainer, {
+                        text: unescape(encodeURIComponent(rawTagString)),
+                        width: 150,
+                        height: 150,
+                        colorDark : "#0f172a",
+                        colorLight : "#ffffff",
+                        correctLevel : QRCode.CorrectLevel.M
+                    });
+                }
+            }, 40);
+        });
+    }
+
+    function smartSuggest(input) {
+        const val = input.value.toLowerCase().trim(); const box = document.getElementById('dev_suggest'); const selectedDV = document.getElementById('dev_filter_donvi').value;
+        if(!box) return; box.innerHTML = ""; if(!val && !selectedDV) { box.style.display = "none"; return; }
+
+        let matches = DB_NHAN_SU.filter(x => {
+            let matchName = !val || (x.ho_ten && x.ho_ten.toLowerCase().includes(val));
+            let matchDV = !selectedDV || String(x.ma_don_vi) === String(selectedDV);
+            return matchName && matchDV;
+        }).slice(0, 8);
+
+        if(matches.length === 0) { box.style.display = "none"; return; }
+        box.style.display = "block";
+        matches.forEach(m => {
+            let div = document.createElement('div'); div.className = "suggest-item";
+            div.innerHTML = `<span><b>${m.ho_ten}</b> - ĐV: ${m.ma_don_vi}</span>`;
+            div.onclick = () => { input.value = m.ho_ten; document.getElementById('dev_user_id').value = m.id; box.style.display = "none"; };
+            box.appendChild(div);
+        });
+    }
+
+    function resetSelectedUser() { 
+        if(document.getElementById('dev_user_search')) document.getElementById('dev_user_search').value = ""; 
+        if(document.getElementById('dev_user_id')) document.getElementById('dev_user_id').value = ""; 
+    }
+
+    async function saveDeviceConfig() {
+        const devName = document.getElementById('dev_name').value.trim(); let devCode = document.getElementById('dev_code').value.trim();
+        const userId = document.getElementById('dev_user_id').value; const userName = document.getElementById('dev_user_search').value.trim();
+        const donVi = document.getElementById('dev_filter_donvi').value; const status = document.getElementById('dev_status_select').value;
+        const editId = document.getElementById('editing_device_id').value;
+
+        if(!devName) { alert("Vui lòng điền tên thiết bị tài sản!"); return; }
+        if(!devCode) { devCode = "EQ" + Math.floor(100000 + Math.random() * 900000); }
+
+        let rowData = { device_name: devName, device_code: devCode, user_id: userId ? String(userId).replace('#', '') : null, user_name: userName, ma_don_vi: donVi || "10", status: status };
+
+        if(editId) await client.from('thiet_bi').update(rowData).eq('id', editId);
+        else await client.from('thiet_bi').insert([rowData]);
+        
+        alert("Lưu cấu hình thiết bị thành công!");
+        document.getElementById('editing_device_id').value = ""; document.getElementById('dev_name').value = ""; document.getElementById('dev_code').value = ""; resetSelectedUser();
+        await fetchAndReloadThietBi();
+    }
+
+    function editDevice(id) {
+        let item = DB_THIET_BI.find(x => String(x.id) === String(id)); if(!item) return;
+        if(document.getElementById('form_device_title')) document.getElementById('form_device_title').innerHTML = `<i class="fa-solid fa-pen"></i> Sửa Thiết Bị`;
+        document.getElementById('editing_device_id').value = item.id; document.getElementById('dev_name').value = item.device_name;
+        document.getElementById('dev_code').value = item.device_code; document.getElementById('dev_user_search').value = item.user_name || "";
+        document.getElementById('dev_user_id').value = item.user_id || ""; document.getElementById('dev_filter_donvi').value = item.ma_don_vi || "";
+        document.getElementById('dev_status_select').value = item.status || "Đang sử dụng";
+    }
+
+    async function deleteDevice(id) {
+        if(!confirm("Bạn có chắc chắn muốn xóa thiết bị này không?")) return;
+        await client.from('thiet_bi').delete().eq('id', id); await fetchAndReloadThietBi();
+    }
+
+    function suggestRepairDevice(input) {
+        const val = input.value.toLowerCase().trim(); const box = document.getElementById('rep_device_suggest');
+        if(!box) return; box.innerHTML = ""; if(!val) { box.style.display = "none"; return; }
+        
+        let matches = DB_THIET_BI.filter(x => (x.device_name && x.device_name.toLowerCase().includes(val)) || (x.device_code && x.device_code.toLowerCase().includes(val))).slice(0, 5);
+        if(matches.length === 0) { box.style.display = "none"; return; }
+        box.style.display = "block";
+        matches.forEach(m => {
+            let div = document.createElement('div'); div.className = "suggest-item";
+            div.innerHTML = `<span><b>${m.device_name}</b> - Seri: ${m.device_code}</span>`;
+            div.onclick = () => {
+                input.value = `${m.device_name} (${m.device_code})`;
+                document.getElementById('rep_device_code').value = m.device_code;
+                document.getElementById('rep_device_name').value = m.device_name;
+                box.style.display = "none";
+            };
+            box.appendChild(div);
+        });
+    }
+
+    function toggleCustomTaxField() {
+        const selectRate = document.getElementById('rep_tax_rate').value;
+        document.getElementById('custom_tax_group').style.display = (selectRate === 'custom') ? 'block' : 'none';
+        calculateFlexibleTax();
+    }
+
+    function calculateFlexibleTax() {
+        const costBefore = parseFloat(document.getElementById('rep_cost_before').value) || 0;
+        const selectRate = document.getElementById('rep_tax_rate').value;
+        let taxPercent = 0;
+        if(selectRate === 'custom') taxPercent = parseFloat(document.getElementById('rep_tax_custom_val').value) || 0;
+        else taxPercent = parseFloat(selectRate) || 0;
+        
+        let taxMoney = Math.round(costBefore * (taxPercent / 100));
+        let totalCost = costBefore + taxMoney;
+
+        if(document.getElementById('lbl_tax_money')) document.getElementById('lbl_tax_money').innerText = taxMoney.toLocaleString('vi-VN') + " VNĐ";
+        if(document.getElementById('lbl_total_cost')) document.getElementById('lbl_total_cost').innerText = totalCost.toLocaleString('vi-VN') + " VNĐ";
+    }
+
+    async function saveRepairLog() {
+        const devCode = document.getElementById('rep_device_code').value;
+        const devName = document.getElementById('rep_device_name').value;
+        const content = document.getElementById('rep_content').value.trim();
+        const costBefore = parseFloat(document.getElementById('rep_cost_before').value) || 0;
+        const selectRate = document.getElementById('rep_tax_rate').value;
+        const payStatus = document.getElementById('rep_payment_status').value;
+        const repDate = document.getElementById('rep_date').value;
+
+        if(!devCode || !content) { alert("Vui lòng tìm chọn thiết bị tài sản và điền nội dung bảo dưỡng!"); return; }
+
+        let taxPercent = (selectRate === 'custom') ? (parseFloat(document.getElementById('rep_tax_custom_val').value) || 0) : parseFloat(selectRate);
+        let taxMoney = Math.round(costBefore * (taxPercent / 100));
+        let totalCost = costBefore + taxMoney;
+
+        let logData = {
+            device_code: devCode, device_name: devName, noi_dung: content,
+            chi_phi_truoc_thue: costBefore, thue_suat: taxPercent,
+            tien_thue: taxMoney, tong_chi_phi: totalCost,
+            payment_status: payStatus, status: payStatus,
+            ngay_thuc_hien: repDate || new Date().toISOString().split('T')[0]
         };
 
-        function formatDate(isoString) {
-            if (!isoString) return "--";
-            const parts = isoString.split("-");
+        let { error } = await client.from('nhat_ky_sua_chua').insert([logData]);
+        if(error) { alert("Lỗi: " + error.message); return; }
+
+        alert("Đã hạch toán sửa chữa thành công!");
+        document.getElementById('rep_device_search').value = ""; document.getElementById('rep_device_code').value = "";
+        document.getElementById('rep_content').value = ""; document.getElementById('rep_cost_before').value = "0";
+        calculateFlexibleTax(); await fetchRepairLogs();
+    }
+
+    function displayRepairLogs() {
+        const tbody = document.getElementById('table_suachua_body'); if(!tbody) return;
+        tbody.innerHTML = "";
+        const kw = document.getElementById('search_suachua_input')?.value.toLowerCase().trim() || "";
+
+        if (!DB_NHAT_KY) DB_NHAT_KY = [];
+
+        let filtered = DB_NHAT_KY.filter(x => {
+            if(!kw) return true;
+            return (x.device_code && x.device_code.toLowerCase().includes(kw)) || (x.noi_dung && x.noi_dung.toLowerCase().includes(kw)) || (x.device_name && x.device_name.toLowerCase().includes(kw));
+        });
+
+        if(filtered.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="9" class="text-center" style="color:#64748b; padding:20px;">Không tìm thấy lịch sử phù hợp.</td></tr>`; return;
+        }
+
+        filtered.forEach(x => {
+            let pStatus = String(x.payment_status || x.status || "Chưa thanh toán").trim();
+            let badgeClass = "status-unpaid";
+            if(pStatus === "Đã thanh toán") badgeClass = "status-paid";
+            if(pStatus === "Chờ duyệt") badgeClass = "status-pending";
+
+            let tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><code>${x.device_code}</code></td>
+                <td><b>${x.device_name || '--'}</b></td>
+                <td>${x.noi_dung}</td>
+                <td>${(x.chi_phi_truoc_thue || 0).toLocaleString('vi-VN')} đ</td>
+                <td><span class="badge" style="background:#e0f2fe; color:#0369a1;">${x.thue_suat}%</span></td>
+                <td style="color:#b45309;">${(x.tien_thue || 0).toLocaleString('vi-VN')} đ</td>
+                <td style="font-weight:700; color:#15803d;">${(x.tong_chi_phi || 0).toLocaleString('vi-VN')} đ</td>
+                <td class="text-center"><span class="badge ${badgeClass}">${pStatus}</span></td>
+                <td><small>${x.ngay_thuc_hien || ''}</small></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    // --- ALGORITHM LOẠI BỎ TIẾNG VIỆT CÓ DẤU CHUYÊN SÂU (XỬ LÝ ĐƯỢC CHỮ Đ) ---
+    function removeVietnameseTones(str) {
+        if (!str) return "";
+        // Tách các dấu tổ hợp và xóa bỏ
+        let normalized = str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        // Thay thế thủ công các ký tự còn sót lại, đặc biệt là Đ và đ
+        normalized = normalized.replace(/đ/g, "d").replace(/Đ/g, "D");
+        normalized = normalized.replace(/[àáạảãâầấậẩẫăằắặẳẵ]/g, "a");
+        normalized = normalized.replace(/[èéẹẻẽêềếệểễ]/g, "e");
+        normalized = normalized.replace(/[ìíịỉĩ]/g, "i");
+        normalized = normalized.replace(/[òóọỏõôồốộổỗơờớợởỡ]/g, "o");
+        normalized = normalized.replace(/[ùúụủũưừứựửữ]/g, "u");
+        normalized = normalized.replace(/[ỳýỵỷỹ]/g, "y");
+        return normalized;
+    }
+
+    // --- ALGORITHM CHUẨN HÓA NGÀY THÁNG EXCEL VÀ SERIAL DATE ---
+    function safeConvertToISODate(rawVal) {
+        if (!rawVal) return null; 
+        let str = String(rawVal).trim();
+        
+        // Xử lý định dạng ngày số Serial của Excel (ví dụ: 25424)
+        if (!isNaN(str) && str.length >= 4 && !str.includes("/") && !str.includes("-")) {
+            let valFloat = parseFloat(str);
+            if (valFloat > 10000) {
+                let d = new Date((valFloat - 25569) * 86400 * 1000);
+                if (!isNaN(d.getTime())) {
+                    let month = String(d.getMonth() + 1).padStart(2, '0');
+                    let day = String(d.getDate()).padStart(2, '0');
+                    return `${d.getFullYear()}-${month}-${day}`;
+                }
+            }
+        }
+        // Định dạng ngày DD/MM/YYYY hoặc D/M/YYYY
+        if (str.includes("/")) {
+            let parts = str.split("/");
             if (parts.length === 3) {
-                return `${parts[2]}/${parts[1]}/${parts[0]}`;
+                let day = parts[0].trim().padStart(2, '0');
+                let month = parts[1].trim().padStart(2, '0');
+                let year = parts[2].trim();
+                if (year.length === 4) return `${year}-${month}-${day}`;
             }
-            return isoString;
         }
-
-        function initApp() {
-            const departments = [...new Set(rawData.map(d => d.dept))].sort((a, b) => parseFloat(a) - parseFloat(b));
-            departments.forEach(dept => {
-                if(dept) {
-                    const option = document.createElement('option');
-                    option.value = dept;
-                    option.textContent = `Đơn vị ${dept}`;
-                    uiElements.deptFilter.appendChild(option);
-                }
-            });
-
-            uiElements.searchInput.addEventListener('input', handleFilter);
-            uiElements.deptFilter.addEventListener('change', handleFilter);
-
-            renderDashboard(rawData);
-        }
-
-        function handleFilter() {
-            const searchTerm = uiElements.searchInput.value.toLowerCase();
-            const selectedDept = uiElements.deptFilter.value;
-
-            const filteredData = rawData.filter(emp => {
-                const matchesSearch = emp.name.toLowerCase().includes(searchTerm) || emp.cccd.includes(searchTerm);
-                const matchesDept = selectedDept === "" || emp.dept === selectedDept;
-                return matchesSearch && matchesDept;
-            });
-
-            renderDashboard(filteredData);
-        }
-
-        function renderDashboard(data) {
-            updateKPIs(data);
-            renderTable(data);
-            updateCharts(data);
-        }
-
-        function updateKPIs(data) {
-            const total = data.length;
-            let femaleCount = 0;
-            let atvCount = 0;
-            let nndhCount = 0;
-
-            data.forEach(emp => {
-                if(emp.isFemale) femaleCount++;
-                if(emp.atv) atvCount++;
-                if(emp.nndh) nndhCount++;
-            });
-
-            uiElements.total.textContent = total;
-            uiElements.female.textContent = femaleCount;
-            uiElements.atv.textContent = atvCount;
-            uiElements.nndh.textContent = nndhCount;
-        }
-
-        function renderTable(data) {
-            uiElements.tbody.innerHTML = '';
-            
-            if (data.length === 0) {
-                uiElements.noResults.classList.remove('hidden');
-                uiElements.tbody.parentElement.classList.add('hidden');
-                return;
+        // Định dạng ngày DD-MM-YYYY
+        if (str.includes("-") && str.split("-")[0].length !== 4) {
+            let parts = str.split("-");
+            if (parts.length === 3) {
+                return `${parts[2].trim()}-${parts[1].trim().padStart(2, '0')}-${parts[0].trim().padStart(2, '0')}`;
             }
-
-            uiElements.noResults.classList.add('hidden');
-            uiElements.tbody.parentElement.classList.remove('hidden');
-
-            data.forEach(emp => {
-                const gender = emp.isFemale ? "Nữ" : "Nam";
-                const atvBadge = emp.atv ? `<span class="badge bg-emerald-100 text-emerald-700">Có</span>` : `<span class="text-slate-300">--</span>`;
-                const nndhBadge = emp.nndh ? `<span class="badge bg-amber-100 text-amber-700">Có</span>` : `<span class="text-slate-300">--</span>`;
-                
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td class="px-4 py-3 text-center text-slate-500">${emp.stt}</td>
-                    <td class="px-4 py-3 font-semibold text-slate-800">${emp.name}</td>
-                    <td class="px-4 py-3 font-mono text-slate-600">${emp.cccd}</td>
-                    <td class="px-4 py-3 text-center">${gender}</td>
-                    <td class="px-4 py-3 text-center text-slate-600">${formatDate(emp.birth)}</td>
-                    <td class="px-4 py-3 text-center font-semibold text-rose-600">${formatDate(emp.retire)}</td>
-                    <td class="px-4 py-3 text-center"><span class="badge bg-blue-50 text-blue-700 border border-blue-200">${emp.dept}</span></td>
-                    <td class="px-4 py-3 text-center">${atvBadge}</td>
-                    <td class="px-4 py-3 text-center">${nndhBadge}</td>
-                    <td class="px-4 py-3 text-slate-600 truncate max-w-xs" title="${emp.role}">${emp.role}</td>
-                `;
-                uiElements.tbody.appendChild(tr);
-            });
         }
-
-        function updateCharts(data) {
-            const retireYears = {};
-            const genderCounts = { "Nam": 0, "Nữ": 0 };
-            const deptCounts = {};
-
-            data.forEach(emp => {
-                if(emp.retire) {
-                    const year = emp.retire.split("-")[0];
-                    retireYears[year] = (retireYears[year] || 0) + 1;
-                }
-                
-                if(emp.isFemale) genderCounts["Nữ"]++;
-                else genderCounts["Nam"]++;
-
-                if(emp.dept) {
-                    deptCounts[emp.dept] = (deptCounts[emp.dept] || 0) + 1;
-                }
-            });
-
-            const retireLabels = Object.keys(retireYears).sort();
-            const retireData = retireLabels.map(y => retireYears[y]);
-
-            const sortedDepts = Object.entries(deptCounts).sort((a,b) => b[1] - a[1]).slice(0, 5);
-            const deptLabels = sortedDepts.map(d => `Đơn vị ${d[0]}`);
-            const deptData = sortedDepts.map(d => d[1]);
-
-            Chart.defaults.font.family = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
-            Chart.defaults.color = '#64748b';
-
-            if (retireChartInst) retireChartInst.destroy();
-            const ctxRetire = document.getElementById('retireChart').getContext('2d');
-            retireChartInst = new Chart(ctxRetire, {
-                type: 'bar',
-                data: {
-                    labels: retireLabels,
-                    datasets: [{
-                        label: 'Số người nghỉ hưu',
-                        data: retireData,
-                        backgroundColor: 'rgba(37, 99, 235, 0.8)',
-                        borderRadius: 4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: { backgroundColor: 'rgba(15, 23, 42, 0.9)' }
-                    },
-                    scales: {
-                        y: { beginAtZero: true, ticks: { stepSize: 1 } }
-                    }
-                }
-            });
-
-            if (genderChartInst) genderChartInst.destroy();
-            const ctxGender = document.getElementById('genderChart').getContext('2d');
-            genderChartInst = new Chart(ctxGender, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Nam', 'Nữ'],
-                    datasets: [{
-                        data: [genderCounts["Nam"], genderCounts["Nữ"]],
-                        backgroundColor: ['rgba(59, 130, 246, 0.8)', 'rgba(244, 63, 94, 0.8)'],
-                        borderWidth: 0
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    cutout: '70%',
-                    plugins: {
-                        legend: { position: 'bottom' }
-                    }
-                }
-            });
-
-            if (deptChartInst) deptChartInst.destroy();
-            const ctxDept = document.getElementById('deptChart').getContext('2d');
-            deptChartInst = new Chart(ctxDept, {
-                type: 'bar',
-                data: {
-                    labels: deptLabels,
-                    datasets: [{
-                        label: 'Nhân sự',
-                        data: deptData,
-                        backgroundColor: 'rgba(16, 185, 129, 0.8)',
-                        borderRadius: 4
-                    }]
-                },
-                options: {
-                    indexAxis: 'y',
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false }
-                    },
-                    scales: {
-                        x: { beginAtZero: true, ticks: { stepSize: 1 } }
-                    }
-                }
-            });
+        // Định dạng chuẩn có sẵn YYYY-MM-DD
+        if (str.includes("-") && str.split("-")[0].length === 4) {
+            return str;
         }
+        return null;
+    }
 
-        initApp();
-    </script>
-</body>
-</html>
+    // --- ALGORITHM IMPORT ĐỒNG BỘ ĐÁM MÂY TỐI ƯU ---
+    async function importExcelNhanSu(input) {
+        const file = input.files[0]; if(!file) return;
+        const reader = new FileReader();
+        reader.onload = async function(e) {
+            try {
+                let { data: sampleData, error: sampleErr } = await client.from('nhan_su').select('*').limit(1);
+                if(sampleErr) { alert("Không thể kết nối Supabase Cloud: " + sampleErr.message); return; }
+                let dbColumns = sampleData && sampleData.length > 0 ? Object.keys(sampleData[0]) : [];
+
+                const data = new Uint8Array(e.target.result);
+                // raw: true giúp giữ kiểu chuỗi nguyên bản (không làm mất số 0 đầu CCCD và giữ mã đơn vị thập phân)
+                const workbook = XLSX.read(data, { type: 'array', cellDates: false, raw: true });
+                const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                const json = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+                
+                if(json.length === 0) { alert("Không tìm thấy hàng dữ liệu nào trong file Excel!"); return; }
+
+                let excelHeaders = Object.keys(json[0]);
+
+                // Hàm định vị tiêu đề cột động chuẩn hóa không dấu
+                let getRawValFromExcel = (rowObject, keywords) => {
+                    let foundKey = Object.keys(rowObject).find(keyName => {
+                        let cleanKey = removeVietnameseTones(keyName).replace(/\s+/g, '').toLowerCase();
+                        return keywords.some(kw => cleanKey.includes(kw));
+                    });
+                    return foundKey ? String(rowObject[foundKey]).trim() : "";
+                };
+
+                let checkColumnExist = (keywords) => {
+                    return excelHeaders.some(keyName => {
+                        let cleanKey = removeVietnameseTones(keyName).replace(/\s+/g, '').toLowerCase();
+                        return keywords.some(kw => cleanKey.includes(kw));
+                    });
+                };
+
+                if(!checkColumnExist(["hovaten", "hoten", "ten"])) {
+                    alert("LỖI: File Excel của bạn đang thiếu cột 'Họ và tên'. Vui lòng điều chỉnh tiêu đề của hàng đầu tiên.");
+                    return;
+                }
+
+                let listRows = [];
+                json.forEach((row, i) => {
+                    let hoTen = getRawValFromExcel(row, ["hovaten", "hoten", "ten"]);
+                    if(!hoTen || hoTen.toLowerCase() === "họ và tên" || hoTen.includes("------")) return;
+
+                    let nuKey = getRawValFromExcel(row, ["nu", "nux", "gioitinh"]);
+                    let gt = "Nam";
+                    if (nuKey.toLowerCase() === "x" || nuKey === "1" || nuKey.toLowerCase() === "nữ" || nuKey.toLowerCase() === "nu") {
+                        gt = "Nữ";
+                    }
+                    
+                    let birthStr = safeConvertToISODate(getRawValFromExcel(row, ["namsinh", "ngaysinh", "ngaythangnamsinh", "sinh"]));
+                    
+                    // FIX: Đọc trực tiếp ngày về hưu từ cột "Năm Về Hưu" / "Ngày Về Hưu" của Excel
+                    let retStr = safeConvertToISODate(getRawValFromExcel(row, ["namvehuu", "ngayvehuu", "vehuu", "ngay_ve_huu"]));
+                    
+                    // Nếu trong Excel không có hoặc trống, hệ thống mới tự động tính toán dự phòng
+                    if(!retStr && birthStr) {
+                        let p = birthStr.split("-");
+                        let y = parseInt(p[0]);
+                        let rY = (gt === "Nữ") ? (y + 60) : (y + 62);
+                        retStr = `${rY}-${p[1]}-${p[2]}`;
+                    }
+
+                    let cccdVal = getRawValFromExcel(row, ["socccd", "cccd", "cancuoc", "cmnd"]);
+                    let bhxhVal = getRawValFromExcel(row, ["sosobhxh", "bhxh", "sobhxh"]);
+                    
+                    // FIX: Mã Đơn Vị được đọc chuẩn xác dạng thập phân (ví dụ: 14.2, 11.1) nhờ hàm getRawValFromExcel đã được sửa lỗi "Đ"
+                    let maDonVi = getRawValFromExcel(row, ["madonvi", "donvi", "bophan", "madv", "ma_dv"]);
+                    
+                    let chucDanh = getRawValFromExcel(row, ["chucdanh", "congviec", "chucdanhcongviec", "chucvu"]);
+                    
+                    let atvVal = getRawValFromExcel(row, ["antoanvien", "atv", "antoan"]);
+                    let nndhVal = getRawValFromExcel(row, ["nndh", "nghedochai", "doc_hai", "dochai", "nghe_doc_hai"]);
+
+                    let record = {
+                        stt_excel: getRawValFromExcel(row, ["stt", "sttgoc"]) || String(i + 1), 
+                        ho_ten: hoTen,
+                        so_so_bhxh: bhxhVal, 
+                        so_cccd: cccdVal,
+                        gioi_tinh: gt, 
+                        nam_sinh: birthStr, 
+                        nam_ve_huu: retStr,
+                        ma_don_vi: maDonVi || "Chưa rõ", 
+                        chuc_danh_cong_viec: chucDanh
+                    };
+
+                    // Gán linh hoạt theo cấu trúc trường thực tế trên Supabase Cloud
+                    if (dbColumns.includes('an_toan_vien')) record['an_toan_vien'] = atvVal;
+                    if (dbColumns.includes('atv')) record['atv'] = atvVal;
+
+                    if (dbColumns.includes('nghe_doc_hai')) record['nghe_doc_hai'] = nndhVal;
+                    if (dbColumns.includes('nndh')) record['nndh'] = nndhVal;
+
+                    listRows.push(record);
+                });
+
+                if (listRows.length === 0) { alert("Không tìm thấy dòng dữ liệu nào khả thi."); return; }
+
+                // Thực hiện làm trống dữ liệu cũ và cập nhật danh sách dữ liệu mới chuẩn hóa lên đám mây
+                await client.from('nhan_su').delete().neq('id', 0);
+                let { error } = await client.from('nhan_su').insert(listRows);
+                if(error) { alert("Lỗi tải lên cơ sở dữ liệu: " + error.message); return; }
+                
+                alert(`Thành công! Đã đồng bộ ${listRows.length} nhân sự lên đám mây với thông tin chuẩn hóa từ file Book1.xlsx.`); 
+                await fetchAllData();
+            } catch(err) { alert("Lỗi xử lý file Excel: " + err.message); }
+        };
+        reader.readAsArrayBuffer(file);
+    }
+
+    async function clearDataCloud(tableName) {
+        if(!confirm("Bạn có chắc muốn xóa toàn bộ dữ liệu trên Đám mây không?")) return;
+        let pass = prompt("Mã bảo mật ứng dụng:"); if(pass !== "admin123") return;
+        await client.from(tableName).delete().neq('id', 0); 
+        await fetchAllData();
+    }
+</script>
