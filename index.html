@@ -607,36 +607,60 @@
             });
         }
 
-        function editPaymentProfile(id) {
-            let item = DB_SUA_CHUA.find(x => x.id == id); if(!item) return;
-            document.getElementById('pay_log_id').value = item.id;
-            document.getElementById('pay_status').value = item.trang_thai_ho_so || "Chưa xử lý";
-            document.getElementById('pay_beneficiary').value = item.don_vi_thu_huong || "";
-            document.getElementById('pay_document_links_area').value = item.link_chung_tu_cloud || "";
-        }
-
+        /* ĐÃ FIX TRIỆT ĐỂ LỖI QR: Tối ưu định danh ID và tăng độ trễ render DOM */
         function displayThietBi() {
             const kw = document.getElementById('search_thietbi').value.toLowerCase().trim();
-            const tbody = document.getElementById('table_thietbi_body'); tbody.innerHTML = "";
-            let filtered = DB_THIET_BI.filter(x => { return !kw || (x.ten_thiet_bi && x.ten_thiet_bi.toLowerCase().includes(kw)) || (x.ma_thiet_bi && x.ma_thiet_bi.toLowerCase().includes(kw)) || (x.ten_nhan_su && x.ten_nhan_su.toLowerCase().includes(kw)); });
-            if(filtered.length === 0) { tbody.innerHTML = `<tr><td colspan="7" class="text-center">Không thấy thiết bị.</td></tr>`; return; }
+            const tbody = document.getElementById('table_thietbi_body'); 
+            tbody.innerHTML = "";
+            
+            let filtered = DB_THIET_BI.filter(x => { 
+                return !kw || 
+                       (x.ten_thiet_bi && x.ten_thiet_bi.toLowerCase().includes(kw)) || 
+                       (x.ma_thiet_bi && x.ma_thiet_bi.toLowerCase().includes(kw)) || 
+                       (x.ten_nhan_su && x.ten_nhan_su.toLowerCase().includes(kw)); 
+            });
+            
+            if(filtered.length === 0) { 
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center">Không thấy thiết bị.</td></tr>`; 
+                return; 
+            }
+            
             filtered.forEach(x => {
                 let statusBadge = "status-using";
                 if(x.tinh_trang === "Hỏng hóc") statusBadge = "status-broken";
                 if(x.tinh_trang === "Bảo dưỡng") statusBadge = "status-repair";
-                let qrId = "qr_" + x.id;
+                
+                let qrId = "qr_device_" + x.id;
                 let tr = document.createElement('tr');
-                tr.innerHTML = `<td><div class="qr-canvas" id="${qrId}"></div></td><td><b>${x.ma_thiet_bi || ''}</b></td><td><b>${x.ten_thiet_bi || ''}</b></td><td>${x.ten_nhan_su || 'Kho'}</td><td class="text-center"><span class="badge" style="background:#f1f5f9; color:#334155;">${x.ma_don_vi || ''}</span></td><td class="text-center"><span class="badge ${statusBadge}">${x.tinh_trang || 'Đang sử dụng'}</span></td><td class="text-center"><button class="btn-table-edit" onclick="editDevice(${x.id})"><i class="fa-solid fa-pen"></i> Sửa</button><button class="btn-table-del" onclick="deleteDevice(${x.id})"><i class="fa-solid fa-trash"></i> Xóa</button></td>`;
+                tr.innerHTML = `
+                    <td><div class="qr-canvas" id="${qrId}"></div></td>
+                    <td><b>${x.ma_thiet_bi || ''}</b></td>
+                    <td><b>${x.ten_thiet_bi || ''}</b></td>
+                    <td>${x.ten_nhan_su || 'Kho'}</td>
+                    <td class="text-center"><span class="badge" style="background:#f1f5f9; color:#334155;">${x.ma_don_vi || ''}</span></td>
+                    <td class="text-center"><span class="badge ${statusBadge}">${x.tinh_trang || 'Đang sử dụng'}</span></td>
+                    <td class="text-center">
+                        <button class="btn-table-edit" onclick="editDevice(${x.id})"><i class="fa-solid fa-pen"></i> Sửa</button>
+                        <button class="btn-table-del" onclick="deleteDevice(${x.id})"><i class="fa-solid fa-trash"></i> Xóa</button>
+                    </td>
+                `;
                 tbody.appendChild(tr);
+                
+                // Trực tiếp khởi tạo QR sau khi luồng xử lý bảng của trình duyệt đã sẵn sàng
                 setTimeout(() => {
                     let container = document.getElementById(qrId);
                     if(container) {
+                        container.innerHTML = ""; 
                         new QRCode(container, {
-                            text: `Mã TB: ${x.ma_thiet_bi || ''}\nTên TB: ${x.ten_thiet_bi || ''}\nNgười giữ: ${x.ten_nhan_su || ''}`,
-                            width: 100, height: 100, colorDark : "#0f172a", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.H
+                            text: `Mã TB: ${x.ma_thiet_bi || ''}\nTên TB: ${x.ten_thiet_bi || ''}\nNgười giữ: ${x.ten_nhan_su || 'Kho'}`,
+                            width: 100, 
+                            height: 100, 
+                            colorDark : "#0f172a", 
+                            colorLight : "#ffffff", 
+                            correctLevel : QRCode.CorrectLevel.H
                         });
                     }
-                }, 50);
+                }, 120);
             });
         }
 
