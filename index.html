@@ -3,16 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hệ Thống Quản Lý Tổng Hợp 3D</title>
+    <title>Hệ Thống Quản Lý Tổng Hợp 3D Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
             --bg-color: #eef2f7;
             --card-bg: #ffffff;
             --text-color: #333333;
-            --shadow-3d: 6px 6px 16px rgba(163, 177, 198, 0.5), -6px -6px 16px rgba(255, 255, 255, 0.8);
-            --shadow-3d-hover: 10px 10px 24px rgba(163, 177, 198, 0.7), -10px -10px 24px rgba(255, 255, 255, 0.9);
-            --shadow-3d-inset: inset 3px 3px 6px rgba(163, 177, 198, 0.5), inset -3px -3px 6px rgba(255, 255, 255, 0.8);
+            /* Đổ bóng 3D nổi (Soft 3D Shadow) */
+            --shadow-3d: 6px 6px 16px rgba(163, 177, 198, 0.5), 
+                         -6px -6px 16px rgba(255, 255, 255, 0.8);
+            --shadow-3d-hover: 10px 10px 24px rgba(163, 177, 198, 0.7), 
+                               -10px -10px 24px rgba(255, 255, 255, 0.9);
+            /* Đổ bóng 3D chìm (Inset) cho bảng hoặc input */
+            --shadow-3d-inset: inset 3px 3px 6px rgba(163, 177, 198, 0.5), 
+                               inset -3px -3px 6px rgba(255, 255, 255, 0.8);
         }
 
         body {
@@ -24,7 +29,7 @@
             color: var(--text-color);
         }
 
-        /* BANEL MENU ĐIỀU HƯỚNG CHỨA CÁC DANH MỤC CỦA BẠN (3D SIDEBAR) */
+        /* BANEL MENU ĐIỀU HƯỚNG 3D SIDEBAR */
         .sidebar {
             width: 280px;
             background: var(--card-bg);
@@ -37,12 +42,14 @@
         }
 
         .sidebar h2 {
-            font-size: 18px;
-            margin-bottom: 30px;
+            font-size: 16px;
+            margin-bottom: 35px;
             color: #1a73e8;
             text-align: center;
             text-transform: uppercase;
             letter-spacing: 1px;
+            border-bottom: 2px dashed #dee2e6;
+            padding-bottom: 15px;
         }
 
         .menu-item {
@@ -59,6 +66,7 @@
             cursor: pointer;
             box-shadow: var(--shadow-3d);
             transition: all 0.2s ease;
+            font-size: 14px;
         }
 
         .menu-item:hover {
@@ -66,7 +74,7 @@
             color: #1a73e8;
         }
 
-        /* Trạng thái tab/danh mục đang chọn - Lõm 3D */
+        /* Trạng thái danh mục đang chọn - Nút nhấn chìm 3D */
         .menu-item.active {
             background: #e3effd;
             color: #1a73e8;
@@ -77,7 +85,7 @@
         /* KHU VỰC HIỂN THỊ NỘI DUNG CHÍNH */
         .main-content {
             margin-left: 280px;
-            padding: 30px;
+            padding: 25px;
             width: calc(100% - 280px);
             box-sizing: border-box;
         }
@@ -87,135 +95,376 @@
         }
 
         .module-page.active {
-            display: block; /* Chỉ hiện danh mục đang chọn */
+            display: block; /* Chỉ hiện danh mục đang hoạt động */
         }
 
-        /* THÀNH PHẦN TABLE & DASHBOARD (ĐÃ FIX LỖI CUỘN TRANG Ở IMAGE_5E2885.PNG) */
-        .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 25px; }
-        .stat-card { background: var(--card-bg); padding: 20px; border-radius: 16px; box-shadow: var(--shadow-3d); border-left: 5px solid #1a73e8; text-align: center; }
-        .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; margin-bottom: 25px; }
-        .chart-container { background: var(--card-bg); padding: 20px; border-radius: 16px; box-shadow: var(--shadow-3d); height: 280px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        
-        .filter-bar { background: var(--card-bg); padding: 15px; border-radius: 12px; box-shadow: var(--shadow-3d); margin-bottom: 20px; display: flex; gap: 15px; }
-        .filter-bar input, .filter-bar select { padding: 10px; border: none; border-radius: 8px; background: var(--bg-color); box-shadow: var(--shadow-3d-inset); outline: none; }
-        
-        .table-wrapper { background: var(--card-bg); border-radius: 16px; box-shadow: var(--shadow-3d); height: 450px; overflow-y: auto; }
-        table { width: 100%; border-collapse: collapse; font-size: 14px; }
-        thead th { position: sticky; top: 0; background-color: #f1f3f5; padding: 14px; box-shadow: inset 0 -2px 0 #dee2e6; z-index: 10; }
-        tbody td { padding: 12px; border-bottom: 1px solid #edf2f7; }
-        tbody tr:hover { background-color: #e3effd; }
-        .highlight-cccd { background-color: #ffeeba; padding: 2px 6px; border-radius: 4px; }
+        /* CÁC THÀNH PHẦN LAYOUT ĐÃ ĐƯỢC TỐI ƯU CỦA BẠN */
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+            margin-bottom: 25px;
+        }
 
-        /* KHỐI TRỐNG HIỂN THỊ DỮ LIỆU ĐANG LÀM CỦA BẠN */
-        .placeholder-card {
+        .stat-card {
             background: var(--card-bg);
-            padding: 40px;
+            padding: 20px;
             border-radius: 16px;
             box-shadow: var(--shadow-3d);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            transition: all 0.3s ease;
             text-align: center;
-            border: 2px dashed #cbd5e1;
-            color: #64748b;
         }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow-3d-hover);
+        }
+
+        .stat-card h3 { margin: 0 0 10px 0; font-size: 14px; color: #666; text-transform: uppercase; }
+        .stat-card .value { font-size: 28px; font-weight: bold; color: #1a73e8; }
+        .card-male { border-left: 5px solid #007bff; }
+        .card-female { border-left: 5px solid #e83e8c; }
+        .card-active { border-left: 5px solid #28a745; }
+        .card-retired { border-left: 5px solid #6c757d; }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+            margin-bottom: 25px;
+        }
+
+        .chart-container {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 16px;
+            box-shadow: var(--shadow-3d);
+            height: 300px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .chart-container h4 { margin: 0 0 15px 0; align-self: flex-start; }
+
+        .filter-bar {
+            background: var(--card-bg);
+            padding: 15px 20px;
+            border-radius: 12px;
+            box-shadow: var(--shadow-3d);
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .filter-bar select, .filter-bar input {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 8px;
+            background: var(--bg-color);
+            box-shadow: var(--shadow-3d-inset);
+            outline: none;
+            font-size: 14px;
+        }
+
+        /* KHU VỰC BẢNG CHỐNG NHẢY SCROLL */
+        .table-wrapper {
+            background: var(--card-bg);
+            border-radius: 16px;
+            box-shadow: var(--shadow-3d);
+            height: 480px; 
+            overflow-y: auto;
+            position: relative;
+        }
+
+        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; }
+        thead th {
+            position: sticky;
+            top: 0;
+            background-color: #f1f3f5;
+            color: #333;
+            font-weight: 600;
+            padding: 14px 16px;
+            box-shadow: inset 0 -2px 0 #dee2e6;
+            z-index: 10;
+        }
+
+        tbody td { padding: 12px 16px; border-bottom: 1px solid #edf2f7; }
+        tbody tr:nth-child(even) { background-color: #f8fafc; }
+        tbody tr:hover { background-color: #e3effd; }
+        .highlight-cccd { background-color: #ffeeba; padding: 2px 6px; border-radius: 4px; font-weight: 500; }
+        
+        /* Nhãn trạng thái đặc thù */
+        .badge { padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; color: #fff; }
+        .bg-success { background-color: #28a745; }
+        .bg-warning { background-color: #ffc107; color: #333; }
+        .bg-danger { background-color: #dc3545; }
     </style>
 </head>
 <body>
 
-    <!-- THANH MENU CHỨA ĐẦY ĐỦ 4 DANH MỤC CỦA BẠN -->
     <div class="sidebar">
         <h2>Hệ Thống Quản Lý</h2>
         <button class="menu-item active" onclick="switchModule(this, 'page-nhansu')">📊 Nhân Sự Tổng Thể</button>
-        <button class="menu-item" onclick="switchModule(this, 'page-qr')">📱 Quản Lý Cấp Phát QR</button>
+        <button class="menu-item" onclick="switchModule(this, 'page-qr')">📱 Cấp Phát Thiết Bị QR</button>
         <button class="menu-item" onclick="switchModule(this, 'page-suachua')">🛠️ Nhật Ký Sửa Chữa</button>
         <button class="menu-item" onclick="switchModule(this, 'page-thanhtoan')">💳 Hồ Sơ Thanh Toán</button>
     </div>
 
-    <!-- KHU VỰC CHỨA DỮ LIỆU CHI TIẾT TỪNG DANH MỤC -->
     <div class="main-content">
 
-        <!-- DANH MỤC 1: NHÂN SỰ TỔNG THỂ (Có Dashboard và Bảng chống lỗi nhảy trang) -->
         <div id="page-nhansu" class="module-page active">
             <div class="stat-grid">
-                <div class="stat-card" style="border-left-color: #007bff;"><h3>Lao Động Nam</h3><div style="font-size:24px; font-weight:bold;">671</div></div>
-                <div class="stat-card" style="border-left-color: #e83e8c;"><h3>Lao Động Nữ</h3><div style="font-size:24px; font-weight:bold;">305</div></div>
-                <div class="stat-card" style="border-left-color: #28a745;"><h3>Đang Làm Việc</h3><div style="font-size:24px; font-weight:bold;">970</div></div>
-                <div class="stat-card" style="border-left-color: #6c757d;"><h3>Đã Nghỉ Hưu</h3><div style="font-size:24px; font-weight:bold;">6</div></div>
+                <div class="stat-card card-male">
+                    <h3>Lao Động Nam</h3>
+                    <div class="value" id="count-nam">671</div>
+                </div>
+                <div class="stat-card card-female">
+                    <h3>Lao Động Nữ</h3>
+                    <div class="value" id="count-nu">305</div>
+                </div>
+                <div class="stat-card card-active">
+                    <h3>Đang Làm Việc</h3>
+                    <div class="value" id="count-lamviec">970</div>
+                </div>
+                <div class="stat-card card-retired">
+                    <h3>Đã Nghỉ Hưu</h3>
+                    <div class="value" id="count-nghihuu">6</div>
+                </div>
             </div>
 
             <div class="dashboard-grid">
-                <div class="chart-container"><h4>Tỷ Lệ Nam / Nữ</h4><canvas id="genderChart"></canvas></div>
-                <div class="chart-container"><h4>Tỷ Lệ Trạng Thái Nghỉ Hưu</h4><canvas id="retirementChart"></canvas></div>
+                <div class="chart-container">
+                    <h4>Tỷ Lệ Nhân Sự Nam / Nữ</h4>
+                    <canvas id="genderChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h4>Trạng Thái Nghỉ Hưu & Sắp Nghỉ Hưu</h4>
+                    <canvas id="retirementChart"></canvas>
+                </div>
             </div>
 
             <div class="filter-bar">
-                <input type="text" placeholder="Tìm nhanh theo Họ Tên, Số CCCD..." style="flex: 1;">
-                <select><option>-- Tất cả Mã Đơn Vị --</option></select>
+                <input type="text" id="searchInp" placeholder="Tìm nhanh theo Họ Tên, Số CCCD...">
+                
+                <select id="statusFilter">
+                    <option value="all">-- Tất cả Trạng thái --</option>
+                    <option value="working">Đang làm việc</option>
+                    <option value="near-retired">Sắp nghỉ hưu (Trong năm)</option>
+                    <option value="retired">Đã nghỉ hưu</option>
+                </select>
+
+                <select id="unitFilter">
+                    <option value="all">-- Tất cả Mã Đơn Vị --</option>
+                    <option value="11.2">11.2</option>
+                    <option value="14.2">14.2</option>
+                    <option value="13">13</option>
+                </select>
             </div>
 
             <div class="table-wrapper">
                 <table>
                     <thead>
-                        <tr><th>Hệ thống</th><th>Họ và Tên</th><th>Số CCCD</th><th>Giới Tính</th><th>Năm Sinh</th><th>Mã Đơn Vị</th><th>Năm Về Hưu</th></tr>
+                        <tr>
+                            <th>Hệ thống</th>
+                            <th>STT gốc</th>
+                            <th>Họ và Tên</th>
+                            <th>Số BHXH</th>
+                            <th>Số CCCD</th>
+                            <th>Giới Tính</th>
+                            <th>Năm Sinh</th>
+                            <th>Mã Đơn Vị</th>
+                            <th>Năm Về Hưu</th>
+                            <th>Chức Danh Công Việc</th>
+                        </tr>
                     </thead>
-                    <tbody>
-                        <tr><td>#59</td><td>LÊ VĂN CHUNG</td><td><span class="highlight-cccd">025072014094</span></td><td>Nam</td><td>25/12/1972</td><td>11.2</td><td>01/01/2030</td></tr>
-                        <tr><td>#60</td><td>TRẦN ĐÌNH LONG</td><td><span class="highlight-cccd">025072015692</span></td><td>Nam</td><td>03/12/1972</td><td>14.2</td><td>01/01/2026</td></tr>
-                        <tr><td>#61</td><td>TRẦN THỊ HẢI YẾN</td><td><span class="highlight-cccd">025171000691</span></td><td>Nữ</td><td>16/12/1971</td><td>11</td><td>01/01/2028</td></tr>
+                    <tbody id="employeeTableBody">
+                        <tr data-gender="Nam" data-status="working" data-unit="11.2">
+                            <td>#59</td><td>85</td><td>LÊ VĂN CHUNG</td><td>8200102878</td><td><span class="highlight-cccd">025072014094</span></td><td>Nam</td><td>25/12/1972</td><td>11.2</td><td>01/01/2030</td><td>Phó Quản đốc Phân xưởng Bột</td>
+                        </tr>
+                        <tr data-gender="Nam" data-status="near-retired" data-unit="14.2">
+                            <td>#60</td><td>475</td><td>TRẦN ĐÌNH LONG</td><td>8299015851</td><td><span class="highlight-cccd">025072015692</span></td><td>Nam</td><td>03/12/1972</td><td>14.2</td><td>01/01/2026</td><td>Công nhân sửa chữa cơ khí</td>
+                        </tr>
+                        <tr data-gender="Nữ" data-status="working" data-unit="11">
+                            <td>#61</td><td>933</td><td>TRẦN THỊ HẢI YẾN</td><td>8299015934</td><td><span class="highlight-cccd">0252171000691</span></td><td>Nữ</td><td>16/12/1971</td><td>11</td><td>01/01/2028</td><td>Chuyên viên hạch toán nội bộ</td>
+                        </tr>
+                        <tr data-gender="Nam" data-status="retired" data-unit="13">
+                            <td>#65</td><td>761</td><td>HỒ VĂN THUẬN</td><td>8297028470</td><td><span class="highlight-cccd">025070011192</span></td><td>Nam</td><td>14/03/1970</td><td>13</td><td>01/02/2025</td><td>Trưởng kíp vận hành lò hơi</td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
         </div>
 
-        <!-- DANH MỤC 2: QUẢN LÝ CẤP PHÁT THIẾT BỊ QR -->
         <div id="page-qr" class="module-page">
             <h2>📱 Quản Lý Cấp Phát Thiết Bị QR</h2>
-            <div class="placeholder-card">
-                <h3>[Khu vực Dữ liệu Thiết bị QR của bạn]</h3>
-                <p>Mã hóa QR Code thiết bị, danh sách máy móc đã dán mã QR, lịch sử quét mã bàn giao thiết bị đầu cuối cho nhân sự.</p>
+            <div class="filter-bar">
+                <input type="text" placeholder="Tìm mã QR, tên thiết bị...">
+            </div>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Mã QR</th>
+                            <th>Tên Thiết Bị</th>
+                            <th>Người Sử Dụng</th>
+                            <th>Mã Đơn Vị</th>
+                            <th>Ngày Cấp Phát</th>
+                            <th>Trạng Thái</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>QR-DEV-094</strong></td><td>Máy tính bảng giám sát Phân xưởng</td><td>LÊ VĂN CHUNG</td><td>11.2</td><td>15/01/2026</td><td><span class="badge bg-success">Đang hoạt động</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>QR-DEV-692</strong></td><td>Thiết bị đo độ rung vòng bi</td><td>TRẦN ĐÌNH LONG</td><td>14.2</td><td>20/02/2026</td><td><span class="badge bg-success">Đang hoạt động</span></td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
 
-        <!-- DANH MỤC 3: NHẬT KÝ SỬA CHỮA -->
         <div id="page-suachua" class="module-page">
             <h2>🛠️ Nhật Ký Sửa Chữa Thiết Bị</h2>
-            <div class="placeholder-card">
-                <h3>[Khu vực Dữ liệu Nhật ký Sửa chữa của bạn]</h3>
-                <p>Lịch sử bảo trì lò hơi, máy nghiền, thiết bị vận tải tự hành... Ghi nhận sự cố phát sinh tại các phân xưởng 11.2, 14.2.</p>
+            <div class="filter-bar">
+                <input type="text" placeholder="Tìm kiếm nội dung sửa chữa...">
+            </div>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Mã Sự Cố</th>
+                            <th>Hạng Mục Sửa Chữa</th>
+                            <th>Phân Xưởng</th>
+                            <th>Người Thực Hiện</th>
+                            <th>Ngày Hoàn Thành</th>
+                            <th>Chi Phí (VND)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>#SC-8201</td><td>Bảo dưỡng hệ thống bôi trơn máy nghiền bột</td><td>11.2</td><td>LÊ VĂN CHUNG</td><td>12/04/2026</td><td>4,500,000</td>
+                        </tr>
+                        <tr>
+                            <td>#SC-8202</td><td>Thay thế vòng bi cụm quạt hút lò hơi</td><td>13</td><td>HỒ VĂN THUẬN</td><td>18/05/2026</td><td>12,800,000</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
 
-        <!-- DANH MỤC 4: QUẢN LÝ HỒ SƠ THANH TOÁN -->
         <div id="page-thanhtoan" class="module-page">
             <h2>💳 Quản Lý Hồ Sơ Thanh Toán</h2>
-            <div class="placeholder-card">
-                <h3>[Khu vực Dữ liệu Hồ sơ Thanh toán của bạn]</h3>
-                <p>Tiến độ giải ngân hợp đồng kỹ thuật, thanh toán lương hưu, chứng từ vật tư phân xưởng bảo dưỡng.</p>
+            <div class="filter-bar">
+                <input type="text" placeholder="Tìm số hợp đồng, chứng từ...">
+            </div>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Số Chứng Từ</th>
+                            <th>Nội Dung Thanh Toán</th>
+                            <th>Đơn Vị Thụ Hưởng</th>
+                            <th>Số Tiền</th>
+                            <th>Hạn Thanh Toán</th>
+                            <th>Trạng Thái</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>PAY-2026-001</strong></td><td>Thanh toán vật tư bảo dưỡng định kỳ đợt 1</td><td>Phân xưởng Cơ điện</td><td>45,000,000</td><td>30/06/2026</td><td><span class="badge bg-warning">Chờ duyệt</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>PAY-2026-002</strong></td><td>Quyết toán chi phí sửa chữa cụm lò hơi</td><td>Đội bảo trì số 3</td><td>12,800,000</td><td>15/05/2026</td><td><span class="badge bg-success">Đã chi trả</span></td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
 
     </div>
 
-    <script>
-        // Hàm chuyển đổi mượt mà giữa các danh mục lớn không lo giật/tải lại trang
-        function switchModule(button, pageId) {
-            document.querySelectorAll('.menu-item').forEach(btn => btn.classList.remove('active'));
-            document.querySelectorAll('.module-page').forEach(page => page.classList.remove('active'));
-            
-            button.classList.add('active');
-            document.getElementById(pageId).classList.add('active');
+<script {isSafeToRender: true}>
+    // CHUYỂN MODULE MƯỢT MÀ KHÔNG LOAD TRANG
+    function switchModule(button, pageId) {
+        document.querySelectorAll('.menu-item').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.module-page').forEach(page => page.classList.remove('active'));
+        
+        button.classList.add('active');
+        document.getElementById(pageId).classList.add('active');
+    }
+
+    // --- KHỞI TẠO BIỂU ĐỒ DASHBOARD ---
+    const ctxGender = document.getElementById('genderChart').getContext('2d');
+    new Chart(ctxGender, {
+        type: 'doughnut',
+        data: {
+            labels: ['Nam', 'Nữ'],
+            datasets: [{
+                data: [671, 305],
+                backgroundColor: ['#007bff', '#e83e8c'],
+                borderWidth: 2,
+                hoverOffset: 4
+            }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+    });
+
+    const ctxRetire = document.getElementById('retirementChart').getContext('2d');
+    new Chart(ctxRetire, {
+        type: 'bar',
+        data: {
+            labels: ['Đang làm việc', 'Sắp nghỉ hưu (2026)', 'Đã nghỉ hưu'],
+            datasets: [{
+                label: 'Số lượng (người)',
+                data: [970, 45, 6],
+                backgroundColor: ['#28a745', '#ffc107', '#6c757d'],
+                borderRadius: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: { y: { beginAtZero: true } }
         }
+    });
 
-        // Khởi tạo Chart cho tab Nhân sự
-        new Chart(document.getElementById('genderChart').getContext('2d'), {
-            type: 'doughnut',
-            data: { labels: ['Nam', 'Nữ'], datasets: [{ data: [671, 305], backgroundColor: ['#007bff', '#e83e8c'] }] },
-            options: { responsive: true, maintainAspectRatio: false }
-        });
+    // --- LOGIC LỌC DỮ LIỆU ---
+    const searchInp = document.getElementById('searchInp');
+    const statusFilter = document.getElementById('statusFilter');
+    const unitFilter = document.getElementById('unitFilter');
+    const tableRows = document.querySelectorAll('#employeeTableBody tr');
 
-        new Chart(document.getElementById('retirementChart').getContext('2d'), {
-            type: 'bar',
-            data: { labels: ['Đang làm việc', 'Sắp nghỉ hưu', 'Đã nghỉ hưu'], datasets: [{ label: 'Người', data: [970, 45, 6], backgroundColor: ['#28a745', '#ffc107', '#6c757d'] }] },
-            options: { responsive: true, maintainAspectRatio: false }
+    function filterTable() {
+        const searchText = searchInp.value.toLowerCase();
+        const statusValue = statusFilter.value;
+        const unitValue = unitFilter.value;
+
+        tableRows.forEach(row => {
+            const rowText = row.innerText.toLowerCase();
+            const rowStatus = row.getAttribute('data-status');
+            const rowUnit = row.getAttribute('data-unit');
+
+            const matchSearch = rowText.includes(searchText);
+            const matchStatus = (statusValue === 'all' || rowStatus === statusValue);
+            const matchUnit = (unitValue === 'all' || rowUnit === unitValue);
+
+            if (matchSearch && matchStatus && matchUnit) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
         });
-    </script>
+    }
+
+    searchInp.addEventListener('input', filterTable);
+    statusFilter.addEventListener('change', filterTable);
+    unitFilter.addEventListener('change', filterTable);
+</script>
 </body>
 </html>
