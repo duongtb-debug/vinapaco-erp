@@ -1,11 +1,5 @@
 <!-- Chosen Palette: Slate Navy & Blue Accent -->
-<!-- Application Structure Plan: Centralized HR dashboard layout that brings back the interactive Chart.js visualizations alongside the master employee data grid. Tab 1 hosts three essential analytic charts (Retirement Forecast, Gender Diversity, and Department Split) along with top-level KPI counters. Tab 2 manages assets with automated UTF-8 QR code generation. Tab 3 covers maintenance expenses with a real-time VAT tax calculator and billing metrics. -->
-<!-- Visualization & Content Choices: 
-    - Total Stats -> Goal: Inform -> Dynamic KPI cards -> Real-time counts (including perfected ATV & NNDH active counters)
-    - Retirement Forecast -> Goal: Change over time -> Bar Chart (Chart.js) -> Yearly trends up to 2050
-    - Gender Diversity -> Goal: Proportions -> Doughnut Chart (Chart.js) -> Percentage breakdown of Nam vs Nữ
-    - Department Distribution -> Goal: Compare -> Horizontal Bar Chart (Chart.js) -> Top 5 department sizes
-    No SVG/Mermaid used. -->
+<!-- Application Structure Plan: Centralized HR dashboard layout with Tab 1 hosting retirement and demographic visual charts, Tab 2 managing assets handover with robust UTF-8 QR code generation and instant click suggestion, and Tab 3 for repair logs capturing the newly added "Tên hồ sơ quyết toán" and "Đơn vị thụ hưởng" alongside automatic VAT calculators. Added custom gorgeous toast/modal system to replace basic alerts. -->
 <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
 <!DOCTYPE html>
 <html lang="vi">
@@ -17,8 +11,10 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.4.4/qrcode.min.js"></script>
+    <!-- Thư viện QRCode hiện đại, tương thích tốt UTF-8 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
 
     <style>
         :root {
@@ -84,7 +80,7 @@
         .suggest-item:hover { background: #f1f5f9; }
         .suggest-item b { color: var(--accent); }
 
-        .qr-canvas canvas { margin: 0 auto; display: block; width: 75px; height: 75px; }
+        .qr-canvas img, .qr-canvas canvas { margin: 0 auto; display: block; width: 75px; height: 75px; }
         .btn-table-edit { background: none; border: none; color: var(--accent); font-weight: 600; cursor: pointer; margin-right: 10px; }
         .btn-table-del { background: none; border: none; color: var(--danger); font-weight: 600; cursor: pointer; }
 
@@ -92,6 +88,9 @@
         .chart-box { background: white; padding: 18px; border-radius: 8px; border: 1px solid var(--border-color); }
         .chart-box h4 { font-size: 15px; color: var(--primary-light); margin-bottom: 12px; font-weight: 700; text-transform: uppercase; border-left: 4px solid var(--accent); padding-left: 8px; }
         .chart-container { position: relative; width: 100%; height: 260px; max-height: 280px; }
+
+        /* Toast & Modal System */
+        #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
 
         @media (max-width: 1024px) {
             .chart-grid { grid-template-columns: 1fr; }
@@ -153,7 +152,7 @@
             </div>
             <div style="display: flex; gap: 8px;">
                 <div class="btn btn-file"><i class="fa-solid fa-file-excel"></i> Đồng bộ File gốc Excel<input type="file" onchange="importExcelNhanSu(this)" accept=".xlsx, .xls"></div>
-                <button class="btn btn-danger" onclick="clearDataCloud('nhan_su')"><i class="fa-solid fa-trash-can"></i> Xóa dữ liệu Đám mây</button>
+                <button class="btn btn-danger" onclick="confirmClearDataCloud('nhan_su')"><i class="fa-solid fa-trash-can"></i> Xóa dữ liệu Đám mây</button>
             </div>
         </div>
 
@@ -193,24 +192,24 @@
                 <input type="hidden" id="editing_device_id">
                 
                 <div class="form-group">
+                    <label>Mã đơn vị tiếp quản</label>
+                    <select id="dev_filter_donvi" onchange="handleUnitChange()">
+                        <option value="">-- Chọn đơn vị --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Tìm nhân sự bàn giao (Kích vào hiện ngay danh sách ĐV)</label>
+                    <input type="text" id="dev_user_search" oninput="smartSuggest(this)" onfocus="smartSuggest(this)" onclick="smartSuggest(this)" placeholder="Kích chuột để xem nhanh nhân viên thuộc ĐV...">
+                    <input type="hidden" id="dev_user_id">
+                    <div class="suggest-box" id="dev_suggest"></div>
+                </div>
+                <div class="form-group">
                     <label>Tên thiết bị tài sản *</label>
                     <input type="text" id="dev_name" placeholder="Ví dụ: Máy tính Laptop Dell XPS">
                 </div>
                 <div class="form-group">
                     <label>Số Sê-ri / Mã tài sản (Để trống tự tạo)</label>
                     <input type="text" id="dev_code" placeholder="Ví dụ: EQ882910">
-                </div>
-                <div class="form-group">
-                    <label>Tìm nhân sự bàn giao</label>
-                    <input type="text" id="dev_user_search" oninput="smartSuggest(this)" onfocus="smartSuggest(this)" onclick="smartSuggest(this)" placeholder="Nhập tên nhân viên để tìm...">
-                    <input type="hidden" id="dev_user_id">
-                    <div class="suggest-box" id="dev_suggest"></div>
-                </div>
-                <div class="form-group">
-                    <label>Mã đơn vị tiếp quản</label>
-                    <select id="dev_filter_donvi" onchange="smartSuggest(document.getElementById('dev_user_search'))">
-                        <option value="">-- Chọn đơn vị --</option>
-                    </select>
                 </div>
                 <div class="form-group">
                     <label>Trạng thái vận hành</label>
@@ -263,8 +262,18 @@
                 <h3 style="margin-bottom:15px; color:var(--primary);"><i class="fa-solid fa-receipt"></i> Phiếu Hạch Toán</h3>
                 
                 <div class="form-group">
-                    <label>Tìm thiết bị cần sửa chữa *</label>
-                    <input type="text" id="rep_device_search" oninput="suggestRepairDevice(this)" onfocus="suggestRepairDevice(this)" onclick="suggestRepairDevice(this)" placeholder="Nhập tên hoặc mã tài sản...">
+                    <label>Tên hồ sơ hạch toán quyết toán *</label>
+                    <input type="text" id="rep_file_name" placeholder="Ví dụ: HSQT-2026-M02">
+                </div>
+                <div class="form-group">
+                    <label>Đơn vị thụ hưởng *</label>
+                    <select id="rep_beneficiary">
+                        <option value="">-- Chọn đơn vị thụ hưởng --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Tìm thiết bị cần sửa chữa * (Kích hiện danh sách)</label>
+                    <input type="text" id="rep_device_search" oninput="suggestRepairDevice(this)" onfocus="suggestRepairDevice(this)" onclick="suggestRepairDevice(this)" placeholder="Nhấp chọn thiết bị...">
                     <input type="hidden" id="rep_device_code">
                     <input type="hidden" id="rep_device_name">
                     <div class="suggest-box" id="rep_device_suggest"></div>
@@ -315,7 +324,7 @@
             <div>
                 <div class="toolbar" style="margin-bottom:15px;">
                     <div class="search-box">
-                        <input type="text" id="search_suachua_input" oninput="displayRepairLogs()" placeholder="Lọc nhật ký theo thiết bị, nội dung bảo dưỡng...">
+                        <input type="text" id="search_suachua_input" oninput="displayRepairLogs()" placeholder="Lọc nhật ký theo thiết bị, tên hồ sơ, đơn vị thụ hưởng...">
                     </div>
                 </div>
                 <div class="table-container">
@@ -324,6 +333,8 @@
                             <tr>
                                 <th>Mã Tài Sản</th>
                                 <th>Tên Thiết Bị</th>
+                                <th>Tên Hồ Sơ</th>
+                                <th>ĐV Thụ Hưởng</th>
                                 <th>Nội Dung Chi Tiết</th>
                                 <th>Giá Trước Thuế</th>
                                 <th>Thuế VAT</th>
@@ -339,7 +350,28 @@
             </div>
         </div>
     </div>
-</div>
+
+    <!-- Custom Toast Notification Box -->
+    <div id="toast-container"></div>
+
+    <!-- Custom Beautiful Modal Dialogs -->
+    <div id="custom-modal-bg" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-100 transform scale-95 transition-transform duration-300" id="custom-modal-card">
+            <div class="p-6">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-lg" id="custom-modal-icon">
+                        <i class="fa-solid fa-circle-question"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-800" id="custom-modal-title">Xác nhận hành động</h3>
+                </div>
+                <p class="text-slate-600 text-sm mb-6" id="custom-modal-msg">Bạn có chắc chắn muốn thực hiện hành động này không?</p>
+                <div class="flex justify-end gap-3" id="custom-modal-actions">
+                    <button class="px-4 py-2 border border-slate-200 text-slate-600 font-semibold rounded-lg hover:bg-slate-50 transition-colors text-sm" onclick="closeCustomConfirm(false)">Hủy</button>
+                    <button class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors text-sm" id="custom-modal-confirm-btn" onclick="closeCustomConfirm(true)">Đồng ý</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
 <!-- ========================================== -->
 <!-- LOGIC PHẦN MỀM ĐIỀU HÀNH -->
@@ -360,13 +392,14 @@
     let genderChartInst = null;
     let deptChartInst = null;
 
+    let confirmCallback = null;
+
     window.onload = async function() { 
         let datePicker = document.getElementById('rep_date');
         if(datePicker) datePicker.value = new Date().toISOString().split('T')[0];
         await fetchAllData(); 
         await fetchRepairLogs();
 
-        // Tự động đóng các ô gợi ý khi bấm chuột ra ngoài
         document.addEventListener('click', function(e) {
             const devSuggest = document.getElementById('dev_suggest');
             const devSearch = document.getElementById('dev_user_search');
@@ -381,6 +414,72 @@
             }
         });
     };
+
+    /* Toast notification helper */
+    function showNotification(message, type = 'success') {
+        const container = document.getElementById('toast-container');
+        if (!container) return;
+
+        const toast = document.createElement('div');
+        toast.className = `flex items-center gap-3 p-4 bg-white rounded-xl shadow-xl border-l-4 transition-all duration-300 transform translate-x-5 opacity-0 text-sm max-w-sm `;
+        
+        if (type === 'success') {
+            toast.className += 'border-emerald-500 text-slate-800';
+            toast.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-500 text-lg"></i> <div class="flex-1">${message}</div>`;
+        } else if (type === 'error') {
+            toast.className += 'border-rose-500 text-slate-800';
+            toast.innerHTML = `<i class="fa-solid fa-circle-xmark text-rose-500 text-lg"></i> <div class="flex-1">${message}</div>`;
+        } else {
+            toast.className += 'border-blue-500 text-slate-800';
+            toast.innerHTML = `<i class="fa-solid fa-circle-info text-blue-500 text-lg"></i> <div class="flex-1">${message}</div>`;
+        }
+
+        container.appendChild(toast);
+        setTimeout(() => {
+            toast.classList.remove('translate-x-5', 'opacity-0');
+        }, 10);
+
+        setTimeout(() => {
+            toast.classList.add('translate-x-5', 'opacity-0');
+            setTimeout(() => toast.remove(), 300);
+        }, 3500);
+    }
+
+    /* Custom confirmation dialog box */
+    function showCustomConfirm(title, message, iconType = 'confirm', callback) {
+        const modalBg = document.getElementById('custom-modal-bg');
+        const modalTitle = document.getElementById('custom-modal-title');
+        const modalMsg = document.getElementById('custom-modal-msg');
+        const modalIcon = document.getElementById('custom-modal-icon');
+        const confirmBtn = document.getElementById('custom-modal-confirm-btn');
+
+        if (!modalBg) return;
+
+        modalTitle.innerText = title;
+        modalMsg.innerText = message;
+        confirmCallback = callback;
+
+        if (iconType === 'danger') {
+            modalIcon.className = 'w-10 h-10 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center text-lg';
+            modalIcon.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i>`;
+            confirmBtn.className = 'px-4 py-2 bg-rose-600 text-white font-semibold rounded-lg hover:bg-rose-700 transition-colors text-sm';
+        } else {
+            modalIcon.className = 'w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-lg';
+            modalIcon.innerHTML = `<i class="fa-solid fa-circle-question"></i>`;
+            confirmBtn.className = 'px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors text-sm';
+        }
+
+        modalBg.classList.remove('hidden');
+    }
+
+    function closeCustomConfirm(isConfirmed) {
+        const modalBg = document.getElementById('custom-modal-bg');
+        if (modalBg) modalBg.classList.add('hidden');
+        if (isConfirmed && confirmCallback) {
+            confirmCallback();
+        }
+        confirmCallback = null;
+    }
 
     // Hàm kiểm tra cột chính xác từ Database qua SQL probe (Direct Query Verification)
     async function checkColumnExists(tableName, columnName) {
@@ -490,11 +589,14 @@
         if(selectHoso) selectHoso.innerHTML = '<option value="">-- Tất cả Mã Đơn Vị --</option>';
         const selectDev = document.getElementById('dev_filter_donvi');
         if(selectDev) selectDev.innerHTML = '<option value="">-- Chọn đơn vị --</option>';
+        const selectRepBeneficiary = document.getElementById('rep_beneficiary');
+        if(selectRepBeneficiary) selectRepBeneficiary.innerHTML = '<option value="">-- Chọn đơn vị thụ hưởng --</option>';
 
         uniqueDonVi.forEach(dv => { 
             let opt = `<option value="${dv}">Mã Đơn Vị: ${dv}</option>`;
             if(selectHoso) selectHoso.innerHTML += opt; 
             if(selectDev) selectDev.innerHTML += opt;
+            if(selectRepBeneficiary) selectRepBeneficiary.innerHTML += `<option value="${dv}">Đơn vị ${dv}</option>`;
         });
     }
 
@@ -738,23 +840,16 @@
                 <td class="text-center"><span class="badge ${statusClass}">${currentStatus}</span></td>
                 <td class="text-center">
                     <button class="btn-table-edit" onclick="editDevice('${x.id}')"><i class="fa-solid fa-pen"></i> Sửa</button>
-                    <button class="btn-table-del" onclick="deleteDevice('${x.id}')"><i class="fa-solid fa-trash"></i> Xóa</button>
+                    <button class="btn-table-del" onclick="confirmDeleteDevice('${x.id}')"><i class="fa-solid fa-trash"></i> Xóa</button>
                 </td>
             `;
             tbody.appendChild(tr);
 
-            // Vẽ QR Code trực tiếp lên Canvas HTML5 mới để hiển thị mượt mà kể cả khi tab bị ẩn lúc khởi động
+            // Sinh mã QR Code động hoàn toàn tương thích tiếng Việt có dấu
             setTimeout(() => {
                 const qrContainer = document.getElementById(`qr_${x.device_code}`);
                 if(qrContainer) {
                     qrContainer.innerHTML = "";
-                    const canvas = document.createElement('canvas');
-                    canvas.style.width = "75px";
-                    canvas.style.height = "75px";
-                    canvas.style.display = "block";
-                    canvas.style.margin = "0 auto";
-                    qrContainer.appendChild(canvas);
-
                     let rawTagString = 
                         `MÃ TÀI SẢN\n` +
                         `-----------\n` +
@@ -764,37 +859,54 @@
                         `Nhân sự: ${x.user_name || 'KHO'}\n` +
                         `Trạng thái: ${currentStatus.toUpperCase()}`;
 
-                    QRCode.toCanvas(canvas, rawTagString, {
-                        width: 150,
-                        margin: 1,
-                        color: {
-                            dark: "#0f172a",
-                            light: "#ffffff"
-                        }
-                    }, function(error) {
-                        if (error) console.error("Lỗi vẽ QR Code: ", error);
-                    });
+                    try {
+                        const typeNumber = 0; // Tự động nhận dạng độ dài dữ liệu
+                        const errorCorrectionLevel = 'M';
+                        const qr = qrcode(typeNumber, errorCorrectionLevel);
+                        qr.addData(rawTagString);
+                        qr.make();
+                        qrContainer.innerHTML = qr.createImgTag(3, 4); // size: 3px/cell, margin: 4px
+                    } catch(err) {
+                        console.error("Lỗi vẽ QR Code: ", err);
+                        qrContainer.innerHTML = `<span style='color:red; font-size:10px;'>Lỗi QR</span>`;
+                    }
                 }
             }, 60);
         });
     }
 
+    function handleUnitChange() {
+        const searchInput = document.getElementById('dev_user_search');
+        if(searchInput) {
+            searchInput.value = "";
+            document.getElementById('dev_user_id').value = "";
+            smartSuggest(searchInput);
+        }
+    }
+
     function smartSuggest(input) {
-        const val = input.value.toLowerCase().trim(); const box = document.getElementById('dev_suggest'); const selectedDV = document.getElementById('dev_filter_donvi').value;
-        if(!box) return; box.innerHTML = ""; if(!val && !selectedDV) { box.style.display = "none"; return; }
+        const val = input.value.toLowerCase().trim(); 
+        const box = document.getElementById('dev_suggest'); 
+        const selectedDV = document.getElementById('dev_filter_donvi').value;
+        if(!box) return; 
+        box.innerHTML = ""; 
 
         let matches = DB_NHAN_SU.filter(x => {
             let matchName = !val || (x.ho_ten && x.ho_ten.toLowerCase().includes(val));
             let matchDV = !selectedDV || String(x.ma_don_vi) === String(selectedDV);
             return matchName && matchDV;
-        }).slice(0, 8);
+        }).slice(0, 15); // Nới rộng danh sách hiển thị
 
         if(matches.length === 0) { box.style.display = "none"; return; }
         box.style.display = "block";
         matches.forEach(m => {
             let div = document.createElement('div'); div.className = "suggest-item";
             div.innerHTML = `<span><b>${m.ho_ten}</b> - ĐV: ${m.ma_don_vi}</span>`;
-            div.onclick = () => { input.value = m.ho_ten; document.getElementById('dev_user_id').value = m.id; box.style.display = "none"; };
+            div.onclick = () => { 
+                input.value = m.ho_ten; 
+                document.getElementById('dev_user_id').value = m.id; 
+                box.style.display = "none"; 
+            };
             box.appendChild(div);
         });
     }
@@ -805,12 +917,15 @@
     }
 
     async function saveDeviceConfig() {
-        const devName = document.getElementById('dev_name').value.trim(); let devCode = document.getElementById('dev_code').value.trim();
-        const userId = document.getElementById('dev_user_id').value; const userName = document.getElementById('dev_user_search').value.trim();
-        const donVi = document.getElementById('dev_filter_donvi').value; const status = document.getElementById('dev_status_select').value;
+        const devName = document.getElementById('dev_name').value.trim(); 
+        let devCode = document.getElementById('dev_code').value.trim();
+        const userId = document.getElementById('dev_user_id').value; 
+        const userName = document.getElementById('dev_user_search').value.trim();
+        const donVi = document.getElementById('dev_filter_donvi').value; 
+        const status = document.getElementById('dev_status_select').value;
         const editId = document.getElementById('editing_device_id').value;
 
-        if(!devName) { alert("Vui lòng điền tên thiết bị tài sản!"); return; }
+        if(!devName) { showNotification("Vui lòng điền tên thiết bị tài sản!", "error"); return; }
         if(!devCode) { devCode = "EQ" + Math.floor(100000 + Math.random() * 900000); }
 
         let rowData = { device_name: devName, device_code: devCode, user_id: userId ? String(userId).replace('#', '') : null, user_name: userName, ma_don_vi: donVi || "10", status: status };
@@ -818,33 +933,44 @@
         if(editId) await client.from('thiet_bi').update(rowData).eq('id', editId);
         else await client.from('thiet_bi').insert([rowData]);
         
-        alert("Lưu cấu hình thiết bị thành công!");
-        document.getElementById('editing_device_id').value = ""; document.getElementById('dev_name').value = ""; document.getElementById('dev_code').value = ""; resetSelectedUser();
+        showNotification("Lưu cấu hình thiết bị thành công!", "success");
+        document.getElementById('editing_device_id').value = ""; 
+        document.getElementById('dev_name').value = ""; 
+        document.getElementById('dev_code').value = ""; 
+        resetSelectedUser();
         await fetchAndReloadThietBi();
     }
 
     function editDevice(id) {
         let item = DB_THIET_BI.find(x => String(x.id) === String(id)); if(!item) return;
         if(document.getElementById('form_device_title')) document.getElementById('form_device_title').innerHTML = `<i class="fa-solid fa-pen"></i> Sửa Thiết Bị`;
-        document.getElementById('editing_device_id').value = item.id; document.getElementById('dev_name').value = item.device_name;
-        document.getElementById('dev_code').value = item.device_code; document.getElementById('dev_user_search').value = item.user_name || "";
-        document.getElementById('dev_user_id').value = item.user_id || ""; document.getElementById('dev_filter_donvi').value = item.ma_don_vi || "";
+        document.getElementById('editing_device_id').value = item.id; 
+        document.getElementById('dev_name').value = item.device_name;
+        document.getElementById('dev_code').value = item.device_code; 
+        document.getElementById('dev_user_search').value = item.user_name || "";
+        document.getElementById('dev_user_id').value = item.user_id || ""; 
+        document.getElementById('dev_filter_donvi').value = item.ma_don_vi || "";
         document.getElementById('dev_status_select').value = item.status || "Đang sử dụng";
     }
 
-    async function deleteDevice(id) {
-        if(!confirm("Bạn có chắc chắn muốn xóa thiết bị này không?")) return;
-        await client.from('thiet_bi').delete().eq('id', id); await fetchAndReloadThietBi();
+    function confirmDeleteDevice(id) {
+        showCustomConfirm("Xác nhận xóa", "Bạn có chắc chắn muốn xóa thiết bị này khỏi hệ thống không?", "danger", async () => {
+            await client.from('thiet_bi').delete().eq('id', id); 
+            showNotification("Đã xóa thiết bị thành công!", "success");
+            await fetchAndReloadThietBi();
+        });
     }
 
     function suggestRepairDevice(input) {
-        const val = input.value.toLowerCase().trim(); const box = document.getElementById('rep_device_suggest');
-        if(!box) return; box.innerHTML = "";
+        const val = input.value.toLowerCase().trim(); 
+        const box = document.getElementById('rep_device_suggest');
+        if(!box) return; 
+        box.innerHTML = "";
         
         let matches = DB_THIET_BI.filter(x => {
             if (!val) return true;
             return (x.device_name && x.device_name.toLowerCase().includes(val)) || (x.device_code && x.device_code.toLowerCase().includes(val));
-        }).slice(0, 5);
+        }).slice(0, 10);
 
         if(matches.length === 0) { box.style.display = "none"; return; }
         box.style.display = "block";
@@ -882,6 +1008,8 @@
     }
 
     async function saveRepairLog() {
+        const fileName = document.getElementById('rep_file_name').value.trim();
+        const beneficiary = document.getElementById('rep_beneficiary').value;
         const devCode = document.getElementById('rep_device_code').value;
         const devName = document.getElementById('rep_device_name').value;
         const content = document.getElementById('rep_content').value.trim();
@@ -890,27 +1018,41 @@
         const payStatus = document.getElementById('rep_payment_status').value;
         const repDate = document.getElementById('rep_date').value;
 
-        if(!devCode || !content) { alert("Vui lòng tìm chọn thiết bị tài sản và điền nội dung bảo dưỡng!"); return; }
+        if(!fileName) { showNotification("Vui lòng nhập tên hồ sơ quyết toán!", "error"); return; }
+        if(!beneficiary) { showNotification("Vui lòng chọn đơn vị thụ hưởng!", "error"); return; }
+        if(!devCode || !content) { showNotification("Vui lòng tìm chọn thiết bị tài sản và điền nội dung bảo dưỡng!", "error"); return; }
 
         let taxPercent = (selectRate === 'custom') ? (parseFloat(document.getElementById('rep_tax_custom_val').value) || 0) : parseFloat(selectRate);
         let taxMoney = Math.round(costBefore * (taxPercent / 100));
         let totalCost = costBefore + taxMoney;
 
         let logData = {
-            device_code: devCode, device_name: devName, noi_dung: content,
-            chi_phi_truoc_thue: costBefore, thue_suat: taxPercent,
-            tien_thue: taxMoney, tong_chi_phi: totalCost,
-            payment_status: payStatus, status: payStatus,
-            ngay_thuc_hien: repDate || new Date().toISOString().split('T')[0]
+            device_code: devCode, 
+            device_name: devName, 
+            noi_dung: content,
+            chi_phi_truoc_thue: costBefore, 
+            thue_suat: taxPercent,
+            tien_thue: taxMoney, 
+            tong_chi_phi: totalCost,
+            payment_status: payStatus, 
+            status: payStatus,
+            ngay_thuc_hien: repDate || new Date().toISOString().split('T')[0],
+            ten_ho_so: fileName,
+            don_vi_thu_huong: beneficiary
         };
 
         let { error } = await client.from('nhat_ky_sua_chua').insert([logData]);
-        if(error) { alert("Lỗi: " + error.message); return; }
+        if(error) { showNotification("Lỗi cơ sở dữ liệu: " + error.message, "error"); return; }
 
-        alert("Đã hạch toán sửa chữa thành công!");
-        document.getElementById('rep_device_search').value = ""; document.getElementById('rep_device_code').value = "";
-        document.getElementById('rep_content').value = ""; document.getElementById('rep_cost_before').value = "0";
-        calculateFlexibleTax(); await fetchRepairLogs();
+        showNotification("Đã hạch toán sửa chữa thành công!", "success");
+        document.getElementById('rep_file_name').value = "";
+        document.getElementById('rep_beneficiary').value = "";
+        document.getElementById('rep_device_search').value = ""; 
+        document.getElementById('rep_device_code').value = "";
+        document.getElementById('rep_content').value = ""; 
+        document.getElementById('rep_cost_before').value = "0";
+        calculateFlexibleTax(); 
+        await fetchRepairLogs();
     }
 
     function displayRepairLogs() {
@@ -922,11 +1064,15 @@
 
         let filtered = DB_NHAT_KY.filter(x => {
             if(!kw) return true;
-            return (x.device_code && x.device_code.toLowerCase().includes(kw)) || (x.noi_dung && x.noi_dung.toLowerCase().includes(kw)) || (x.device_name && x.device_name.toLowerCase().includes(kw));
+            return (x.device_code && x.device_code.toLowerCase().includes(kw)) || 
+                   (x.noi_dung && x.noi_dung.toLowerCase().includes(kw)) || 
+                   (x.device_name && x.device_name.toLowerCase().includes(kw)) ||
+                   (x.ten_ho_so && x.ten_ho_so.toLowerCase().includes(kw)) ||
+                   (x.don_vi_thu_huong && x.don_vi_thu_huong.toLowerCase().includes(kw));
         });
 
         if(filtered.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="9" class="text-center" style="color:#64748b; padding:20px;">Không tìm thấy lịch sử phù hợp.</td></tr>`; return;
+            tbody.innerHTML = `<tr><td colspan="11" class="text-center" style="color:#64748b; padding:20px;">Không tìm thấy lịch sử phù hợp.</td></tr>`; return;
         }
 
         filtered.forEach(x => {
@@ -939,6 +1085,8 @@
             tr.innerHTML = `
                 <td><code>${x.device_code}</code></td>
                 <td><b>${x.device_name || '--'}</b></td>
+                <td><span class="font-semibold text-slate-700">${x.ten_ho_so || '--'}</span></td>
+                <td class="text-center"><span class="badge" style="background:#e2e8f0; color:#334155;">ĐV ${x.don_vi_thu_huong || '--'}</span></td>
                 <td>${x.noi_dung}</td>
                 <td>${(x.chi_phi_truoc_thue || 0).toLocaleString('vi-VN')} đ</td>
                 <td><span class="badge" style="background:#e0f2fe; color:#0369a1;">${x.thue_suat}%</span></td>
@@ -1043,7 +1191,7 @@
                     raw: true 
                 });
                 
-                if(json.length === 0) { alert("Không tìm thấy hàng dữ liệu nào khả thi trong file Excel!"); return; }
+                if(json.length === 0) { showNotification("Không tìm thấy hàng dữ liệu nào khả thi trong file Excel!", "error"); return; }
 
                 let excelHeaders = Object.keys(json[0]);
 
@@ -1063,7 +1211,7 @@
                 };
 
                 if(!checkColumnExist(["hovaten", "hoten", "ten"])) {
-                    alert("LỖI: Hệ thống không thể định vị được cột 'Họ và tên' trong file Excel này. Vui lòng kiểm tra lại cấu trúc file nạp.");
+                    showNotification("LỖI: Hệ thống không thể định vị được cột 'Họ và tên' trong file Excel này. Vui lòng kiểm tra lại cấu trúc file nạp.", "error");
                     return;
                 }
 
@@ -1124,27 +1272,33 @@
                     listRows.push(record);
                 });
 
-                if (listRows.length === 0) { alert("Không tìm thấy dòng dữ liệu nào khả thi."); return; }
+                if (listRows.length === 0) { showNotification("Không tìm thấy dòng dữ liệu nào khả thi.", "error"); return; }
 
                 localStorage.setItem('local_atv_nndh', JSON.stringify(localMapping));
 
                 await client.from('nhan_su').delete().neq('id', 0);
                 let { error } = await client.from('nhan_su').insert(listRows);
-                if(error) { alert("Lỗi tải lên cơ sở dữ liệu: " + error.message); return; }
+                if(error) { showNotification("Lỗi tải lên cơ sở dữ liệu: " + error.message, "error"); return; }
                 
-                alert(`Thành công! Đã đồng bộ ${listRows.length} nhân sự lên đám mây với thông tin chuẩn hóa hoàn thiện (bao gồm ATV & NNĐH).`); 
+                showNotification(`Thành công! Đã đồng bộ ${listRows.length} nhân sự với thông tin chuẩn hóa.`, "success"); 
                 await fetchAllData();
-            } catch(err) { alert("Lỗi xử lý file Excel: " + err.message); }
+            } catch(err) { showNotification("Lỗi xử lý file Excel: " + err.message, "error"); }
         };
         reader.readAsArrayBuffer(file);
     }
 
-    async function clearDataCloud(tableName) {
-        if(!confirm("Bạn có chắc muốn xóa toàn bộ dữ liệu trên Đám mây không?")) return;
-        let pass = prompt("Mã bảo mật ứng dụng:"); if(pass !== "admin123") return;
-        await client.from(tableName).delete().neq('id', 0); 
-        localStorage.removeItem('local_atv_nndh'); 
-        await fetchAllData();
+    function confirmClearDataCloud(tableName) {
+        showCustomConfirm("Xóa toàn bộ dữ liệu", "Bạn có chắc chắn muốn xóa toàn bộ dữ liệu trên đám mây không? Thao tác này không thể hoàn tác!", "danger", async () => {
+            let pass = prompt("Mã bảo mật ứng dụng:"); 
+            if(pass !== "admin123") {
+                showNotification("Sai mã bảo mật! Thao tác bị hủy.", "error");
+                return;
+            }
+            await client.from(tableName).delete().neq('id', 0); 
+            localStorage.removeItem('local_atv_nndh'); 
+            showNotification("Đã xóa sạch dữ liệu trên đám mây thành công!", "success");
+            await fetchAllData();
+        });
     }
 </script>
 </body>
