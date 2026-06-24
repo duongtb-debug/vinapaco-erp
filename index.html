@@ -367,23 +367,17 @@
         await fetchRepairLogs();
     };
 
-    async function getTableColumns(tableName) {
+    // Hàm kiểm tra cột chính xác từ Database qua SQL probe (Direct Query Verification)
+    async function checkColumnExists(tableName, columnName) {
         try {
-            let { data } = await client.from(tableName).select('*').limit(1);
-            if (data && data.length > 0) {
-                return Object.keys(data[0]);
+            const { error } = await client.from(tableName).select(columnName).limit(1);
+            if (error && (error.code === '42703' || error.message.toLowerCase().includes('column') || error.message.toLowerCase().includes('not find'))) {
+                return false;
             }
-            let response = await fetch(`${SUPABASE_URL}/rest/v1/`, {
-                headers: { 'apikey': SUPABASE_KEY }
-            });
-            let schema = await response.json();
-            if (schema && schema.definitions && schema.definitions[tableName]) {
-                return Object.keys(schema.definitions[tableName].properties);
-            }
+            return true;
         } catch (e) {
-            console.error("Lỗi lấy cấu trúc cột bảng:", e);
+            return false;
         }
-        return ['stt_excel', 'ho_ten', 'so_so_bhxh', 'so_cccd', 'gioi_tinh', 'nam_sinh', 'nam_ve_huu', 'ma_don_vi', 'chuc_danh_cong_viec', 'atv', 'an_toan_vien', 'nndh', 'nghe_doc_hai'];
     }
 
     async function fetchAllData() {
@@ -445,7 +439,7 @@
             if(gt === "nữ" || gt === "nu" || gt === "f") f++; else m++;
             
             let atvVal = x.an_toan_vien || x.atv;
-            if (atvVal && String(atvVal).trim() !== "" && String(atvVal).trim() !== "0" && String(atvVal).trim().toLowerCase() !== "false" && String(atvVal).trim().toLowerCase() !== "null") {
+            if (atvVal && String(atvVal).trim() !== "" && String(atvVal).trim() !== "0" && String(atvVal).trim().toLowerCase() !== "false") {
                 atv++;
             }
 
@@ -461,6 +455,7 @@
         if(document.getElementById('hr_stat_nndh')) document.getElementById('hr_stat_nndh').innerText = nndh + " người";
     }
 
+    // ... (Phần logic Dashboard, Dropdowns, switchSection, filter, date-parser giữ nguyên không thay đổi) ...
     function calculateRepairDashboard() {
         let totalRecords = DB_NHAT_KY ? DB_NHAT_KY.length : 0;
         let sumBefore = 0; let sumAfter = 0;
@@ -976,13 +971,17 @@
         return null;
     }
 
+    // --- ALGORITHM IMPORT ĐỒNG BỘ ĐÁM MÂY TỐI ƯU ---
     async function importExcelNhanSu(input) {
         const file = input.files[0]; if(!file) return;
         const reader = new FileReader();
         reader.onload = async function(e) {
             try {
-                // Xác định danh sách cột thực tế của database để tránh lỗi tải lên
-                let dbColumns = await getTableColumns('nhan_su');
+                // Sử dụng hàm SQL Probe trực tiếp để loại bỏ Swagger caching rườm rà
+                const hasAnToanVien = await checkColumnExists('nhan_su', 'an_toan_vien');
+                const hasAtv = await checkColumnExists('nhan_su', 'atv');
+                const hasNgheDocHai = await checkColumnExists('nhan_su', 'nghe_doc_hai');
+                const hasNndh = await checkColumnExists('nhan_su', 'nndh');
 
                 const data = new Uint8Array(e.target.result);
                 const workbook = XLSX.read(data, { type: 'array', cellDates: false, raw: true });
@@ -1069,7 +1068,6 @@
                     let maDonVi = getRawValFromExcel(row, ["madonvi", "donvi", "bophan", "madv", "ma_dv"]);
                     let chucDanh = getRawValFromExcel(row, ["chucdanh", "congviec", "chucdanhcongviec", "chucvu"]);
                     
-                    // Từ khóa mở rộng để bắt trọn vẹn cột ATV và Nghề độc hại tiếng Việt
                     let atvVal = getRawValFromExcel(row, ["antoanvien", "atv", "antoan", "vsv", "atvvsv", "dsatv"]);
                     let nndhVal = getRawValFromExcel(row, ["nndh", "nghedochai", "doc_hai", "dochai", "nghe_doc_hai", "congviecdochai"]);
 
@@ -1091,12 +1089,12 @@
                         chuc_danh_cong_viec: chucDanh
                     };
 
-                    // Ghi đè vào các trường trên Cloud chỉ khi cột tương ứng tồn tại trên database
-                    if (dbColumns.includes('an_toan_vien')) record['an_toan_vien'] = atvVal;
-                    if (dbColumns.includes('atv')) record['atv'] = atvVal;
+                    // Ghi đè vào các trường trên Cloud dựa trên kết quả SQL Probe trực tiếp
+                    if (hasAnToanVien) record['an_toan_vien'] = atvVal;
+                    else if (hasAtv) record['atv'] = atvVal;
 
-                    if (dbColumns.includes('nghe_doc_hai')) record['nghe_doc_hai'] = nndhVal;
-                    if (dbColumns.includes('nndh')) record['nndh'] = nndhVal;
+                    if (hasNgheDocHai) record['nghe_doc_hai'] = nndhVal;
+                    else if (hasNndh) record['nndh'] = nndhVal;
 
                     listRows.push(record);
                 });
