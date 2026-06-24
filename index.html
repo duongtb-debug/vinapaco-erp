@@ -94,7 +94,7 @@
         </div>
     </header>
 
-    <!-- THANH MENU CHUYỂN TAB CHÍNH (no-print) -->
+    <!-- THANH MENU CHUYỂY TAB CHÍNH (no-print) -->
     <div class="no-print max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
         <div class="flex space-x-2 border-b border-slate-200">
             <button id="tabBtn_hoso" onclick="switchSection('hoso')" class="px-5 py-3 border-b-2 border-blue-600 font-semibold text-sm text-blue-600 flex items-center gap-2 hover:text-blue-700 transition">
@@ -112,7 +112,7 @@
     <!-- ================================================================================================= -->
     <!-- TAB 1: HỒ SƠ NHÂN SỰ -->
     <!-- ================================================================================================= -->
-    <section id="sec_hoso" class="no-print max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <section id="sec_hoso" class="app-section no-print max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         
         <!-- CARD THỐNG KÊ KPI NHÂN SỰ -->
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -225,7 +225,7 @@
     <!-- ================================================================================================= -->
     <!-- TAB 2: CẤP PHÁT THIẾT BỊ TÀI SẢN -->
     <!-- ================================================================================================= -->
-    <section id="sec_thietbi" class="no-print max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 hidden">
+    <section id="sec_thietbi" class="app-section no-print max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 hidden">
         <div class="flex flex-col gap-6">
             
             <!-- BIỂU MẪU CẤP PHÁT THIẾT BỊ MỚI (GRID NGANG TOÀN MÀN HÌNH RỘNG RÃI) -->
@@ -303,7 +303,7 @@
     <!-- ================================================================================================= -->
     <!-- TAB 3: NHẬT KÝ SỬA CHỮA & CHỨNG TỪ -->
     <!-- ================================================================================================= -->
-    <section id="sec_suachua" class="no-print max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 hidden">
+    <section id="sec_suachua" class="app-section no-print max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 hidden">
         <div class="flex flex-col gap-6">
 
             <!-- THẺ ĐỒNG HỒ KPI SỬA CHỮA -->
@@ -1080,280 +1080,3 @@
                 box.appendChild(div);
             });
         }
-
-        // Đọc file đính kèm chứng từ dạng base64 để lưu trữ đám mây
-        function handleDocumentUpload(input) {
-            const file = input.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                document.getElementById('rep_doc_base64').value = e.target.result;
-                showToast("Đã đính kèm chứng từ thanh toán!");
-            };
-            reader.readAsDataURL(file);
-        }
-
-        function toggleCustomTaxField() {
-            const selectRate = document.getElementById('rep_tax_rate').value;
-            document.getElementById('custom_tax_group').style.display = (selectRate === 'custom') ? 'block' : 'none';
-            calculateFlexibleTax();
-        }
-
-        function calculateFlexibleTax() {
-            const costBefore = parseFloat(document.getElementById('rep_cost_before').value) || 0;
-            const selectRate = document.getElementById('rep_tax_rate').value;
-            let taxPercent = 0;
-            if(selectRate === 'custom') taxPercent = parseFloat(document.getElementById('rep_tax_custom_val').value) || 0;
-            else taxPercent = parseFloat(selectRate) || 0;
-            
-            let taxMoney = Math.round(costBefore * (taxPercent / 100));
-            let totalCost = costBefore + taxMoney;
-
-            if(document.getElementById('lbl_tax_money')) document.getElementById('lbl_tax_money').innerText = taxMoney.toLocaleString('vi-VN') + " VNĐ";
-            if(document.getElementById('lbl_total_cost')) document.getElementById('lbl_total_cost').innerText = totalCost.toLocaleString('vi-VN') + " VNĐ";
-        }
-
-        async function saveRepairLog() {
-            const devCode = document.getElementById('rep_device_code').value;
-            const devName = document.getElementById('rep_device_name').value;
-            const title = document.getElementById('rep_title').value.trim();
-            const beneficiary = document.getElementById('rep_beneficiary').value.trim();
-            const bankAccount = document.getElementById('rep_bank_account').value.trim();
-            const bankName = document.getElementById('rep_bank_name').value.trim();
-            const content = document.getElementById('rep_content').value.trim();
-            const costBefore = parseFloat(document.getElementById('rep_cost_before').value) || 0;
-            const selectRate = document.getElementById('rep_tax_rate').value;
-            const payStatus = document.getElementById('rep_payment_status').value;
-            const repDate = document.getElementById('rep_date').value;
-            const docBase64 = document.getElementById('rep_doc_base64').value;
-
-            if(!devCode || !title || !beneficiary) { showToast("Vui lòng nhập đầy đủ thông tin bắt buộc (*)", "warning"); return; }
-
-            let taxPercent = (selectRate === 'custom') ? (parseFloat(document.getElementById('rep_tax_custom_val').value) || 0) : parseFloat(selectRate);
-            let taxMoney = Math.round(costBefore * (taxPercent / 100));
-            let totalCost = costBefore + taxMoney;
-
-            let logData = {
-                device_code: devCode, 
-                device_name: devName, 
-                title: title,
-                beneficiary: beneficiary,
-                bank_account: bankAccount,
-                bank_name: bankName,
-                noi_dung: content,
-                chi_phi_truoc_thue: costBefore, 
-                thue_suat: taxPercent,
-                tien_thue: taxMoney, 
-                tong_chi_phi: totalCost,
-                payment_status: payStatus, 
-                status: payStatus,
-                ngay_thuc_hien: repDate || new Date().toISOString().split('T')[0],
-                attachment: docBase64
-            };
-
-            let { error } = await client.from('nhat_ky_sua_chua').insert([logData]);
-            if(error) { showToast("Lỗi đồng bộ: " + error.message, "danger"); return; }
-
-            showToast("Hạch toán hồ sơ thành công!");
-            resetRepairForm();
-            await fetchRepairLogs();
-        }
-
-        function resetRepairForm() {
-            document.getElementById('rep_device_search').value = ""; 
-            document.getElementById('rep_device_code').value = "";
-            document.getElementById('rep_title').value = ""; 
-            document.getElementById('rep_beneficiary').value = ""; 
-            document.getElementById('rep_bank_account').value = ""; 
-            document.getElementById('rep_bank_name').value = ""; 
-            document.getElementById('rep_content').value = ""; 
-            document.getElementById('rep_cost_before').value = "0";
-            document.getElementById('rep_doc_base64').value = "";
-            document.getElementById('rep_doc_file').value = "";
-            calculateFlexibleTax();
-        }
-
-        function displayRepairLogs() {
-            const tbody = document.getElementById('table_suachua_body'); if(!tbody) return;
-            tbody.innerHTML = "";
-            const kw = document.getElementById('search_suachua_input')?.value.toLowerCase().trim() || "";
-
-            if (!DB_NHAT_KY) DB_NHAT_KY = [];
-
-            let filtered = DB_NHAT_KY.filter(x => {
-                if(!kw) return true;
-                return (x.device_code && x.device_code.toLowerCase().includes(kw)) || (x.noi_dung && x.noi_dung.toLowerCase().includes(kw)) || (x.device_name && x.device_name.toLowerCase().includes(kw)) || (x.title && x.title.toLowerCase().includes(kw)) || (x.beneficiary && x.beneficiary.toLowerCase().includes(kw));
-            });
-
-            if(filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="10" class="text-center p-8 text-slate-400">Không thấy nhật ký sửa chữa phù hợp.</td></tr>`; return;
-            }
-
-            filtered.forEach(x => {
-                let pStatus = String(x.payment_status || x.status || "Chưa thanh toán").trim();
-                let badgeClass = "bg-rose-50 text-rose-700 border border-rose-200";
-                if(pStatus === "Đã thanh toán") badgeClass = "bg-emerald-50 text-emerald-700 border border-emerald-200";
-                if(pStatus === "Chờ duyệt") badgeClass = "bg-amber-50 text-amber-700 border border-amber-200";
-
-                let docLink = "";
-                if(x.attachment) {
-                    docLink = `<button onclick="viewDocAttachment('${x.id}')" class="text-blue-600 hover:text-blue-800 text-sm font-bold"><i class="fa-solid fa-file-invoice"></i> Xem</button>`;
-                } else {
-                    docLink = `<span class="text-slate-300">--</span>`;
-                }
-
-                let bankBlock = "";
-                if (x.bank_account) {
-                    bankBlock = `<div class="text-[10px] text-slate-400 mt-1"><i class="fa-solid fa-credit-card"></i> ${x.bank_account} (${x.bank_name || 'N/A'})</div>`;
-                }
-
-                let tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td class="p-3"><code>${x.device_code}</code></td>
-                    <td class="p-3 font-semibold">${x.device_name || '--'}</td>
-                    <td class="p-3 max-w-sm">
-                        <div class="font-bold text-slate-800 text-xs">${x.title || 'Hồ sơ quyết toán'}</div>
-                        <div class="text-[10px] text-slate-400 mt-0.5 truncate">${x.noi_dung || ''}</div>
-                    </td>
-                    <td class="p-3">${(x.chi_phi_truoc_thue || 0).toLocaleString('vi-VN')} đ</td>
-                    <td class="p-3 text-center"><span class="badge bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded">${x.thue_suat}%</span></td>
-                    <td class="p-3 font-bold text-emerald-600">${(x.tong_chi_phi || 0).toLocaleString('vi-VN')} đ</td>
-                    <td class="p-3">
-                        <div class="font-semibold text-slate-800 text-[11px]">${x.beneficiary || 'Nhà cung cấp'}</div>
-                        ${bankBlock}
-                    </td>
-                    <td class="p-3 text-center"><span class="badge ${badgeClass} px-2 py-0.5 rounded font-semibold text-[11px]">${pStatus}</span></td>
-                    <td class="p-3 text-center">${docLink}</td>
-                    <td class="p-3 text-center"><small>${x.ngay_thuc_hien || ''}</small></td>
-                `;
-                tbody.appendChild(tr);
-            });
-        }
-
-        function viewDocAttachment(id) {
-            let item = DB_NHAT_KY.find(x => String(x.id) === String(id));
-            if(!item || !item.attachment) return;
-
-            const modal = document.getElementById('docViewerModal');
-            const body = document.getElementById('docViewerBody');
-            const dl = document.getElementById('docViewerDownloadLink');
-
-            body.innerHTML = "";
-            dl.href = item.attachment;
-
-            if (item.attachment.startsWith("data:image")) {
-                body.innerHTML = `<img src="${item.attachment}" class="max-w-full max-h-[60vh] object-contain rounded border">`;
-            } else if (item.attachment.startsWith("data:application/pdf")) {
-                body.innerHTML = `<embed src="${item.attachment}" type="application/pdf" width="100%" height="450px" class="rounded border">`;
-            } else {
-                body.innerHTML = `<p class="text-xs text-slate-500">Tệp định dạng không xác định. Vui lòng tải về để xem chi tiết.</p>`;
-            }
-
-            modal.classList.remove('hidden');
-        }
-
-        function closeDocViewer() {
-            document.getElementById('docViewerModal').classList.add('hidden');
-        }
-
-        // --- HÀM XỬ LÝ CHUẨN HÓA TIẾNG VIỆT KHÔNG DẤU ---
-        function removeVietnameseTones(str) {
-            if (!str) return "";
-            let normalized = str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-            normalized = normalized.replace(/đ/g, "d").replace(/Đ/g, "D");
-            normalized = normalized.replace(/[àáạảãâầấậẩẫăằắặẳẵ]/g, "a");
-            normalized = normalized.replace(/[èéẹẻẽêềếệểễ]/g, "e");
-            normalized = normalized.replace(/[ìíịỉĩ]/g, "i");
-            normalized = normalized.replace(/[òóọỏõôồốộổỗơờớợởỡ]/g, "o");
-            normalized = normalized.replace(/[ùúụủũưừứựửữ]/g, "u");
-            normalized = normalized.replace(/[ỳýỵỷỹ]/g, "y");
-            return normalized;
-        }
-
-        function safeConvertToISODate(rawVal) {
-            if (!rawVal) return null; 
-            let str = String(rawVal).trim();
-            
-            if (!isNaN(str) && str.length >= 4 && !str.includes("/") && !str.includes("-")) {
-                let valFloat = parseFloat(str);
-                if (valFloat > 10000) {
-                    let d = new Date((valFloat - 25569) * 86400 * 1000);
-                    if (!isNaN(d.getTime())) {
-                        let month = String(d.getMonth() + 1).padStart(2, '0');
-                        let day = String(d.getDate()).padStart(2, '0');
-                        return `${d.getFullYear()}-${month}-${day}`;
-                    }
-                }
-            }
-            if (str.includes("/")) {
-                let parts = str.split("/");
-                if (parts.length === 3) {
-                    let day = parts[0].trim().padStart(2, '0');
-                    let month = parts[1].trim().padStart(2, '0');
-                    let year = parts[2].trim();
-                    if (year.length === 4) return `${year}-${month}-${day}`;
-                }
-            }
-            if (str.includes("-") && str.split("-")[0].length !== 4) {
-                let parts = str.split("-");
-                if (parts.length === 3) {
-                    return `${parts[2].trim()}-${parts[1].trim().padStart(2, '0')}-${parts[0].trim().padStart(2, '0')}`;
-                }
-            }
-            if (str.includes("-") && str.split("-")[0].length === 4) {
-                return str;
-            }
-            return null;
-        }
-
-        // --- THUẬT TOÁN ĐỒNG BỘ FILE EXCEL & QUÉT TIÊU ĐỀ TỰ ĐỘNG ---
-        async function importExcelNhanSu(input) {
-            const file = input.files[0]; if(!file) return;
-            const reader = new FileReader();
-            reader.onload = async function(e) {
-                try {
-                    const hasAnToanVien = await checkColumnExists('nhan_su', 'an_toan_vien');
-                    const hasAtv = await checkColumnExists('nhan_su', 'atv');
-                    const hasNgheDocHai = await checkColumnExists('nhan_su', 'nghe_doc_hai');
-                    const hasNndh = await checkColumnExists('nhan_su', 'nndh');
-
-                    const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, { type: 'array', cellDates: false, raw: true });
-                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-                    
-                    const range = XLSX.utils.decode_range(sheet['!ref']);
-                    let headerRowIndex = 0;
-                    let foundHeader = false;
-                    
-                    for (let r = range.s.r; r <= range.e.r; r++) {
-                        let rowHasName = false;
-                        for (let c = range.s.c; c <= range.e.c; c++) {
-                            let cell = sheet[XLSX.utils.encode_cell({r: r, c: c})];
-                            if (cell && cell.v) {
-                                let valClean = removeVietnameseTones(String(cell.v)).replace(/\s+/g, '').toLowerCase();
-                                if (valClean.includes("hovaten") || valClean.includes("hoten")) {
-                                    rowHasName = true;
-                                    break;
-                                }
-                            }
-                        }
-                        if (rowHasName) {
-                            headerRowIndex = r;
-                            foundHeader = true;
-                            break;
-                        }
-                    }
-
-                    const json = XLSX.utils.sheet_to_json(sheet, { 
-                        range: headerRowIndex,
-                        defval: "", 
-                        raw: true 
-                    });
-                    
-                    if(json.length === 0) { showToast("File trống hoặc không có dòng tiêu đề chính xác!", "danger"); return; }
-
-                    let excelHeaders = Object.keys(json[0]);
-
-                    let getRawValFromExcel = (rowObject, keywords) => {
-                        let foundKey = Object.keys(rowObject).find(keyName => {
-                            let cleanKey = removeVietnameseTones(keyName).replace(/\s+/g, '').toLowerCase();
