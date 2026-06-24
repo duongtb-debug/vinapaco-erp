@@ -202,13 +202,13 @@
                 </div>
                 <div class="form-group">
                     <label>Tìm nhân sự bàn giao</label>
-                    <input type="text" id="dev_user_search" oninput="smartSuggest(this)" placeholder="Nhập tên nhân viên để tìm...">
+                    <input type="text" id="dev_user_search" oninput="smartSuggest(this)" onfocus="smartSuggest(this)" onclick="smartSuggest(this)" placeholder="Nhập tên nhân viên để tìm...">
                     <input type="hidden" id="dev_user_id">
                     <div class="suggest-box" id="dev_suggest"></div>
                 </div>
                 <div class="form-group">
                     <label>Mã đơn vị tiếp quản</label>
-                    <select id="dev_filter_donvi">
+                    <select id="dev_filter_donvi" onchange="smartSuggest(document.getElementById('dev_user_search'))">
                         <option value="">-- Chọn đơn vị --</option>
                     </select>
                 </div>
@@ -264,7 +264,7 @@
                 
                 <div class="form-group">
                     <label>Tìm thiết bị cần sửa chữa *</label>
-                    <input type="text" id="rep_device_search" oninput="suggestRepairDevice(this)" placeholder="Nhập tên hoặc mã tài sản...">
+                    <input type="text" id="rep_device_search" oninput="suggestRepairDevice(this)" onfocus="suggestRepairDevice(this)" onclick="suggestRepairDevice(this)" placeholder="Nhập tên hoặc mã tài sản...">
                     <input type="hidden" id="rep_device_code">
                     <input type="hidden" id="rep_device_name">
                     <div class="suggest-box" id="rep_device_suggest"></div>
@@ -365,6 +365,21 @@
         if(datePicker) datePicker.value = new Date().toISOString().split('T')[0];
         await fetchAllData(); 
         await fetchRepairLogs();
+
+        // Tự động đóng các ô gợi ý khi bấm chuột ra ngoài
+        document.addEventListener('click', function(e) {
+            const devSuggest = document.getElementById('dev_suggest');
+            const devSearch = document.getElementById('dev_user_search');
+            if (devSuggest && devSearch && !devSuggest.contains(e.target) && e.target !== devSearch) {
+                devSuggest.style.display = 'none';
+            }
+            
+            const repSuggest = document.getElementById('rep_device_suggest');
+            const repSearch = document.getElementById('rep_device_search');
+            if (repSuggest && repSearch && !repSuggest.contains(e.target) && e.target !== repSearch) {
+                repSuggest.style.display = 'none';
+            }
+        });
     };
 
     // Hàm kiểm tra cột chính xác từ Database qua SQL probe (Direct Query Verification)
@@ -814,9 +829,14 @@
 
     function suggestRepairDevice(input) {
         const val = input.value.toLowerCase().trim(); const box = document.getElementById('rep_device_suggest');
-        if(!box) return; box.innerHTML = ""; if(!val) { box.style.display = "none"; return; }
+        if(!box) return; box.innerHTML = "";
         
-        let matches = DB_THIET_BI.filter(x => (x.device_name && x.device_name.toLowerCase().includes(val)) || (x.device_code && x.device_code.toLowerCase().includes(val))).slice(0, 5);
+        // Hiển thị tối đa 5 thiết bị khi click vào (ngay cả khi chưa gõ chữ)
+        let matches = DB_THIET_BI.filter(x => {
+            if (!val) return true;
+            return (x.device_name && x.device_name.toLowerCase().includes(val)) || (x.device_code && x.device_code.toLowerCase().includes(val));
+        }).slice(0, 5);
+
         if(matches.length === 0) { box.style.display = "none"; return; }
         box.style.display = "block";
         matches.forEach(m => {
