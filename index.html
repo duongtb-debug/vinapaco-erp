@@ -513,19 +513,23 @@
             } 
         }
 
+        // SỬA LỖI: Hàm hiển thị thiết bị thông minh bảo vệ dữ liệu khi chưa nhập ô tìm kiếm
         function displayThietBi() {
             const tbody = document.getElementById('table_thietbi_body');
             tbody.innerHTML = "";
-            const kw = document.getElementById('search_thietbi').value.toLowerCase().trim();
+            
+            const searchInput = document.getElementById('search_thietbi');
+            const kw = searchInput ? searchInput.value.toLowerCase().trim() : "";
 
             let filtered = DB_THIET_BI.filter(x => {
-                return !kw || x.device_name.toLowerCase().includes(kw) || 
-                       x.device_code.toLowerCase().includes(kw) || 
+                if (!kw) return true; // Nếu ô tìm kiếm trống, hiển thị toàn bộ data
+                return (x.device_name && x.device_name.toLowerCase().includes(kw)) || 
+                       (x.device_code && x.device_code.toLowerCase().includes(kw)) || 
                        (x.user_name && x.user_name.toLowerCase().includes(kw));
             });
 
             if(filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="text-center">Không tìm thấy thiết bị nào.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center" style="color:#64748b; padding:30px;">Chưa có thiết bị nào được cấp phát hoặc không tìm thấy kết quả phù hợp.</td></tr>`;
                 return;
             }
 
@@ -546,12 +550,14 @@
                 `;
                 tbody.appendChild(tr);
 
-                new QRCode(document.getElementById(`qr_${x.device_code}`), {
-                    text: `DEVICE:${x.device_code}\nNAME:${x.device_name}\nHOLDER:${x.user_name}`,
-                    width: 95,
-                    height: 95,
-                    correctLevel: QRCode.CorrectLevel.M
-                });
+                try {
+                    new QRCode(document.getElementById(`qr_${x.device_code}`), {
+                        text: `DEVICE:${x.device_code}\nNAME:${x.device_name}\nHOLDER:${x.user_name || 'CHUA_CAP'}`,
+                        width: 95,
+                        height: 95,
+                        correctLevel: QRCode.CorrectLevel.M
+                    });
+                } catch (err) { console.error("Lỗi vẽ QR:", err); }
             });
         }
 
@@ -564,7 +570,7 @@
             if(!val && !selectedDV) { box.style.display = "none"; return; }
 
             let matches = DB_NHAN_SU.filter(x => {
-                let matchName = !val || x.ho_ten.toLowerCase().includes(val);
+                let matchName = !val || (x.ho_ten && x.ho_ten.toLowerCase().includes(val));
                 let matchDV = !selectedDV || String(x.ma_don_vi) === String(selectedDV);
                 return matchName && matchDV;
             }).slice(0, 8);
@@ -707,34 +713,34 @@
                     for(let i = 0; i < json.length; i++) {
                         let row = json[i];
                         
-                        // Hàm bóc tách thông minh đối chiếu cả chuỗi gốc và chuỗi không dấu để tránh lỗi mất cột
                         let getValByKeywords = (keywords) => {
                             let foundKey = Object.keys(row).find(k => {
-                                let keyRaw = String(k).trim().toLowerCase().replace(/\s+/g, '');
-                                let keyNoSign = keyRaw.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                                return keywords.some(kw => keyRaw.includes(kw) || keyNoSign.includes(kw));
+                                let normKey = String(k).replace(/\s+/g, '').toLowerCase()
+                                    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+                                    .replace(/đ/g, "d");
+                                return keywords.some(kw => normKey.includes(kw));
                             });
                             return foundKey ? row[foundKey] : "";
                         };
 
-                        let hoTen = String(getValByKeywords(["hovaten", "họvàtên", "hoten"])).trim();
+                        let hoTen = String(getValByKeywords(["hovaten", "hoten"])).trim();
                         if(!hoTen || hoTen.toLowerCase() === "họ và tên") continue;
 
                         let sttVal = String(getValByKeywords(["stt"])).trim() || String(i + 1);
-                        let bhxhVal = String(getValByKeywords(["sosobhxh", "sốsổbhxh", "bhxh"])).trim();
-                        let cccdVal = String(getValByKeywords(["socccd", "sốcccd", "cccd"])).trim();
-                        let nuVal = String(getValByKeywords(["nữ", "nu"])).trim();
-                        let maDonViVal = String(getValByKeywords(["madonvi", "mãđơnvị", "donvi"])).trim() || "10";
-                        let chucDanhVal = String(getValByKeywords(["chucdanh", "chứcdanh", "congviec"])).trim();
+                        let bhxhVal = String(getValByKeywords(["sosobhxh", "bhxh"])).trim();
+                        let cccdVal = String(getValByKeywords(["socccd", "cccd"])).trim();
+                        let nuVal = String(getValByKeywords(["nu", "nux"])).trim();
                         
-                        let rawNamSinh = getValByKeywords(["namsinh", "nămsinh", "ngaysinh"]);
-                        let rawNamVeHuu = getValByKeywords(["vehuu", "vềhưu", "ngayvehuu"]);
+                        let maDonViVal = String(getValByKeywords(["madonvi", "donvi"])).trim();
+                        let chucDanhVal = String(getValByKeywords(["chucdanh", "congviec"])).trim();
+                        
+                        let rawNamSinh = getValByKeywords(["namsinh", "ngaysinh"]);
+                        let rawNamVeHuu = getValByKeywords(["vehuu", "ngayvehuu"]);
                         let namSinhValue = safeConvertToISODate(rawNamSinh);
                         let namVeHuuValue = safeConvertToISODate(rawNamVeHuu);
 
-                        // Đồng bộ từ khóa chặt chẽ cho cả 2 loại mã
-                        let valATV = String(getValByKeywords(["antoanvien", "antoànviên", "atv", "toanvien"])).trim();
-                        let valNNDH = String(getValByKeywords(["nndh", "nnđh", "dochai", "độchại"])).trim();
+                        let valATV = String(getValByKeywords(["antoanvien", "toanvien", "atv"])).trim();
+                        let valNNDH = String(getValByKeywords(["nndh", "dochai"])).trim();
 
                         let gioiTinh = (nuVal.toLowerCase() === "x") ? "Nữ" : "Nam";
 
@@ -745,7 +751,7 @@
                             so_cccd: cccdVal,
                             gioi_tinh: gioiTinh,
                             nam_sinh: namSinhValue,
-                            ma_don_vi: maDonViVal,
+                            ma_don_vi: maDonViVal || "10",
                             an_toan_vien: valATV,
                             nndh: valNNDH,
                             nam_ve_huu: namVeHuuValue,
