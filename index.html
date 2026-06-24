@@ -713,6 +713,10 @@
         async function fetchAllData() {
             try {
                 let r1 = await client.from('nhan_su').select('*').order('id', { ascending: true }); 
+                if (r1.error) {
+                    console.error("Lỗi Supabase:", r1.error);
+                    showNotification("Không thể kết nối đến máy chủ. Đang sử dụng cơ sở dữ liệu cục bộ.", "error");
+                }
                 DB_NHAN_SU = r1.data || [];
                 
                 const localMapping = JSON.parse(localStorage.getItem('local_atv_nndh') || '{}');
@@ -739,7 +743,14 @@
                 buildDropdowns(); 
                 triggerFilterReset();
                 displayThietBi();
-            } catch (e) { console.error("Lỗi tải dữ liệu:", e); }
+            } catch (e) { 
+                console.error("Lỗi tải dữ liệu:", e); 
+                // Cơ chế tự động hồi phục: nạp danh sách rỗng và tắt trạng thái treo
+                DB_NHAN_SU = [];
+                DB_THIET_BI = [];
+                triggerFilterReset();
+                displayThietBi();
+            }
         }
 
         async function fetchAndReloadThietBi() {
@@ -841,7 +852,6 @@
             const kw = document.getElementById('search_hoso') ? document.getElementById('search_hoso').value.toLowerCase().trim() : ""; 
             const selectedDonVi = document.getElementById('filter_donvi') ? document.getElementById('filter_donvi').value : "";
             FILTERED_LIST = DB_NHAN_SU.filter(x => { 
-                let matchKeyword = !raw => !kw || (x.ho_ten && x.ho_ten.toLowerCase().includes(kw)) || (x.so_cccd && x.so_cccd.includes(kw)); 
                 let matchKeywordNative = !kw || (x.ho_ten && x.ho_ten.toLowerCase().includes(kw)) || (x.so_cccd && x.so_cccd.includes(kw));
                 let matchDV = !selectedDonVi || String(x.ma_don_vi).trim() === String(selectedDonVi).trim();
                 return matchKeywordNative && matchDV; 
