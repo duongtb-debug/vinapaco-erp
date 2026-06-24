@@ -1,292 +1,301 @@
-<!-- Các thư viện bổ trợ -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ Thống Quản Trị Nhân Sự & Thiết Bị</title>
 
-<style>
-    :root {
-        --primary: #0f172a;
-        --primary-light: #1e293b;
-        --accent: #2563eb;
-        --accent-hover: #1d4ed8;
-        --success: #166534;
-        --danger: #dc2626;
-        --bg-main: #f8fafc;
-        --border-color: #e2e8f0;
-    }
+    <!-- Các thư viện bổ trợ -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-    body { background-color: var(--bg-main); color: #334155; padding: 20px; }
+    <style>
+        :root {
+            --primary: #0f172a;
+            --primary-light: #1e293b;
+            --accent: #2563eb;
+            --accent-hover: #1d4ed8;
+            --success: #166534;
+            --danger: #dc2626;
+            --bg-main: #f8fafc;
+            --border-color: #e2e8f0;
+        }
 
-    header { background: var(--primary); color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
-    header h1 { font-size: 24px; display: flex; align-items: center; gap: 10px; }
-    
-    .nav-container { display: flex; gap: 10px; margin-bottom: 20px; }
-    .nav-tab { padding: 12px 24px; background: white; border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer; font-weight: 600; color: #64748b; transition: all 0.2s; display: flex; align-items: center; gap: 8px; }
-    .nav-tab.active { background: var(--accent); color: white; border-color: var(--accent); }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: var(--bg-main); color: #334155; padding: 20px; }
 
-    .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin-bottom: 20px; }
-    .stat-card { background: white; padding: 20px; border-radius: 8px; border: 1px solid var(--border-color); box-shadow: 0 1px 3px rgb(0 0 0 / 0.05); }
-    .stat-card h3 { font-size: 14px; color: #64748b; text-transform: uppercase; margin-bottom: 8px; }
-    .stat-card .value { font-size: 24px; font-weight: 700; color: var(--primary); }
+        header { background: var(--primary); color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+        header h1 { font-size: 24px; display: flex; align-items: center; gap: 10px; }
+        
+        .nav-container { display: flex; gap: 10px; margin-bottom: 20px; }
+        .nav-tab { padding: 12px 24px; background: white; border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer; font-weight: 600; color: #64748b; transition: all 0.2s; display: flex; align-items: center; gap: 8px; }
+        .nav-tab.active { background: var(--accent); color: white; border-color: var(--accent); }
 
-    .app-section { display: none; background: white; padding: 20px; border-radius: 8px; border: 1px solid var(--border-color); box-shadow: 0 1px 3px rgb(0 0 0 / 0.05); }
-    .app-section.active { display: block; }
+        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .stat-card { background: white; padding: 20px; border-radius: 8px; border: 1px solid var(--border-color); box-shadow: 0 1px 3px rgb(0 0 0 / 0.05); }
+        .stat-card h3 { font-size: 14px; color: #64748b; text-transform: uppercase; margin-bottom: 8px; }
+        .stat-card .value { font-size: 24px; font-weight: 700; color: var(--primary); }
 
-    .toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 25px; align-items: center; justify-content: space-between; background: #f1f5f9; padding: 15px; border-radius: 6px; }
-    .search-box { display: flex; gap: 10px; flex: 1; min-width: 300px; }
-    .search-box input, .toolbar select, .form-group input, .form-group select, .form-group textarea { padding: 10px 14px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 14px; width: 100%; outline: none; }
-    .search-box input:focus { border-color: var(--accent); }
+        .app-section { display: none; background: white; padding: 20px; border-radius: 8px; border: 1px solid var(--border-color); box-shadow: 0 1px 3px rgb(0 0 0 / 0.05); }
+        .app-section.active { display: block; }
 
-    .btn { padding: 10px 18px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; font-size: 14px; transition: background 0.2s; }
-    .btn-primary { background: var(--accent); color: white; }
-    .btn-primary:hover { background: var(--accent-hover); }
-    .btn-danger { background: var(--danger); color: white; }
-    .btn-file { background: #0ea5e9; color: white; position: relative; overflow: hidden; }
-    .btn-file input { position: absolute; left: 0; top: 0; opacity: 0; cursor: pointer; height: 100%; width: 100%; }
+        .toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 25px; align-items: center; justify-content: space-between; background: #f1f5f9; padding: 15px; border-radius: 6px; }
+        .search-box { display: flex; gap: 10px; flex: 1; min-width: 300px; }
+        .search-box input, .toolbar select, .form-group input, .form-group select, .form-group textarea { padding: 10px 14px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 14px; width: 100%; outline: none; }
+        .search-box input:focus { border-color: var(--accent); }
 
-    .table-container { overflow-x: auto; max-height: 550px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 6px; }
-    table { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; }
-    thead { background: #f8fafc; position: sticky; top: 0; z-index: 10; box-shadow: 0 1px 0 var(--border-color); }
-    th { padding: 14px; font-weight: 600; color: #475569; border-bottom: 1px solid var(--border-color); }
-    td { padding: 14px; border-bottom: 1px solid var(--border-color); vertical-align: middle; color: #334155; }
-    tr:hover { background-color: #f8fafc; }
-    
-    .text-center { text-align: center; }
-    .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; }
-    .status-using { background: #dcfce7; color: #166534; }
-    .status-broken { background: #fee2e2; color: #991b1b; }
-    
-    .panel-layout { display: grid; grid-template-columns: 350px 1fr; gap: 20px; }
-    .form-panel { background: #f8fafc; padding: 20px; border-radius: 8px; border: 1px solid var(--border-color); height: fit-content; }
-    .form-group { margin-bottom: 15px; position: relative; }
-    .form-group label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 13px; color: #475569; }
-    
-    .suggest-box { position: absolute; top: 100%; left: 0; width: 100%; background: white; border: 1px solid var(--border-color); border-top: none; border-radius: 0 0 6px 6px; max-height: 200px; overflow-y: auto; z-index: 100; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); display: none; }
-    .suggest-item { padding: 10px; cursor: pointer; border-bottom: 1px solid #f1f5f9; font-size: 13px; }
-    .suggest-item:hover { background: #f1f5f9; }
-    .suggest-item b { color: var(--accent); }
+        .btn { padding: 10px 18px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; font-size: 14px; transition: background 0.2s; }
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-primary:hover { background: var(--accent-hover); }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-file { background: #0ea5e9; color: white; position: relative; overflow: hidden; }
+        .btn-file input { position: absolute; left: 0; top: 0; opacity: 0; cursor: pointer; height: 100%; width: 100%; }
 
-    .qr-canvas img { margin: 0 auto; width: 75px; height: 75px; }
-    .btn-table-edit { background: none; border: none; color: var(--accent); font-weight: 600; cursor: pointer; margin-right: 10px; }
-    .btn-table-del { background: none; border: none; color: var(--danger); font-weight: 600; cursor: pointer; }
-</style>
+        .table-container { overflow-x: auto; max-height: 550px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 6px; }
+        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; }
+        thead { background: #f8fafc; position: sticky; top: 0; z-index: 10; box-shadow: 0 1px 0 var(--border-color); }
+        th { padding: 14px; font-weight: 600; color: #475569; border-bottom: 1px solid var(--border-color); }
+        td { padding: 14px; border-bottom: 1px solid var(--border-color); vertical-align: middle; color: #334155; }
+        tr:hover { background-color: #f8fafc; }
+        
+        .text-center { text-align: center; }
+        .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; }
+        .status-using { background: #dcfce7; color: #166534; }
+        .status-broken { background: #fee2e2; color: #991b1b; }
+        
+        .panel-layout { display: grid; grid-template-columns: 350px 1fr; gap: 20px; }
+        .form-panel { background: #f8fafc; padding: 20px; border-radius: 8px; border: 1px solid var(--border-color); height: fit-content; }
+        .form-group { margin-bottom: 15px; position: relative; }
+        .form-group label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 13px; color: #475569; }
+        
+        .suggest-box { position: absolute; top: 100%; left: 0; width: 100%; background: white; border: 1px solid var(--border-color); border-top: none; border-radius: 0 0 6px 6px; max-height: 200px; overflow-y: auto; z-index: 100; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); display: none; }
+        .suggest-item { padding: 10px; cursor: pointer; border-bottom: 1px solid #f1f5f9; font-size: 13px; }
+        .suggest-item:hover { background: #f1f5f9; }
+        .suggest-item b { color: var(--accent); }
 
+        .qr-canvas img { margin: 0 auto; width: 75px; height: 75px; }
+        .btn-table-edit { background: none; border: none; color: var(--accent); font-weight: 600; cursor: pointer; margin-right: 10px; }
+        .btn-table-del { background: none; border: none; color: var(--danger); font-weight: 600; cursor: pointer; }
+    </style>
+</head>
+<body>
 
-<header>
-    <h1><i class="fa-solid fa-layer-group"></i> HỆ THỐNG ĐIỀU HÀNH & QUẢN TRỊ DOANH NGHIỆP</h1>
-    <div><span id="count_ns" class="badge" style="background:var(--accent); font-size:14px;">0</span> nhân sự đám mây</div>
-</header>
+    <header>
+        <h1><i class="fa-solid fa-layer-group"></i> HỆ THỐNG ĐIỀU HÀNH & QUẢN TRỊ DOANH NGHIỆP</h1>
+        <div><span id="count_ns" class="badge" style="background:var(--accent); font-size:14px;">0</span> nhân sự đám mây</div>
+    </header>
 
-<div class="nav-container">
-    <div class="nav-tab active" id="tab_hoso" onclick="switchSection('hoso')"><i class="fa-solid fa-address-card"></i> Hồ sơ Nhân sự</div>
-    <div class="nav-tab" id="tab_thietbi" onclick="switchSection('thietbi')"><i class="fa-solid fa-laptop-code"></i> Cấp phát Thiết bị / TS</div>
-    <div class="nav-tab" id="tab_suachua" onclick="switchSection('suachua')"><i class="fa-solid fa-screwdriver-wrench"></i> Nhật ký Sửa chữa / Bảo dưỡng</div>
-</div>
-
-<!-- ========================================== -->
-<!-- TAB 1: HỒ SƠ NHÂN SỰ -->
-<!-- ========================================== -->
-<div class="app-section active" id="sec_hoso">
-    <div class="dashboard-grid">
-        <div class="stat-card"><h3>Lao động Nam</h3><div class="value" id="hr_stat_male">0 người</div></div>
-        <div class="stat-card"><h3>Lao động Nữ</h3><div class="value" id="hr_stat_female">0 người</div></div>
-        <div class="stat-card"><h3>Đang làm việc</h3><div class="value" id="hr_stat_working">0 người</div></div>
-        <div class="stat-card"><h3>Đã nghỉ hưu</h3><div class="value" id="hr_stat_retired">0 người</div></div>
+    <div class="nav-container">
+        <div class="nav-tab active" id="tab_hoso" onclick="switchSection('hoso')"><i class="fa-solid fa-address-card"></i> Hồ sơ Nhân sự</div>
+        <div class="nav-tab" id="tab_thietbi" onclick="switchSection('thietbi')"><i class="fa-solid fa-laptop-code"></i> Cấp phát Thiết bị / TS</div>
+        <div class="nav-tab" id="tab_suachua" onclick="switchSection('suachua')"><i class="fa-solid fa-screwdriver-wrench"></i> Nhật ký Sửa chữa / Bảo dưỡng</div>
     </div>
 
-    <div class="toolbar">
-        <div class="search-box">
-            <input type="text" id="search_hoso" oninput="triggerFilterReset()" placeholder="Tìm nhanh theo Họ Tên hoặc số CCCD...">
-            <select id="filter_donvi" onchange="triggerFilterReset()">
-                <option value="">-- Tất cả Mã Đơn Vị --</option>
-            </select>
+    <!-- ========================================== -->
+    <!-- TAB 1: HỒ SƠ NHÂN SỰ -->
+    <!-- ========================================== -->
+    <div class="app-section active" id="sec_hoso">
+        <div class="dashboard-grid">
+            <div class="stat-card"><h3>Lao động Nam</h3><div class="value" id="hr_stat_male">0 người</div></div>
+            <div class="stat-card"><h3>Lao động Nữ</h3><div class="value" id="hr_stat_female">0 người</div></div>
+            <div class="stat-card"><h3>Đang làm việc</h3><div class="value" id="hr_stat_working">0 người</div></div>
+            <div class="stat-card"><h3>Đã nghỉ hưu</h3><div class="value" id="hr_stat_retired">0 người</div></div>
         </div>
-        <div style="display: flex; gap: 8px;">
-            <div class="btn btn-file"><i class="fa-solid fa-file-excel"></i> Đồng bộ File gốc Excel<input type="file" onchange="importExcelNhanSu(this)" accept=".xlsx, .xls"></div>
-            <button class="btn btn-danger" onclick="clearDataCloud('nhan_su')"><i class="fa-solid fa-trash-can"></i> Xóa dữ liệu Đám mây</button>
-        </div>
-    </div>
 
-    <div class="table-container" onscroll="handleTableScroll(this)">
-        <table>
-            <thead>
-                <tr>
-                    <th class="text-center">Hệ thống</th>
-                    <th class="text-center">STT gốc</th>
-                    <th>Họ và Tên</th>
-                    <th>Số Sổ BHXH</th>
-                    <th>Số CCCD</th>
-                    <th class="text-center">Giới Tính</th>
-                    <th class="text-center">Ngày Sinh</th>
-                    <th class="text-center">Tuổi</th>
-                    <th class="text-center">ATV</th>
-                    <th class="text-center">NNDH</th>
-                    <th class="text-center">Ngày Về Hưu</th>
-                    <th class="text-center">Mã Đơn Vị</th>
-                    <th>Chức Danh Công Việc</th>
-                </tr>
-            </thead>
-            <tbody id="table_hoso_body">
-                <tr><td colspan="13" class="text-center" style="color:#64748b; padding: 30px;">Đang tải dữ liệu đám mây...</td></tr>
-            </tbody>
-        </table>
-    </div>
-</div>
-
-<!-- ========================================== -->
-<!-- TAB 2: THIẾT BỊ TÀI SẢN -->
-<!-- ========================================== -->
-<div class="app-section" id="sec_thietbi">
-    <div class="panel-layout">
-        <div class="form-panel">
-            <h3 id="form_device_title" style="margin-bottom:15px; color:var(--primary);"><i class="fa-solid fa-square-plus"></i> Cấp Thiết Bị Mới</h3>
-            <input type="hidden" id="editing_device_id">
-            
-            <div class="form-group">
-                <label>Tên thiết bị tài sản *</label>
-                <input type="text" id="dev_name" placeholder="Ví dụ: Máy tính Laptop Dell XPS">
-            </div>
-            <div class="form-group">
-                <label>Số Sê-ri / Mã tài sản (Để trống tự tạo)</label>
-                <input type="text" id="dev_code" placeholder="Ví dụ: EQ882910">
-            </div>
-            <div class="form-group">
-                <label>Tìm nhân sự bàn giao</label>
-                <input type="text" id="dev_user_search" oninput="smartSuggest(this)" placeholder="Nhập tên nhân viên để tìm...">
-                <input type="hidden" id="dev_user_id">
-                <div class="suggest-box" id="dev_suggest"></div>
-            </div>
-            <div class="form-group">
-                <label>Mã đơn vị tiếp quản</label>
-                <select id="dev_filter_donvi">
-                    <option value="">-- Chọn đơn vị --</option>
+        <div class="toolbar">
+            <div class="search-box">
+                <input type="text" id="search_hoso" oninput="triggerFilterReset()" placeholder="Tìm nhanh theo Họ Tên hoặc số CCCD...">
+                <select id="filter_donvi" onchange="triggerFilterReset()">
+                    <option value="">-- Tất cả Mã Đơn Vị --</option>
                 </select>
             </div>
-            <div class="form-group">
-                <label>Trạng thái vận hành</label>
-                <select id="dev_status_select">
-                    <option value="Đang sử dụng">Đang sử dụng</option>
-                    <option value="Hỏng hóc / Đang sửa">Hỏng hóc / Đang sửa</option>
-                </select>
+            <div style="display: flex; gap: 8px;">
+                <div class="btn btn-file"><i class="fa-solid fa-file-excel"></i> Đồng bộ File gốc Excel<input type="file" onchange="importExcelNhanSu(this)" accept=".xlsx, .xls"></div>
+                <button class="btn btn-danger" onclick="clearDataCloud('nhan_su')"><i class="fa-solid fa-trash-can"></i> Xóa dữ liệu Đám mây</button>
             </div>
-            <button class="btn btn-primary" style="width:100%; justify-content: center; margin-top:10px;" onclick="saveDeviceConfig()"><i class="fa-solid fa-floppy-disk"></i> Ghi nhận Hệ thống</button>
         </div>
 
-        <div>
-            <div class="toolbar" style="margin-bottom:15px;">
-                <div class="search-box">
-                    <input type="text" id="search_thietbi" oninput="displayThietBi()" placeholder="Tìm thiết bị theo tên, mã tài sản hoặc người dùng...">
+        <div class="table-container" onscroll="handleTableScroll(this)">
+            <table>
+                <thead>
+                    <tr>
+                        <th class="text-center">Hệ thống</th>
+                        <th class="text-center">STT gốc</th>
+                        <th>Họ và Tên</th>
+                        <th>Số Sổ BHXH</th>
+                        <th>Số CCCD</th>
+                        <th class="text-center">Giới Tính</th>
+                        <th class="text-center">Ngày Sinh</th>
+                        <th class="text-center">Tuổi</th>
+                        <th class="text-center">ATV</th>
+                        <th class="text-center">NNDH</th>
+                        <th class="text-center">Ngày Về Hưu</th>
+                        <th class="text-center">Mã Đơn Vị</th>
+                        <th>Chức Danh Công Việc</th>
+                    </tr>
+                </thead>
+                <tbody id="table_hoso_body">
+                    <tr><td colspan="13" class="text-center" style="color:#64748b; padding: 30px;">Đang tải dữ liệu đám mây...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TAB 2: THIẾT BỊ TÀI SẢN -->
+    <!-- ========================================== -->
+    <div class="app-section" id="sec_thietbi">
+        <div class="panel-layout">
+            <div class="form-panel">
+                <h3 id="form_device_title" style="margin-bottom:15px; color:var(--primary);"><i class="fa-solid fa-square-plus"></i> Cấp Thiết Bị Mới</h3>
+                <input type="hidden" id="editing_device_id">
+                
+                <div class="form-group">
+                    <label>Tên thiết bị tài sản *</label>
+                    <input type="text" id="dev_name" placeholder="Ví dụ: Máy tính Laptop Dell XPS">
+                </div>
+                <div class="form-group">
+                    <label>Số Sê-ri / Mã tài sản (Để trống tự tạo)</label>
+                    <input type="text" id="dev_code" placeholder="Ví dụ: EQ882910">
+                </div>
+                <div class="form-group">
+                    <label>Tìm nhân sự bàn giao</label>
+                    <input type="text" id="dev_user_search" oninput="smartSuggest(this)" placeholder="Nhập tên nhân viên để tìm...">
+                    <input type="hidden" id="dev_user_id">
+                    <div class="suggest-box" id="dev_suggest"></div>
+                </div>
+                <div class="form-group">
+                    <label>Mã đơn vị tiếp quản</label>
+                    <select id="dev_filter_donvi">
+                        <option value="">-- Chọn đơn vị --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Trạng thái vận hành</label>
+                    <select id="dev_status_select">
+                        <option value="Đang sử dụng">Đang sử dụng</option>
+                        <option value="Hỏng hóc / Đang sửa">Hỏng hóc / Đang sửa</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" style="width:100%; justify-content: center; margin-top:10px;" onclick="saveDeviceConfig()"><i class="fa-solid fa-floppy-disk"></i> Ghi nhận Hệ thống</button>
+            </div>
+
+            <div>
+                <div class="toolbar" style="margin-bottom:15px;">
+                    <div class="search-box">
+                        <input type="text" id="search_thietbi" oninput="displayThietBi()" placeholder="Tìm thiết bị theo tên, mã tài sản hoặc người dùng...">
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th class="text-center" style="width:100px;">Thẻ QR</th>
+                                <th>Mã Tài Sản</th>
+                                <th>Tên Thiết Bị / Tài Sản</th>
+                                <th>Nhân Sự Quản Lý</th>
+                                <th class="text-center">Đơn Vị</th>
+                                <th class="text-center">Trạng Thái</th>
+                                <th class="text-center">Hành Động</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table_thietbi_body"></tbody>
+                    </table>
                 </div>
             </div>
-            <div class="table-container">
-                <table>
-                    <thead>
-                        <tr>
-                            <th class="text-center" style="width:100px;">Thẻ QR</th>
-                            <th>Mã Tài Sản</th>
-                            <th>Tên Thiết Bị / Tài Sản</th>
-                            <th>Nhân Sự Quản Lý</th>
-                            <th class="text-center">Đơn Vị</th>
-                            <th class="text-center">Trạng Thái</th>
-                            <th class="text-center">Hành Động</th>
-                        </tr>
-                    </thead>
-                    <tbody id="table_thietbi_body"></tbody>
-                </table>
-            </div>
         </div>
     </div>
-</div>
 
-<!-- ========================================== -->
-<!-- TAB 3: NHẬT KÝ SỬA CHỮA -->
-<!-- ========================================== -->
-<div class="app-section" id="sec_suachua">
-    <div class="dashboard-grid">
-        <div class="stat-card"><h3>Số lượng hạch toán</h3><div class="value" id="lbl_stat_rep_count">0 hồ sơ</div></div>
-        <div class="stat-card"><h3>Chi phí trước thuế</h3><div class="value" id="lbl_stat_total_before" style="color:#b45309;">0 đ</div></div>
-        <div class="stat-card"><h3>Tổng tiền quyết toán (Có Thuế)</h3><div class="value" id="lbl_stat_total_after" style="color:var(--success);">0 đ</div></div>
-    </div>
-
-    <div class="panel-layout">
-        <div class="form-panel">
-            <h3 style="margin-bottom:15px; color:var(--primary);"><i class="fa-solid fa-receipt"></i> Phiếu Hạch Toán</h3>
-            
-            <div class="form-group">
-                <label>Tìm thiết bị cần sửa chữa *</label>
-                <input type="text" id="rep_device_search" oninput="suggestRepairDevice(this)" placeholder="Nhập tên hoặc mã tài sản...">
-                <input type="hidden" id="rep_device_code">
-                <input type="hidden" id="rep_device_name">
-                <div class="suggest-box" id="rep_device_suggest"></div>
-            </div>
-            <div class="form-group">
-                <label>Nội dung bảo dưỡng / sửa chữa *</label>
-                <textarea id="rep_content" rows="3" placeholder="Ghi nhận chi tiết hạng mục sửa chữa..."></textarea>
-            </div>
-            <div class="form-group">
-                <label>Chi phí trước thuế (VNĐ) *</label>
-                <input type="number" id="rep_cost_before" value="0" oninput="calculateFlexibleTax()">
-            </div>
-            <div class="form-group">
-                <label>Thuế suất VAT</label>
-                <select id="rep_tax_rate" onchange="toggleCustomTaxField()">
-                    <option value="0">0% (Không thuế)</option>
-                    <option value="5">5%</option>
-                    <option value="8">8%</option>
-                    <option value="10" selected>10%</option>
-                    <option value="custom">Thuế suất tùy chỉnh (%)</option>
-                </select>
-            </div>
-            <div class="form-group" id="custom_tax_group" style="display:none;">
-                <label>Nhập mức thuế riêng (%)</label>
-                <input type="number" id="rep_tax_custom_val" value="0" oninput="calculateFlexibleTax()">
-            </div>
-            <div class="form-group">
-                <label>Ngày thực hiện</label>
-                <input type="date" id="rep_date">
-            </div>
-            <div class="form-group">
-                <label>Trạng thái thanh toán</label>
-                <select id="rep_payment_status">
-                    <option value="Chưa thanh toán">Chưa thanh toán</option>
-                    <option value="Chờ duyệt">Chờ duyệt</option>
-                    <option value="Đã thanh toán">Đã thanh toán</option>
-                </select>
-            </div>
-            
-            <div style="background:#f1f5f9; padding:12px; border-radius:6px; margin-bottom:15px; font-size:13px;">
-                <div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span>Tiền thuế tính riêng:</span><b id="lbl_tax_money">0 VNĐ</b></div>
-                <div style="display:flex; justify-content:space-between; font-weight:700; color:var(--success)"><span>TỔNG CHI PHÍ:</span><span id="lbl_total_cost">0 VNĐ</span></div>
-            </div>
-
-            <button class="btn btn-primary" style="width:100%; justify-content: center;" onclick="saveRepairLog()"><i class="fa-solid fa-calculator"></i> Chốt Quyết Toán</button>
+    <!-- ========================================== -->
+    <!-- TAB 3: NHẬT KÝ SỬA CHỮA -->
+    <!-- ========================================== -->
+    <div class="app-section" id="sec_suachua">
+        <div class="dashboard-grid">
+            <div class="stat-card"><h3>Số lượng hạch toán</h3><div class="value" id="lbl_stat_rep_count">0 hồ sơ</div></div>
+            <div class="stat-card"><h3>Chi phí trước thuế</h3><div class="value" id="lbl_stat_total_before" style="color:#b45309;">0 đ</div></div>
+            <div class="stat-card"><h3>Tổng tiền quyết toán (Có Thuế)</h3><div class="value" id="lbl_stat_total_after" style="color:var(--success);">0 đ</div></div>
         </div>
 
-        <div>
-            <div class="toolbar" style="margin-bottom:15px;">
-                <div class="search-box">
-                    <input type="text" id="search_suachua_input" oninput="displayRepairLogs()" placeholder="Lọc nhật ký theo thiết bị, nội dung bảo dưỡng...">
+        <div class="panel-layout">
+            <div class="form-panel">
+                <h3 style="margin-bottom:15px; color:var(--primary);"><i class="fa-solid fa-receipt"></i> Phiếu Hạch Toán</h3>
+                
+                <div class="form-group">
+                    <label>Tìm thiết bị cần sửa chữa *</label>
+                    <input type="text" id="rep_device_search" oninput="suggestRepairDevice(this)" placeholder="Nhập tên hoặc mã tài sản...">
+                    <input type="hidden" id="rep_device_code">
+                    <input type="hidden" id="rep_device_name">
+                    <div class="suggest-box" id="rep_device_suggest"></div>
                 </div>
+                <div class="form-group">
+                    <label>Nội dung bảo dưỡng / sửa chữa *</label>
+                    <textarea id="rep_content" rows="3" placeholder="Ghi nhận chi tiết hạng mục sửa chữa..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Chi phí trước thuế (VNĐ) *</label>
+                    <input type="number" id="rep_cost_before" value="0" oninput="calculateFlexibleTax()">
+                </div>
+                <div class="form-group">
+                    <label>Thuế suất VAT</label>
+                    <select id="rep_tax_rate" onchange="toggleCustomTaxField()">
+                        <option value="0">0% (Không thuế)</option>
+                        <option value="5">5%</option>
+                        <option value="8">8%</option>
+                        <option value="10" selected>10%</option>
+                        <option value="custom">Thuế suất tùy chỉnh (%)</option>
+                    </select>
+                </div>
+                <div class="form-group" id="custom_tax_group" style="display:none;">
+                    <label>Nhập mức thuế riêng (%)</label>
+                    <input type="number" id="rep_tax_custom_val" value="0" oninput="calculateFlexibleTax()">
+                </div>
+                <div class="form-group">
+                    <label>Ngày thực hiện</label>
+                    <input type="date" id="rep_date">
+                </div>
+                <div class="form-group">
+                    <label>Trạng thái thanh toán</label>
+                    <select id="rep_payment_status">
+                        <option value="Chưa thanh toán">Chưa thanh toán</option>
+                        <option value="Chờ duyệt">Chờ duyệt</option>
+                        <option value="Đã thanh toán">Đã thanh toán</option>
+                    </select>
+                </div>
+                
+                <div style="background:#f1f5f9; padding:12px; border-radius:6px; margin-bottom:15px; font-size:13px;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span>Tiền thuế tính riêng:</span><b id="lbl_tax_money">0 VNĐ</b></div>
+                    <div style="display:flex; justify-content:space-between; font-weight:700; color:var(--success)"><span>TỔNG CHI PHÍ:</span><span id="lbl_total_cost">0 VNĐ</span></div>
+                </div>
+
+                <button class="btn btn-primary" style="width:100%; justify-content: center;" onclick="saveRepairLog()"><i class="fa-solid fa-calculator"></i> Chốt Quyết Toán</button>
             </div>
-            <div class="table-container">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Mã Tài Sản</th>
-                            <th>Tên Thiết Bị</th>
-                            <th>Nội Dung Chi Tiết</th>
-                            <th>Giá Trước Thuế</th>
-                            <th>Thuế VAT</th>
-                            <th>Tiền Thuế</th>
-                            <th>Tổng Quyết Toán</th>
-                            <th class="text-center">Thanh Toán</th>
-                            <th>Ngày Làm</th>
-                        </tr>
-                    </thead>
-                    <tbody id="table_suachua_body"></tbody>
-                </table>
+
+            <div>
+                <div class="toolbar" style="margin-bottom:15px;">
+                    <div class="search-box">
+                        <input type="text" id="search_suachua_input" oninput="displayRepairLogs()" placeholder="Lọc nhật ký theo thiết bị, nội dung bảo dưỡng...">
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Mã Tài Sản</th>
+                                <th>Tên Thiết Bị</th>
+                                <th>Nội Dung Chi Tiết</th>
+                                <th>Giá Trước Thuế</th>
+                                <th>Thuế VAT</th>
+                                <th>Tiền Thuế</th>
+                                <th>Tổng Quyết Toán</th>
+                                <th class="text-center">Thanh Toán</th>
+                                <th>Ngày Làm</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table_suachua_body"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
@@ -451,8 +460,21 @@
             let atvVal = x.an_toan_vien || x.atv;
             let nndhVal = x.nghe_doc_hai || x.nndh;
 
-            let atvStatus = (atvVal && String(atvVal).trim() !== "" && String(atvVal).trim() !== "0") ? `<span class="badge" style="background:#e0f2fe; color:#0369a1; font-weight:600; padding:4px 8px; border-radius:4px;">${atvVal}</span>` : ``;
-            let nndhStatus = (nndhVal && String(nndhVal).trim() !== "" && String(nndhVal).trim() !== "0") ? `<span class="badge" style="background:#fef3c7; color:#92400e; font-weight:600; padding:4px 8px; border-radius:4px;">${nndhVal}</span>` : ``;
+            let atvStatus = "";
+            if (atvVal && String(atvVal).trim() !== "" && String(atvVal).trim() !== "0" && String(atvVal).trim().toLowerCase() !== "false") {
+                let displayLabel = String(atvVal).trim() === "1" ? "Hoạt động" : String(atvVal).trim();
+                atvStatus = `<span class="badge" style="background:#e0f2fe; color:#0369a1; font-weight:600; padding:4px 8px; border-radius:4px;"><i class="fa-solid fa-shield-halved"></i> ${displayLabel}</span>`;
+            } else {
+                atvStatus = `<span style="color:#94a3b8;">--</span>`;
+            }
+
+            let nndhStatus = "";
+            if (nndhVal && String(nndhVal).trim() !== "" && String(nndhVal).trim() !== "0" && String(nndhVal).trim().toLowerCase() !== "false") {
+                let displayLabel = String(nndhVal).trim() === "1" ? "Độc hại" : String(nndhVal).trim();
+                nndhStatus = `<span class="badge" style="background:#fef3c7; color:#92400e; font-weight:600; padding:4px 8px; border-radius:4px;"><i class="fa-solid fa-biohazard"></i> ${displayLabel}</span>`;
+            } else {
+                nndhStatus = `<span style="color:#94a3b8;">--</span>`;
+            }
 
             html += `<tr>
                 <td class="text-center">#${x.stt_excel||x.id}</td>
@@ -783,9 +805,39 @@
                 // raw: true giúp giữ kiểu chuỗi nguyên bản (không làm mất số 0 đầu CCCD và giữ mã đơn vị thập phân)
                 const workbook = XLSX.read(data, { type: 'array', cellDates: false, raw: true });
                 const sheet = workbook.Sheets[workbook.SheetNames[0]];
-                const json = XLSX.utils.sheet_to_json(sheet, { defval: "" });
                 
-                if(json.length === 0) { alert("Không tìm thấy hàng dữ liệu nào trong file Excel!"); return; }
+                // Đọc toàn bộ phạm vi ô dữ liệu để định vị chính xác dòng tiêu đề chứa "Họ và tên"
+                const range = XLSX.utils.decode_range(sheet['!ref']);
+                let headerRowIndex = 0;
+                let foundHeader = false;
+                
+                for (let r = range.s.r; r <= range.e.r; r++) {
+                    let rowHasName = false;
+                    for (let c = range.s.c; c <= range.e.c; c++) {
+                        let cell = sheet[XLSX.utils.encode_cell({r: r, c: c})];
+                        if (cell && cell.v) {
+                            let valClean = removeVietnameseTones(String(cell.v)).replace(/\s+/g, '').toLowerCase();
+                            if (valClean.includes("hovaten") || valClean.includes("hoten")) {
+                                rowHasName = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (rowHasName) {
+                        headerRowIndex = r;
+                        foundHeader = true;
+                        break;
+                    }
+                }
+
+                // Tiến hành chuyển đổi XLSX thành đối tượng JSON bắt đầu từ hàng Tiêu đề đã tìm thấy
+                const json = XLSX.utils.sheet_to_json(sheet, { 
+                    range: headerRowIndex,
+                    defval: "", 
+                    raw: true 
+                });
+                
+                if(json.length === 0) { alert("Không tìm thấy hàng dữ liệu nào khả thi trong file Excel!"); return; }
 
                 let excelHeaders = Object.keys(json[0]);
 
@@ -806,7 +858,7 @@
                 };
 
                 if(!checkColumnExist(["hovaten", "hoten", "ten"])) {
-                    alert("LỖI: File Excel của bạn đang thiếu cột 'Họ và tên'. Vui lòng điều chỉnh tiêu đề của hàng đầu tiên.");
+                    alert("LỖI: Hệ thống không thể định vị được cột 'Họ và tên' trong file Excel này. Vui lòng kiểm tra lại cấu trúc file nạp.");
                     return;
                 }
 
@@ -823,7 +875,7 @@
                     
                     let birthStr = safeConvertToISODate(getRawValFromExcel(row, ["namsinh", "ngaysinh", "ngaythangnamsinh", "sinh"]));
                     
-                    // FIX: Đọc trực tiếp ngày về hưu từ cột "Năm Về Hưu" / "Ngày Về Hưu" của Excel
+                    // FIX: Ưu tiên đọc trực tiếp ngày về hưu từ cột "Năm Về Hưu" / "Ngày Về Hưu" / "Về hưu" của Excel
                     let retStr = safeConvertToISODate(getRawValFromExcel(row, ["namvehuu", "ngayvehuu", "vehuu", "ngay_ve_huu"]));
                     
                     // Nếu trong Excel không có hoặc trống, hệ thống mới tự động tính toán dự phòng
@@ -837,7 +889,7 @@
                     let cccdVal = getRawValFromExcel(row, ["socccd", "cccd", "cancuoc", "cmnd"]);
                     let bhxhVal = getRawValFromExcel(row, ["sosobhxh", "bhxh", "sobhxh"]);
                     
-                    // FIX: Mã Đơn Vị được đọc chuẩn xác dạng thập phân (ví dụ: 14.2, 11.1) nhờ hàm getRawValFromExcel đã được sửa lỗi "Đ"
+                    // FIX: Mã Đơn Vị được đọc chuẩn xác dạng thập phân (ví dụ: 14.2, 11.1)
                     let maDonVi = getRawValFromExcel(row, ["madonvi", "donvi", "bophan", "madv", "ma_dv"]);
                     
                     let chucDanh = getRawValFromExcel(row, ["chucdanh", "congviec", "chucdanhcongviec", "chucvu"]);
