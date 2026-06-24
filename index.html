@@ -392,7 +392,7 @@
                 buildDropdowns(); 
                 triggerFilterReset();
                 displayThietBi();
-            } catch (e) { console.error(e); }
+            } catch (e) { console.error("Lỗi Tải Dữ Liệu Toàn Cục:", e); }
         }
 
         function calculateHRStats() {
@@ -429,12 +429,15 @@
             document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active')); 
             document.querySelectorAll('.app-section').forEach(el => el.classList.remove('active'));
             
-            document.getElementById('tab_' + target).classList.add('active'); 
-            document.getElementById('sec_' + target).classList.add('active');
+            const tabEl = document.getElementById('tab_' + target);
+            const secEl = document.getElementById('sec_' + target);
+            if(tabEl) tabEl.classList.add('active'); 
+            if(secEl) secEl.classList.add('active');
             
-            // Cập nhật hiển thị form tương ứng ở sidebar
-            document.getElementById('form_hoso_panel').style.display = (target === 'hoso') ? 'block' : 'none';
-            document.getElementById('form_thietbi_panel').style.display = (target === 'thietbi') ? 'block' : 'none';
+            const fNs = document.getElementById('form_hoso_panel');
+            const fTb = document.getElementById('form_thietbi_panel');
+            if(fNs) fNs.style.display = (target === 'hoso') ? 'block' : 'none';
+            if(fTb) fTb.style.display = (target === 'thietbi') ? 'block' : 'none';
             
             if(target === 'thietbi') {
                 displayThietBi();
@@ -559,16 +562,29 @@
                 `;
                 tbody.appendChild(tr);
 
+                // KHẮC PHỤC CHỐNG SẬP: Kiểm tra thư viện QRCode có bị undefined hay không
                 setTimeout(() => {
                     const qrContainer = document.getElementById(`qr_${x.device_code}`);
                     if(qrContainer) {
                         qrContainer.innerHTML = "";
-                        new QRCode(qrContainer, {
-                            text: `DEVICE:${x.device_code}\nNAME:${x.device_name}\nHOLDER:${x.user_name || 'CHUA_CAP'}`,
-                            width: 95,
-                            height: 95,
-                            correctLevel: QRCode.CorrectLevel.M
-                        });
+                        let textData = `DEVICE:${x.device_code}\nNAME:${x.device_name}\nHOLDER:${x.user_name || 'CHUA_CAP'}`;
+                        
+                        if (typeof QRCode !== 'undefined') {
+                            try {
+                                new QRCode(qrContainer, {
+                                    text: textData,
+                                    width: 95,
+                                    height: 95,
+                                    correctLevel: QRCode.CorrectLevel.M
+                                });
+                            } catch (errQR) {
+                                console.error("Lỗi vẽ QRCode bằng Lib:", errQR);
+                                qrContainer.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=95x95&data=${encodeURIComponent(textData)}" />`;
+                            }
+                        } else {
+                            // Dự phòng khi CDN chết không làm sập giao diện
+                            qrContainer.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=95x95&data=${encodeURIComponent(textData)}" />`;
+                        }
                     }
                 }, 20);
             });
@@ -579,6 +595,7 @@
             const box = document.getElementById('dev_suggest');
             const selectedDV = document.getElementById('dev_filter_donvi').value;
             
+            if(!box) return;
             box.innerHTML = "";
             if(!val && !selectedDV) { box.style.display = "none"; return; }
 
@@ -605,8 +622,10 @@
         }
 
         function resetSelectedUser() {
-            document.getElementById('dev_user_search').value = "";
-            document.getElementById('dev_user_id').value = "";
+            const uSearch = document.getElementById('dev_user_search');
+            const uId = document.getElementById('dev_user_id');
+            if(uSearch) uSearch.value = "";
+            if(uId) uId.value = "";
         }
 
         async function saveDeviceConfig() {
@@ -639,20 +658,23 @@
                     alert("Thêm cấp phát thiết bị mới thành công!");
                 }
                 
-                // Reset form nhập
+                // Reset form nhập tránh dính dữ liệu cũ
                 document.getElementById('editing_device_id').value = "";
                 document.getElementById('dev_name').value = "";
                 document.getElementById('dev_code').value = "";
                 resetSelectedUser();
                 document.getElementById('form_device_title').innerHTML = `<i class="fa-solid fa-plus"></i> Cấp Phát Thiết Bị`;
 
-                // VÁ BIẾN CỐ LỚN: Tải lại mảng dữ liệu mới từ Cloud
+                // VÁ CHẾT: Đồng bộ dữ liệu cục bộ trước khi chuyển Tab vẽ lại
                 let r2 = await client.from('thiet_bi').select('*').order('id', { ascending: false });
                 DB_THIET_BI = r2.data || [];
 
-                // TỰ ĐỘNG CHUYỂN TAB SANG THIẾT BỊ để hiển thị ngay kết quả lập tức!
+                // Ép chuyển Tab sang phân hệ Thiết bị ngay lập tức
                 switchSection('thietbi');
-            } catch (err) { alert("Lỗi: " + err.message); }
+            } catch (err) { 
+                alert("Lỗi lưu cấu hình: " + err.message); 
+                console.error(err);
+            }
         }
 
         function editDevice(id) {
