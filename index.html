@@ -181,7 +181,7 @@
         .filter-wrapper { display: flex; gap: 15px; margin-bottom: 25px; background: white; padding: 16px; border-radius: 16px; box-shadow: var(--shadow-3d); border: 1px solid var(--border); flex-wrap: wrap; align-items: center; }
         .search-bar { flex: 1; min-width: 250px; padding: 11px 16px; border: 1px solid var(--border); border-radius: 10px; font-size: 14px; outline: none; background: #f8fafc; }
         .search-bar:focus { background: #fff; border-color: var(--primary); }
-        .filter-select { width: 260px; padding: 11px 16px; border: 1px solid var(--border); border-radius: 10px; font-size: 14px; background-color: #fff; font-weight: 600; color: var(--dark); outline: none; }
+        .filter-select { width: 220px; padding: 11px 16px; border: 1px solid var(--border); border-radius: 10px; font-size: 14px; background-color: #fff; font-weight: 600; color: var(--dark); outline: none; }
 
         .table-container { 
             width: 100%; 
@@ -288,6 +288,11 @@
                 <div class="filter-wrapper">
                     <input type="text" id="search_hoso" class="search-bar" placeholder="Tìm nhanh theo Họ Tên, Số CCCD..." oninput="triggerFilterReset()">
                     <select id="filter_donvi" class="filter-select" onchange="triggerFilterReset()"><option value="">-- Tất cả Mã Đơn Vị --</option></select>
+                    <select id="filter_atv" class="filter-select" onchange="triggerFilterReset()">
+                        <option value="">-- Lọc An Toàn Viên --</option>
+                        <option value="yes">Là An Toàn Viên</option>
+                        <option value="no">Không phải ATV</option>
+                    </select>
                 </div>
                 <div class="table-container" id="hoso_scroll_container" onscroll="handleTableScroll(this)">
                     <table>
@@ -434,9 +439,17 @@
         function triggerFilterReset() {
             const kw = document.getElementById('search_hoso').value.toLowerCase().trim(); 
             const selectedDonVi = document.getElementById('filter_donvi').value;
+            const filterATV = document.getElementById('filter_atv').value;
+
             FILTERED_LIST = DB_NHAN_SU.filter(x => { 
                 let matchKeyword = !kw || (x.ho_ten && x.ho_ten.toLowerCase().includes(kw)) || (x.so_cccd && x.so_cccd.includes(kw)); 
-                return matchKeyword && (!selectedDonVi || String(x.ma_don_vi) === String(selectedDonVi)); 
+                let matchDV = !selectedDonVi || String(x.ma_don_vi) === String(selectedDonVi);
+                
+                let matchATV = true;
+                if (filterATV === "yes") matchATV = (x.an_toan_vien && String(x.an_toan_vien).trim() !== "");
+                if (filterATV === "no") matchATV = (!x.an_toan_vien || String(x.an_toan_vien).trim() === "");
+
+                return matchKeyword && matchDV && matchATV; 
             });
             CURRENT_PAGE_SIZE = 30; 
             renderNhanSuTable(false);
@@ -640,40 +653,35 @@
             } catch (e) { alert(e.message); }
         }
 
-        // THUẬT TOÁN MỚI: ĐỌC CHUỖI GỐC KHÔNG QUA ĐỐI TƯỢNG DATE ĐỂ TRANH LỆCH NGÀY THÁNG
         function safeConvertToISODate(rawVal) {
             if (rawVal === undefined || rawVal === null) return null;
             let str = String(rawVal).trim();
             if (!str) return null;
 
-            // Xử lý chuỗi định dạng chứa kí tự T (Chuẩn ISO thô)
             if (str.includes("T")) str = str.split("T")[0];
 
-            // Nếu ô Excel định dạng gạch chéo dd/mm/yyyy hoặc yyyy/mm/dd
             if (str.includes("/")) {
                 let parts = str.split("/");
                 if (parts.length === 3) {
-                    if (parts[2].length === 4) { // Dạng dd/mm/yyyy
+                    if (parts[2].length === 4) { 
                         return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
                     }
-                    if (parts[0].length === 4) { // Dạng yyyy/mm/dd
+                    if (parts[0].length === 4) { 
                         return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
                     }
                 }
             }
 
-            // Nếu ô Excel định dạng gạch ngang dd-mm-yyyy hoặc yyyy-mm-dd
             if (str.includes("-")) {
                 let parts = str.split("-");
                 if (parts.length === 3) {
-                    if (parts[0].length === 4) return str; // Đã đúng chuẩn yyyy-mm-dd
-                    if (parts[2].length === 4) { // Dạng dd-mm-yyyy
+                    if (parts[0].length === 4) return str; 
+                    if (parts[2].length === 4) { 
                         return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
                     }
                 }
             }
 
-            // Nếu Excel lưu số Serial nguyên bản (ví dụ số ngày tính từ năm 1900)
             if (!isNaN(str) && Number(str) > 20000) {
                 let dateObj = XLSX.SSF.parse_date_code(Number(str));
                 let day = String(dateObj.d).padStart(2, '0');
@@ -691,7 +699,6 @@
             reader.onload = async function(e) {
                 try {
                     const data = new Uint8Array(e.target.result);
-                    // QUAN TRỌNG: Tắt hẳn cellDates để lấy text thô chính xác, triệt tiêu lỗi hoán đổi ngày tháng
                     const workbook = XLSX.read(data, { type: 'array', cellDates: false });
                     const sheetName = workbook.SheetNames[0];
                     const json = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "" });
@@ -718,7 +725,6 @@
                         let maDonViVal = String(getValByKeywords(["mãđơnvị", "madonvi", "đơnvị"])).trim() || "10";
                         let chucDanhVal = String(getValByKeywords(["chứcdanh", "côngviệc", "chứcdanhcôngviệc"])).trim();
                         
-                        // Sử dụng thuật toán xử lý chuỗi thô để không bị hoán đổi ngày tháng
                         let rawNamSinh = getValByKeywords(["nămsinh", "namsinh", "ngàysinh"]);
                         let rawNamVeHuu = getValByKeywords(["vềhưu", "vehuu", "ngàyvềhưu"]);
                         let namSinhValue = safeConvertToISODate(rawNamSinh);
