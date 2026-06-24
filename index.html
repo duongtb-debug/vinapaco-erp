@@ -1,1875 +1,696 @@
-<!-- Chosen Palette: Slate Navy & Blue Accent with Highly Readable Large Typography -->
 <!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hệ Thống Quản Trị Nhân Sự & Thiết Bị - Bản Cao Cấp</title>
-
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <!-- Robust Unicode-safe QRCode Engine -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <title>Hệ thống Quản lý & In ấn QR Code Nhân sự</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- QRCode JS Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
-        :root {
-            --primary: #0f172a;
-            --primary-light: #1e293b;
-            --accent: #2563eb;
-            --accent-hover: #1d4ed8;
-            --success: #166534;
-            --danger: #dc2626;
-            --bg-main: #f8fafc;
-            --border-color: #cbd5e1;
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
         }
-
-        /* Large Typography Core Settings */
-        body { 
-            background-color: var(--bg-main); 
-            color: #1e293b; 
-            padding: 24px;
-            font-size: 16px; 
+        /* Loại bỏ thanh cuộn phụ, chỉ dùng 1 thanh cuộn duy nhất bên ngoài */
+        html, body {
+            height: auto;
+            overflow-y: auto;
+            scroll-behavior: smooth;
         }
-
-        /* Hide Tab sections by default */
-        .app-section {
-            display: none !important;
+        /* Custom scrollbar cho trình duyệt chính */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
         }
-        .app-section.active {
-            display: block !important;
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
         }
-
-        /* High-impact Title sizing */
-        h1 { font-size: 1.85rem !important; font-weight: 800 !important; }
-        h2 { font-size: 1.5rem !important; font-weight: 700 !important; }
-        h3 { font-size: 1.35rem !important; font-weight: 700 !important; }
-        h4 { font-size: 1.15rem !important; font-weight: 700 !important; }
-        
-        .nav-tab { 
-            padding: 14px 28px; 
-            font-size: 1.1rem; 
-            border-radius: 8px; 
-            font-weight: 700;
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
         }
-
-        /* Large inputs for easier accessibility */
-        input, select, textarea {
-            font-size: 1.05rem !important;
-            padding: 12px 16px !important;
-            line-height: 1.5 !important;
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
         }
-
-        label {
-            font-size: 1.05rem !important;
-            font-weight: 700 !important;
-            color: #334155;
-            margin-bottom: 8px !important;
-            display: inline-block;
-        }
-
-        th {
-            font-size: 1.05rem !important;
-            padding: 16px !important;
-        }
-        td {
-            font-size: 1.05rem !important;
-            padding: 16px !important;
-        }
-
-        /* Print optimization layout override */
+        /* CSS tối ưu hóa riêng cho chế độ In (Print) */
         @media print {
-            body * {
-                visibility: hidden;
-            }
-            #print-area-wrapper, #print-area-wrapper * {
-                visibility: visible;
-            }
-            #print-area-wrapper {
-                position: absolute;
-                left: 0;
-                top: 0;
-                width: 100%;
-                display: flex !important;
-                justify-content: center;
-                align-items: center;
-                background: white;
+            body {
+                background-color: #ffffff !important;
+                color: #000000 !important;
             }
             .no-print {
                 display: none !important;
             }
-        }
-
-        .status-using { background: #dcfce7; color: #15803d; }
-        .status-broken { background: #fee2e2; color: #b91c1c; }
-        
-        .upload-zone {
-            border: 3px dashed #cbd5e1;
-            transition: all 0.3s ease;
-        }
-        .upload-zone:hover {
-            border-color: var(--accent);
-            background-color: #eff6ff;
-        }
-
-        .suggest-box {
-            position: absolute;
-            z-index: 50;
-            background: white;
-            border: 1px solid #cbd5e1;
-            border-radius: 8px;
-            max-height: 250px;
-            overflow-y: auto;
-            width: 100%;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-            display: none;
-        }
-
-        /* NÂNG CẤP CỦA BẠN: Cho phép bảng tự dãn hết chiều cao để không bị cuộn trong */
-        .table-container {
-            max-height: none !important; /* Loại bỏ chiều cao giới hạn */
-            overflow-x: auto !important; /* Chỉ cuộn ngang khi bảng quá rộng */
-            overflow-y: visible !important; /* Cho phép nội dung hiển thị tràn dọc tự nhiên */
-            overflow-anchor: none !important; /* Chặn hoàn toàn tính năng nhảy neo giật của trình duyệt */
-            scroll-behavior: smooth;
-        }
-        
-        /* Tối ưu hóa thanh cuộn ngang khi cần thiết */
-        .table-container::-webkit-scrollbar {
-            height: 10px;
-        }
-        .table-container::-webkit-scrollbar-track {
-            background: #f1f5f9;
-            border-radius: 8px;
-        }
-        .table-container::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 8px;
-            border: 2px solid #f1f5f9;
-        }
-        .table-container::-webkit-scrollbar-thumb:hover {
-            background: #94a3b8;
+            .print-area {
+                display: block !important;
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            .qr-print-card {
+                page-break-inside: avoid;
+                break-inside: avoid;
+                border: 1px solid #e2e8f0 !important;
+                box-shadow: none !important;
+                margin-bottom: 1.5rem !important;
+            }
         }
     </style>
 </head>
-<body>
+<body class="text-slate-800 antialiased">
 
-    <header class="bg-slate-900 text-white p-6 rounded-xl mb-6 flex flex-wrap justify-between items-center shadow-lg border-b-4 border-blue-600">
-        <div class="flex items-center gap-4">
-            <div class="p-3 bg-blue-600 rounded-lg text-2xl">
-                <i class="fa-solid fa-industry"></i>
+    <!-- HEADER / NAVIGATION (no-print) -->
+    <header class="no-print bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-3">
+                    <div class="bg-indigo-600 text-white p-2.5 rounded-xl shadow-md shadow-indigo-100 flex items-center justify-center">
+                        <i class="fa-solid fa-qrcode text-xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-lg font-bold text-slate-900 leading-tight">VINAPACO QR</h1>
+                        <p class="text-xs text-slate-500 font-medium">Hệ thống QR Code & Quản lý hồ sơ nhân sự</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <button onclick="triggerCSVDownloadTemplate()" class="text-sm font-medium text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-3.5 py-2 rounded-lg transition">
+                        <i class="fa-solid fa-download mr-1.5"></i>Tải file mẫu
+                    </button>
+                    <label class="cursor-pointer text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg shadow-sm transition flex items-center">
+                        <i class="fa-solid fa-file-csv mr-1.5"></i>Nhập CSV/Excel
+                        <input type="file" id="csvFileInput" accept=".csv" class="hidden" onchange="handleCSVUpload(event)">
+                    </label>
+                </div>
             </div>
-            <div>
-                <h1>HỆ THỐNG ĐIỀU HÀNH & QUẢN TRỊ DOANH NGHIỆP</h1>
-                <p class="text-slate-400 text-base mt-1 font-medium">Phiên Bản 2026 Nâng Cấp - Trực Quan Hóa & In Ấn Tem Nhãn Quy Chuẩn</p>
-            </div>
-        </div>
-        <div class="mt-4 md:mt-0 bg-slate-800 px-5 py-3 rounded-xl border border-slate-700">
-            <span class="text-sm text-slate-400 block uppercase tracking-wider font-bold">Lao động đám mây</span>
-            <span id="count_ns" class="text-2xl font-black text-blue-400">0</span> <span class="text-lg text-slate-300 font-semibold">Nhân Sự</span>
         </div>
     </header>
 
-    <div class="nav-container flex flex-wrap gap-3 mb-6">
-        <button class="nav-tab active bg-blue-600 text-white border border-slate-300 flex items-center gap-3 shadow-sm transition-all duration-300" id="tab_hoso" onclick="switchSection('hoso')">
-            <i class="fa-solid fa-address-card"></i> Hồ sơ Nhân sự
-        </button>
-        <button class="nav-tab bg-white border border-slate-300 text-slate-700 flex items-center gap-3 shadow-sm transition-all duration-300 hover:bg-slate-50" id="tab_thietbi" onclick="switchSection('thietbi')">
-            <i class="fa-solid fa-laptop-code text-indigo-600"></i> Cấp phát Thiết bị / TS
-        </button>
-        <button class="nav-tab bg-white border border-slate-300 text-slate-700 flex items-center gap-3 shadow-sm transition-all duration-300 hover:bg-slate-50" id="tab_suachua" onclick="switchSection('suachua')">
-            <i class="fa-solid fa-screwdriver-wrench text-emerald-600"></i> Nhật ký Sửa chữa & Chứng từ
-        </button>
-    </div>
-
-    <!-- ========================================== -->
-    <!-- TAB 1: HỒ SƠ NHÂN SỰ -->
-    <!-- ========================================== -->
-    <div class="app-section active bg-white p-6 rounded-xl border border-slate-200 shadow-sm" id="sec_hoso">
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <div class="stat-card bg-gradient-to-br from-white to-slate-50 p-6 rounded-xl border border-slate-200 shadow-md">
-                <div class="text-blue-600 text-3xl mb-2"><i class="fa-solid fa-mars"></i></div>
-                <h3 class="text-base text-slate-500 uppercase tracking-wide">Lao động Nam</h3>
-                <div class="text-3xl font-extrabold text-slate-800 mt-2" id="hr_stat_male">0 người</div>
-            </div>
-            <div class="stat-card bg-gradient-to-br from-white to-slate-50 p-6 rounded-xl border border-slate-200 shadow-md">
-                <div class="text-rose-500 text-3xl mb-2"><i class="fa-solid fa-venus"></i></div>
-                <h3 class="text-base text-slate-500 uppercase tracking-wide">Lao động Nữ</h3>
-                <div class="text-3xl font-extrabold text-slate-800 mt-2" id="hr_stat_female">0 người</div>
-            </div>
-            <div class="stat-card bg-gradient-to-br from-white to-slate-50 p-6 rounded-xl border border-slate-200 shadow-md">
-                <div class="text-emerald-600 text-3xl mb-2"><i class="fa-solid fa-shield-halved"></i></div>
-                <h3 class="text-base text-slate-500 uppercase tracking-wide">An Toàn Viên (ATV)</h3>
-                <div class="text-3xl font-extrabold text-emerald-700 mt-2" id="hr_stat_atv">0 người</div>
-            </div>
-            <div class="stat-card bg-gradient-to-br from-white to-slate-50 p-6 rounded-xl border border-slate-200 shadow-md">
-                <div class="text-amber-600 text-3xl mb-2"><i class="fa-solid fa-biohazard"></i></div>
-                <h3 class="text-base text-slate-500 uppercase tracking-wide">Nghề Độc Hại (NNĐH)</h3>
-                <div class="text-3xl font-extrabold text-amber-700 mt-2" id="hr_stat_nndh">0 người</div>
-            </div>
-        </div>
-
-        <div class="chart-grid grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-            <div class="chart-box bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-                <h4 class="mb-4 text-slate-800 border-l-4 border-blue-600 pl-3">Dự báo nghỉ hưu tương lai</h4>
-                <div class="chart-container h-64 relative">
-                    <canvas id="retireChart"></canvas>
+    <!-- MAIN BODY CONTAINER -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 no-print">
+        
+        <!-- TOP ANALYTICS DASHBOARD -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-5 mb-8">
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Tổng Nhân Sự</p>
+                    <h3 class="text-2xl font-bold text-slate-900 mt-1" id="statTotal">--</h3>
+                </div>
+                <div class="h-12 w-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl">
+                    <i class="fa-solid fa-users"></i>
                 </div>
             </div>
-            <div class="chart-box bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-                <h4 class="mb-4 text-slate-800 border-l-4 border-rose-500 pl-3">Cơ cấu giới tính</h4>
-                <div class="chart-container h-64 relative">
-                    <canvas id="genderChart"></canvas>
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Lao Động Nữ</p>
+                    <h3 class="text-2xl font-bold text-slate-900 mt-1" id="statFemale">--</h3>
+                </div>
+                <div class="h-12 w-12 rounded-xl bg-pink-50 text-pink-600 flex items-center justify-center text-xl">
+                    <i class="fa-solid fa-venus"></i>
                 </div>
             </div>
-            <div class="chart-box bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-                <h4 class="mb-4 text-slate-800 border-l-4 border-emerald-500 pl-3">Phân bổ đơn vị chủ lực</h4>
-                <div class="chart-container h-64 relative">
-                    <canvas id="deptChart"></canvas>
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">An Toàn Viên</p>
+                    <h3 class="text-2xl font-bold text-slate-900 mt-1" id="statSafety">--</h3>
+                </div>
+                <div class="h-12 w-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+            </div>
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Nghề Nguy Hiểm</p>
+                    <h3 class="text-2xl font-bold text-slate-900 mt-1" id="statHazard">--</h3>
+                </div>
+                <div class="h-12 w-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
                 </div>
             </div>
         </div>
 
-        <div class="toolbar bg-slate-50 p-5 rounded-xl flex flex-wrap gap-4 items-center justify-between mb-6 border border-slate-200">
-            <div class="search-box flex gap-3 flex-1 min-w-[320px]">
-                <input type="text" id="search_hoso" oninput="triggerFilterReset()" placeholder="Tìm nhanh theo Họ Tên hoặc số CCCD..." class="border border-slate-300 rounded-lg flex-1">
-                <select id="filter_donvi" onchange="triggerFilterReset()" class="border border-slate-300 rounded-lg bg-white w-64">
-                    <option value="">-- Tất cả Mã Đơn Vị --</option>
+        <!-- CONTROL BAR (FILTER, SEARCH, BATCH OPTIONS) -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm mb-6 flex flex-col md:flex-row gap-4 items-center justify-between">
+            <div class="w-full md:w-1/3 relative">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                </span>
+                <input type="text" id="searchInput" oninput="handleFilterChange()" placeholder="Tìm kiếm theo Tên, Số sổ BHXH, CCCD..." class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition text-sm">
+            </div>
+
+            <div class="w-full md:w-auto flex flex-wrap gap-3 items-center justify-end">
+                <select id="filterUnit" onchange="handleFilterChange()" class="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="">Tất cả đơn vị</option>
                 </select>
-            </div>
-            <div class="flex gap-3">
-                <div class="btn btn-file bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-3 rounded-lg cursor-pointer flex items-center gap-2">
-                    <i class="fa-solid fa-file-excel text-lg"></i> Đồng bộ File gốc Excel
-                    <input type="file" onchange="importExcelNhanSu(this)" accept=".xlsx, .xls">
-                </div>
-                <button class="btn bg-rose-600 hover:bg-rose-700 text-white font-bold px-5 py-3 rounded-lg flex items-center gap-2" onclick="confirmClearDataCloud('nhan_su')">
-                    <i class="fa-solid fa-trash-can text-lg"></i> Xóa đám mây
+                
+                <select id="filterSafety" onchange="handleFilterChange()" class="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="">An toàn viên: Tất cả</option>
+                    <option value="1">Có</option>
+                    <option value="0">Không</option>
+                </select>
+
+                <button onclick="handleBatchPrint()" class="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 text-sm font-semibold px-4 py-2.5 rounded-xl transition flex items-center">
+                    <i class="fa-solid fa-print mr-2"></i>In hàng loạt (<span id="selectedCount">0</span>)
+                </button>
+
+                <button onclick="toggleSelectAll()" id="selectAllBtn" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold px-4 py-2.5 rounded-xl transition">
+                    Chọn tất cả
                 </button>
             </div>
         </div>
 
-        <!-- REMOVED INTERN SCROLL EVENT: Sắp xếp cuộn chung theo trình duyệt bên ngoài -->
-        <div class="table-container border border-slate-200 rounded-xl">
-            <table class="w-full text-left border-collapse">
+        <!-- MAIN TABLE CONTAINER (Zérô thanh cuộn dọc bên trong) -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-x-auto">
+            <table class="w-full text-left border-collapse min-w-[1000px]">
                 <thead>
-                    <tr class="bg-slate-100 text-slate-700 border-b border-slate-200">
-                        <th class="text-center font-bold">Mã hệ thống</th>
-                        <th class="text-center font-bold">STT gốc</th>
-                        <th class="font-bold">Họ và Tên</th>
-                        <th class="font-bold">Số Sổ BHXH</th>
-                        <th class="font-bold">Số CCCD</th>
-                        <th class="text-center font-bold">Giới Tính</th>
-                        <th class="text-center font-bold">Ngày Sinh</th>
-                        <th class="text-center font-bold">Tuổi</th>
-                        <th class="text-center font-bold">ATV</th>
-                        <th class="text-center font-bold">NNDH</th>
-                        <th class="text-center font-bold">Ngày Về Hưu</th>
-                        <th class="text-center font-bold">Mã Đơn Vị</th>
-                        <th class="font-bold">Chức Danh Công Việc</th>
+                    <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 text-xs font-bold uppercase tracking-wider">
+                        <th class="p-4 w-12 text-center">
+                            <input type="checkbox" id="headerCheckbox" onchange="handleHeaderCheckboxChange()" class="rounded text-indigo-600 focus:ring-indigo-500 h-4 w-4">
+                        </th>
+                        <th class="p-4 w-16 text-center">STT</th>
+                        <th class="p-4">Họ và tên</th>
+                        <th class="p-4">Số sổ BHXH</th>
+                        <th class="p-4">Số CCCD</th>
+                        <th class="p-4">Chức danh công việc</th>
+                        <th class="p-4 text-center">Nữ</th>
+                        <th class="p-4 text-center">ATV</th>
+                        <th class="p-4 text-center">NNĐH</th>
+                        <th class="p-4 text-right">Thao tác</th>
                     </tr>
                 </thead>
-                <tbody id="table_hoso_body" class="divide-y divide-slate-200">
-                    <tr><td colspan="13" class="text-center py-12 text-slate-500"><i class="fa-solid fa-spinner fa-spin mr-2"></i> Đang tải dữ liệu nhân sự...</td></tr>
+                <tbody id="employeeTableBody" class="divide-y divide-slate-100 text-sm text-slate-700">
+                    <!-- Dòng dữ liệu được render tự động ở đây -->
                 </tbody>
             </table>
         </div>
-    </div>
 
-    <!-- ========================================== -->
-    <!-- TAB 2: THIẾT BỊ TÀI SẢN -->
-    <!-- ========================================== -->
-    <div class="app-section bg-white p-6 rounded-xl border border-slate-200 shadow-sm" id="sec_thietbi">
-        <div class="flex flex-col gap-8">
-            
-            <div class="form-panel bg-slate-50 p-6 rounded-xl border border-slate-200 shadow-sm">
-                <h3 id="form_device_title" class="mb-5 text-slate-800 border-b pb-3 flex items-center gap-2 text-lg font-bold">
-                    <i class="fa-solid fa-square-plus text-blue-600"></i> BIỂU MẪU CẤP THIẾT BỊ / TÀI SẢN MỚI
-                </h3>
-                <input type="hidden" id="editing_device_id">
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <div class="flex flex-col justify-between gap-4">
-                        <div class="form-group">
-                            <label>Mã đơn vị tiếp quản</label>
-                            <select id="dev_filter_donvi" onchange="handleUnitChange()" class="w-full bg-white border border-slate-300 rounded-lg">
-                                <option value="">-- Chọn đơn vị --</option>
-                            </select>
-                        </div>
-                        <div class="form-group relative">
-                            <label>Nhân sự bàn giao</label>
-                            <!-- CLICK EVENT UPGRADE: Tự kích hoạt khi focus và click chuột -->
-                            <input type="text" id="dev_user_search" oninput="smartSuggest(this)" onfocus="smartSuggest(this)" onclick="smartSuggest(this)" placeholder="Kích chuột hiển thị nhanh nhân viên..." class="w-full bg-white border border-slate-300 rounded-lg">
-                            <input type="hidden" id="dev_user_id">
-                            <div class="suggest-box" id="dev_suggest"></div>
-                        </div>
-                    </div>
-                    
-                    <div class="flex flex-col justify-between gap-4">
-                        <div class="form-group">
-                            <label>Tên thiết bị tài sản *</label>
-                            <input type="text" id="dev_name" placeholder="Ví dụ: Máy tính Laptop Dell Latitude 5440" class="w-full bg-white border border-slate-300 rounded-lg">
-                        </div>
-                        <div class="form-group">
-                            <label>Số Sê-ri / Mã tài sản (Bỏ trống tự tạo)</label>
-                            <input type="text" id="dev_code" placeholder="Ví dụ: EQ-DELL-8829" class="w-full bg-white border border-slate-300 rounded-lg">
-                        </div>
-                    </div>
+        <!-- LOAD MORE BUTTON (Phục vụ nạp vô hạn mượt mà) -->
+        <div class="mt-6 text-center">
+            <button id="loadMoreBtn" onclick="loadMoreData()" class="bg-white border border-slate-200 hover:border-indigo-500 hover:text-indigo-600 text-slate-600 text-sm font-medium px-6 py-2.5 rounded-xl shadow-sm transition">
+                Xem thêm nhân viên <i class="fa-solid fa-chevron-down ml-1.5"></i>
+            </button>
+        </div>
 
-                    <div class="flex flex-col justify-between gap-4">
-                        <div class="form-group">
-                            <label>Trạng thái vận hành</label>
-                            <select id="dev_status_select" class="w-full bg-white border border-slate-300 rounded-lg">
-                                <option value="Đang sử dụng">Đang sử dụng</option>
-                                <option value="Hỏng hóc / Đang sửa">Hỏng hóc / Đang sửa</option>
-                            </select>
-                        </div>
-                        
-                        <div class="form-group flex items-end h-full">
-                            <button class="btn bg-blue-600 hover:bg-blue-700 text-white font-bold w-full justify-center py-3.5 flex items-center gap-2 rounded-lg shadow-md transition-all duration-300" onclick="saveDeviceConfig()">
-                                <i class="fa-solid fa-floppy-disk text-lg"></i> Ghi nhận vào Hệ thống
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
+    </main>
 
-            <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-                <div class="toolbar bg-slate-50 p-5 rounded-xl flex items-center mb-6 border border-slate-200">
-                    <div class="search-box w-full">
-                        <input type="text" id="search_thietbi" oninput="displayThietBi()" placeholder="Tìm thiết bị nhanh theo tên, mã sê-ri hoặc nhân sự tiếp quản..." class="w-full bg-white border border-slate-300 rounded-lg">
-                    </div>
-                </div>
-                
-                <div class="table-container overflow-x-auto border border-slate-200 rounded-xl">
-                    <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="bg-slate-100 text-slate-700 border-b border-slate-200">
-                                <th class="text-center font-bold w-36">Thẻ QR</th>
-                                <th class="font-bold">Mã Tài Sản</th>
-                                <th class="font-bold">Tên Thiết Bị / Tài Sản</th>
-                                <th class="font-bold">Nhân Sự Quản Lý</th>
-                                <th class="text-center font-bold">Đơn Vị</th>
-                                <th class="text-center font-bold">Trạng Thái</th>
-                                <th class="text-center font-bold w-72">Hành Động</th>
-                            </tr>
-                        </thead>
-                        <tbody id="table_thietbi_body" class="divide-y divide-slate-200"></tbody>
-                    </table>
-                </div>
-            </div>
-            
+    <!-- CHẾ ĐỘ IN SẴN SÀNG (Mặc định ẩn trên màn hình thường) -->
+    <div id="printContainer" class="hidden print-area p-6 bg-white">
+        <h2 class="text-center text-xl font-bold mb-6 border-b pb-4 text-slate-900 uppercase">Danh Sách Mã QR Nhân Sự Được Chọn</h2>
+        <div id="printGrid" class="grid grid-cols-2 gap-6">
+            <!-- Thẻ in QR sẽ tự động điền tại đây -->
         </div>
     </div>
 
-    <!-- ========================================== -->
-    <!-- TAB 3: NHẬT KÝ SỬA CHỮA -->
-    <!-- ========================================== -->
-    <div class="app-section bg-white p-6 rounded-xl border border-slate-200 shadow-sm" id="sec_suachua">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div class="bg-gradient-to-r from-blue-700 to-indigo-800 text-white p-6 rounded-xl shadow-md border-b-4 border-indigo-400">
-                <div class="flex justify-between items-center">
-                    <div>
-                        <p class="text-sm font-bold text-blue-200 uppercase tracking-wider">Hạch toán sửa chữa</p>
-                        <h2 class="text-4xl font-extrabold mt-1" id="lbl_stat_rep_count">0 hồ sơ</h2>
-                    </div>
-                    <div class="text-4xl text-blue-300 opacity-60"><i class="fa-solid fa-folder-open"></i></div>
+    <!-- MODAL XEM CHI TIẾT & QR CODE LỚN -->
+    <div id="qrModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden" onclick="closeModal(event)">
+        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full overflow-hidden border border-slate-100 transform transition-all" onclick="event.stopPropagation()">
+            <div class="bg-indigo-900 text-white p-5 flex justify-between items-center">
+                <div>
+                    <h3 class="font-bold text-lg leading-tight" id="modalName">Nguyễn Văn A</h3>
+                    <p class="text-indigo-200 text-xs mt-0.5" id="modalTitle">Chức vụ nhân viên</p>
                 </div>
-            </div>
-            <div class="bg-gradient-to-r from-amber-600 to-orange-700 text-white p-6 rounded-xl shadow-md border-b-4 border-orange-400">
-                <div class="flex justify-between items-center">
-                    <div>
-                        <p class="text-sm font-bold text-amber-200 uppercase tracking-wider">Chi phí trước thuế</p>
-                        <h2 class="text-3xl font-extrabold mt-1" id="lbl_stat_total_before">0 đ</h2>
-                    </div>
-                    <div class="text-4xl text-amber-300 opacity-60"><i class="fa-solid fa-coins"></i></div>
-                </div>
-            </div>
-            <div class="bg-gradient-to-r from-emerald-600 to-teal-700 text-white p-6 rounded-xl shadow-md border-b-4 border-emerald-400">
-                <div class="flex justify-between items-center">
-                    <div>
-                        <p class="text-sm font-bold text-emerald-200 uppercase tracking-wider">Tổng Quyết Toán (Sau Thuế)</p>
-                        <h2 class="text-3xl font-extrabold mt-1" id="lbl_stat_total_after">0 đ</h2>
-                    </div>
-                    <div class="text-4xl text-emerald-300 opacity-60"><i class="fa-solid fa-file-invoice-dollar"></i></div>
-                </div>
-            </div>
-        </div>
-
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-                <h4 class="mb-4 text-slate-800 border-l-4 border-indigo-600 pl-3">Chi phí bảo trì theo đơn vị thụ hưởng</h4>
-                <div class="h-64 relative">
-                    <canvas id="repairCostChart"></canvas>
-                </div>
-            </div>
-            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
-                <h4 class="mb-4 text-slate-800 border-l-4 border-teal-500 pl-3">Tình trạng thanh toán hồ sơ quyết toán</h4>
-                <div class="h-56 relative flex justify-center">
-                    <canvas id="repairPaymentChart" class="max-w-[320px]"></canvas>
-                </div>
-            </div>
-        </div>
-
-        <div class="flex flex-col gap-8">
-            
-            <div class="bg-slate-50 p-6 rounded-xl border border-slate-200 shadow-sm">
-                <h3 class="mb-5 text-slate-800 border-b pb-3 flex items-center gap-2 text-lg font-bold">
-                    <i class="fa-solid fa-file-invoice text-emerald-600"></i> HỒ SƠ QUYẾT TOÁN & HẠCH TOÁN SỬA CHỮA MỚI
-                </h3>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-                    <div class="space-y-4">
-                        <div class="form-group">
-                            <label>Tên hồ sơ quyết toán *</label>
-                            <input type="text" id="rep_file_name" placeholder="Ví dụ: HSQT-2026-XN02" class="w-full bg-white border border-slate-300 rounded-lg">
-                        </div>
-                        <div class="form-group">
-                            <!-- UPGRADE: Tự nhập đơn vị thụ hưởng thoải mái -->
-                            <label>Đơn vị thụ hưởng * (Tự nhập)</label>
-                            <input type="text" id="rep_beneficiary" placeholder="Ví dụ: Phân xưởng 1 hoặc ĐV 14.2" class="w-full bg-white border border-slate-300 rounded-lg">
-                        </div>
-                        <div class="form-group">
-                            <label>Ngày làm quyết toán</label>
-                            <input type="date" id="rep_date" class="w-full bg-white border border-slate-300 rounded-lg">
-                        </div>
-                    </div>
-                    
-                    <div class="space-y-4">
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div class="form-group">
-                                <label>Số tài khoản thụ hưởng</label>
-                                <input type="text" id="rep_account_number" placeholder="Ví dụ: 1903..." class="w-full bg-white border border-slate-300 rounded-lg">
-                            </div>
-                            <div class="form-group">
-                                <label>Ngân hàng thụ hưởng</label>
-                                <input type="text" id="rep_bank_name" placeholder="Ví dụ: Techcombank" class="w-full bg-white border border-slate-300 rounded-lg">
-                            </div>
-                        </div>
-                        
-                        <div class="form-group relative">
-                            <label>Thiết bị bảo dưỡng * (Tìm chọn)</label>
-                            <!-- CLICK EVENT UPGRADE: Tự kích hoạt khi focus và click chuột -->
-                            <input type="text" id="rep_device_search" oninput="suggestRepairDevice(this)" onfocus="suggestRepairDevice(this)" onclick="suggestRepairDevice(this)" placeholder="Nhấn chuột tìm nhanh..." class="w-full bg-white border border-slate-300 rounded-lg">
-                            <input type="hidden" id="rep_device_code">
-                            <input type="hidden" id="rep_device_name">
-                            <div class="suggest-box" id="rep_device_suggest"></div>
-                        </div>
-
-                        <div class="form-group">
-                            <label>Trạng thái hồ sơ thanh toán</label>
-                            <select id="rep_payment_status" class="w-full bg-white border border-slate-300 rounded-lg">
-                                <option value="Chưa thanh toán">Chưa thanh toán</option>
-                                <option value="Chờ duyệt">Chờ duyệt</option>
-                                <option value="Đã thanh toán">Đã thanh toán</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="flex flex-col justify-between gap-4">
-                        <div class="form-group h-full flex flex-col">
-                            <label>Nội dung sửa chữa, thay thế linh kiện *</label>
-                            <textarea id="rep_content" rows="6" placeholder="Ghi nhận chi tiết các hạng mục đã thay thế, nâng cấp hoặc bảo dưỡng thiết bị..." class="w-full bg-white border border-slate-300 rounded-lg flex-1 resize-none"></textarea>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 pt-4 border-t border-slate-200">
-                    <div class="form-group lg:col-span-1">
-                        <label>Đính kèm tài liệu / Hóa đơn quyết toán</label>
-                        <div class="upload-zone rounded-lg p-5 text-center cursor-pointer bg-white" onclick="document.getElementById('rep_document_file').click()" id="upload_drop_zone">
-                            <i class="fa-solid fa-cloud-arrow-up text-3xl text-slate-400 mb-2 block"></i>
-                            <span class="text-sm font-semibold text-slate-600 block">Kéo thả file hoặc nhấn để tải lên</span>
-                            <span class="text-xs text-slate-400 block mt-1">Hỗ trợ định dạng Ảnh (JPG, PNG, WebP) hoặc tài liệu</span>
-                            <input type="file" id="rep_document_file" class="hidden" onchange="handleDocumentUpload(this)">
-                        </div>
-                        <div id="file_uploaded_preview" class="hidden mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
-                            <div class="flex items-center gap-2">
-                                <i class="fa-solid fa-file-shield text-blue-600 text-lg"></i>
-                                <span class="text-sm font-semibold text-slate-700 truncate max-w-[180px]" id="uploaded_file_name">doc.png</span>
-                            </div>
-                            <button onclick="clearUploadedFile()" class="text-rose-600 hover:text-rose-800"><i class="fa-solid fa-circle-xmark"></i></button>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:col-span-1">
-                        <div class="form-group">
-                            <label>Chi phí trước thuế (VNĐ) *</label>
-                            <input type="number" id="rep_cost_before" value="0" oninput="calculateFlexibleTax()" class="w-full bg-white border border-slate-300 rounded-lg">
-                        </div>
-                        <div class="form-group">
-                            <label>Thuế suất VAT</label>
-                            <select id="rep_tax_rate" onchange="toggleCustomTaxField()" class="w-full bg-white border border-slate-300 rounded-lg">
-                                <option value="0">0% (Không thuế)</option>
-                                <option value="5">5%</option>
-                                <option value="8">8%</option>
-                                <option value="10" selected>10%</option>
-                                <option value="custom">Thuế suất tùy chỉnh (%)</option>
-                            </select>
-                        </div>
-                        <div class="form-group sm:col-span-2" id="custom_tax_group" style="display:none;">
-                            <label>Nhập mức thuế riêng (%)</label>
-                            <input type="number" id="rep_tax_custom_val" value="0" oninput="calculateFlexibleTax()" class="w-full bg-white border border-slate-300 rounded-lg">
-                        </div>
-                    </div>
-
-                    <div class="flex flex-col justify-between gap-4 lg:col-span-1">
-                        <div class="bg-slate-200 p-4 rounded-lg border border-slate-300 flex flex-col justify-center flex-1 min-h-[100px]">
-                            <div class="flex justify-between text-base mb-1"><span>Tiền thuế tính riêng:</span><b id="lbl_tax_money">0 VNĐ</b></div>
-                            <div class="flex justify-between text-lg font-extrabold text-emerald-800 border-t border-slate-300 pt-1 mt-1"><span>TỔNG CỘNG:</span><span id="lbl_total_cost">0 VNĐ</span></div>
-                        </div>
-                        <button class="btn bg-emerald-600 hover:bg-emerald-700 text-white font-bold w-full justify-center py-3.5 flex items-center gap-2 rounded-lg shadow-md transition-all duration-300" onclick="saveRepairLog()">
-                            <i class="fa-solid fa-calculator text-lg"></i> Chốt Quyết Toán Chi Phí
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-                <div class="toolbar bg-slate-50 p-5 rounded-xl flex items-center mb-6 border border-slate-200">
-                    <div class="search-box w-full">
-                        <input type="text" id="search_suachua_input" oninput="displayRepairLogs()" placeholder="Lọc nhật ký bảo trì theo thiết bị, tên hồ sơ, đơn vị thụ hưởng..." class="w-full bg-white border border-slate-300 rounded-lg">
-                    </div>
-                </div>
-                
-                <div class="table-container overflow-x-auto border border-slate-200 rounded-xl">
-                    <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="bg-slate-100 text-slate-700 border-b border-slate-200">
-                                <th class="font-bold">Mã Tài Sản</th>
-                                <th class="font-bold">Tên Thiết Bị</th>
-                                <th class="font-bold">Tên Hồ Sơ</th>
-                                <th class="text-center font-bold">ĐV Thụ Hưởng & Tài Khoản</th>
-                                <th class="font-bold w-72">Nội Dung Chi Tiết</th>
-                                <th class="font-bold">Giá Trước Thuế</th>
-                                <th class="font-bold">VAT</th>
-                                <th class="font-bold">Tổng Quyết Toán</th>
-                                <th class="text-center font-bold">Thanh Toán</th>
-                                <th class="text-center font-bold">Chứng Từ</th>
-                                <th class="font-bold">Ngày Làm</th>
-                            </tr>
-                        </thead>
-                        <tbody id="table_suachua_body" class="divide-y divide-slate-200"></tbody>
-                    </table>
-                </div>
-            </div>
-            
-        </div>
-    </div>
-
-    <!-- ========================================== -->
-    <!-- OVERLAY UTILITIES (TOASTS, MODALS, PREVIEWERS, LABELS) -->
-    <!-- ========================================== -->
-    <div id="toast-container" class="fixed bottom-5 right-5 z-[9999] flex flex-col gap-3"></div>
-
-    <div id="custom-modal-bg" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-100 transform scale-95 transition-transform duration-300" id="custom-modal-card">
-            <div class="p-6">
-                <div class="flex items-center gap-3 mb-4">
-                    <div class="w-12 h-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xl" id="custom-modal-icon">
-                        <i class="fa-solid fa-circle-question"></i>
-                    </div>
-                    <h3 class="text-xl font-extrabold text-slate-800" id="custom-modal-title">Xác nhận hành động</h3>
-                </div>
-                <p class="text-slate-600 text-base mb-6" id="custom-modal-msg">Bạn có chắc chắn muốn thực hiện hành động này không?</p>
-                <div class="flex justify-end gap-3" id="custom-modal-actions">
-                    <button class="px-5 py-3 border border-slate-200 text-slate-600 font-semibold rounded-lg hover:bg-slate-50 transition-colors text-sm" onclick="closeCustomConfirm(false)">Hủy</button>
-                    <button class="px-5 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors text-sm" id="custom-modal-confirm-btn" onclick="closeCustomConfirm(true)">Đồng ý</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div id="document-preview-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[9999] hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden border border-slate-200">
-            <div class="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-                <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
-                    <i class="fa-solid fa-file-prescription text-blue-600"></i> Xem trước chứng từ đính kèm
-                </h3>
-                <button onclick="closeDocumentPreview()" class="text-slate-400 hover:text-slate-600 text-xl"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-            <div class="p-6 flex flex-col items-center justify-center bg-slate-100 min-h-[350px]" id="document-preview-body"></div>
-            <div class="p-4 border-t border-slate-100 flex justify-end gap-3 bg-slate-50">
-                <a id="btn_preview_download" download="chung-tu.png" href="#" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg flex items-center gap-2 shadow-sm text-sm">
-                    <i class="fa-solid fa-download"></i> Tải tài liệu về máy
-                </a>
-                <button onclick="closeDocumentPreview()" class="px-5 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold rounded-lg text-sm">Đóng</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Printable Physical Label Sticker Modal -->
-    <div id="print-label-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-200">
-            <div class="p-5 border-b border-slate-100 flex items-center justify-between no-print bg-slate-50">
-                <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
-                    <i class="fa-solid fa-print text-indigo-600"></i> Xem và In Tem Dán Thiết Bị
-                </h3>
-                <button onclick="closePrintLabel()" class="text-slate-400 hover:text-slate-600 text-xl"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-            
-            <div class="p-8 flex justify-center bg-slate-100">
-                <div id="print-area-wrapper" class="bg-white p-6 border-2 border-slate-800 rounded-lg shadow-md max-w-[380px] w-full flex items-center gap-4">
-                    <div id="print_qr_canvas" class="w-28 h-28 shrink-0 flex items-center justify-center border border-slate-300 rounded p-1 bg-white"></div>
-                    <div class="flex-1 text-slate-900 leading-tight">
-                        <div class="text-[10px] font-bold tracking-widest text-blue-800 uppercase mb-1">MÃ TÀI SẢN DOANH NGHIỆP</div>
-                        <h4 id="print_lbl_name" class="text-base font-black leading-tight truncate-2-lines">Tên thiết bị</h4>
-                        <div class="text-sm font-semibold mt-1">Mã: <code id="print_lbl_code" class="bg-slate-100 px-1 rounded font-bold text-indigo-700">CODE</code></div>
-                        <div class="text-xs text-slate-600 mt-1">Sử dụng: <span id="print_lbl_user" class="font-bold">Người sử dụng</span></div>
-                        <div class="text-xs text-slate-600">Bộ phận: ĐV-<span id="print_lbl_dept" class="font-bold">ĐV</span></div>
-                        <div class="text-[9px] text-slate-400 mt-2">VẬN HÀNH AN TOÀN - CHUẨN HOÁ 2026</div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="p-5 border-t border-slate-100 flex justify-end gap-3 no-print bg-slate-50">
-                <button onclick="window.print()" class="px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg flex items-center gap-2 shadow-sm text-sm">
-                    <i class="fa-solid fa-print"></i> Tiến Hành In Tem
+                <button onclick="closeModal()" class="text-white/80 hover:text-white text-xl">
+                    <i class="fa-solid fa-xmark"></i>
                 </button>
-                <button onclick="closePrintLabel()" class="px-5 py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold rounded-lg text-sm">Hủy</button>
+            </div>
+            
+            <div class="p-6 flex flex-col items-center">
+                <!-- Vùng hiển thị QR Code chất lượng cao -->
+                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 shadow-inner flex items-center justify-center" style="min-height: 220px; min-width: 220px;">
+                    <div id="modalQrCanvas" class="bg-white p-2 rounded-lg border"></div>
+                </div>
+                <p class="text-xs text-slate-400 mt-3 text-center italic">Quét mã để truy xuất thông tin nhân sự nhanh</p>
+
+                <!-- Thống kê thông tin chi tiết -->
+                <div class="w-full mt-6 space-y-2.5 border-t border-slate-100 pt-5 text-sm text-slate-600">
+                    <div class="flex justify-between">
+                        <span class="font-medium text-slate-400">Số sổ BHXH:</span>
+                        <span class="font-semibold text-slate-800" id="modalBHXH">--</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="font-medium text-slate-400">Số CCCD:</span>
+                        <span class="font-semibold text-slate-800" id="modalCCCD">--</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="font-medium text-slate-400">Ngày sinh:</span>
+                        <span class="font-semibold text-slate-800" id="modalBirth">--</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="font-medium text-slate-400">Mã đơn vị:</span>
+                        <span class="font-semibold text-slate-800" id="modalUnit">--</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="font-medium text-slate-400">Chế độ đặc biệt:</span>
+                        <span class="font-semibold text-slate-800 text-right" id="modalSpecial">Không</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 px-6 py-4 flex gap-3 border-t border-slate-100">
+                <button onclick="printSingleQr()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-xl transition shadow-md shadow-indigo-100 text-sm">
+                    <i class="fa-solid fa-print mr-1.5"></i>In Nhãn QR
+                </button>
+                <button onclick="closeModal()" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-2.5 rounded-xl transition text-sm">
+                    Đóng lại
+                </button>
             </div>
         </div>
     </div>
 
-    <!-- ========================================== -->
-    <!-- BACKEND APPLICATION CONTROLLERS -->
-    <!-- ========================================== -->
+    <!-- TOAST THÔNG BÁO -->
+    <div id="toast" class="fixed bottom-5 right-5 bg-slate-900 text-white px-5 py-3.5 rounded-xl shadow-lg flex items-center space-x-2.5 text-sm transform translate-y-20 opacity-0 transition duration-300 z-50">
+        <span id="toastIcon"><i class="fa-solid fa-circle-check text-emerald-400"></i></span>
+        <span id="toastMessage">Thông báo thành công!</span>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
     <script>
-        const SUPABASE_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co"; 
-        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ";
-        
-        let client = null;
-        try {
-            if (typeof supabase !== 'undefined') {
-                client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-            } else {
-                console.warn("Supabase CDN failed to load. Running in Local Offline Mode.");
-            }
-        } catch (e) {
-            console.error("Supabase client initialization failed: ", e);
-        }
+        // Dữ liệu mẫu nhân viên từ file CSV của bạn
+        const defaultEmployees = [
+            { id: 1, name: "NGÔ THỊ THU HẰNG", bhxh: "8200100849", cccd: "025169012096", isSafety: "0", isHazard: "0", retireYear: "2026", unit: "CĐ TCT", birth: "1969-07-27", isFemale: "X", title: "Chủ tịch Công đoàn Tổng công ty Giấy Việt Nam" },
+            { id: 2, name: "NGUYỄN QUẾ SƠN", bhxh: "8297028466", cccd: "008066000025", isSafety: "0", isHazard: "0", retireYear: "2027", unit: "HĐTV", birth: "1966-02-14", isFemale: "", title: "Thành viên Hội đồng thành viên Tổng công ty Giấy Việt Nam" },
+            { id: 3, name: "ĐÀO NGỌC CƯỜNG", bhxh: "8202002964", cccd: "025077009527", isSafety: "0", isHazard: "0", retireYear: "2037", unit: "ĐẢNG ỦY", birth: "1977-10-17", isFemale: "", title: "Phó Bí thư Đảng ủy Tổng công ty Giấy Việt Nam" },
+            { id: 4, name: "MẠC MẠNH ĐANG", bhxh: "8200002530", cccd: "030075013293", isSafety: "0", isHazard: "0", retireYear: "2035", unit: "BAN GĐ", birth: "1975-05-11", isFemale: "", title: "Phó Tổng giám đốc- Tổng công ty Giấy Việt Nam." },
+            { id: 5, name: "TRIỆU THỊ NĂM", bhxh: "8298010513", cccd: "025169015152", isSafety: "0", isHazard: "0", retireYear: "2026", unit: "PX Cơ khí", birth: "1969-08-10", isFemale: "X", title: "Công nhân nguội sửa chữa cơ khí, Phân xưởng Cơ khí, Xí nghiệp Bảo dưỡng, Tổng công ty Giấy Việt Nam." },
+            { id: 6, name: "NGUYỄN THỊ THẠCH", bhxh: "8200102787", cccd: "042174013492", isSafety: "0", isHazard: "0", retireYear: "2026", unit: "Tổng kho", birth: "1974-08-01", isFemale: "X", title: "Thủ kho giấy thành phẩm, Tổng kho" },
+            { id: 7, name: "NGÔ THỊ THU LAN", bhxh: "8200102773", cccd: "025169012622", isSafety: "0", isHazard: "1", retireYear: "2026", unit: "PX Nguyên liệu", birth: "1969-09-01", isFemale: "X", title: "Công nhân vận hành máy bóc vỏ gỗ, máy nạp, chặt, sàng nguyên liệu, Phân xưởng Nguyên liệu, Nhà máy Giấy" },
+            { id: 8, name: "LƯU TRUNG ĐÔNG", bhxh: "8200100788", cccd: "025071000234", isSafety: "1", isHazard: "0", retireYear: "2031", unit: "PX Điện", birth: "1971-04-12", isFemale: "", title: "Kỹ sư điện tự động hóa, Phân xưởng Điện - Nhà máy Bột Giấy" }
+        ];
 
-        let DB_NHAN_SU = []; 
-        let DB_THIET_BI = []; 
-        let DB_NHAT_KY = []; 
-        let FILTERED_LIST = []; 
-        let CURRENT_PAGE_SIZE = 30;
-        let isPageLoading = false;
+        let employees = [...defaultEmployees];
+        let filteredEmployees = [];
+        let selectedEmployeeIds = new Set();
+        let displayLimit = 5; // Số lượng hàng hiển thị ban đầu
+        let currentViewingEmployee = null;
 
-        let retireChartInst = null;
-        let genderChartInst = null;
-        let deptChartInst = null;
-        let repairCostChartInst = null;
-        let repairPaymentChartInst = null;
-
-        let confirmCallback = null;
-        let uploadedDocumentBase64 = "";
-        let uploadedDocumentName = "";
-
-        window.onload = async function() { 
-            let datePicker = document.getElementById('rep_date');
-            if(datePicker) datePicker.value = new Date().toISOString().split('T')[0];
-            await fetchAllData(); 
-            await fetchRepairLogs();
-
-            // SỬA LỖI NẨY GIẬT: Lắng nghe sự kiện cuộn dọc trực tiếp từ Window thay vì thanh cuộn phụ bên trong
+        window.onload = function() {
+            initApp();
+            // Lắng nghe sự kiện cuộn tự nhiên của cửa sổ trình duyệt (window scroll)
             window.addEventListener('scroll', handleWindowScroll);
-
-            // Set up smart suggesters click listeners
-            document.addEventListener('click', function(e) {
-                const devSuggest = document.getElementById('dev_suggest');
-                const devSearch = document.getElementById('dev_user_search');
-                if (devSuggest && devSearch && !devSuggest.contains(e.target) && e.target !== devSearch) {
-                    devSuggest.style.display = 'none';
-                }
-                
-                const repSuggest = document.getElementById('rep_device_suggest');
-                const repSearch = document.getElementById('rep_device_search');
-                if (repSuggest && repSearch && !repSuggest.contains(e.target) && e.target !== repSearch) {
-                    repSuggest.style.display = 'none';
-                }
-            });
-
-            // Set up Drag & Drop events
-            const dropZone = document.getElementById('upload_drop_zone');
-            if (dropZone) {
-                ['dragenter', 'dragover'].forEach(eventName => {
-                    dropZone.addEventListener(eventName, (e) => {
-                        e.preventDefault();
-                        dropZone.classList.add('bg-blue-50', 'border-blue-500');
-                    }, false);
-                });
-
-                ['dragleave', 'drop'].forEach(eventName => {
-                    dropZone.addEventListener(eventName, (e) => {
-                        e.preventDefault();
-                        dropZone.classList.remove('bg-blue-50', 'border-blue-500');
-                    }, false);
-                });
-
-                dropZone.addEventListener('drop', (e) => {
-                    const dt = e.dataTransfer;
-                    const files = dt.files;
-                    if (files.length > 0) {
-                        document.getElementById('rep_document_file').files = files;
-                        handleDocumentUpload(document.getElementById('rep_document_file'));
-                    }
-                });
-            }
         };
 
-        function handleWindowScroll() {
-            if (isPageLoading) return;
-            
-            // Chỉ kích hoạt tải thêm dữ liệu khi đang ở Tab Hồ sơ nhân sự
-            const activeTab = document.querySelector('.nav-tab.active');
-            if (!activeTab || activeTab.id !== 'tab_hoso') return;
-
-            // Xác định xem người dùng đã cuộn gần xuống cuối màn hình hay chưa (ngưỡng 150px)
-            const threshold = 150;
-            const isAtBottom = (window.innerHeight + window.scrollY) >= (document.documentElement.scrollHeight - threshold);
-            
-            if (isAtBottom) { 
-                if (CURRENT_PAGE_SIZE < FILTERED_LIST.length) { 
-                    isPageLoading = true; 
-                    CURRENT_PAGE_SIZE = Math.min(CURRENT_PAGE_SIZE + 40, FILTERED_LIST.length); 
-                    renderNhanSuTable(true); 
-                    setTimeout(() => { isPageLoading = false; }, 150); 
-                } 
-            } 
+        function initApp() {
+            populateUnitFilter();
+            applyFiltersAndRender();
+            updateDashboardStats();
         }
 
-        function utf16to8(str) {
-            var out, i, len, c;
-            out = "";
-            len = str.length;
-            for(i = 0; i < len; i++) {
-                c = str.charCodeAt(i);
-                if ((c >= 0x0001) && (c <= 0x007F)) {
-                    out += str.charAt(i);
-                } else if (c > 0x07FF) {
-                    out += String.fromCharCode(0xE0 | ((c >> 12) & 0x0F));
-                    out += String.fromCharCode(0x80 | ((c >>  6) & 0x3F));
-                    out += String.fromCharCode(0x80 | ((c >>  0) & 0x3F));
-                } else {
-                    out += String.fromCharCode(0xC0 | ((c >>  6) & 0x1F));
-                    out += String.fromCharCode(0x80 | ((c >>  0) & 0x3F));
-                }
-            }
-            return out;
-        }
-
-        function showNotification(message, type = 'success') {
-            const container = document.getElementById('toast-container');
-            if (!container) return;
-
-            const toast = document.createElement('div');
-            toast.className = `flex items-center gap-3 p-5 bg-white rounded-xl shadow-2xl border-l-4 transition-all duration-300 transform translate-x-5 opacity-0 text-base max-w-sm font-semibold `;
-            
-            if (type === 'success') {
-                toast.className += 'border-emerald-500 text-slate-800';
-                toast.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-500 text-2xl"></i> <div class="flex-1">${message}</div>`;
-            } else if (type === 'error') {
-                toast.className += 'border-rose-500 text-slate-800';
-                toast.innerHTML = `<i class="fa-solid fa-circle-xmark text-rose-500 text-2xl"></i> <div class="flex-1">${message}</div>`;
-            } else {
-                toast.className += 'border-blue-500 text-slate-800';
-                toast.innerHTML = `<i class="fa-solid fa-circle-info text-blue-500 text-2xl"></i> <div class="flex-1">${message}</div>`;
-            }
-
-            container.appendChild(toast);
-            setTimeout(() => {
-                toast.classList.remove('translate-x-5', 'opacity-0');
-            }, 10);
-
-            setTimeout(() => {
-                toast.classList.add('translate-x-5', 'opacity-0');
-                setTimeout(() => toast.remove(), 300);
-            }, 3500);
-        }
-
-        function showCustomConfirm(title, message, iconType = 'confirm', callback) {
-            const modalBg = document.getElementById('custom-modal-bg');
-            const modalTitle = document.getElementById('custom-modal-title');
-            const modalMsg = document.getElementById('custom-modal-msg');
-            const modalIcon = document.getElementById('custom-modal-icon');
-            const confirmBtn = document.getElementById('custom-modal-confirm-btn');
-
-            if (!modalBg) return;
-
-            modalTitle.innerText = title;
-            modalMsg.innerText = message;
-            confirmCallback = callback;
-
-            if (iconType === 'danger') {
-                modalIcon.className = 'w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center text-xl';
-                modalIcon.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i>`;
-                confirmBtn.className = 'px-5 py-3 bg-rose-600 text-white font-semibold rounded-lg hover:bg-rose-700 transition-colors text-sm';
-            } else {
-                modalIcon.className = 'w-12 h-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xl';
-                modalIcon.innerHTML = `<i class="fa-solid fa-circle-question"></i>`;
-                confirmBtn.className = 'px-5 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors text-sm';
-            }
-
-            modalBg.classList.remove('hidden');
-        }
-
-        function closeCustomConfirm(isConfirmed) {
-            const modalBg = document.getElementById('custom-modal-bg');
-            if (modalBg) modalBg.classList.add('hidden');
-            if (isConfirmed && confirmCallback) {
-                confirmCallback();
-            }
-            confirmCallback = null;
-        }
-
-        async function checkColumnExists(tableName, columnName) {
-            if (!client) return false;
-            try {
-                const { error } = await client.from(tableName).select(columnName).limit(1);
-                if (error && (error.code === '42703' || error.message.toLowerCase().includes('column') || error.message.toLowerCase().includes('not find'))) {
-                    return false;
-                }
-                return true;
-            } catch (e) {
-                return false;
-            }
-        }
-
-        async function fetchAllData() {
-            try {
-                if (client) {
-                    let r1 = await client.from('nhan_su').select('*').order('id', { ascending: true }); 
-                    if (r1.error) {
-                        console.error("Lỗi Supabase:", r1.error);
-                        showNotification("Không thể kết nối máy chủ. Đang sử dụng CSDL cục bộ.", "error");
-                    }
-                    DB_NHAN_SU = r1.data || [];
-                } else {
-                    DB_NHAN_SU = [];
-                }
-                
-                const localMapping = JSON.parse(localStorage.getItem('local_atv_nndh') || '{}');
-                DB_NHAN_SU.forEach(x => {
-                    let key = String(x.ho_ten || '').trim() + "_" + String(x.so_cccd || '').trim();
-                    if (localMapping[key]) {
-                        if (x.atv === undefined || x.atv === null || x.atv === "") {
-                            x.atv = localMapping[key].atv;
-                            x.an_toan_vien = localMapping[key].atv;
-                        }
-                        if (x.nndh === undefined || x.nndh === null || x.nndh === "") {
-                            x.nndh = localMapping[key].nndh;
-                            x.nghe_doc_hai = localMapping[key].nndh;
-                        }
-                    }
-                });
-
-                if(document.getElementById('count_ns')) document.getElementById('count_ns').innerText = DB_NHAN_SU.length;
-                
-                if (client) {
-                    let r2 = await client.from('thiet_bi').select('*').order('id', { ascending: false });
-                    DB_THIET_BI = r2.data || [];
-                } else {
-                    DB_THIET_BI = [];
-                }
-
-                calculateHRStats(); 
-                buildDropdowns(); 
-                triggerFilterReset();
-                displayThietBi();
-            } catch (e) { 
-                console.error("Lỗi tải dữ liệu tổng quan:", e); 
-                DB_NHAN_SU = [];
-                DB_THIET_BI = [];
-                triggerFilterReset();
-                displayThietBi();
-            }
-        }
-
-        async function fetchAndReloadThietBi() {
-            try {
-                if (client) {
-                    let r2 = await client.from('thiet_bi').select('*').order('id', { ascending: false });
-                    DB_THIET_BI = r2.data || [];
-                }
-                displayThietBi();
-            } catch (e) { console.error(e); }
-        }
-
-        async function fetchRepairLogs() {
-            try {
-                if (client) {
-                    let r3 = await client.from('nhat_ky_sua_chua').select('*').order('id', { ascending: false });
-                    DB_NHAT_KY = r3.data || [];
-                } else {
-                    DB_NHAT_KY = [];
-                }
-                calculateRepairDashboard();
-                displayRepairLogs();
-            } catch(e) { console.error(e); }
-        }
-
-        function calculateHRStats() {
-            let m = 0, f = 0, atv = 0, nndh = 0;
-            const listToCalculate = FILTERED_LIST.length > 0 ? FILTERED_LIST : DB_NHAN_SU;
-
-            listToCalculate.forEach(x => {
-                let gt = String(x.gioi_tinh || "").trim().toLowerCase();
-                if(gt === "nữ" || gt === "nu" || gt === "f") f++; else m++;
-                
-                let atvVal = x.an_toan_vien || x.atv;
-                if (atvVal && String(atvVal).trim() !== "" && String(atvVal).trim() !== "0" && String(atvVal).trim().toLowerCase() !== "false") {
-                    atv++;
-                }
-
-                let nndhVal = x.nghe_doc_hai || x.nndh;
-                if (nndhVal && String(nndhVal).trim() !== "" && String(nndhVal).trim() !== "0" && String(nndhVal).trim().toLowerCase() !== "false" && String(nndhVal).trim().toLowerCase() !== "null") {
-                    nndh++;
-                }
-            });
-
-            if(document.getElementById('hr_stat_male')) document.getElementById('hr_stat_male').innerText = m + " người"; 
-            if(document.getElementById('hr_stat_female')) document.getElementById('hr_stat_female').innerText = f + " người";
-            if(document.getElementById('hr_stat_atv')) document.getElementById('hr_stat_atv').innerText = atv + " người"; 
-            if(document.getElementById('hr_stat_nndh')) document.getElementById('hr_stat_nndh').innerText = nndh + " người";
-        }
-
-        function calculateRepairDashboard() {
-            let totalRecords = DB_NHAT_KY ? DB_NHAT_KY.length : 0;
-            let sumBefore = 0; let sumAfter = 0;
-            if (DB_NHAT_KY && DB_NHAT_KY.length > 0) {
-                DB_NHAT_KY.forEach(x => {
-                    sumBefore += parseFloat(x.chi_phi_truoc_thue) || 0;
-                    sumAfter += parseFloat(x.tong_chi_phi) || 0;
-                });
-            }
-            if(document.getElementById('lbl_stat_rep_count')) document.getElementById('lbl_stat_rep_count').innerText = totalRecords + " hồ sơ";
-            if(document.getElementById('lbl_stat_total_before')) document.getElementById('lbl_stat_total_before').innerText = Math.round(sumBefore).toLocaleString('vi-VN') + " đ";
-            if(document.getElementById('lbl_stat_total_after')) document.getElementById('lbl_stat_total_after').innerText = Math.round(sumAfter).toLocaleString('vi-VN') + " đ";
-
-            renderRepairCharts();
-        }
-
-        function buildDropdowns() {
-            let uniqueDonVi = [...new Set(DB_NHAN_SU.map(x => String(x.ma_don_vi || '').trim()).filter(Boolean))].sort((a, b) => parseFloat(a) - parseFloat(b));
-            const selectHoso = document.getElementById('filter_donvi'); 
-            if(selectHoso) selectHoso.innerHTML = '<option value="">-- Tất cả Mã Đơn Vị --</option>';
-            const selectDev = document.getElementById('dev_filter_donvi');
-            if(selectDev) selectDev.innerHTML = '<option value="">-- Chọn đơn vị --</option>';
-
-            uniqueDonVi.forEach(dv => { 
-                let opt = `<option value="${dv}">Mã Đơn Vị: ${dv}</option>`;
-                if(selectHoso) selectHoso.innerHTML += opt; 
-                if(selectDev) selectDev.innerHTML += opt;
+        // Tạo bộ lọc đơn vị tự động dựa trên dữ liệu hiện có
+        function populateUnitFilter() {
+            const filterUnitSelect = document.getElementById('filterUnit');
+            filterUnitSelect.innerHTML = '<option value="">Tất cả đơn vị</option>';
+            const units = [...new Set(employees.map(emp => emp.unit).filter(Boolean))];
+            units.forEach(unit => {
+                const opt = document.createElement('option');
+                opt.value = unit;
+                opt.textContent = unit;
+                filterUnitSelect.appendChild(opt);
             });
         }
 
-        function switchSection(target) {
-            document.querySelectorAll('.nav-tab').forEach(el => {
-                el.classList.remove('active', 'bg-blue-600', 'text-white');
-                el.classList.add('bg-white', 'text-slate-700');
-            }); 
-            
-            document.querySelectorAll('.app-section').forEach(el => el.classList.remove('active'));
-            
-            const tabEl = document.getElementById('tab_' + target);
-            const secEl = document.getElementById('sec_' + target);
-            if(tabEl) {
-                tabEl.classList.add('active', 'bg-blue-600', 'text-white');
-                tabEl.classList.remove('bg-white', 'text-slate-700');
-            }
-            if(secEl) {
-                secEl.classList.add('active');
-            }
-            
-            if(target === 'thietbi') displayThietBi();
-            if(target === 'suachua') fetchRepairLogs();
-            
-            // Cuộn trang về đầu sau khi chuyển tab để có tầm nhìn tốt nhất
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+        // Cập nhật thẻ chỉ số thống kê
+        function updateDashboardStats() {
+            document.getElementById('statTotal').textContent = employees.length;
+            document.getElementById('statFemale').textContent = employees.filter(emp => emp.isFemale === 'X').length;
+            document.getElementById('statSafety').textContent = employees.filter(emp => emp.isSafety == '1').length;
+            document.getElementById('statHazard').textContent = employees.filter(emp => emp.isHazard == '1').length;
         }
 
-        function triggerFilterReset() {
-            const kw = document.getElementById('search_hoso') ? document.getElementById('search_hoso').value.toLowerCase().trim() : ""; 
-            const selectedDonVi = document.getElementById('filter_donvi') ? document.getElementById('filter_donvi').value : "";
-            FILTERED_LIST = DB_NHAN_SU.filter(x => { 
-                let matchKeywordNative = !kw || (x.ho_ten && x.ho_ten.toLowerCase().includes(kw)) || (x.so_cccd && x.so_cccd.includes(kw));
-                let matchDV = !selectedDonVi || String(x.ma_don_vi).trim() === String(selectedDonVi).trim();
-                return matchKeywordNative && matchDV; 
+        // Lọc dữ liệu tìm kiếm & bộ lọc dropdown
+        function applyFiltersAndRender() {
+            const searchQuery = document.getElementById('searchInput').value.trim().toLowerCase();
+            const filterUnit = document.getElementById('filterUnit').value;
+            const filterSafety = document.getElementById('filterSafety').value;
+
+            filteredEmployees = employees.filter(emp => {
+                const matchSearch = !searchQuery || 
+                    emp.name.toLowerCase().includes(searchQuery) ||
+                    emp.bhxh.includes(searchQuery) ||
+                    emp.cccd.includes(searchQuery) ||
+                    (emp.title && emp.title.toLowerCase().includes(searchQuery));
+
+                const matchUnit = !filterUnit || emp.unit === filterUnit;
+                const matchSafety = !filterSafety || 
+                    (filterSafety === "1" && emp.isSafety == "1") || 
+                    (filterSafety === "0" && emp.isSafety != "1");
+
+                return matchSearch && matchUnit && matchSafety;
             });
-            CURRENT_PAGE_SIZE = 30; 
-            renderNhanSuTable(false);
-            calculateHRStats();
-            renderCharts(FILTERED_LIST.length > 0 ? FILTERED_LIST : DB_NHAN_SU);
+
+            // Reset dòng hiển thị ban đầu về 5 khi lọc mới
+            displayLimit = 5;
+            renderTable();
         }
 
-        function formatDateVietNam(isoString) {
-            if (!isoString) return "--";
-            let parts = isoString.split("-");
-            if (parts.length >= 3) {
-                return `${parts[2].substring(0,2)}/${parts[1]}/${parts[0]}`;
-            }
-            return isoString;
-        }
+        // Render bảng nhân sự (Không giới hạn chiều cao bình chứa, trải dài tự nhiên)
+        function renderTable() {
+            const tbody = document.getElementById('employeeTableBody');
+            tbody.innerHTML = '';
 
-        function renderNhanSuTable(append = false) {
-            const tbody = document.getElementById('table_hoso_body'); if(!tbody) return;
-            if(!append) tbody.innerHTML = "";
-            if(FILTERED_LIST.length === 0) { tbody.innerHTML = `<tr><td colspan="13" class="text-center py-12 text-slate-500">Không tìm thấy kết quả phù hợp trong danh sách.</td></tr>`; return; }
-            
-            let start = append ? tbody.children.length : 0;
-            let chunk = FILTERED_LIST.slice(start, CURRENT_PAGE_SIZE);
-            let html = "";
-            const currentYear = 2026;
+            const itemsToShow = filteredEmployees.slice(0, displayLimit);
 
-            chunk.forEach((x) => { 
-                let birthYear = x.nam_sinh ? parseInt(x.nam_sinh.split("-")[0]) : null;
-                let age = birthYear ? (currentYear - birthYear) : "--";
-                
-                let formattedBirth = x.nam_sinh ? formatDateVietNam(x.nam_sinh) : "--";
-                let formattedRetire = x.nam_ve_huu ? formatDateVietNam(x.nam_ve_huu) : "--";
-
-                let atvVal = x.an_toan_vien || x.atv;
-                let nndhVal = x.nghe_doc_hai || x.nndh;
-
-                let atvStatus = "";
-                if (atvVal && String(atvVal).trim() !== "" && String(atvVal).trim() !== "0" && String(atvVal).trim().toLowerCase() !== "false" && String(atvVal).trim().toLowerCase() !== "null") {
-                    let displayLabel = (String(atvVal).trim() === "1" || String(atvVal).trim().toLowerCase() === "co") ? "Hoạt động" : String(atvVal).trim();
-                    atvStatus = `<span class="badge" style="background:#dcfce7; color:#15803d; font-weight:700; padding:6px 10px; border-radius:6px;"><i class="fa-solid fa-shield-halved"></i> ${displayLabel}</span>`;
-                } else {
-                    atvStatus = `<span style="color:#94a3b8;">--</span>`;
-                }
-
-                let nndhStatus = "";
-                if (nndhVal && String(nndhVal).trim() !== "" && String(nndhVal).trim() !== "0" && String(nndhVal).trim().toLowerCase() !== "false" && String(nndhVal).trim().toLowerCase() !== "null") {
-                    let displayLabel = (String(nndhVal).trim() === "1" || String(nndhVal).trim().toLowerCase() === "co") ? "Độc hại" : String(nndhVal).trim();
-                    nndhStatus = `<span class="badge" style="background:#fef3c7; color:#b45309; font-weight:700; padding:6px 10px; border-radius:6px;"><i class="fa-solid fa-biohazard"></i> ${displayLabel}</span>`;
-                } else {
-                    nndhStatus = `<span style="color:#94a3b8;">--</span>`;
-                }
-
-                html += `<tr class="hover:bg-slate-50 transition-colors">
-                    <td class="text-center font-bold">#${x.id}</td>
-                    <td class="text-center">${x.stt_excel||''}</td>
-                    <td><b class="text-slate-900">${x.ho_ten}</b></td>
-                    <td>${x.so_so_bhxh||''}</td>
-                    <td><mark class="bg-yellow-200 px-2 py-1 rounded font-mono font-bold">${x.so_cccd||''}</mark></td>
-                    <td class="text-center">${x.gioi_tinh}</td>
-                    <td class="text-center">${formattedBirth}</td>
-                    <td class="text-center"><b>${age}</b></td>
-                    <td class="text-center">${atvStatus}</td>
-                    <td class="text-center">${nndhStatus}</td>
-                    <td class="text-center text-rose-600 font-extrabold">${formattedRetire}</td>
-                    <td class="text-center"><span class="badge" style="background:#f1f5f9; color:#1e293b; font-weight:700; padding: 6px 12px; border-radius:6px; border:1px solid #cbd5e1;">${x.ma_don_vi || '--'}</span></td>
-                    <td><small class="text-slate-600 font-medium">${x.chuc_danh_cong_viec||''}</small></td>
-                </tr>`; 
-            });
-            if (append) tbody.insertAdjacentHTML('beforeend', html); else tbody.innerHTML = html;
-        }
-
-        function renderCharts(data) {
-            if (typeof Chart === 'undefined') {
-                console.warn("Chart.js is not loaded.");
+            if (itemsToShow.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="10" class="p-8 text-center text-slate-400">
+                            <i class="fa-regular fa-folder-open text-3xl mb-2 block"></i>
+                            Không tìm thấy nhân sự phù hợp
+                        </td>
+                    </tr>
+                `;
+                document.getElementById('loadMoreBtn').style.display = 'none';
                 return;
             }
 
-            try {
-                const retireYears = {};
-                const genderCounts = { "Nam": 0, "Nữ": 0 };
-                const deptCounts = {};
-
-                data.forEach(x => {
-                    if(x.nam_ve_huu) {
-                        const year = x.nam_ve_huu.split("-")[0];
-                        retireYears[year] = (retireYears[year] || 0) + 1;
-                    }
-                    
-                    let gt = String(x.gioi_tinh || "").trim();
-                    if(gt === "Nữ" || gt === "F") genderCounts["Nữ"]++;
-                    else genderCounts["Nam"]++;
-
-                    if(x.ma_don_vi) {
-                        deptCounts[x.ma_don_vi] = (deptCounts[x.ma_don_vi] || 0) + 1;
-                    }
-                });
-
-                const retireLabels = Object.keys(retireYears).sort();
-                const retireData = retireLabels.map(y => retireYears[y]);
-
-                const sortedDepts = Object.entries(deptCounts).sort((a,b) => b[1] - a[1]).slice(0, 5);
-                const deptLabels = sortedDepts.map(d => `ĐV ${d[0]}`);
-                const deptData = sortedDepts.map(d => d[1]);
-
-                Chart.defaults.font.family = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
-                Chart.defaults.font.size = 13;
-                Chart.defaults.color = '#334155';
-
-                if (retireChartInst) retireChartInst.destroy();
-                const ctxRetire = document.getElementById('retireChart').getContext('2d');
-                retireChartInst = new Chart(ctxRetire, {
-                    type: 'bar',
-                    data: {
-                        labels: retireLabels,
-                        datasets: [{
-                            label: 'Nhân sự nghỉ hưu',
-                            data: retireData,
-                            backgroundColor: 'rgba(37, 99, 235, 0.85)',
-                            borderRadius: 6
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: { legend: { display: false } },
-                        scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
-                    }
-                });
-
-                if (genderChartInst) genderChartInst.destroy();
-                const ctxGender = document.getElementById('genderChart').getContext('2d');
-                genderChartInst = new Chart(ctxGender, {
-                    type: 'doughnut',
-                    data: {
-                        labels: ['Nam', 'Nữ'],
-                        datasets: [{
-                            data: [genderCounts["Nam"], genderCounts["Nữ"]],
-                            backgroundColor: ['rgba(59, 130, 246, 0.85)', 'rgba(244, 63, 94, 0.85)'],
-                            borderWidth: 0
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        cutout: '65%',
-                        plugins: { legend: { position: 'bottom' } }
-                    }
-                });
-
-                if (deptChartInst) deptChartInst.destroy();
-                const ctxDept = document.getElementById('deptChart').getContext('2d');
-                deptChartInst = new Chart(ctxDept, {
-                    type: 'bar',
-                    data: {
-                        labels: deptLabels,
-                        datasets: [{
-                            label: 'Nhân sự',
-                            data: deptData,
-                            backgroundColor: 'rgba(16, 185, 129, 0.85)',
-                            borderRadius: 6
-                        }]
-                    },
-                    options: {
-                        indexAxis: 'y',
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: { legend: { display: false } },
-                        scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } }
-                    }
-                });
-            } catch (err) {
-                console.error("Failed to render Tab 1 Charts: ", err);
-            }
-        }
-
-        function renderRepairCharts() {
-            if (typeof Chart === 'undefined') return;
-
-            try {
-                const deptCosts = {};
-                const paymentStatuses = { "Chưa thanh toán": 0, "Chờ duyệt": 0, "Đã thanh toán": 0 };
-
-                DB_NHAT_KY.forEach(x => {
-                    const dept = x.don_vi_thu_huong || "KHO";
-                    const cost = parseFloat(x.tong_chi_phi) || 0;
-                    deptCosts[dept] = (deptCosts[dept] || 0) + cost;
-
-                    const status = String(x.payment_status || "Chưa thanh toán").trim();
-                    if (paymentStatuses[status] !== undefined) {
-                        paymentStatuses[status]++;
-                    } else {
-                        paymentStatuses[status] = 1;
-                    }
-                });
-
-                const deptLabels = Object.keys(deptCosts).map(d => `Đơn vị ${d}`);
-                const deptData = Object.values(deptCosts);
-
-                if (repairCostChartInst) repairCostChartInst.destroy();
-                const ctxRepairCost = document.getElementById('repairCostChart').getContext('2d');
-                repairCostChartInst = new Chart(ctxRepairCost, {
-                    type: 'bar',
-                    data: {
-                        labels: deptLabels,
-                        datasets: [{
-                            label: 'Chi phí bảo trì (đ)',
-                            data: deptData,
-                            backgroundColor: 'rgba(79, 70, 229, 0.85)',
-                            borderColor: '#4f46e5',
-                            borderWidth: 1,
-                            borderRadius: 6
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: { legend: { display: false } },
-                        scales: { y: { beginAtZero: true } }
-                    }
-                });
-
-                if (repairPaymentChartInst) repairPaymentChartInst.destroy();
-                const ctxRepairPayment = document.getElementById('repairPaymentChart').getContext('2d');
-                repairPaymentChartInst = new Chart(ctxRepairPayment, {
-                    type: 'doughnut',
-                    data: {
-                        labels: Object.keys(paymentStatuses),
-                        datasets: [{
-                            data: Object.values(paymentStatuses),
-                            backgroundColor: ['#dc2626', '#f59e0b', '#10b981'],
-                            borderWidth: 2
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        cutout: '70%',
-                        plugins: { legend: { position: 'bottom' } }
-                    }
-                });
-            } catch (err) {
-                console.error("Failed to render Repair Charts: ", err);
-            }
-        }
-
-        function displayThietBi() {
-            const tbody = document.getElementById('table_thietbi_body'); if(!tbody) return;
-            tbody.innerHTML = "";
-            const kw = document.getElementById('search_thietbi') ? document.getElementById('search_thietbi').value.toLowerCase().trim() : "";
-
-            if (!DB_THIET_BI) DB_THIET_BI = [];
-
-            let filtered = DB_THIET_BI.filter(x => {
-                if (!kw) return true; 
-                return (x.device_name && x.device_name.toLowerCase().includes(kw)) || (x.device_code && x.device_code.toLowerCase().includes(kw)) || (x.user_name && x.user_name.toLowerCase().includes(kw));
-            });
-
-            if(filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="text-center text-slate-500 py-12 font-medium">Chưa có thiết bị nào phù hợp được tìm thấy.</td></tr>`; return;
-            }
-
-            filtered.forEach(x => {
-                let currentStatus = x.status || "Đang sử dụng";
-                let statusClass = (currentStatus === "Đang sử dụng") ? "status-using" : "status-broken";
-                let tr = document.createElement('tr');
-                tr.className = "hover:bg-slate-50 transition-colors";
+            itemsToShow.forEach((emp, index) => {
+                const isChecked = selectedEmployeeIds.has(emp.id);
+                const tr = document.createElement('tr');
+                tr.className = `hover:bg-slate-50/80 transition ${isChecked ? 'bg-indigo-50/40 hover:bg-indigo-50/60' : ''}`;
                 tr.innerHTML = `
-                    <td class="text-center align-middle py-4"><div class="qr-canvas border border-slate-300 rounded p-1 bg-white inline-block shadow-sm mx-auto" id="qr_${x.device_code}"></div></td>
-                    <td><code class="font-bold text-slate-900 font-mono tracking-wider">${x.device_code}</code></td>
-                    <td><b class="text-slate-800 text-lg">${x.device_name}</b></td>
-                    <td><i class="fa-solid fa-user text-slate-400 mr-2"></i><b>${x.user_name || 'Hệ Thống Kho'}</b></td>
-                    <td class="text-center font-semibold"><span class="bg-slate-100 text-slate-800 border border-slate-300 px-3 py-1 rounded-md">ĐV ${x.ma_don_vi||'--'}</span></td>
-                    <td class="text-center"><span class="badge ${statusClass} px-3 py-1.5 rounded-lg font-bold">${currentStatus}</span></td>
-                    <td class="text-center">
-                        <button class="text-indigo-600 hover:text-indigo-800 font-bold px-3 py-1.5 rounded-lg hover:bg-indigo-50 mr-2" onclick="editDevice('${x.id}')"><i class="fa-solid fa-pen"></i> Sửa</button>
-                        <button class="text-emerald-600 hover:text-emerald-800 font-bold px-3 py-1.5 rounded-lg hover:bg-emerald-50 mr-2" onclick="printAssetLabel('${x.id}')"><i class="fa-solid fa-print"></i> In Tem</button>
-                        <button class="text-rose-600 hover:text-rose-800 font-bold px-3 py-1.5 rounded-lg hover:bg-rose-50" onclick="confirmDeleteDevice('${x.id}')"><i class="fa-solid fa-trash"></i> Xóa</button>
+                    <td class="p-4 text-center">
+                        <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleSelectEmployee(${emp.id})" class="rounded text-indigo-600 focus:ring-indigo-500 h-4 w-4">
+                    </td>
+                    <td class="p-4 text-center font-medium text-slate-400">${index + 1}</td>
+                    <td class="p-4">
+                        <div class="font-bold text-slate-900">${emp.name}</div>
+                        <div class="text-xs text-slate-400 mt-0.5">${emp.unit || 'Phòng ban khác'}</div>
+                    </td>
+                    <td class="p-4 font-mono font-medium text-slate-600">${emp.bhxh}</td>
+                    <td class="p-4 font-mono text-slate-500">${emp.cccd}</td>
+                    <td class="p-4 max-w-xs truncate" title="${emp.title || ''}">${emp.title || 'Chưa cập nhật'}</td>
+                    <td class="p-4 text-center">
+                        ${emp.isFemale === 'X' ? '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-pink-100 text-pink-800">X</span>' : '-'}
+                    </td>
+                    <td class="p-4 text-center">
+                        ${emp.isSafety == '1' ? '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800"><i class="fa-solid fa-check"></i></span>' : '-'}
+                    </td>
+                    <td class="p-4 text-center">
+                        ${emp.isHazard == '1' ? '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800"><i class="fa-solid fa-triangle-exclamation"></i></span>' : '-'}
+                    </td>
+                    <td class="p-4 text-right">
+                        <button onclick="openEmployeeModal(${emp.id})" class="inline-flex items-center justify-center h-8 px-3 rounded-lg border border-slate-200 hover:border-indigo-500 text-slate-600 hover:text-indigo-600 font-semibold bg-white text-xs transition">
+                            <i class="fa-solid fa-qrcode mr-1.5"></i>Xem QR
+                        </button>
                     </td>
                 `;
                 tbody.appendChild(tr);
-
-                setTimeout(() => {
-                    const qrContainer = document.getElementById(`qr_${x.device_code}`);
-                    if(qrContainer) {
-                        qrContainer.innerHTML = "";
-                        let rawTagString = 
-                            `MÃ TÀI SẢN\n` +
-                            `-----------\n` +
-                            `Mã: ${x.device_code}\n` +
-                            `Tên: ${x.device_name}\n` +
-                            `Đơn vị: ĐV-${x.ma_don_vi || ''}\n` +
-                            `Sử dụng: ${x.user_name || 'KHO'}`;
-
-                        try {
-                            if (typeof qrcode !== 'undefined') {
-                                const typeNumber = 0; 
-                                const errorCorrectionLevel = 'M';
-                                const qr = qrcode(typeNumber, errorCorrectionLevel);
-                                qr.addData(utf16to8(rawTagString));
-                                qr.make();
-                                qrContainer.innerHTML = qr.createImgTag(2.5, 2); 
-                            } else {
-                                qrContainer.innerHTML = `<span class='text-xs text-slate-400'>No QR Code Engine</span>`;
-                            }
-                        } catch(err) {
-                            console.error("Lỗi vẽ QR Code: ", err);
-                            qrContainer.innerHTML = `<span class='text-xs text-rose-500'>Lỗi QR</span>`;
-                        }
-                    }
-                }, 60);
             });
+
+            // Hiển thị nút load more nếu còn dữ liệu để tải
+            if (displayLimit < filteredEmployees.length) {
+                document.getElementById('loadMoreBtn').style.display = 'inline-block';
+            } else {
+                document.getElementById('loadMoreBtn').style.display = 'none';
+            }
+
+            updateSelectedCount();
         }
 
-        function printAssetLabel(id) {
-            const item = DB_THIET_BI.find(x => String(x.id) === String(id)); if(!item) return;
-            
-            document.getElementById('print_lbl_name').innerText = item.device_name;
-            document.getElementById('print_lbl_code').innerText = item.device_code;
-            document.getElementById('print_lbl_user').innerText = item.user_name || "Hệ Thống Kho";
-            document.getElementById('print_lbl_dept').innerText = item.ma_don_vi || "--";
-
-            const qrCanvas = document.getElementById('print_qr_canvas');
-            if (qrCanvas) {
-                qrCanvas.innerHTML = "";
-                let tagStr = `MÃ: ${item.device_code}\nTÊN: ${item.device_name}\nĐV: ${item.ma_don_vi || ''}\nSD: ${item.user_name || 'KHO'}`;
-                try {
-                    if (typeof qrcode !== 'undefined') {
-                        const qr = qrcode(0, 'M');
-                        qr.addData(utf16to8(tagStr));
-                        qr.make();
-                        qrCanvas.innerHTML = qr.createImgTag(3.5, 1);
-                    } else {
-                        qrCanvas.innerHTML = `<span class='text-xs text-slate-400'>N/A</span>`;
-                    }
-                } catch(e) {
-                    qrCanvas.innerHTML = `<span class='text-xs text-rose-500'>Lỗi</span>`;
+        // Tự động tải thêm khi cuộn trang tự nhiên xuống cuối (Window Scroll)
+        function handleWindowScroll() {
+            if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 100) {
+                if (displayLimit < filteredEmployees.length) {
+                    loadMoreData();
                 }
             }
-
-            document.getElementById('print-label-modal').classList.remove('hidden');
         }
 
-        function closePrintLabel() {
-            document.getElementById('print-label-modal').classList.add('hidden');
+        function loadMoreData() {
+            displayLimit += 10;
+            renderTable();
         }
 
-        function handleUnitChange() {
-            const searchInput = document.getElementById('dev_user_search');
-            if(searchInput) {
-                searchInput.value = "";
-                document.getElementById('dev_user_id').value = "";
-                smartSuggest(searchInput);
+        // Thao tác với bộ chọn Checkbox nhân viên
+        function toggleSelectEmployee(id) {
+            if (selectedEmployeeIds.has(id)) {
+                selectedEmployeeIds.delete(id);
+            } else {
+                selectedEmployeeIds.add(id);
+            }
+            renderTable();
+        }
+
+        function toggleSelectAll() {
+            const btn = document.getElementById('selectAllBtn');
+            const allCurrentIds = filteredEmployees.map(e => e.id);
+            
+            const isAllSelected = allCurrentIds.every(id => selectedEmployeeIds.has(id));
+            if (isAllSelected) {
+                allCurrentIds.forEach(id => selectedEmployeeIds.delete(id));
+                btn.textContent = "Chọn tất cả";
+            } else {
+                allCurrentIds.forEach(id => selectedEmployeeIds.add(id));
+                btn.textContent = "Bỏ chọn tất cả";
+            }
+            renderTable();
+        }
+
+        function handleHeaderCheckboxChange() {
+            const chk = document.getElementById('headerCheckbox');
+            const visibleIds = filteredEmployees.slice(0, displayLimit).map(e => e.id);
+            if (chk.checked) {
+                visibleIds.forEach(id => selectedEmployeeIds.add(id));
+            } else {
+                visibleIds.forEach(id => selectedEmployeeIds.delete(id));
+            }
+            renderTable();
+        }
+
+        function updateSelectedCount() {
+            const count = selectedEmployeeIds.size;
+            document.getElementById('selectedCount').textContent = count;
+            document.getElementById('headerCheckbox').checked = count > 0 && filteredEmployees.slice(0, displayLimit).every(e => selectedEmployeeIds.has(e.id));
+        }
+
+        function handleFilterChange() {
+            applyFiltersAndRender();
+        }
+
+        // MODAL XEM CHI TIẾT & TẠO QR KHÔNG BỊ LỖI TIẾNG VIỆT
+        function openEmployeeModal(id) {
+            const emp = employees.find(e => e.id === id);
+            if (!emp) return;
+            currentViewingEmployee = emp;
+
+            document.getElementById('modalName').textContent = emp.name;
+            document.getElementById('modalTitle').textContent = emp.title || "Nhân sự VINAPACO";
+            document.getElementById('modalBHXH').textContent = emp.bhxh;
+            document.getElementById('modalCCCD').textContent = emp.cccd;
+            document.getElementById('modalBirth').textContent = emp.birth || "Chưa rõ";
+            document.getElementById('modalUnit').textContent = emp.unit || "N/A";
+
+            let specialText = [];
+            if (emp.isSafety == "1") specialText.push("An toàn viên");
+            if (emp.isHazard == "1") specialText.push("Lao động nguy hiểm");
+            document.getElementById('modalSpecial').innerHTML = specialText.length > 0 ? 
+                `<span class="text-amber-600 font-semibold">${specialText.join(', ')}</span>` : "Không";
+
+            // Chuỗi mã hóa dữ liệu nhân viên
+            const qrDataString = `HO_TEN:${emp.name}|BHXH:${emp.bhxh}|CCCD:${emp.cccd}|DON_VI:${emp.unit || ''}|CHUC_DANH:${emp.title || ''}`;
+
+            // Tạo QR Code
+            generateQR('modalQrCanvas', qrDataString, 200);
+
+            document.getElementById('qrModal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('qrModal').classList.add('hidden');
+            currentViewingEmployee = null;
+        }
+
+        // THUẬT TOÁN ĐẶC BIỆT: Khắc phục triệt để lỗi mã hóa tiếng Việt có dấu cho QRCode.js
+        function generateQR(elementId, textString, size = 128) {
+            const container = document.getElementById(elementId);
+            container.innerHTML = "";
+            try {
+                // Giải pháp cốt lõi: Chuyển đổi UTF-16 sang chuỗi byte UTF-8 để qrcode.js xử lý chính xác
+                const safeUtf8String = unescape(encodeURIComponent(textString));
+                new QRCode(container, {
+                    text: safeUtf8String,
+                    width: size,
+                    height: size,
+                    colorDark: "#0f172a", // Sắc nét hơn
+                    colorLight: "#ffffff",
+                    correctLevel: QRCode.CorrectLevel.M // Mức độ sửa lỗi trung bình (đọc siêu nhạy)
+                });
+            } catch (e) {
+                console.error("QR Code Generation Error:", e);
+                container.innerHTML = `<p class="text-red-500 text-xs text-center p-4">Không thể tạo mã QR.<br>Lỗi: ${e.message}</p>`;
             }
         }
 
-        function smartSuggest(input) {
-            const val = input.value.toLowerCase().trim(); 
-            const box = document.getElementById('dev_suggest'); 
-            const selectedDV = document.getElementById('dev_filter_donvi').value;
-            if(!box) return; 
-            box.innerHTML = ""; 
+        // IN ẤN NHÃN QR ĐƠN LẺ
+        function printSingleQr() {
+            if (!currentViewingEmployee) return;
+            
+            const printGrid = document.getElementById('printGrid');
+            printGrid.innerHTML = '';
+            
+            const printCard = createPrintCardMarkup(currentViewingEmployee);
+            printGrid.appendChild(printCard);
 
-            // Cập nhật: Luôn cho phép hiển thị các kết quả phù hợp khi người dùng nhấp chuột vào ô tìm kiếm
-            let matches = DB_NHAN_SU.filter(x => {
-                let matchName = !val || (x.ho_ten && x.ho_ten.toLowerCase().includes(val));
-                let matchDV = !selectedDV || String(x.ma_don_vi).trim() === String(selectedDV).trim();
-                return matchName && matchDV;
-            }).slice(0, 15); 
+            setTimeout(() => {
+                const qrContainerId = `print-qr-${currentViewingEmployee.id}`;
+                const dataStr = `HO_TEN:${currentViewingEmployee.name}|BHXH:${currentViewingEmployee.bhxh}|CCCD:${currentViewingEmployee.cccd}|DON_VI:${currentViewingEmployee.unit || ''}|CHUC_DANH:${currentViewingEmployee.title || ''}`;
+                generateQR(qrContainerId, dataStr, 130);
 
-            if(matches.length === 0) { box.style.display = "none"; return; }
-            box.style.display = "block";
-            matches.forEach(m => {
-                let div = document.createElement('div'); div.className = "suggest-item p-3 cursor-pointer border-b border-slate-100 hover:bg-slate-50 text-base font-semibold";
-                div.innerHTML = `<span><b>${m.ho_ten}</b> - ĐV: ${m.ma_don_vi}</span>`;
-                div.onclick = () => { 
-                    input.value = m.ho_ten; 
-                    document.getElementById('dev_user_id').value = m.id; 
-                    box.style.display = "none"; 
-                };
-                box.appendChild(div);
-            });
+                window.print();
+            }, 250);
         }
 
-        function resetSelectedUser() { 
-            if(document.getElementById('dev_user_search')) document.getElementById('dev_user_search').value = ""; 
-            if(document.getElementById('dev_user_id')) document.getElementById('dev_user_id').value = ""; 
-        }
-
-        async function saveDeviceConfig() {
-            const devName = document.getElementById('dev_name').value.trim(); 
-            let devCode = document.getElementById('dev_code').value.trim();
-            const userId = document.getElementById('dev_user_id').value; 
-            const userName = document.getElementById('dev_user_search').value.trim();
-            const donVi = document.getElementById('dev_filter_donvi').value; 
-            const status = document.getElementById('dev_status_select').value;
-            const editId = document.getElementById('editing_device_id').value;
-
-            if(!devName) { showNotification("Vui lòng điền tên thiết bị tài sản!", "error"); return; }
-            if(!devCode) { devCode = "EQ-" + Math.floor(100000 + Math.random() * 900000); }
-
-            let rowData = { device_name: devName, device_code: devCode, user_id: userId ? String(userId).replace('#', '') : null, user_name: userName, ma_don_vi: donVi || "10", status: status };
-
-            if(client) {
-                if(editId) await client.from('thiet_bi').update(rowData).eq('id', editId);
-                else await client.from('thiet_bi').insert([rowData]);
+        // IN ẤN HÀNG LOẠT NHÂN SỰ ĐÃ CHỌN (Không nảy trang)
+        function handleBatchPrint() {
+            if (selectedEmployeeIds.size === 0) {
+                showToast("Vui lòng chọn ít nhất 1 nhân sự để in hàng loạt!", "warning");
+                return;
             }
-            
-            showNotification("Lưu cấu hình thiết bị thành công!", "success");
-            document.getElementById('editing_device_id').value = ""; 
-            document.getElementById('dev_name').value = ""; 
-            document.getElementById('dev_code').value = ""; 
-            if(document.getElementById('form_device_title')) document.getElementById('form_device_title').innerHTML = `<i class="fa-solid fa-square-plus text-blue-600"></i> BIỂU MẪU CẤP THIẾT BỊ / TÀI SẢN MỚI`;
-            resetSelectedUser();
-            await fetchAndReloadThietBi();
-        }
 
-        function editDevice(id) {
-            let item = DB_THIET_BI.find(x => String(x.id) === String(id)); if(!item) return;
-            if(document.getElementById('form_device_title')) document.getElementById('form_device_title').innerHTML = `<i class="fa-solid fa-pen"></i> Sửa Thiết Bị`;
-            document.getElementById('editing_device_id').value = item.id; 
-            document.getElementById('dev_name').value = item.device_name;
-            document.getElementById('dev_code').value = item.device_code; 
-            document.getElementById('dev_user_search').value = item.user_name || "";
-            document.getElementById('dev_user_id').value = item.user_id || ""; 
-            document.getElementById('dev_filter_donvi').value = item.ma_don_vi || "";
-            document.getElementById('dev_status_select').value = item.status || "Đang sử dụng";
-            
-            document.getElementById('form_device_title').scrollIntoView({ behavior: 'smooth' });
-        }
+            const printGrid = document.getElementById('printGrid');
+            printGrid.innerHTML = '';
 
-        function confirmDeleteDevice(id) {
-            showCustomConfirm("Xác nhận xóa", "Bạn có chắc chắn muốn xóa thiết bị này khỏi hệ thống không?", "danger", async () => {
-                if(client) await client.from('thiet_bi').delete().eq('id', id); 
-                showNotification("Đã xóa thiết bị thành công!", "success");
-                await fetchAndReloadThietBi();
+            const selectedList = employees.filter(emp => selectedEmployeeIds.has(emp.id));
+
+            selectedList.forEach(emp => {
+                const printCard = createPrintCardMarkup(emp);
+                printGrid.appendChild(printCard);
             });
+
+            // Sinh mã QR cho tất cả các thẻ in ấn
+            setTimeout(() => {
+                selectedList.forEach(emp => {
+                    const qrContainerId = `print-qr-${emp.id}`;
+                    const dataStr = `HO_TEN:${emp.name}|BHXH:${emp.bhxh}|CCCD:${emp.cccd}|DON_VI:${emp.unit || ''}|CHUC_DANH:${emp.title || ''}`;
+                    generateQR(qrContainerId, dataStr, 130);
+                });
+
+                window.print();
+            }, 300);
         }
 
-        function handleDocumentUpload(input) {
-            const file = input.files[0];
+        // Tạo cấu trúc thẻ nhãn QR in ấn tinh tế
+        function createPrintCardMarkup(emp) {
+            const card = document.createElement('div');
+            card.className = "qr-print-card bg-white border border-slate-300 rounded-xl p-5 shadow-sm flex items-center justify-between gap-4";
+            card.innerHTML = `
+                <div class="flex-1 min-w-0">
+                    <div class="text-slate-400 font-bold text-[10px] tracking-wider uppercase">TỔNG CÔNG TY GIẤY VIỆT NAM</div>
+                    <h4 class="text-base font-bold text-slate-900 mt-1 uppercase leading-snug truncate">${emp.name}</h4>
+                    <p class="text-xs text-indigo-600 font-semibold mt-0.5">${emp.unit || 'Nhân sự'}</p>
+                    
+                    <div class="mt-3 space-y-1 text-slate-700 text-xs">
+                        <div>Sổ BHXH: <strong class="font-mono">${emp.bhxh}</strong></div>
+                        <div>Số CCCD: <strong class="font-mono">${emp.cccd}</strong></div>
+                        <div class="truncate">Chức vụ: ${emp.title || 'N/A'}</div>
+                    </div>
+                </div>
+                <div class="flex-shrink-0 bg-white p-2 border border-slate-200 rounded-lg flex items-center justify-center" style="width:146px; height:146px;">
+                    <div id="print-qr-${emp.id}"></div>
+                </div>
+            `;
+            return card;
+        }
+
+        // ĐỌC VÀ NHẬP FILE CSV CỦA BẠN (Xử lý an toàn dữ liệu đầu vào)
+        function handleCSVUpload(event) {
+            const file = event.target.files[0];
             if (!file) return;
 
-            uploadedDocumentName = file.name;
             const reader = new FileReader();
             reader.onload = function(e) {
-                uploadedDocumentBase64 = e.target.result;
-                
-                const previewBlock = document.getElementById('file_uploaded_preview');
-                const pName = document.getElementById('uploaded_file_name');
-                if (previewBlock && pName) {
-                    pName.innerText = file.name;
-                    previewBlock.classList.remove('hidden');
-                }
-                showNotification("Tải lên tài liệu thành công!", "success");
+                const text = e.target.result;
+                processCSVData(text);
             };
-            reader.readAsDataURL(file);
+            reader.readAsText(file, 'UTF-8');
         }
 
-        function clearUploadedFile() {
-            uploadedDocumentBase64 = "";
-            uploadedDocumentName = "";
-            document.getElementById('rep_document_file').value = "";
-            document.getElementById('file_uploaded_preview').classList.add('hidden');
-        }
+        function processCSVData(text) {
+            try {
+                const lines = text.split('\n');
+                if (lines.length < 2) throw new Error("File rỗng hoặc không đúng định dạng!");
 
-        function suggestRepairDevice(input) {
-            const val = input.value.toLowerCase().trim(); 
-            const box = document.getElementById('rep_device_suggest');
-            if(!box) return; 
-            box.innerHTML = "";
-            
-            let matches = DB_THIET_BI.filter(x => {
-                if (!val) return true;
-                return (x.device_name && x.device_name.toLowerCase().includes(val)) || (x.device_code && x.device_code.toLowerCase().includes(val));
-            }).slice(0, 10);
+                // Định dạng dữ liệu mới dựa trên file CSV tải lên
+                const newEmployees = [];
+                let idCounter = employees.length + 1;
 
-            if(matches.length === 0) { box.style.display = "none"; return; }
-            box.style.display = "block";
-            matches.forEach(m => {
-                let div = document.createElement('div'); div.className = "suggest-item p-3 cursor-pointer border-b border-slate-100 hover:bg-slate-50 text-base font-semibold";
-                div.innerHTML = `<span><b>${m.device_name}</b> - Seri: ${m.device_code}</span>`;
-                div.onclick = () => {
-                    input.value = `${m.device_name} (${m.device_code})`;
-                    document.getElementById('rep_device_code').value = m.device_code;
-                    document.getElementById('rep_device_name').value = m.device_name;
-                    box.style.display = "none";
-                };
-                box.appendChild(div);
-            });
-        }
+                // Bỏ dòng đầu hoặc tìm hàng tiêu đề nếu có
+                for (let i = 1; i < lines.length; i++) {
+                    const row = lines[i].split(',');
+                    if (row.length < 5 || !row[1]) continue; // Bỏ hàng trống
 
-        function toggleCustomTaxField() {
-            const selectRate = document.getElementById('rep_tax_rate').value;
-            document.getElementById('custom_tax_group').style.display = (selectRate === 'custom') ? 'block' : 'none';
-            calculateFlexibleTax();
-        }
-
-        function calculateFlexibleTax() {
-            const costBefore = parseFloat(document.getElementById('rep_cost_before').value) || 0;
-            const selectRate = document.getElementById('rep_tax_rate').value;
-            let taxPercent = 0;
-            if(selectRate === 'custom') taxPercent = parseFloat(document.getElementById('rep_tax_custom_val').value) || 0;
-            else taxPercent = parseFloat(selectRate) || 0;
-            
-            let taxMoney = Math.round(costBefore * (taxPercent / 100));
-            let totalCost = costBefore + taxMoney;
-
-            if(document.getElementById('lbl_tax_money')) document.getElementById('lbl_tax_money').innerText = taxMoney.toLocaleString('vi-VN') + " VNĐ";
-            if(document.getElementById('lbl_total_cost')) document.getElementById('lbl_total_cost').innerText = totalCost.toLocaleString('vi-VN') + " VNĐ";
-        }
-
-        async function saveRepairLog() {
-            const fileName = document.getElementById('rep_file_name').value.trim();
-            const beneficiary = document.getElementById('rep_beneficiary').value.trim();
-            const accountNum = document.getElementById('rep_account_number').value.trim();
-            const bankName = document.getElementById('rep_bank_name').value.trim();
-            const devCode = document.getElementById('rep_device_code').value;
-            const devName = document.getElementById('rep_device_name').value;
-            const content = document.getElementById('rep_content').value.trim();
-            const costBefore = parseFloat(document.getElementById('rep_cost_before').value) || 0;
-            const selectRate = document.getElementById('rep_tax_rate').value;
-            const payStatus = document.getElementById('rep_payment_status').value;
-            const repDate = document.getElementById('rep_date').value;
-
-            if(!fileName) { showNotification("Vui lòng nhập tên hồ sơ quyết toán!", "error"); return; }
-            if(!beneficiary) { showNotification("Vui lòng nhập đơn vị thụ hưởng!", "error"); return; }
-            if(!devCode || !content) { showNotification("Vui lòng tìm chọn thiết bị tài sản và điền nội dung bảo dưỡng!", "error"); return; }
-
-            let taxPercent = (selectRate === 'custom') ? (parseFloat(document.getElementById('rep_tax_custom_val').value) || 0) : parseFloat(selectRate);
-            let taxMoney = Math.round(costBefore * (taxPercent / 100));
-            let totalCost = costBefore + taxMoney;
-
-            let logData = {
-                device_code: devCode, 
-                device_name: devName, 
-                noi_dung: content,
-                chi_phi_truoc_thue: costBefore, 
-                thue_suat: taxPercent,
-                tien_thue: taxMoney, 
-                tong_chi_phi: totalCost,
-                payment_status: payStatus, 
-                status: payStatus,
-                ngay_thuc_hien: repDate || new Date().toISOString().split('T')[0],
-                ten_ho_so: fileName,
-                don_vi_thu_huong: beneficiary,
-                so_tai_khoan: accountNum,
-                ten_ngan_hang: bankName,
-                attachment_base64: uploadedDocumentBase64 || null,
-                attachment_name: uploadedDocumentName || null
-            };
-
-            if (client) {
-                let { error } = await client.from('nhat_ky_sua_chua').insert([logData]);
-                if(error) { showNotification("Lỗi cơ sở dữ liệu: " + error.message, "error"); return; }
-            }
-
-            showNotification("Đã hạch toán sửa chữa thành công!", "success");
-            
-            document.getElementById('rep_file_name').value = "";
-            document.getElementById('rep_beneficiary').value = "";
-            document.getElementById('rep_account_number').value = "";
-            document.getElementById('rep_bank_name').value = "";
-            document.getElementById('rep_device_search').value = ""; 
-            document.getElementById('rep_device_code').value = "";
-            document.getElementById('rep_content').value = ""; 
-            document.getElementById('rep_cost_before').value = "0";
-            clearUploadedFile();
-            calculateFlexibleTax(); 
-            await fetchRepairLogs();
-        }
-
-        function displayRepairLogs() {
-            const tbody = document.getElementById('table_suachua_body'); if(!tbody) return;
-            tbody.innerHTML = "";
-            const kw = document.getElementById('search_suachua_input')?.value.toLowerCase().trim() || "";
-
-            if (!DB_NHAT_KY) DB_NHAT_KY = [];
-
-            let filtered = DB_NHAT_KY.filter(x => {
-                if(!kw) return true;
-                return (x.device_code && x.device_code.toLowerCase().includes(kw)) || 
-                       (x.noi_dung && x.noi_dung.toLowerCase().includes(kw)) || 
-                       (x.device_name && x.device_name.toLowerCase().includes(kw)) ||
-                       (x.ten_ho_so && x.ten_ho_so.toLowerCase().includes(kw)) ||
-                       (x.don_vi_thu_huong && x.don_vi_thu_huong.toLowerCase().includes(kw));
-            });
-
-            if(filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="11" class="text-center text-slate-500 py-12 font-medium">Không tìm thấy lịch sử hạch toán bảo trì phù hợp.</td></tr>`; return;
-            }
-
-            filtered.forEach(x => {
-                let pStatus = String(x.payment_status || x.status || "Chưa thanh toán").trim();
-                let badgeClass = "bg-rose-100 text-rose-700";
-                if(pStatus === "Đã thanh toán") badgeClass = "bg-emerald-100 text-emerald-700";
-                if(pStatus === "Chờ duyệt") badgeClass = "bg-amber-100 text-amber-700";
-
-                let attachmentBtn = `<span class="text-slate-400 font-semibold italic">Không có</span>`;
-                if (x.attachment_base64) {
-                    attachmentBtn = `<button class="text-blue-600 hover:text-blue-800 font-black px-3 py-1 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-md shadow-sm flex items-center gap-1 text-sm justify-center mx-auto" onclick="previewDocument('${x.id}')">
-                        <i class="fa-solid fa-file-pdf"></i> Xem/Tải
-                    </button>`;
+                    // Đọc ánh xạ từ cột dữ liệu của bạn
+                    newEmployees.push({
+                        id: idCounter++,
+                        name: row[1].replace(/"/g, '').trim(),
+                        bhxh: row[3] ? row[3].trim() : '',
+                        cccd: row[4] ? row[4].trim() : '',
+                        isSafety: row[6] ? '1' : '0',
+                        isHazard: row[7] ? '1' : '0',
+                        retireYear: row[8] ? row[8].trim() : '',
+                        unit: row[9] ? row[9].trim() : 'Đơn vị mới',
+                        birth: row[11] ? row[11].trim() : '',
+                        isFemale: row[12] ? row[12].trim() : '',
+                        title: row[13] ? row[13].replace(/"/g, '').trim() : ''
+                    });
                 }
 
-                let tr = document.createElement('tr');
-                tr.className = "hover:bg-slate-50 transition-colors";
-                tr.innerHTML = `
-                    <td><code class="font-bold tracking-wider font-mono text-slate-900">${x.device_code}</code></td>
-                    <td><b class="text-slate-800 text-base">${x.device_name || '--'}</b></td>
-                    <td><span class="font-extrabold text-slate-700 text-base">${x.ten_ho_so || '--'}</span></td>
-                    <td class="text-center">
-                        <span class="badge bg-slate-100 text-slate-800 border border-slate-300 font-bold px-3 py-1 rounded-md text-base block mb-1">${x.don_vi_thu_huong || '--'}</span>
-                        ${x.so_tai_khoan ? `<div class="text-xs font-bold text-slate-700 leading-tight mt-1"><i class="fa-solid fa-credit-card text-slate-400 mr-0.5"></i>${x.so_tai_khoan}</div>` : ''}
-                        ${x.ten_ngan_hang ? `<div class="text-[10px] text-slate-500 font-extrabold uppercase tracking-wide leading-none mt-0.5">${x.ten_ngan_hang}</div>` : ''}
-                    </td>
-                    <td class="text-slate-600 text-base">${x.noi_dung}</td>
-                    <td class="font-semibold">${(x.chi_phi_truoc_thue || 0).toLocaleString('vi-VN')} đ</td>
-                    <td><span class="badge bg-blue-50 text-blue-700 border border-blue-200 font-bold px-2.5 py-1 text-sm rounded">${x.thue_suat}%</span></td>
-                    <td class="font-extrabold text-emerald-700 text-base">${(x.tong_chi_phi || 0).toLocaleString('vi-VN')} đ</td>
-                    <td class="text-center"><span class="badge ${badgeClass} font-bold px-3 py-1.5 rounded-lg text-sm">${pStatus}</span></td>
-                    <td class="text-center">${attachmentBtn}</td>
-                    <td><small class="font-bold text-slate-500">${x.ngay_thuc_hien || ''}</small></td>
-                `;
-                tbody.appendChild(tr);
-            });
+                if (newEmployees.length > 0) {
+                    employees = [...newEmployees, ...employees];
+                    initApp();
+                    showToast(`Tải thành công ${newEmployees.length} nhân viên từ file CSV!`, "success");
+                } else {
+                    showToast("Không tìm thấy dữ liệu nhân viên hợp lệ!", "warning");
+                }
+            } catch (e) {
+                showToast("Lỗi xử lý file CSV. Vui lòng kiểm tra lại định dạng!", "danger");
+            }
         }
 
-        function previewDocument(id) {
-            const item = DB_NHAT_KY.find(x => String(x.id) === String(id));
-            if (!item || !item.attachment_base64) return;
-
-            const previewBody = document.getElementById('document-preview-body');
-            const downloadBtn = document.getElementById('btn_preview_download');
+        // TẢI FILE MẪU CSV ĐỂ THỬ NGHIỆM
+        function triggerCSVDownloadTemplate() {
+            const csvContent = "\uFEFF" + "Stt,Họ và tên,Tên,Số sổ BHXH,Số CCCD,,An toàn viên,NNĐH,Năm về hưu,Mã đơn vị,Năm,Năm sinh,Nữ (x),Chức danh công việc\n" +
+                "1,NGÔ THỊ THU HẰNG,HẰNG,8200100849,025169012096,,,,2026-08-01,2,1969-07-27,1969-07-27,X,Chủ tịch Công đoàn Tổng công ty Giấy Việt Nam\n" +
+                "2,TRIỆU THỊ NĂM,NĂM,8298010513,025169015152,,,,2026-09-01,14.2,1969-08-10,1969-08-10,X,Công nhân nguội sửa chữa cơ khí";
             
-            if (!previewBody || !downloadBtn) return;
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", "Mau_Danh_Sach_Nhan_Su.csv");
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
 
-            previewBody.innerHTML = "";
-            downloadBtn.href = item.attachment_base64;
-            downloadBtn.download = item.attachment_name || "chung-tu.png";
+        // HIỂN THỊ TOAST THÔNG BÁO TIỆN ÍCH
+        function showToast(message, type = "success") {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toastMessage');
+            const toastIcon = document.getElementById('toastIcon');
 
-            const mime = item.attachment_base64.split(';')[0].split(':')[1];
+            toastMsg.textContent = message;
 
-            if (mime.startsWith('image/')) {
-                const img = document.createElement('img');
-                img.src = item.attachment_base64;
-                img.className = "max-h-[450px] rounded-lg shadow-md border object-contain bg-white p-2";
-                previewBody.appendChild(img);
+            if (type === "success") {
+                toastIcon.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-400"></i>';
+            } else if (type === "warning") {
+                toastIcon.innerHTML = '<i class="fa-solid fa-circle-exclamation text-amber-400"></i>';
             } else {
-                previewBody.innerHTML = `
-                    <div class="text-center p-8">
-                        <i class="fa-solid fa-file-shield text-6xl text-blue-500 mb-4"></i>
-                        <h4 class="text-xl font-bold text-slate-800">${item.attachment_name || 'Tài liệu liên kết'}</h4>
-                        <p class="text-slate-500 mt-2 text-base">Hệ thống ghi nhận tệp tài liệu PDF/Word. Nhấn nút bên dưới để tải và xem trực tiếp trên máy của bạn.</p>
-                    </div>
-                `;
+                toastIcon.innerHTML = '<i class="fa-solid fa-circle-xmark text-rose-400"></i>';
             }
 
-            document.getElementById('document-preview-modal').classList.remove('hidden');
-        }
+            toast.classList.remove('opacity-0', 'translate-y-20');
+            toast.classList.add('opacity-100', 'translate-y-0');
 
-        function closeDocumentPreview() {
-            document.getElementById('document-preview-modal').classList.add('hidden');
-        }
-
-        function removeVietnameseTones(str) {
-            if (!str) return "";
-            let normalized = str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-            normalized = normalized.replace(/đ/g, "d").replace(/Đ/g, "D");
-            normalized = normalized.replace(/[àáạảãâầấậẩẫăằắặẳẵ]/g, "a");
-            normalized = normalized.replace(/[èéẹẻẽêềếệểễ]/g, "e");
-            normalized = normalized.replace(/[ìíịỉĩ]/g, "i");
-            normalized = normalized.replace(/[òóọỏõôồốộổỗơờớợởỡ]/g, "o");
-            normalized = normalized.replace(/[ùúụủũưừứựửữ]/g, "u");
-            normalized = normalized.replace(/[ỳýỵỷỹ]/g, "y");
-            return normalized;
-        }
-
-        function safeConvertToISODate(rawVal) {
-            if (!rawVal) return null; 
-            let str = String(rawVal).trim();
-            
-            if (!isNaN(str) && str.length >= 4 && !str.includes("/") && !str.includes("-")) {
-                let valFloat = parseFloat(str);
-                if (valFloat > 10000) {
-                    let d = new Date((valFloat - 25569) * 86400 * 1000);
-                    if (!isNaN(d.getTime())) {
-                        let month = String(d.getMonth() + 1).padStart(2, '0');
-                        let day = String(d.getDate()).padStart(2, '0');
-                        return `${d.getFullYear()}-${month}-${day}`;
-                    }
-                }
-            }
-            if (str.includes("/")) {
-                let parts = str.split("/");
-                if (parts.length === 3) {
-                    let day = parts[0].trim().padStart(2, '0');
-                    let month = parts[1].trim().padStart(2, '0');
-                    let year = parts[2].trim();
-                    if (year.length === 4) return `${year}-${month}-${day}`;
-                }
-            }
-            if (str.includes("-") && str.split("-")[0].length !== 4) {
-                let parts = str.split("-");
-                if (parts.length === 3) {
-                    return `${parts[2].trim()}-${parts[1].trim().padStart(2, '0')}-${parts[0].trim().padStart(2, '0')}`;
-                }
-            }
-            if (str.includes("-") && str.split("-")[0].length === 4) {
-                return str;
-            }
-            return null;
-        }
-
-        async function importExcelNhanSu(input) {
-            if (typeof XLSX === 'undefined') {
-                showNotification("Không thể nạp thư viện xử lý Excel. Vui lòng kiểm tra lại mạng.", "error");
-                return;
-            }
-
-            const file = input.files[0]; if(!file) return;
-            const reader = new FileReader();
-            reader.onload = async function(e) {
-                try {
-                    const hasAnToanVien = await checkColumnExists('nhan_su', 'an_toan_vien');
-                    const hasAtv = await checkColumnExists('nhan_su', 'atv');
-                    const hasNgheDocHai = await checkColumnExists('nhan_su', 'nghe_doc_hai');
-                    const hasNndh = await checkColumnExists('nhan_su', 'nndh');
-
-                    const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, { type: 'array', cellDates: false, raw: true });
-                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-                    
-                    const range = XLSX.utils.decode_range(sheet['!ref']);
-                    let headerRowIndex = 0;
-                    let foundHeader = false;
-                    
-                    for (let r = range.s.r; r <= range.e.r; r++) {
-                        let rowHasName = false;
-                        for (let c = range.s.c; c <= range.e.c; c++) {
-                            let cell = sheet[XLSX.utils.encode_cell({r: r, c: c})];
-                            if (cell && cell.v) {
-                                let valClean = removeVietnameseTones(String(cell.v)).replace(/\s+/g, '').toLowerCase();
-                                if (valClean.includes("hovaten") || valClean.includes("hoten")) {
-                                    rowHasName = true;
-                                    break;
-                                }
-                            }
-                        }
-                        if (rowHasName) {
-                            headerRowIndex = r;
-                            foundHeader = true;
-                            break;
-                        }
-                    }
-
-                    const json = XLSX.utils.sheet_to_json(sheet, { 
-                        range: headerRowIndex,
-                        defval: "", 
-                        raw: true 
-                    });
-                    
-                    if(json.length === 0) { showNotification("Không tìm thấy hàng dữ liệu nào khả thi trong file Excel!", "error"); return; }
-
-                    let excelHeaders = Object.keys(json[0]);
-
-                    let getRawValFromExcel = (rowObject, keywords) => {
-                        let foundKey = Object.keys(rowObject).find(keyName => {
-                            let cleanKey = removeVietnameseTones(keyName).replace(/\s+/g, '').toLowerCase();
-                            return keywords.some(kw => cleanKey.includes(kw));
-                        });
-                        return foundKey ? String(rowObject[foundKey]).trim() : "";
-                    };
-
-                    let checkColumnExist = (keywords) => {
-                        return excelHeaders.some(keyName => {
-                            let cleanKey = removeVietnameseTones(keyName).replace(/\s+/g, '').toLowerCase();
-                            return keywords.some(kw => cleanKey.includes(kw));
-                        });
-                    };
-
-                    if(!checkColumnExist(["hovaten", "hoten", "ten"])) {
-                        showNotification("LỖI: Hệ thống không thể định vị được cột 'Họ và tên' trong file Excel.", "error");
-                        return;
-                    }
-
-                    let listRows = [];
-                    let localMapping = {};
-
-                    json.forEach((row, i) => {
-                        let hoTen = getRawValFromExcel(row, ["hovaten", "hoten", "ten"]);
-                        if(!hoTen || hoTen.toLowerCase() === "họ và tên" || hoTen.includes("------")) return;
-
-                        let nuKey = getRawValFromExcel(row, ["nu", "nux", "gioitinh"]);
-                        let gt = "Nam";
-                        if (nuKey.toLowerCase() === "x" || nuKey === "1" || nuKey.toLowerCase() === "nữ" || nuKey.toLowerCase() === "nu") {
-                            gt = "Nữ";
-                        }
-                        
-                        let birthStr = safeConvertToISODate(getRawValFromExcel(row, ["namsinh", "ngaysinh", "ngaythangnamsinh", "sinh"]));
-                        let retStr = safeConvertToISODate(getRawValFromExcel(row, ["namvehuu", "ngayvehuu", "vehuu", "ngay_ve_huu"]));
-                        
-                        if(!retStr && birthStr) {
-                            let p = birthStr.split("-");
-                            let y = parseInt(p[0]);
-                            let rY = (gt === "Nữ") ? (y + 60) : (y + 62);
-                            retStr = `${rY}-${p[1]}-${p[2]}`;
-                        }
-
-                        let cccdVal = getRawValFromExcel(row, ["socccd", "cccd", "cancuoc", "cmnd"]);
-                        let bhxhVal = getRawValFromExcel(row, ["sosobhxh", "bhxh", "sobhxh"]);
-                        let maDonVi = getRawValFromExcel(row, ["madonvi", "donvi", "bophan", "madv", "ma_dv"]);
-                        let chucDanh = getRawValFromExcel(row, ["chucdanh", "congviec", "chucdanhcongviec", "chucvu"]);
-                        
-                        let atvVal = getRawValFromExcel(row, ["antoanvien", "atv", "antoan", "vsv", "atvvsv", "dsatv"]);
-                        let nndhVal = getRawValFromExcel(row, ["nndh", "nghedochai", "doc_hai", "dochai", "nghe_doc_hai", "congviecdochai"]);
-
-                        if (atvVal || nndhVal) {
-                            let key = String(hoTen).trim() + "_" + String(cccdVal).trim();
-                            localMapping[key] = { atv: atvVal, nndh: nndhVal };
-                        }
-
-                        let record = {
-                            stt_excel: getRawValFromExcel(row, ["stt", "sttgoc"]) || String(i + 1), 
-                            ho_ten: hoTen,
-                            so_so_bhxh: bhxhVal, 
-                            so_cccd: cccdVal,
-                            gioi_tinh: gt, 
-                            nam_sinh: birthStr, 
-                            nam_ve_huu: retStr,
-                            ma_don_vi: maDonVi || "10", 
-                            chuc_danh_cong_viec: chucDanh
-                        };
-
-                        if (hasAnToanVien) record['an_toan_vien'] = atvVal;
-                        else if (hasAtv) record['atv'] = atvVal;
-
-                        if (hasNgheDocHai) record['nghe_doc_hai'] = nndhVal;
-                        else if (hasNndh) record['nndh'] = nndhVal;
-
-                        listRows.push(record);
-                    });
-
-                    if (listRows.length === 0) { showNotification("Không tìm thấy dòng dữ liệu nào khả thi.", "error"); return; }
-
-                    localStorage.setItem('local_atv_nndh', JSON.stringify(localMapping));
-
-                    if (client) {
-                        await client.from('nhan_su').delete().neq('id', 0);
-                        let { error } = await client.from('nhan_su').insert(listRows);
-                        if(error) { showNotification("Lỗi tải lên cơ sở dữ liệu: " + error.message, "error"); return; }
-                    }
-                    
-                    showNotification(`Thành công! Đã đồng bộ ${listRows.length} nhân sự với thông tin chuẩn hóa.`, "success"); 
-                    await fetchAllData();
-                } catch(err) { showNotification("Lỗi xử lý file Excel: " + err.message, "error"); }
-            };
-            reader.readAsArrayBuffer(file);
-        }
-
-        function confirmClearDataCloud(tableName) {
-            showCustomConfirm("Xóa toàn bộ dữ liệu", "Bạn có chắc chắn muốn xóa toàn bộ dữ liệu trên đám mây không?", "danger", async () => {
-                let pass = prompt("Mã bảo mật ứng dụng:"); 
-                if(pass !== "admin123") {
-                    showNotification("Sai mã bảo mật! Thao tác bị hủy.", "error");
-                    return;
-                }
-                if (client) {
-                    await client.from(tableName).delete().neq('id', 0); 
-                }
-                localStorage.removeItem('local_atv_nndh'); 
-                showNotification("Đã xóa sạch dữ liệu thành công!", "success");
-                await fetchAllData();
-            });
+            setTimeout(() => {
+                toast.classList.remove('opacity-100', 'translate-y-0');
+                toast.classList.add('opacity-0', 'translate-y-20');
+            }, 3000);
         }
     </script>
 </body>
