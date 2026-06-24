@@ -707,35 +707,34 @@
                     for(let i = 0; i < json.length; i++) {
                         let row = json[i];
                         
-                        // Hàm bóc tách loại bỏ toàn bộ khoảng trắng, dấu tiếng Việt để không bị lệch cột
+                        // Hàm bóc tách thông minh đối chiếu cả chuỗi gốc và chuỗi không dấu để tránh lỗi mất cột
                         let getValByKeywords = (keywords) => {
                             let foundKey = Object.keys(row).find(k => {
-                                let normK = String(k).trim().toLowerCase()
-                                    .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Khử dấu tiếng Việt sâu
-                                    .replace(/\s+/g, '');
-                                return keywords.some(kw => normK.includes(kw));
+                                let keyRaw = String(k).trim().toLowerCase().replace(/\s+/g, '');
+                                let keyNoSign = keyRaw.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                                return keywords.some(kw => keyRaw.includes(kw) || keyNoSign.includes(kw));
                             });
                             return foundKey ? row[foundKey] : "";
                         };
 
-                        let hoTen = String(getValByKeywords(["hovaten", "hoten"])).trim();
+                        let hoTen = String(getValByKeywords(["hovaten", "họvàtên", "hoten"])).trim();
                         if(!hoTen || hoTen.toLowerCase() === "họ và tên") continue;
 
                         let sttVal = String(getValByKeywords(["stt"])).trim() || String(i + 1);
-                        let bhxhVal = String(getValByKeywords(["sosobhxh", "bhxh", "sobhxh"])).trim();
-                        let cccdVal = String(getValByKeywords(["socccd", "cccd"])).trim();
-                        let nuVal = String(getValByKeywords(["nu"])).trim();
-                        let maDonViVal = String(getValByKeywords(["madonvi", "donvi"])).trim() || "10";
-                        let chucDanhVal = String(getValByKeywords(["chucdanh", "congviec"])).trim();
+                        let bhxhVal = String(getValByKeywords(["sosobhxh", "sốsổbhxh", "bhxh"])).trim();
+                        let cccdVal = String(getValByKeywords(["socccd", "sốcccd", "cccd"])).trim();
+                        let nuVal = String(getValByKeywords(["nữ", "nu"])).trim();
+                        let maDonViVal = String(getValByKeywords(["madonvi", "mãđơnvị", "donvi"])).trim() || "10";
+                        let chucDanhVal = String(getValByKeywords(["chucdanh", "chứcdanh", "congviec"])).trim();
                         
-                        let rawNamSinh = getValByKeywords(["namsinh", "ngaysinh"]);
-                        let rawNamVeHuu = getValByKeywords(["vehuu", "ngayvehuu"]);
+                        let rawNamSinh = getValByKeywords(["namsinh", "nămsinh", "ngaysinh"]);
+                        let rawNamVeHuu = getValByKeywords(["vehuu", "vềhưu", "ngayvehuu"]);
                         let namSinhValue = safeConvertToISODate(rawNamSinh);
                         let namVeHuuValue = safeConvertToISODate(rawNamVeHuu);
 
-                        // Đã tối ưu từ khóa tiếng Việt không dấu, không khoảng trắng: "antoanvien"
-                        let valATV = String(getValByKeywords(["toanvien", "atv", "antoanvien"])).trim();
-                        let valNNDH = String(getValByKeywords(["nndh", "dochai", "nghenghiep"])).trim();
+                        // Đồng bộ từ khóa chặt chẽ cho cả 2 loại mã
+                        let valATV = String(getValByKeywords(["antoanvien", "antoànviên", "atv", "toanvien"])).trim();
+                        let valNNDH = String(getValByKeywords(["nndh", "nnđh", "dochai", "độchại"])).trim();
 
                         let gioiTinh = (nuVal.toLowerCase() === "x") ? "Nữ" : "Nam";
 
