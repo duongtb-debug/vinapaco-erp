@@ -7,6 +7,7 @@
     
     <link rel="icon" href="data:,">
 
+    <!-- Thư viện bổ trợ chuyên sâu - Phiên bản ổn định phù hợp GitHub Pages -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -247,6 +248,7 @@
 
     <div class="wrapper">
         <div class="sidebar">
+            <!-- Form Nhân sự -->
             <div class="card s-form" id="form_hoso_panel">
                 <h3><i class="fa-solid fa-file-excel"></i> Nhập Dữ Liệu Gốc</h3>
                 <div class="form-group">
@@ -256,6 +258,7 @@
                 <button class="btn btn-danger" style="margin-top: 10px;" onclick="clearDataCloud('nhan_su')"><i class="fa-solid fa-trash"></i> Xóa sạch dữ liệu</button>
             </div>
 
+            <!-- Form Thiết bị -->
             <div class="card s-form" id="form_thietbi_panel" style="display:none;">
                 <h3 id="form_device_title"><i class="fa-solid fa-plus"></i> Cấp Phát Thiết Bị</h3>
                 <input type="hidden" id="editing_device_id" value="">
@@ -292,6 +295,7 @@
                 <button class="btn btn-danger" id="btn_cancel_edit_device" style="display:none; margin-top:8px;" onclick="cancelEditDevice()"><i class="fa-solid fa-xmark"></i> Hủy Sửa</button>
             </div>
 
+            <!-- Form Sửa chữa -->
             <div class="card s-form" id="form_suachua_panel" style="display:none;">
                 <h3 id="form_repair_title"><i class="fa-solid fa-notes-medical"></i> Khai Báo Sửa Chữa</h3>
                 <input type="hidden" id="editing_repair_id" value="">
@@ -329,6 +333,7 @@
                 <button class="btn btn-danger" id="btn_cancel_edit_repair" style="display:none; margin-top:8px;" onclick="cancelEditRepair()"><i class="fa-solid fa-xmark"></i> Hủy Sửa</button>
             </div>
 
+            <!-- Form Thanh toán -->
             <div class="card s-form" id="form_thanhtoan_panel" style="display:none;">
                 <h3><i class="fa-solid fa-file-signature"></i> Xử Lý Hồ Sơ Chi Tiết</h3>
                 <input type="hidden" id="pay_log_id" value="">
@@ -362,6 +367,7 @@
         </div>
 
         <div class="main-panel">
+            <!-- SECTION HỒ SƠ NHÂN SỰ -->
             <div id="sec_hoso" class="app-section active">
                 <div class="dashboard-grid">
                     <div class="db-card male"><h4>Lao động Nam</h4><div class="value" id="hr_stat_male">0 người</div></div>
@@ -385,6 +391,7 @@
                 </div>
             </div>
 
+            <!-- SECTION THIẾT BỊ -->
             <div id="sec_thietbi" class="app-section">
                 <div class="filter-wrapper">
                     <input type="text" id="search_thietbi" class="search-bar" placeholder="Tìm nhanh thiết bị, mã tài sản hoặc người giữ..." oninput="displayThietBi()">
@@ -401,6 +408,7 @@
                 </div>
             </div>
 
+            <!-- SECTION SỬA CHỮA -->
             <div id="sec_suachua" class="app-section">
                 <div class="filter-wrapper">
                     <input type="text" id="search_suachua" class="search-bar" placeholder="Tìm kiếm nhanh nhật ký hư hỏng..." oninput="displayRepairLog()">
@@ -417,6 +425,7 @@
                 </div>
             </div>
 
+            <!-- SECTION THANH TOÁN -->
             <div id="sec_thanhtoan" class="app-section">
                 <div class="dashboard-grid">
                     <div class="db-card paid"><h4>Tổng lượt sửa</h4><div class="value" id="stat_count_total">0 danh mục</div></div>
@@ -472,7 +481,9 @@
             let m = 0, f = 0, wk = 0, rt = 0;
             DB_NHAN_SU.forEach(x => {
                 let gt = String(x.gioi_tinh || "").trim().toLowerCase();
-                if(gt === "nam" || gt === "m") m++; else f++;
+                // Khớp chuẩn logic đếm giới tính
+                if(gt === "nữ" || gt === "nu" || gt === "f") f++; else m++;
+                
                 if(x.nam_ve_huu) {
                     let rY = x.nam_ve_huu.includes("-") ? parseInt(x.nam_ve_huu.split("-")[0]) : parseInt(x.nam_ve_huu);
                     if(rY && rY < 2026) rt++; else wk++;
@@ -631,7 +642,6 @@
                 `;
                 tbody.appendChild(tr);
                 
-                // Khởi tạo QR Code an toàn thông qua thư viện tiêu chuẩn cdnjs
                 setTimeout(() => {
                     let container = document.getElementById(qrId);
                     if(container) {
@@ -807,7 +817,6 @@
             reader.onload = async function(e) {
                 try {
                     const data = new Uint8Array(e.target.result);
-                    // Bật thuộc tính defval để tránh mất thuộc tính khi ô trống
                     const workbook = XLSX.read(data, { type: 'array', cellDates: true });
                     const sheetName = workbook.SheetNames[0];
                     const json = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "" });
@@ -816,8 +825,6 @@
                     
                     for(let i = 0; i < json.length; i++) {
                         let row = json[i];
-                        
-                        // GIẢI PHÁP ĐỌC THEO TÊN TIÊU ĐỀ - TRÁNH LỆCH CỘT
                         let keys = Object.keys(row);
                         let mappedRow = {};
                         keys.forEach(k => {
@@ -825,24 +832,29 @@
                             mappedRow[cleanKey] = row[k];
                         });
 
-                        // Tìm trường Họ và Tên động
-                        let hoTenKey = Object.keys(mappedRow).find(k => k.includes("họvàtên") || k.includes("hoten") || k.includes("tên"));
+                        let hoTenKey = Object.keys(mappedRow).find(k => k === "họvàtên" || k === "hoten" || k.includes("tên"));
                         let hoTen = hoTenKey ? String(mappedRow[hoTenKey]).trim() : "";
 
                         if(hoTen && hoTen.toLowerCase() !== "họ và tên" && hoTen !== "") {
                             
                             let sttKey = Object.keys(mappedRow).find(k => k === "stt");
-                            let bhxhKey = Object.keys(mappedRow).find(k => k.includes("bhxh") || k.includes("bảohiểm"));
-                            let cccdKey = Object.keys(mappedRow).find(k => k.includes("cccd") || k.includes("chứngminh") || k.includes("cmnd"));
-                            let gioiTinhKey = Object.keys(mappedRow).find(k => k.includes("giớitính") || k.includes("gioitinh"));
-                            let namSinhKey = Object.keys(mappedRow).find(k => k.includes("nămsinh") || k.includes("namsinh"));
-                            let maDonViKey = Object.keys(mappedRow).find(k => k.includes("măđơnvị") || k.includes("madonvi") || k.includes("đơnvị"));
-                            let atvKey = Object.keys(mappedRow).find(k => k.includes("antoànviên") || k.includes("atv"));
-                            let nndhKey = Object.keys(mappedRow).find(k => k.includes("nndh") || k.includes("độchại"));
+                            let bhxhKey = Object.keys(mappedRow).find(k => k === "sốsổbhxh" || k.includes("bhxh"));
+                            let cccdKey = Object.keys(mappedRow).find(k => k === "sốcccd" || k.includes("cccd"));
+                            let nuKey = Object.keys(mappedRow).find(k => k.includes("nữ") || k.includes("nu"));
+                            let namSinhKey = Object.keys(mappedRow).find(k => k === "nămsinh" || k.includes("namsinh"));
+                            let maDonViKey = Object.keys(mappedRow).find(k => k === "mãđơnvị" || k.includes("madonvi") || k.includes("đơnvị"));
+                            let atvKey = Object.keys(mappedRow).find(k => k.includes("toànviên") || k.includes("atv"));
+                            let nndhKey = Object.keys(mappedRow).find(k => k === "nndh" || k.includes("độchại"));
                             let namVeHuuKey = Object.keys(mappedRow).find(k => k.includes("vềhưu") || k.includes("vehuu"));
                             let chucDanhKey = Object.keys(mappedRow).find(k => k.includes("chứcdanh") || k.includes("côngviệc"));
 
-                            // Xử lý ngày tháng an toàn
+                            // KHỚP CHUẨN LOGIC GIỚI TÍNH TỪ FILE EXCEL GỐC
+                            let gioiTinh = "Nam";
+                            if (nuKey && mappedRow[nuKey] && String(mappedRow[nuKey]).trim().toLowerCase() === "x") {
+                                gioiTinh = "Nữ";
+                            }
+
+                            // Định dạng ngày tháng an toàn
                             let namSinhISO = null;
                             if (namSinhKey && mappedRow[namSinhKey]) {
                                 let d = new Date(mappedRow[namSinhKey]);
@@ -860,7 +872,7 @@
                                 ho_ten: hoTen,
                                 so_so_bhxh: bhxhKey ? String(mappedRow[bhxhKey]).trim() : "",
                                 so_cccd: cccdKey ? String(mappedRow[cccdKey]).trim() : "",
-                                gioi_tinh: gioiTinhKey ? String(mappedRow[gioiTinhKey]).trim() : "Nam",
+                                gioi_tinh: gioiTinh,
                                 nam_sinh: namSinhISO,
                                 ma_don_vi: maDonViKey ? String(mappedRow[maDonViKey]).trim() : "10",
                                 an_toan_vien: atvKey ? String(mappedRow[atvKey]).trim() : "",
@@ -876,15 +888,14 @@
                         return;
                     }
 
-                    // Bước tiếp theo: Xóa sạch dữ liệu cũ rồi mới cập nhật dữ liệu chuẩn hóa mới vào
                     alert("Đang dọn dẹp dữ liệu cũ trên Cloud...");
                     await client.from('nhan_su').delete().neq('id', 0);
 
-                    alert(`Đang đồng bộ ${listRows.length} nhân sự mới đã căn chỉnh cột lên Cloud...`);
+                    alert(`Đang đồng bộ ${listRows.length} nhân sự khớp chuẩn giới tính lên Cloud...`);
                     for (let i = 0; i < listRows.length; i += 100) {
                         await client.from('nhan_su').insert(listRows.slice(i, i + 100));
                     }
-                    alert("Đồng bộ thành công! Cột dữ liệu đã được xếp đúng vị trí.");
+                    alert("Đồng bộ dữ liệu thành công!");
                     input.value = ""; 
                     await fetchAllData();
                 } catch(err) { alert("Lỗi đọc Excel: " + err.message); }
