@@ -9,7 +9,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs@master/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     
     <style>
@@ -118,6 +118,7 @@
             overflow: hidden;
         }
         .db-card:hover { transform: translateY(-4px); box-shadow: 0 20px 25px -5px rgba(0,0,0,0.06); }
+        .db-card::before { content: ''; position: absolute; top: 0; left: 0; width: 5px; height: 100%; background: var(--border); }
         .db-card.male::before { background: var(--blue-light); }
         .db-card.female::before { background: var(--pink); }
         .db-card.active-working::before { background: var(--success); }
@@ -197,12 +198,11 @@
             box-shadow: var(--card-3d); 
             border: 1px solid var(--border); 
             -webkit-overflow-scrolling: touch; 
-            will-change: scroll-position;
         }
-        table { width: 100%; border-collapse: collapse; min-width: 1100px; }
+        table { width: 100%; border-collapse: collapse; min-width: 1200px; }
         th { position: sticky; top: 0; background: #f8fafc; color: #475569; font-weight: 700; white-space: nowrap; z-index: 10; border-bottom: 2px solid var(--border); padding: 14px 16px; font-size: 13px; text-transform: uppercase; text-align: left; }
-        td { border-bottom: 1px solid #f1f5f9; padding: 14px 16px; font-size: 14px; color: #334155; }
-        tr { contain: tight; transition: background 0.15s; }
+        td { border-bottom: 1px solid #f1f5f9; padding: 14px 16px; font-size: 14px; color: #334155; vertical-align: middle; }
+        tr { transition: background 0.15s; }
         tr:hover { background: #f8fafc; }
         
         .text-center { text-align: center; }
@@ -215,7 +215,7 @@
         .hs-doing { background: #fef3c7; color: #92400e; }
         .hs-done { background: #d1fae5; color: #065f46; }
         
-        .qr-canvas { width: 100px; height: 100px; background: #fff; margin: 0 auto; padding: 4px; border: 1px solid var(--border); border-radius: 8px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+        .qr-canvas { width: 105px; height: 105px; background: #fff; margin: 0 auto; padding: 5px; border: 1px solid var(--border); border-radius: 8px; display: inline-block; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
         .qr-canvas img { width: 100% !important; height: 100% !important; }
         
         .link-file { color: var(--primary); text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; margin-bottom: 5px; background: var(--primary-light); padding: 6px 12px; border-radius: 8px; font-size: 12px; border: 1px solid rgba(37, 99, 235, 0.1); }
@@ -393,7 +393,7 @@
                     <table>
                         <thead>
                             <tr>
-                                <th class="text-center" style="width:130px;">Mã QR Code</th><th>Mã Thiết Bị</th><th>Tên Thiết Bị / Tài Sản</th><th>Người Đang Giữ</th><th class="text-center">Mã Đơn Vị</th><th class="text-center" style="width:140px;">Tình Trạng</th><th class="text-center" style="width:150px;">Thao Tác</th>
+                                <th class="text-center" style="width:140px;">Mã QR Code</th><th>Mã Thiết Bị</th><th>Tên Thiết Bị / Tài Sản</th><th>Người Đang Giữ</th><th class="text-center">Mã Đơn Vị</th><th class="text-center" style="width:140px;">Tình Trạng</th><th class="text-center" style="width:150px;">Thao Tác</th>
                             </tr>
                         </thead>
                         <tbody id="table_thietbi_body"></tbody>
@@ -618,7 +618,7 @@
                 let qrId = "qr_device_" + x.id;
                 let tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td><div class="qr-canvas" id="${qrId}"></div></td>
+                    <td class="text-center"><div class="qr-canvas" id="${qrId}"></div></td>
                     <td><b>${x.ma_thiet_bi || ''}</b></td>
                     <td><b>${x.ten_thiet_bi || ''}</b></td>
                     <td>${x.ten_nhan_su || 'Kho'}</td>
@@ -631,24 +631,26 @@
                 `;
                 tbody.appendChild(tr);
                 
+                // Khởi tạo QR Code an toàn thông qua thư viện tiêu chuẩn cdnjs
                 setTimeout(() => {
                     let container = document.getElementById(qrId);
-                    if(container && typeof QRCode !== 'undefined') {
+                    if(container) {
                         container.innerHTML = ""; 
                         try {
+                            let qrText = `Mã TB: ${x.ma_thiet_bi || ''}\nTên: ${x.ten_thiet_bi || ''}\nGiữ: ${x.ten_nhan_su || 'Kho'}`;
                             new QRCode(container, {
-                                text: `Mã TB: ${x.ma_thiet_bi || ''}\nTên TB: ${x.ten_thiet_bi || ''}\nNgười giữ: ${x.ten_nhan_su || 'Kho'}`,
-                                width: 100, 
-                                height: 100, 
+                                text: qrText,
+                                width: 95, 
+                                height: 95, 
                                 colorDark : "#0f172a", 
                                 colorLight : "#ffffff", 
-                                correctLevel : QRCode.CorrectLevel.H
+                                correctLevel : QRCode.CorrectLevel.M
                             });
                         } catch(err) {
-                            console.error("Lỗi khởi tạo QRCode: ", err);
+                            console.error("Lỗi tạo QR:", err);
                         }
                     }
-                }, 150);
+                }, 50);
             });
         }
 
@@ -805,55 +807,87 @@
             reader.onload = async function(e) {
                 try {
                     const data = new Uint8Array(e.target.result);
+                    // Bật thuộc tính defval để tránh mất thuộc tính khi ô trống
                     const workbook = XLSX.read(data, { type: 'array', cellDates: true });
-                    const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+                    const sheetName = workbook.SheetNames[0];
+                    const json = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "" });
+                    
                     let listRows = [];
                     
-                    json.forEach((row) => {
-                        let keys = Object.keys(row); 
-                        let name = row[keys[1]] || "";
-                        if(name && String(name).trim() !== "" && String(name).toLowerCase() !== "họ và tên") {
+                    for(let i = 0; i < json.length; i++) {
+                        let row = json[i];
+                        
+                        // GIẢI PHÁP ĐỌC THEO TÊN TIÊU ĐỀ - TRÁNH LỆCH CỘT
+                        let keys = Object.keys(row);
+                        let mappedRow = {};
+                        keys.forEach(k => {
+                            let cleanKey = String(k).trim().toLowerCase().replace(/\s+/g, '');
+                            mappedRow[cleanKey] = row[k];
+                        });
+
+                        // Tìm trường Họ và Tên động
+                        let hoTenKey = Object.keys(mappedRow).find(k => k.includes("họvàtên") || k.includes("hoten") || k.includes("tên"));
+                        let hoTen = hoTenKey ? String(mappedRow[hoTenKey]).trim() : "";
+
+                        if(hoTen && hoTen.toLowerCase() !== "họ và tên" && hoTen !== "") {
                             
-                            // KIỂM TRA NGÀY THÁNG AN TOÀN TRÁNH LỖI INVALID TIME VALUE
+                            let sttKey = Object.keys(mappedRow).find(k => k === "stt");
+                            let bhxhKey = Object.keys(mappedRow).find(k => k.includes("bhxh") || k.includes("bảohiểm"));
+                            let cccdKey = Object.keys(mappedRow).find(k => k.includes("cccd") || k.includes("chứngminh") || k.includes("cmnd"));
+                            let gioiTinhKey = Object.keys(mappedRow).find(k => k.includes("giớitính") || k.includes("gioitinh"));
+                            let namSinhKey = Object.keys(mappedRow).find(k => k.includes("nămsinh") || k.includes("namsinh"));
+                            let maDonViKey = Object.keys(mappedRow).find(k => k.includes("măđơnvị") || k.includes("madonvi") || k.includes("đơnvị"));
+                            let atvKey = Object.keys(mappedRow).find(k => k.includes("antoànviên") || k.includes("atv"));
+                            let nndhKey = Object.keys(mappedRow).find(k => k.includes("nndh") || k.includes("độchại"));
+                            let namVeHuuKey = Object.keys(mappedRow).find(k => k.includes("vềhưu") || k.includes("vehuu"));
+                            let chucDanhKey = Object.keys(mappedRow).find(k => k.includes("chứcdanh") || k.includes("côngviệc"));
+
+                            // Xử lý ngày tháng an toàn
                             let namSinhISO = null;
-                            if (row[keys[5]]) {
-                                let d = new Date(row[keys[5]]);
-                                if (!isNaN(d.getTime())) { namSinhISO = d.toISOString(); }
+                            if (namSinhKey && mappedRow[namSinhKey]) {
+                                let d = new Date(mappedRow[namSinhKey]);
+                                if (!isNaN(d.getTime())) namSinhISO = d.toISOString();
                             }
 
                             let namVeHuuISO = null;
-                            if (row[keys[9]]) {
-                                let d = new Date(row[keys[9]]);
-                                if (!isNaN(d.getTime())) { namVeHuuISO = d.toISOString(); }
+                            if (namVeHuuKey && mappedRow[namVeHuuKey]) {
+                                let d = new Date(mappedRow[namVeHuuKey]);
+                                if (!isNaN(d.getTime())) namVeHuuISO = d.toISOString();
                             }
 
                             listRows.push({
-                                stt_excel: String(row[keys[0]]||'').trim(), 
-                                ho_ten: String(name).trim(), 
-                                so_so_bhxh: String(row[keys[2]]||'').trim(), 
-                                so_cccd: String(row[keys[3]]||'').trim(), 
-                                gioi_tinh: String(row[keys[4]]||'').trim(), 
-                                nam_sinh: namSinhISO, 
-                                ma_don_vi: String(row[keys[6]]||'').trim(), 
-                                an_toan_vien: String(row[keys[7]]||'').trim(), 
-                                nndh: String(row[keys[8]]||'').trim(), 
-                                nam_ve_huu: namVeHuuISO, 
-                                chuc_danh_cong_viec: String(row[keys[10]]||'').trim()
+                                stt_excel: sttKey ? String(mappedRow[sttKey]).trim() : String(i+1),
+                                ho_ten: hoTen,
+                                so_so_bhxh: bhxhKey ? String(mappedRow[bhxhKey]).trim() : "",
+                                so_cccd: cccdKey ? String(mappedRow[cccdKey]).trim() : "",
+                                gioi_tinh: gioiTinhKey ? String(mappedRow[gioiTinhKey]).trim() : "Nam",
+                                nam_sinh: namSinhISO,
+                                ma_don_vi: maDonViKey ? String(mappedRow[maDonViKey]).trim() : "10",
+                                an_toan_vien: atvKey ? String(mappedRow[atvKey]).trim() : "",
+                                nndh: nndhKey ? String(mappedRow[nndhKey]).trim() : "",
+                                nam_ve_huu: namVeHuuISO,
+                                chuc_danh_cong_viec: chucDanhKey ? String(mappedRow[chucDanhKey]).trim() : ""
                             });
                         }
-                    });
-                    
+                    }
+
                     if (listRows.length === 0) {
-                        alert("Không tìm thấy dữ liệu nhân sự hợp lệ trong file Excel!");
+                        alert("Không tìm thấy dữ liệu nhân sự hợp lệ. Hãy kiểm tra lại dòng tiêu đề Excel!");
                         return;
                     }
 
-                    alert(`Đang đẩy dữ liệu ${listRows.length} nhân sự lên Cloud...`);
+                    // Bước tiếp theo: Xóa sạch dữ liệu cũ rồi mới cập nhật dữ liệu chuẩn hóa mới vào
+                    alert("Đang dọn dẹp dữ liệu cũ trên Cloud...");
+                    await client.from('nhan_su').delete().neq('id', 0);
+
+                    alert(`Đang đồng bộ ${listRows.length} nhân sự mới đã căn chỉnh cột lên Cloud...`);
                     for (let i = 0; i < listRows.length; i += 100) {
                         await client.from('nhan_su').insert(listRows.slice(i, i + 100));
                     }
-                    alert("Đồng bộ thành công!"); input.value = ""; await fetchAllData();
-                } catch(err) { alert("Lỗi: " + err.message); }
+                    alert("Đồng bộ thành công! Cột dữ liệu đã được xếp đúng vị trí.");
+                    input.value = ""; 
+                    await fetchAllData();
+                } catch(err) { alert("Lỗi đọc Excel: " + err.message); }
             };
             reader.readAsArrayBuffer(file);
         }
