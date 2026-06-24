@@ -1,7 +1,7 @@
 <!-- Chosen Palette: Slate Navy & Blue Accent -->
 <!-- Application Structure Plan: Centralized HR dashboard layout that brings back the interactive Chart.js visualizations alongside the master employee data grid. Tab 1 hosts three essential analytic charts (Retirement Forecast, Gender Diversity, and Department Split) along with top-level KPI counters. Tab 2 manages assets with automated UTF-8 QR code generation. Tab 3 covers maintenance expenses with a real-time VAT tax calculator and billing metrics. -->
 <!-- Visualization & Content Choices: 
-    - Total Stats -> Goal: Inform -> Dynamic KPI cards -> Real-time counts
+    - Total Stats -> Goal: Inform -> Dynamic KPI cards -> Real-time counts (including perfected ATV & NNDH active counters)
     - Retirement Forecast -> Goal: Change over time -> Bar Chart (Chart.js) -> Yearly trends up to 2050
     - Gender Diversity -> Goal: Proportions -> Doughnut Chart (Chart.js) -> Percentage breakdown of Nam vs Nữ
     - Department Distribution -> Goal: Compare -> Horizontal Bar Chart (Chart.js) -> Top 5 department sizes
@@ -118,8 +118,8 @@
         <div class="dashboard-grid">
             <div class="stat-card"><h3>Lao động Nam</h3><div class="value" id="hr_stat_male">0 người</div></div>
             <div class="stat-card"><h3>Lao động Nữ</h3><div class="value" id="hr_stat_female">0 người</div></div>
-            <div class="stat-card"><h3>Đang làm việc</h3><div class="value" id="hr_stat_working">0 người</div></div>
-            <div class="stat-card"><h3>Đã nghỉ hưu</h3><div class="value" id="hr_stat_retired">0 người</div></div>
+            <div class="stat-card"><h3>An Toàn Viên (ATV)</h3><div class="value" id="hr_stat_atv" style="color: var(--success);">0 người</div></div>
+            <div class="stat-card"><h3>Nghề Độc Hại (NNĐH)</h3><div class="value" id="hr_stat_nndh" style="color: #b45309;">0 người</div></div>
         </div>
 
         <!-- KHU VỰC BIỂU ĐỒ TRỰC QUAN HÓA -->
@@ -401,26 +401,32 @@
         } catch(e) { console.error(e); }
     }
 
+    // --- CẬP NHẬT: THỐNG KÊ ĐỒNG BỘ DỰA TRÊN KẾT QUẢ ĐÃ LỌC ---
     function calculateHRStats() {
-        let m = 0, f = 0, wk = 0, rt = 0;
-        const currentYear = 2026; 
-        DB_NHAN_SU.forEach(x => {
+        let m = 0, f = 0, atv = 0, nndh = 0;
+        
+        // Sử dụng danh sách dữ liệu đang hiển thị hiện tại để thống kê động
+        const listToCalculate = FILTERED_LIST.length > 0 ? FILTERED_LIST : DB_NHAN_SU;
+
+        listToCalculate.forEach(x => {
             let gt = String(x.gioi_tinh || "").trim().toLowerCase();
             if(gt === "nữ" || gt === "nu" || gt === "f") f++; else m++;
             
-            let birthYear = null;
-            if(x.nam_sinh) birthYear = parseInt(x.nam_sinh.split("-")[0]);
-            
-            let retireYear = null;
-            if(x.nam_ve_huu) retireYear = parseInt(x.nam_ve_huu.split("-")[0]);
-            else if(birthYear) retireYear = (gt === "nữ" || gt === "nu" || gt === "f") ? (birthYear + 60) : (birthYear + 62);
+            let atvVal = x.an_toan_vien || x.atv;
+            if (atvVal && String(atvVal).trim() !== "" && String(atvVal).trim() !== "0" && String(atvVal).trim().toLowerCase() !== "false") {
+                atv++;
+            }
 
-            if(retireYear && retireYear < currentYear) rt++; else wk++;
+            let nndhVal = x.nghe_doc_hai || x.nndh;
+            if (nndhVal && String(nndhVal).trim() !== "" && String(nndhVal).trim() !== "0" && String(nndhVal).trim().toLowerCase() !== "false") {
+                nndh++;
+            }
         });
+
         if(document.getElementById('hr_stat_male')) document.getElementById('hr_stat_male').innerText = m + " người"; 
         if(document.getElementById('hr_stat_female')) document.getElementById('hr_stat_female').innerText = f + " người";
-        if(document.getElementById('hr_stat_working')) document.getElementById('hr_stat_working').innerText = wk + " người"; 
-        if(document.getElementById('hr_stat_retired')) document.getElementById('hr_stat_retired').innerText = rt + " người";
+        if(document.getElementById('hr_stat_atv')) document.getElementById('hr_stat_atv').innerText = atv + " người"; 
+        if(document.getElementById('hr_stat_nndh')) document.getElementById('hr_stat_nndh').innerText = nndh + " người";
     }
 
     function calculateRepairDashboard() {
@@ -474,7 +480,8 @@
         });
         CURRENT_PAGE_SIZE = 30; 
         renderNhanSuTable(false);
-        renderCharts(FILTERED_LIST);
+        calculateHRStats(); // Cập nhật lại KPI theo tập dữ liệu đã lọc
+        renderCharts(FILTERED_LIST.length > 0 ? FILTERED_LIST : DB_NHAN_SU);
     }
 
     function formatDateVietNam(isoString) {
@@ -547,18 +554,18 @@
         const genderCounts = { "Nam": 0, "Nữ": 0 };
         const deptCounts = {};
 
-        data.forEach(emp => {
-            if(emp.nam_ve_huu) {
-                const year = emp.nam_ve_huu.split("-")[0];
+        data.forEach(x => {
+            if(x.nam_ve_huu) {
+                const year = x.nam_ve_huu.split("-")[0];
                 retireYears[year] = (retireYears[year] || 0) + 1;
             }
             
-            let gt = String(emp.gioi_tinh || "").trim();
+            let gt = String(x.gioi_tinh || "").trim();
             if(gt === "Nữ" || gt === "F") genderCounts["Nữ"]++;
             else genderCounts["Nam"]++;
 
-            if(emp.ma_don_vi) {
-                deptCounts[emp.ma_don_vi] = (deptCounts[emp.ma_don_vi] || 0) + 1;
+            if(x.ma_don_vi) {
+                deptCounts[x.ma_don_vi] = (deptCounts[x.ma_don_vi] || 0) + 1;
             }
         });
 
@@ -892,9 +899,7 @@
     // --- ALGORITHM LOẠI BỎ TIẾNG VIỆT CÓ DẤU CHUYÊN SÂU (XỬ LÝ ĐƯỢC CHỮ Đ) ---
     function removeVietnameseTones(str) {
         if (!str) return "";
-        // Tách các dấu tổ hợp và xóa bỏ
         let normalized = str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-        // Thay thế thủ công các ký tự còn sót lại, đặc biệt là Đ và đ
         normalized = normalized.replace(/đ/g, "d").replace(/Đ/g, "D");
         normalized = normalized.replace(/[àáạảãâầấậẩẫăằắặẳẵ]/g, "a");
         normalized = normalized.replace(/[èéẹẻẽêềếệểễ]/g, "e");
@@ -910,7 +915,6 @@
         if (!rawVal) return null; 
         let str = String(rawVal).trim();
         
-        // Xử lý định dạng ngày số Serial của Excel (ví dụ: 25424)
         if (!isNaN(str) && str.length >= 4 && !str.includes("/") && !str.includes("-")) {
             let valFloat = parseFloat(str);
             if (valFloat > 10000) {
@@ -922,7 +926,6 @@
                 }
             }
         }
-        // Định dạng ngày DD/MM/YYYY hoặc D/M/YYYY
         if (str.includes("/")) {
             let parts = str.split("/");
             if (parts.length === 3) {
@@ -932,14 +935,12 @@
                 if (year.length === 4) return `${year}-${month}-${day}`;
             }
         }
-        // Định dạng ngày DD-MM-YYYY
         if (str.includes("-") && str.split("-")[0].length !== 4) {
             let parts = str.split("-");
             if (parts.length === 3) {
                 return `${parts[2].trim()}-${parts[1].trim().padStart(2, '0')}-${parts[0].trim().padStart(2, '0')}`;
             }
         }
-        // Định dạng chuẩn có sẵn YYYY-MM-DD
         if (str.includes("-") && str.split("-")[0].length === 4) {
             return str;
         }
@@ -957,11 +958,9 @@
                 let dbColumns = sampleData && sampleData.length > 0 ? Object.keys(sampleData[0]) : [];
 
                 const data = new Uint8Array(e.target.result);
-                // raw: true giúp giữ kiểu chuỗi nguyên bản (không làm mất số 0 đầu CCCD và giữ mã đơn vị thập phân)
                 const workbook = XLSX.read(data, { type: 'array', cellDates: false, raw: true });
                 const sheet = workbook.Sheets[workbook.SheetNames[0]];
                 
-                // Đọc toàn bộ phạm vi ô dữ liệu để định vị chính xác dòng tiêu đề chứa "Họ và tên"
                 const range = XLSX.utils.decode_range(sheet['!ref']);
                 let headerRowIndex = 0;
                 let foundHeader = false;
@@ -985,7 +984,6 @@
                     }
                 }
 
-                // Tiến hành chuyển đổi XLSX thành đối tượng JSON bắt đầu từ hàng Tiêu đề đã tìm thấy
                 const json = XLSX.utils.sheet_to_json(sheet, { 
                     range: headerRowIndex,
                     defval: "", 
@@ -996,7 +994,6 @@
 
                 let excelHeaders = Object.keys(json[0]);
 
-                // Hàm định vị tiêu đề cột động chuẩn hóa không dấu
                 let getRawValFromExcel = (rowObject, keywords) => {
                     let foundKey = Object.keys(rowObject).find(keyName => {
                         let cleanKey = removeVietnameseTones(keyName).replace(/\s+/g, '').toLowerCase();
@@ -1029,11 +1026,8 @@
                     }
                     
                     let birthStr = safeConvertToISODate(getRawValFromExcel(row, ["namsinh", "ngaysinh", "ngaythangnamsinh", "sinh"]));
-                    
-                    // FIX: Ưu tiên đọc trực tiếp ngày về hưu từ cột "Năm Về Hưu" / "Ngày Về Hưu" / "Về hưu" của Excel
                     let retStr = safeConvertToISODate(getRawValFromExcel(row, ["namvehuu", "ngayvehuu", "vehuu", "ngay_ve_huu"]));
                     
-                    // Nếu trong Excel không có hoặc trống, hệ thống mới tự động tính toán dự phòng
                     if(!retStr && birthStr) {
                         let p = birthStr.split("-");
                         let y = parseInt(p[0]);
@@ -1043,10 +1037,7 @@
 
                     let cccdVal = getRawValFromExcel(row, ["socccd", "cccd", "cancuoc", "cmnd"]);
                     let bhxhVal = getRawValFromExcel(row, ["sosobhxh", "bhxh", "sobhxh"]);
-                    
-                    // FIX: Mã Đơn Vị được đọc chuẩn xác dạng thập phân (ví dụ: 14.2, 11.1)
                     let maDonVi = getRawValFromExcel(row, ["madonvi", "donvi", "bophan", "madv", "ma_dv"]);
-                    
                     let chucDanh = getRawValFromExcel(row, ["chucdanh", "congviec", "chucdanhcongviec", "chucvu"]);
                     
                     let atvVal = getRawValFromExcel(row, ["antoanvien", "atv", "antoan"]);
@@ -1064,7 +1055,6 @@
                         chuc_danh_cong_viec: chucDanh
                     };
 
-                    // Gán linh hoạt theo cấu trúc trường thực tế trên Supabase Cloud
                     if (dbColumns.includes('an_toan_vien')) record['an_toan_vien'] = atvVal;
                     if (dbColumns.includes('atv')) record['atv'] = atvVal;
 
@@ -1076,7 +1066,6 @@
 
                 if (listRows.length === 0) { alert("Không tìm thấy dòng dữ liệu nào khả thi."); return; }
 
-                // Thực hiện làm trống dữ liệu cũ và cập nhật danh sách dữ liệu mới chuẩn hóa lên đám mây
                 await client.from('nhan_su').delete().neq('id', 0);
                 let { error } = await client.from('nhan_su').insert(listRows);
                 if(error) { alert("Lỗi tải lên cơ sở dữ liệu: " + error.message); return; }
