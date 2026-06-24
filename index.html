@@ -83,7 +83,7 @@
 
     <header>
         <h1><i class="fa-solid fa-layer-group"></i> HỆ THỐNG ĐIỀU HÀNH & QUẢN TRỊ DOANH NGHIỆP</h1>
-        <div><span id="count_ns" class="badge" style="background:var(--accent); font-size:14px;">0</span> nhân sự trực tuyến</div>
+        <div><span id="count_ns" class="badge" style="background:var(--accent); font-size:14px;">0</span> nhân sự đám mây</div>
     </header>
 
     <div class="nav-container">
@@ -133,7 +133,7 @@
                     </tr>
                 </thead>
                 <tbody id="table_hoso_body">
-                    <tr><td colspan="13" class="text-center" style="color:#64748b; padding: 30px;">Hệ thống chưa nạp dữ liệu. Vui lòng bấm "Đồng bộ File gốc Excel".</td></tr>
+                    <tr><td colspan="13" class="text-center" style="color:#64748b; padding: 30px;">Hệ thống chưa có dữ liệu hoặc đang tải. Vui lòng bấm "Đồng bộ File gốc Excel".</td></tr>
                 </tbody>
             </table>
         </div>
@@ -429,7 +429,7 @@
         function renderNhanSuTable(append = false) {
             const tbody = document.getElementById('table_hoso_body'); if(!tbody) return;
             if(!append) tbody.innerHTML = "";
-            if(FILTERED_LIST.length === 0) { tbody.innerHTML = `<tr><td colspan="13" class="text-center">Không thấy kết quả.</td></tr>`; return; }
+            if(FILTERED_LIST.length === 0) { tbody.innerHTML = `<tr><td colspan="13" class="text-center">Không tìm thấy kết quả phù hợp trong danh sách.</td></tr>`; return; }
             
             let start = append ? tbody.children.length : 0;
             let chunk = FILTERED_LIST.slice(start, CURRENT_PAGE_SIZE);
@@ -450,7 +450,7 @@
                 let nndhStatus = (nndhVal && String(nndhVal).trim() !== "" && String(nndhVal).trim() !== "0") ? `<span class="badge" style="background:#fef3c7; color:#92400e; font-weight:600; padding:4px 8px; border-radius:4px;">${nndhVal}</span>` : ``;
 
                 html += `<tr>
-                    <td class="text-center">#${x.stt_excel||x.id}</td>
+                    <td class="text-center">#${x.id}</td>
                     <td class="text-center">${x.stt_excel||''}</td>
                     <td><b>${x.ho_ten}</b></td>
                     <td>${x.so_so_bhxh||''}</td>
@@ -634,7 +634,7 @@
             let totalCost = costBefore + taxMoney;
 
             if(document.getElementById('lbl_tax_money')) document.getElementById('lbl_tax_money').innerText = taxMoney.toLocaleString('vi-VN') + " VNĐ";
-            if(document.getElementById('lbl_total_cost')) document.getElementById('lbl_total_cost').innerText = totalCost.toLocaleString('vi-VN) + " VNĐ";
+            if(document.getElementById('lbl_total_cost')) document.getElementById('lbl_total_cost').innerText = totalCost.toLocaleString('vi-VN') + " VNĐ";
         }
 
         async function saveRepairLog() {
@@ -707,7 +707,6 @@
             });
         }
 
-        // --- ALGORITHM CHUẨN HÓA NGÀY THÁNG ---
         function safeConvertToISODate(rawVal) {
             if (!rawVal) return null; 
             let str = String(rawVal).trim();
@@ -744,12 +743,13 @@
             return null;
         }
 
-        // --- ALGORITHM ĐỌC FILE EXCEL CHUẨN HÓA MÃ ĐƠN VỊ & BẢO HỘ ---
+        // --- CƠ CHẾ QUÉT TỪ KHÓA THÔNG MINH, KHÔNG SỢ LỆCH CHỮ HOA/THƯỜNG/DẤU ---
         async function importExcelNhanSu(input) {
             const file = input.files[0]; if(!file) return;
             const reader = new FileReader();
             reader.onload = async function(e) {
                 try {
+                    // 1. Kiểm tra cấu trúc trường dữ liệu thực tế trên Supabase Cloud
                     let { data: sampleData, error: sampleErr } = await client.from('nhan_su').select('*').limit(1);
                     if(sampleErr) { alert("Không kết nối được cấu trúc bảng: " + sampleErr.message); return; }
                     let dbColumns = sampleData && sampleData.length > 0 ? Object.keys(sampleData[0]) : [];
@@ -759,23 +759,42 @@
                     const sheet = workbook.Sheets[workbook.SheetNames[0]];
                     const json = XLSX.utils.sheet_to_json(sheet, { defval: "" });
                     
+                    if(json.length === 0) { alert("File Excel trống rỗng!"); return; }
+
+                    // Lấy danh sách các cột tiêu đề có trong file Excel thực tế để kiểm tra từ khóa
+                    let excelHeaders = Object.keys(json[0]);
+
+                    let getRawValFromExcel = (rowObject, keywords) => {
+                        let foundKey = Object.keys(rowObject).find(keyName => 
+                            keywords.some(kw => keyName.replace(/\s+/g, '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(kw))
+                        );
+                        return foundKey ? String(rowObject[foundKey]).trim() : "";
+                    };
+
+                    // --- CHẨN ĐOÁN LỖI TÊN CỘT TRƯỚC KHI CHẠY ---
+                    let checkColumnExist = (keywords) => {
+                        return excelHeaders.some(keyName => 
+                            keywords.some(kw => keyName.replace(/\s+/g, '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(kw))
+                        );
+                    };
+
+                    if(!checkColumnExist(["hovaten", "hoten", "ten"])) {
+                        alert("LỖI: Hệ thống không tìm thấy cột 'Họ và tên' trong file Excel của bạn. Hãy kiểm tra lại tiêu đề dòng đầu tiên.");
+                        return;
+                    }
+
                     let listRows = [];
                     json.forEach((row, i) => {
-                        let getRawVal = (kws) => {
-                            let k = Object.keys(row).find(x => kws.some(kw => x.replace(/\s+/g, '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(kw)));
-                            return k ? String(row[k]).trim() : "";
-                        };
-                        
-                        let hoTen = getRawVal(["hovaten", "hoten", "ten"]);
-                        if(!hoTen || hoTen.toLowerCase() === "họ và tên") return;
+                        let hoTen = getRawValFromExcel(row, ["hovaten", "hoten", "ten"]);
+                        if(!hoTen || hoTen.toLowerCase() === "họ và tên" || hoTen.includes("------")) return;
 
-                        let nuKey = getRawVal(["nu", "nux", "gioitinh"]);
+                        let nuKey = getRawValFromExcel(row, ["nu", "nux", "gioitinh"]);
                         let gt = "Nam";
                         if (nuKey.toLowerCase() === "x" || nuKey === "1" || nuKey.toLowerCase() === "nữ" || nuKey.toLowerCase() === "nu") {
                             gt = "Nữ";
                         }
                         
-                        let birthStr = safeConvertToISODate(getRawVal(["namsinh", "ngaysinh", "ngaythangnamsinh", "sinh"]));
+                        let birthStr = safeConvertToISODate(getRawValFromExcel(row, ["namsinh", "ngaysinh", "ngaythangnamsinh", "sinh"]));
                         let retStr = null;
                         if(birthStr) {
                             let p = birthStr.split("-");
@@ -784,27 +803,23 @@
                             retStr = `${rY}-${p[1]}-${p[2]}`;
                         }
 
-                        let cccdVal = getRawVal(["socccd", "cccd", "cancuoc"]);
-                        let bhxhVal = getRawVal(["sosobhxh", "bhxh", "sobhxh"]);
+                        let cccdVal = getRawValFromExcel(row, ["socccd", "cccd", "cancuoc", "cmnd"]);
+                        let bhxhVal = getRawValFromExcel(row, ["sosobhxh", "bhxh", "sobhxh"]);
+                        let maDonVi = getRawValFromExcel(row, ["madonvi", "donvi", "bophan", "madv", "ma_dv"]);
+                        let chucDanh = getRawValFromExcel(row, ["chucdanh", "congviec", "chucdanhcongviec", "chucvu"]);
                         
-                        // FIX: Lấy trực tiếp mã đơn vị từ Excel, không gán cứng giá trị mặc định làm sai lệch mã gốc
-                        let maDonVi = getRawVal(["madonvi", "donvi", "bophan", "madv"]);
-                        
-                        let chucDanh = getRawVal(["chucdanh", "congviec", "chucdanhcongviec"]);
-                        
-                        // Dò tìm chính xác cột An toàn viên và Nghề độc hại
-                        let atvVal = getRawVal(["antoanvien", "atv", "antoan"]);
-                        let nndhVal = getRawVal(["nndh", "nghedochai", "doc_hai", "dochai", "nghe_doc_hai"]);
+                        let atvVal = getRawValFromExcel(row, ["antoanvien", "atv", "antoan"]);
+                        let nndhVal = getRawValFromExcel(row, ["nndh", "nghedochai", "doc_hai", "dochai", "nghe_doc_hai"]);
 
                         let record = {
-                            stt_excel: getRawVal(["stt"]) || String(i + 1), 
+                            stt_excel: getRawValFromExcel(row, ["stt"]) || String(i + 1), 
                             ho_ten: hoTen,
                             so_so_bhxh: bhxhVal, 
                             so_cccd: cccdVal,
                             gioi_tinh: gt, 
                             nam_sinh: birthStr, 
                             nam_ve_huu: retStr,
-                            ma_don_vi: maDonVi, // Đẩy thẳng mã đơn vị nhận diện sang DB Cloud
+                            ma_don_vi: maDonVi || "Chưa rõ", 
                             chuc_danh_cong_viec: chucDanh
                         };
 
@@ -817,15 +832,19 @@
                         listRows.push(record);
                     });
 
-                    if (listRows.length === 0) { alert("Không tìm thấy dữ liệu hợp lệ trong file Excel!"); return; }
+                    if (listRows.length === 0) { 
+                        alert("Không trích xuất được dòng dữ liệu nào! Hãy chắc chắn hàng đầu tiên trong file Excel là tiêu đề cột."); 
+                        return; 
+                    }
 
+                    // Tiến hành làm sạch bảng cũ và nạp danh sách mới lên đám mây
                     await client.from('nhan_su').delete().neq('id', 0);
                     let { error } = await client.from('nhan_su').insert(listRows);
-                    if(error) { alert("Lỗi Supabase: " + error.message); return; }
+                    if(error) { alert("Lỗi gửi dữ liệu lên Cloud: " + error.message); return; }
                     
-                    alert(`Đồng bộ thành công ${listRows.length} nhân sự lên Đám mây!`); 
+                    alert(`Đồng bộ thành công thành công! Hệ thống đã ghi nhận thêm ${listRows.length} nhân sự lên Đám mây.`); 
                     await fetchAllData();
-                } catch(err) { alert("Lỗi xử lý Excel: " + err.message); }
+                } catch(err) { alert("Lỗi xử lý file Excel: " + err.message); }
             };
             reader.readAsArrayBuffer(file);
         }
