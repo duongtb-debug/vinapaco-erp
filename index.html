@@ -387,18 +387,26 @@
                 document.getElementById('count_ns').innerText = DB_NHAN_SU.length;
                 
                 let r2 = await client.from('thiet_bi').select('*').order('id', { ascending: false });
+                if(r2.error) {
+                    console.error("Lỗi Supabase cấp quyền RLS hoặc bảng thiet_bi chưa đúng cấu trúc:", r2.error);
+                }
                 DB_THIET_BI = r2.data || [];
 
                 calculateHRStats(); 
                 buildDropdowns(); 
                 triggerFilterReset();
                 displayThietBi();
-            } catch (e) { console.error("Lỗi Tải Dữ Liệu Toàn Cục:", e); }
+            } catch (e) { console.error("Lỗi Toàn Cục:", e); }
         }
 
         async function fetchAndReloadThietBi() {
             try {
                 let r2 = await client.from('thiet_bi').select('*').order('id', { ascending: false });
+                if (r2.error) {
+                    alert("Supabase báo lỗi đọc dữ liệu: " + r2.error.message + "\nHướng xử lý: Hãy kiểm tra xem bạn đã Disable RLS hoặc chạy script SQL chưa.");
+                    console.error(r2.error);
+                    return;
+                }
                 DB_THIET_BI = r2.data || [];
                 displayThietBi();
             } catch (e) { console.error("Lỗi reload thiết bị:", e); }
@@ -656,13 +664,20 @@
             };
 
             try {
+                let res;
                 if(editId) {
-                    await client.from('thiet_bi').update(rowData).eq('id', editId);
-                    alert("Cập nhật thiết bị thành công!");
+                    res = await client.from('thiet_bi').update(rowData).eq('id', editId);
                 } else {
-                    await client.from('thiet_bi').insert([rowData]);
-                    alert("Thêm cấp phát thiết bị mới thành công!");
+                    res = await client.from('thiet_bi').insert([rowData]);
                 }
+                
+                if(res.error) {
+                    alert("Lỗi Supabase từ chối lưu: " + res.error.message + "\nHướng khắc phục: Vui lòng xem kỹ lại mục SQL Editor và phân quyền RLS.");
+                    console.error(res.error);
+                    return;
+                }
+
+                alert("Lưu cấu hình thiết bị thành công!");
                 
                 // Reset form nhập dữ liệu
                 document.getElementById('editing_device_id').value = "";
@@ -681,7 +696,7 @@
                 // Chuyển sang Tab hiển thị
                 switchSection('thietbi');
             } catch (err) { 
-                alert("Lỗi lưu cấu hình: " + err.message); 
+                alert("Lỗi xử lý Javascipt: " + err.message); 
                 console.error(err);
             }
         }
@@ -704,7 +719,8 @@
         async function deleteDevice(id) {
             if(!confirm("Bạn có chắc chắn muốn xóa thiết bị tài sản này không?")) return;
             try {
-                await client.from('thiet_bi').delete().eq('id', id);
+                let res = await client.from('thiet_bi').delete().eq('id', id);
+                if (res.error) { alert("Lỗi xóa: " + res.error.message); return; }
                 await fetchAndReloadThietBi();
             } catch (e) { alert(e.message); }
         }
