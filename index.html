@@ -130,9 +130,6 @@
         .db-card.rep-total::before { background: var(--purple); }
         .db-card.rep-before::before { background: var(--warning); }
         .db-card.rep-after::before { background: var(--success); }
-        .db-card.rep-pending::before { background: #f59e0b; }
-        .db-card.rep-paid::before { background: #10b981; }
-        .db-card.rep-unpaid::before { background: #ef4444; }
         
         .db-card .value { font-size: 20px; font-weight: 700; margin-top: 5px; color: var(--dark); }
         .db-card h4 { margin: 0; color: #64748b; font-size: 13px; font-weight: 600; text-transform: uppercase; }
@@ -205,7 +202,7 @@
             border: 1px solid var(--border); 
             scroll-behavior: auto;
         }
-        table { width: 100%; border-collapse: collapse; min-width: 1450px; }
+        table { width: 100%; border-collapse: collapse; min-width: 1650px; }
         th { position: sticky; top: 0; background: #f8fafc; color: #475569; font-weight: 700; white-space: nowrap; z-index: 10; border-bottom: 2px solid var(--border); padding: 14px 16px; font-size: 13px; text-transform: uppercase; text-align: left; }
         td { border-bottom: 1px solid #f1f5f9; padding: 14px 16px; font-size: 14px; color: #334155; vertical-align: middle; }
         tr { transition: background 0.15s; }
@@ -219,6 +216,9 @@
         .status-paid { background: #d1fae5; color: #065f46; }
         .status-pending { background: #ffedd5; color: #c2410c; }
         .status-unpaid { background: #ffeeee; color: #dc2626; }
+        
+        .badge-atv { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+        .badge-nndh { background: #fff7ed; color: #c2410c; border: 1px solid #ffedd5; }
         
         .qr-canvas { width: 115px; height: 115px; background: #fff; margin: 0 auto; padding: 5px; border: 1px solid var(--border); border-radius: 8px; display: inline-block; }
         .qr-canvas img { width: 100% !important; height: 100% !important; }
@@ -254,7 +254,7 @@
                 <button class="btn btn-danger" style="margin-top: 10px;" onclick="clearDataCloud('nhan_su')"><i class="fa-solid fa-trash"></i> Xóa sạch dữ liệu</button>
             </div>
 
-            <!-- Form Thiết bị (Giao diện cũ cấu hình gốc) -->
+            <!-- Form Thiết bị -->
             <div class="card s-form" id="form_thietbi_panel" style="display:none;">
                 <h3 id="form_device_title"><i class="fa-solid fa-plus"></i> Cấp Phát Thiết Bị</h3>
                 <input type="hidden" id="editing_device_id" value="">
@@ -289,7 +289,7 @@
                 <button class="btn btn-success" id="btn_save_device" onclick="saveDeviceConfig()"><i class="fa-solid fa-floppy-disk"></i> Lưu & Xuất Mã QR</button>
             </div>
 
-            <!-- Form Lập Nhật ký sửa chữa & Thuế -->
+            <!-- Form Lập Nhật ký sửa chữa -->
             <div class="card s-form" id="form_suachua_panel" style="display:none;">
                 <h3><i class="fa-solid fa-calculator"></i> Lập Nhật Ký & Tính Thuế</h3>
                 <div class="form-group">
@@ -366,7 +366,9 @@
                                 <th class="text-center">Giới Tính</th>
                                 <th class="text-center">Ngày Sinh</th>
                                 <th class="text-center">Tuổi Hiện Tại</th>
-                                <th class="text-center">Năm Nghỉ Hưu</th>
+                                <th class="text-center">An Toàn Viên</th>
+                                <th class="text-center">Nghề Độc Hại (NNDH)</th>
+                                <th class="text-center">Ngày Nghỉ Hưu Dự Kiến</th>
                                 <th class="text-center">Mã Đơn Vị</th>
                                 <th>Chức Danh Công Việc</th>
                             </tr>
@@ -400,17 +402,12 @@
                 </div>
             </div>
 
-            <!-- SECTION PHÂN HỆ NHẬT KÝ SỬA CHỮA & THUẾ DASHBOARD -->
+            <!-- SECTION NHẬT KÝ SỬA CHỮA -->
             <div id="sec_suachua" class="app-section">
                 <div class="repair-dashboard-grid">
                     <div class="db-card rep-total"><h4>Hồ sơ sửa chữa</h4><div class="value" id="lbl_stat_rep_count">0 hồ sơ</div></div>
                     <div class="db-card rep-before"><h4>Tổng tiền trước thuế</h4><div class="value" id="lbl_stat_total_before">0 đ</div></div>
                     <div class="db-card rep-after"><h4>Tổng tiền sau thuế</h4><div class="value" id="lbl_stat_total_after">0 đ</div></div>
-                </div>
-                <div class="repair-dashboard-grid" style="margin-top: -10px;">
-                    <div class="db-card rep-pending"><h4>Hồ sơ Chờ Duyệt</h4><div class="value" id="lbl_stat_status_pending">0 hồ sơ</div></div>
-                    <div class="db-card rep-paid"><h4>Hồ sơ Đã Thanh Toán</h4><div class="value" id="lbl_stat_status_paid">0 hồ sơ</div></div>
-                    <div class="db-card rep-unpaid"><h4>Hồ sơ Chưa Thanh Toán</h4><div class="value" id="lbl_stat_status_unpaid">0 hồ sơ</div></div>
                 </div>
 
                 <div class="filter-wrapper">
@@ -510,28 +507,14 @@
 
         function calculateRepairDashboard() {
             let totalRecords = DB_NHAT_KY.length;
-            let sumBefore = 0;
-            let sumAfter = 0;
-            let countPending = 0;
-            let countPaid = 0;
-            let countUnpaid = 0;
-
+            let sumBefore = 0; let sumAfter = 0;
             DB_NHAT_KY.forEach(x => {
                 sumBefore += parseFloat(x.chi_phi_truoc_thue) || 0;
                 sumAfter += parseFloat(x.tong_chi_phi) || 0;
-                
-                let pStatus = String(x.payment_status || x.status || "").trim();
-                if(pStatus === "Chờ duyệt") countPending++;
-                else if(pStatus === "Đã thanh toán") countPaid++;
-                else countUnpaid++; 
             });
-
             document.getElementById('lbl_stat_rep_count').innerText = totalRecords + " hồ sơ";
             document.getElementById('lbl_stat_total_before').innerText = Math.round(sumBefore).toLocaleString('vi-VN') + " đ";
             document.getElementById('lbl_stat_total_after').innerText = Math.round(sumAfter).toLocaleString('vi-VN') + " đ";
-            document.getElementById('lbl_stat_status_pending').innerText = countPending + " hồ sơ";
-            document.getElementById('lbl_stat_status_paid').innerText = countPaid + " hồ sơ";
-            document.getElementById('lbl_stat_status_unpaid').innerText = countUnpaid + " hồ sơ";
         }
 
         function buildDropdowns() {
@@ -577,10 +560,19 @@
             renderNhanSuTable(false);
         }
 
+        function formatDateVietNam(isoString) {
+            if (!isoString) return "--";
+            let parts = isoString.split("-");
+            if (parts.length >= 3) {
+                return `${parts[2].substring(0,2)}/${parts[1]}/${parts[0]}`;
+            }
+            return isoString;
+        }
+
         function renderNhanSuTable(append = false) {
             const tbody = document.getElementById('table_hoso_body'); if(!tbody) return;
             if(!append) tbody.innerHTML = "";
-            if(FILTERED_LIST.length === 0) { tbody.innerHTML = `<tr><td colspan="11" class="text-center">Không thấy kết quả.</td></tr>`; return; }
+            if(FILTERED_LIST.length === 0) { tbody.innerHTML = `<tr><td colspan="13" class="text-center">Không thấy kết quả.</td></tr>`; return; }
             
             let start = append ? tbody.children.length : 0;
             let chunk = FILTERED_LIST.slice(start, CURRENT_PAGE_SIZE);
@@ -591,10 +583,11 @@
                 let birthYear = x.nam_sinh ? parseInt(x.nam_sinh.split("-")[0]) : null;
                 let age = birthYear ? (currentYear - birthYear) : "--";
                 
-                let gt = String(x.gioi_tinh || "").trim().toLowerCase();
-                let rYear = "--";
-                if(x.nam_ve_huu) rYear = x.nam_ve_huu.split("-")[0];
-                else if(birthYear) rYear = (gt === "nữ" || gt === "nu" || gt === "f") ? (birthYear + 60) : (birthYear + 62);
+                let formattedBirth = x.nam_sinh ? formatDateVietNam(x.nam_sinh) : "--";
+                let formattedRetire = x.nam_ve_huu ? formatDateVietNam(x.nam_ve_huu) : "--";
+
+                let atvStatus = (x.an_toan_vien && String(x.an_toan_vien).trim().toLowerCase() !== "false" && String(x.an_toan_vien).trim() !== "") ? `<span class="badge badge-atv"><i class="fa-solid fa-shield-halved"></i> Đang làm</span>` : `<span style="color:#94a3b8;">--</span>`;
+                let nndhStatus = (x.nghe_doc_hai && String(x.nghe_doc_hai).trim().toLowerCase() !== "false" && String(x.nghe_doc_hai).trim() !== "") ? `<span class="badge badge-nndh"><i class="fa-solid fa-biohazard"></i> Có độc hại</span>` : `<span style="color:#94a3b8;">--</span>`;
 
                 html += `<tr>
                     <td class="text-center">#${x.id}</td>
@@ -603,9 +596,11 @@
                     <td>${x.so_so_bhxh||''}</td>
                     <td><mark>${x.so_cccd||''}</mark></td>
                     <td class="text-center">${x.gioi_tinh}</td>
-                    <td class="text-center">${x.nam_sinh||''}</td>
+                    <td class="text-center">${formattedBirth}</td>
                     <td class="text-center"><b>${age}</b></td>
-                    <td class="text-center" style="color:var(--danger); font-weight:600;">${rYear}</td>
+                    <td class="text-center">${atvStatus}</td>
+                    <td class="text-center">${nndhStatus}</td>
+                    <td class="text-center" style="color:var(--danger); font-weight:700;">${formattedRetire}</td>
                     <td class="text-center"><span class="badge" style="background:#f1f5f9; color:#1e293b;">${x.ma_don_vi}</span></td>
                     <td><small>${x.chuc_danh_cong_viec||''}</small></td>
                 </tr>`; 
@@ -625,7 +620,6 @@
             } 
         }
 
-        /* KHẮC PHỤC LỖI QR TRẮNG TINH: SỬ DỤNG CHUỖI MÃ HÓA URI COMPONENT ĐỂ PHÂN BIỆT KÝ TỰ TIẾNG VIỆT */
         function displayThietBi() {
             const tbody = document.getElementById('table_thietbi_body'); if(!tbody) return;
             tbody.innerHTML = "";
@@ -657,7 +651,6 @@
                 `;
                 tbody.appendChild(tr);
 
-                // Sử dụng hàm unescape + encodeURIComponent để thư viện qrcodejs ép kiểu chuỗi UTF-8 sang nhị phân
                 setTimeout(() => {
                     const qrContainer = document.getElementById(`qr_${x.device_code}`);
                     if(qrContainer) {
@@ -672,7 +665,6 @@
                             `Nhân sự: ${x.user_name || 'KHO TỔNG'}\n` +
                             `Trạng thái: ${x.status.toUpperCase()}`;
                         
-                        // Phương pháp chuyển mã nhị phân tương thích thư viện qrcode.js tránh bị ô trắng
                         let cleanText = unescape(encodeURIComponent(rawTagString));
 
                         new QRCode(qrContainer, {
@@ -808,13 +800,12 @@
             };
 
             let { error } = await client.from('nhat_ky_sua_chua').insert([logData]);
-            if(error) { alert("Lỗi ghi Đám mây: " + error.message); return; }
+            if(error) { alert("Lỗi: " + error.message); return; }
 
-            alert("Đã đồng bộ nhật ký sửa chữa và hạch toán thuế thành công!");
+            alert("Đã hạch toán sửa chữa thành công!");
             document.getElementById('rep_device_search').value = ""; document.getElementById('rep_device_code').value = "";
             document.getElementById('rep_content').value = ""; document.getElementById('rep_cost_before').value = "0";
-            calculateFlexibleTax(); 
-            await fetchRepairLogs();
+            calculateFlexibleTax(); await fetchRepairLogs();
         }
 
         function displayRepairLogs() {
@@ -828,7 +819,7 @@
             });
 
             if(filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="9" class="text-center" style="color:#64748b;">Không tìm thấy lịch sử sửa chữa hồ sơ phù hợp.</td></tr>`; return;
+                tbody.innerHTML = `<tr><td colspan="9" class="text-center" style="color:#64748b;">Không tìm thấy lịch sử phù hợp.</td></tr>`; return;
             }
 
             filtered.forEach(x => {
@@ -859,6 +850,11 @@
                 let parts = str.split("/");
                 if (parts.length === 3 && parts[2].length === 4) return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
             }
+            // Xử lý định dạng gốc Excel dạng số liên tục nếu có
+            if (!isNaN(str) && str.length > 5) {
+                let d = new Date((parseInt(str) - 25569) * 86400 * 1000);
+                if(!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+            }
             return null;
         }
 
@@ -883,18 +879,23 @@
 
                         let gt = (String(getVal(["nu", "nux"])).toLowerCase() === "x") ? "Nữ" : "Nam";
                         let birthStr = safeConvertToISODate(getVal(["namsinh", "ngaysinh"]));
-                        let bYear = birthStr ? parseInt(birthStr.split("-")[0]) : null;
-                        let retYearStr = null;
+                        let retStr = null;
                         
-                        if(bYear) {
-                            let rY = (gt === "Nữ") ? (bYear + 60) : (bYear + 62);
-                            retYearStr = `${rY}-01-01`;
+                        if(birthStr) {
+                            let p = birthStr.split("-");
+                            let y = parseInt(p[0]);
+                            let rY = (gt === "Nữ") ? (y + 60) : (y + 62);
+                            retStr = `${rY}-${p[1]}-${p[2]}`; // Giữ nguyên ngày tháng sinh làm mốc nghỉ hưu chuẩn hóa
                         }
+
+                        let atvVal = String(getVal(["antoanvien", "atv"])).trim();
+                        let nndhVal = String(getVal(["nghedochai", "nndh", "doc_hai"])).trim();
 
                         listRows.push({
                             stt_excel: String(getVal(["stt"])).trim() || String(i + 1), ho_ten: hoTen,
                             so_so_bhxh: String(getVal(["sosobhxh", "bhxh"])).trim(), so_cccd: String(getVal(["socccd", "cccd"])).trim(),
-                            gioi_tinh: gt, nam_sinh: birthStr, nam_ve_huu: retYearStr,
+                            gioi_tinh: gt, nam_sinh: birthStr, nam_ve_huu: retStr,
+                            an_toan_vien: atvVal, nghe_doc_hai: nndhVal,
                             ma_don_vi: String(getVal(["madonvi", "donvi"])).trim() || "10",
                             chuc_danh_cong_viec: String(getVal(["chucdanh", "congviec"])).trim()
                         });
@@ -902,14 +903,14 @@
 
                     await client.from('nhan_su').delete().neq('id', 0);
                     await client.from('nhan_su').insert(listRows);
-                    alert("Đồng bộ dữ liệu thành công!"); await fetchAllData();
-                } catch(err) { alert("Lỗi: " + err.message); }
+                    alert("Đồng bộ dữ liệu nâng cao thành công!"); await fetchAllData();
+                } catch(err) { alert("Lỗi xử lý Excel: " + err.message); }
             };
             reader.readAsArrayBuffer(file);
         }
 
         async function clearDataCloud(tableName) {
-            if(!confirm("Xóa toàn bộ dữ liệu?")) return;
+            if(!confirm("Xóa toàn bộ dữ liệu trên Đám mây?")) return;
             let pass = prompt("Mã bảo mật:"); if(pass !== "admin123") return;
             await client.from(tableName).delete().neq('id', 0); await fetchAllData();
         }
