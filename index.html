@@ -127,15 +127,17 @@
             display: none;
         }
 
+        /* NÂNG CẤP CỦA BẠN: Cho phép bảng tự dãn hết chiều cao để không bị cuộn trong */
         .table-container {
-            max-height: 600px;
-            overflow: auto !important;
-            overflow-anchor: none !important; /* Block browser jumping completely */
+            max-height: none !important; /* Loại bỏ chiều cao giới hạn */
+            overflow-x: auto !important; /* Chỉ cuộn ngang khi bảng quá rộng */
+            overflow-y: visible !important; /* Cho phép nội dung hiển thị tràn dọc tự nhiên */
+            overflow-anchor: none !important; /* Chặn hoàn toàn tính năng nhảy neo giật của trình duyệt */
             scroll-behavior: smooth;
         }
         
+        /* Tối ưu hóa thanh cuộn ngang khi cần thiết */
         .table-container::-webkit-scrollbar {
-            width: 10px;
             height: 10px;
         }
         .table-container::-webkit-scrollbar-track {
@@ -248,7 +250,8 @@
             </div>
         </div>
 
-        <div class="table-container border border-slate-200 rounded-xl" onscroll="handleTableScroll(this)">
+        <!-- REMOVED INTERN SCROLL EVENT: Sắp xếp cuộn chung theo trình duyệt bên ngoài -->
+        <div class="table-container border border-slate-200 rounded-xl">
             <table class="w-full text-left border-collapse">
                 <thead>
                     <tr class="bg-slate-100 text-slate-700 border-b border-slate-200">
@@ -296,6 +299,7 @@
                         </div>
                         <div class="form-group relative">
                             <label>Nhân sự bàn giao</label>
+                            <!-- CLICK EVENT UPGRADE: Tự kích hoạt khi focus và click chuột -->
                             <input type="text" id="dev_user_search" oninput="smartSuggest(this)" onfocus="smartSuggest(this)" onclick="smartSuggest(this)" placeholder="Kích chuột hiển thị nhanh nhân viên..." class="w-full bg-white border border-slate-300 rounded-lg">
                             <input type="hidden" id="dev_user_id">
                             <div class="suggest-box" id="dev_suggest"></div>
@@ -422,6 +426,7 @@
                             <input type="text" id="rep_file_name" placeholder="Ví dụ: HSQT-2026-XN02" class="w-full bg-white border border-slate-300 rounded-lg">
                         </div>
                         <div class="form-group">
+                            <!-- UPGRADE: Tự nhập đơn vị thụ hưởng thoải mái -->
                             <label>Đơn vị thụ hưởng * (Tự nhập)</label>
                             <input type="text" id="rep_beneficiary" placeholder="Ví dụ: Phân xưởng 1 hoặc ĐV 14.2" class="w-full bg-white border border-slate-300 rounded-lg">
                         </div>
@@ -445,6 +450,7 @@
                         
                         <div class="form-group relative">
                             <label>Thiết bị bảo dưỡng * (Tìm chọn)</label>
+                            <!-- CLICK EVENT UPGRADE: Tự kích hoạt khi focus và click chuột -->
                             <input type="text" id="rep_device_search" oninput="suggestRepairDevice(this)" onfocus="suggestRepairDevice(this)" onclick="suggestRepairDevice(this)" placeholder="Nhấn chuột tìm nhanh..." class="w-full bg-white border border-slate-300 rounded-lg">
                             <input type="hidden" id="rep_device_code">
                             <input type="hidden" id="rep_device_name">
@@ -667,6 +673,9 @@
             await fetchAllData(); 
             await fetchRepairLogs();
 
+            // SỬA LỖI NẨY GIẬT: Lắng nghe sự kiện cuộn dọc trực tiếp từ Window thay vì thanh cuộn phụ bên trong
+            window.addEventListener('scroll', handleWindowScroll);
+
             // Set up smart suggesters click listeners
             document.addEventListener('click', function(e) {
                 const devSuggest = document.getElementById('dev_suggest');
@@ -709,6 +718,27 @@
                 });
             }
         };
+
+        function handleWindowScroll() {
+            if (isPageLoading) return;
+            
+            // Chỉ kích hoạt tải thêm dữ liệu khi đang ở Tab Hồ sơ nhân sự
+            const activeTab = document.querySelector('.nav-tab.active');
+            if (!activeTab || activeTab.id !== 'tab_hoso') return;
+
+            // Xác định xem người dùng đã cuộn gần xuống cuối màn hình hay chưa (ngưỡng 150px)
+            const threshold = 150;
+            const isAtBottom = (window.innerHeight + window.scrollY) >= (document.documentElement.scrollHeight - threshold);
+            
+            if (isAtBottom) { 
+                if (CURRENT_PAGE_SIZE < FILTERED_LIST.length) { 
+                    isPageLoading = true; 
+                    CURRENT_PAGE_SIZE = Math.min(CURRENT_PAGE_SIZE + 40, FILTERED_LIST.length); 
+                    renderNhanSuTable(true); 
+                    setTimeout(() => { isPageLoading = false; }, 150); 
+                } 
+            } 
+        }
 
         function utf16to8(str) {
             var out, i, len, c;
@@ -955,6 +985,9 @@
             
             if(target === 'thietbi') displayThietBi();
             if(target === 'suachua') fetchRepairLogs();
+            
+            // Cuộn trang về đầu sau khi chuyển tab để có tầm nhìn tốt nhất
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
         function triggerFilterReset() {
@@ -1209,21 +1242,6 @@
             }
         }
 
-        function handleTableScroll(container) { 
-            if (isPageLoading) return;
-            const threshold = 80;
-            const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= threshold;
-            
-            if (isAtBottom) { 
-                if (CURRENT_PAGE_SIZE < FILTERED_LIST.length) { 
-                    isPageLoading = true; 
-                    CURRENT_PAGE_SIZE = Math.min(CURRENT_PAGE_SIZE + 40, FILTERED_LIST.length); 
-                    renderNhanSuTable(true); 
-                    setTimeout(() => { isPageLoading = false; }, 150); 
-                } 
-            } 
-        }
-
         function displayThietBi() {
             const tbody = document.getElementById('table_thietbi_body'); if(!tbody) return;
             tbody.innerHTML = "";
@@ -1341,6 +1359,7 @@
             if(!box) return; 
             box.innerHTML = ""; 
 
+            // Cập nhật: Luôn cho phép hiển thị các kết quả phù hợp khi người dùng nhấp chuột vào ô tìm kiếm
             let matches = DB_NHAN_SU.filter(x => {
                 let matchName = !val || (x.ho_ten && x.ho_ten.toLowerCase().includes(val));
                 let matchDV = !selectedDV || String(x.ma_don_vi).trim() === String(selectedDV).trim();
