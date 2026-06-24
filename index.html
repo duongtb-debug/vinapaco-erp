@@ -3,11 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hệ Thống Tổng Hợp: Nhân Sự - Thiết Bị QR - Sửa Chữa & Thanh Toán</title>
+    <title>Hệ Thống Tổng Hợp: Nhân Sự - Thiết Bị QR - Sửa Chữa & Thanh Toán 3D</title>
     
     <link rel="icon" href="data:,">
 
-    <!-- Thư viện bổ trợ chuyên sâu -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -15,118 +14,190 @@
     
     <style>
         :root {
-            --primary: #1e56a0;
-            --primary-light: #ebf3fc;
-            --success: #2ecc71;
-            --warning: #f39c12;
-            --danger: #e74c3c;
-            --purple: #9b59b6;
-            --dark: #2c3e50;
-            --bg: #f4f6f9;
-            --border: #dcdde1;
-            --blue-light: #3498db;
-            --pink: #e91e63;
-            --shadow: 0 4px 15px rgba(0,0,0,0.06);
+            --primary: #2563eb;
+            --primary-light: #eff6ff;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --purple: #8b5cf6;
+            --dark: #1e293b;
+            --bg: #f8fafc;
+            --border: #e2e8f0;
+            --blue-light: #0ea5e9;
+            --pink: #ec4899;
+            /* Hiệu ứng đổ bóng 3D có chiều sâu */
+            --shadow-3d: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255,255,255,0.6);
+            --card-3d: 0 20px 25px -5px rgba(0,0,0,0.05), 0 10px 10px -5px rgba(0,0,0,0.02);
         }
         
-        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif, 'Times New Roman'; }
-        body { margin: 0; background-color: var(--bg); color: #333; font-size: 14px; line-height: 1.5; }
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { margin: 0; background-color: var(--bg); color: #334155; font-size: 14px; line-height: 1.5; }
         
         /* Header cao cấp */
         .header { 
-            background: linear-gradient(135deg, var(--primary), #113f7a); 
+            background: linear-gradient(135deg, #1e3a8a, #0f172a); 
             color: white; 
-            padding: 18px 30px; 
+            padding: 20px 30px; 
             display: flex; 
             justify-content: space-between; 
             align-items: center; 
             flex-wrap: wrap; 
             gap: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
         }
-        .header h1 { margin: 0; font-size: 24px; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; }
+        .header h1 { margin: 0; font-size: 24px; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px; }
+        #cloud_status { background: rgba(255,255,255,0.1); padding: 6px 14px; border-radius: 20px; font-weight: 600; border: 1px solid rgba(255,255,255,0.2); }
         
-        /* Thanh Tab Điều Hướng */
+        /* Thanh Tab Điều Hướng 3D */
         .nav-tabs { 
             display: flex; 
             background: white; 
-            border-bottom: 2px solid var(--border); 
-            padding: 0 30px; 
+            border-bottom: 1px solid var(--border); 
+            padding: 10px 30px 0 30px; 
             gap: 10px; 
             overflow-x: auto; 
-            white-space: nowrap; 
-            box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+            white-space: nowrap;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02);
         }
         .nav-tab { 
-            padding: 15px 22px; 
+            padding: 14px 24px; 
             font-weight: 600; 
-            font-size: 15px; 
-            color: #666; 
+            font-size: 14px; 
+            color: #64748b; 
             cursor: pointer; 
-            border-bottom: 4px solid transparent; 
+            border-radius: 10px 10px 0 0;
             display: flex; 
             align-items: center; 
             gap: 10px; 
-            transition: all 0.3s ease;
+            transition: all 0.25s ease;
+            border: 1px solid transparent;
+            border-bottom: none;
         }
-        .nav-tab:hover { color: var(--primary); background: #f8fafc; }
-        .nav-tab.active { color: var(--primary); border-bottom-color: var(--primary); background: var(--primary-light); font-weight: 700; }
+        .nav-tab:hover { color: var(--primary); background: #f1f5f9; }
+        .nav-tab.active { 
+            color: var(--primary); 
+            background: white; 
+            border-color: var(--border);
+            font-weight: 700; 
+            box-shadow: 0 -4px 12px rgba(0,0,0,0.03);
+            position: relative;
+            transform: translateY(1px);
+            z-index: 2;
+        }
         
-        /* Bố cục Không gian ứng dụng */
+        /* Bố cục Không gian ứng dụng 3D */
         .wrapper { max-width: 100%; margin: 25px auto; padding: 0 30px; display: grid; grid-template-columns: 360px 1fr; gap: 25px; }
         .sidebar { display: flex; flex-direction: column; gap: 25px; }
         
-        /* Thẻ Card */
-        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: var(--shadow); border: 1px solid rgba(0,0,0,0.03); }
-        .card h3 { margin: 0 0 20px 0; font-size: 16px; color: var(--primary); text-transform: uppercase; border-bottom: 2px solid var(--primary-light); padding-bottom: 10px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+        /* Thẻ Không Gian Card 3D Gọn Gàng */
+        .card { 
+            background: white; 
+            padding: 24px; 
+            border-radius: 16px; 
+            box-shadow: var(--card-3d); 
+            border: 1px solid rgba(226, 232, 240, 0.8); 
+            position: relative;
+        }
+        .card h3 { 
+            margin: 0 0 20px 0; 
+            font-size: 15px; 
+            color: var(--dark); 
+            text-transform: uppercase; 
+            padding-bottom: 12px; 
+            font-weight: 700; 
+            display: flex; 
+            align-items: center; 
+            gap: 8px;
+            border-bottom: 1px solid var(--border);
+        }
         
-        /* Khối thống kê Dashboard */
-        .dashboard-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 20px; width: 100%; }
-        .db-card { background: white; padding: 20px; border-radius: 12px; border-left: 6px solid #ccc; box-shadow: var(--shadow); transition: transform 0.2s; }
-        .db-card:hover { transform: translateY(-2px); }
-        .db-card.male { border-left-color: var(--blue-light); }
-        .db-card.female { border-left-color: var(--pink); }
-        .db-card.active-working { border-left-color: var(--success); }
-        .db-card.retired { border-left-color: #7f8c8d; }
-        .db-card.paid { border-left-color: var(--success); }
-        .db-card.unpaid { border-left-color: var(--danger); }
-        .db-card h4 { margin: 0 0 8px 0; font-size: 13px; text-transform: uppercase; color: #7f8c8d; font-weight: 600; }
-        .db-card .value { font-size: 20px; font-weight: 700; color: var(--dark); }
+        /* Khối thống kê Dashboard 3D */
+        .dashboard-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 25px; width: 100%; }
+        .db-card { 
+            background: white; 
+            padding: 20px; 
+            border-radius: 16px; 
+            box-shadow: var(--shadow-3d); 
+            border: 1px solid var(--border);
+            transition: all 0.25s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .db-card:hover { transform: translateY(-4px); box-shadow: 0 20px 25px -5px rgba(0,0,0,0.06); }
+        .db-card::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: #cbd5e1; }
+        .db-card.male::before { background: var(--blue-light); }
+        .db-card.female::before { background: var(--pink); }
+        .db-card.active-working::before { background: var(--success); }
+        .db-card.retired::before { background: #64748b; }
+        .db-card.paid::before { background: var(--success); }
+        .db-card.unpaid::before { background: var(--danger); }
+        
+        .db-card h4 { margin: 0 0 6px 0; font-size: 12px; text-transform: uppercase; color: #64748b; font-weight: 600; letter-spacing: 0.5px; }
+        .db-card .value { font-size: 22px; font-weight: 700; color: var(--dark); }
 
-        /* Form & Nhập liệu chỉnh chu */
+        /* Form & Nhập liệu hiện đại */
         .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; position: relative; }
-        .form-group label { font-size: 13px; font-weight: 600; color: #4b5563; }
-        .form-control { padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; outline: none; width: 100%; transition: all 0.2s ease; background-color: #fafafa; }
-        .form-control:focus { border-color: var(--primary); background-color: #fff; box-shadow: 0 0 0 3px rgba(30,86,160,0.15); }
+        .form-group label { font-size: 13px; font-weight: 600; color: #475569; }
+        .form-control { 
+            padding: 11px 14px; 
+            border: 1px solid var(--border); 
+            border-radius: 10px; 
+            font-size: 14px; 
+            outline: none; 
+            width: 100%; 
+            transition: all 0.2s ease; 
+            background-color: #f8fafc; 
+            color: var(--dark);
+        }
+        .form-control:focus { 
+            border-color: var(--primary); 
+            background-color: #fff; 
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12); 
+        }
         
         /* Hộp gợi ý thông minh */
-        .suggest-box { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid var(--border); border-radius: 8px; max-height: 250px; overflow-y: auto; z-index: 100; box-shadow: 0 10px 25px rgba(0,0,0,0.1); display: none; }
-        .suggest-item { padding: 12px 15px; cursor: pointer; font-size: 14px; border-bottom: 1px solid #f5f6fa; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s; }
-        .suggest-item:hover { background: var(--primary-light); }
+        .suggest-box { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid var(--border); border-radius: 10px; max-height: 220px; overflow-y: auto; z-index: 100; box-shadow: 0 10px 25px rgba(0,0,0,0.08); display: none; }
+        .suggest-item { padding: 12px 15px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; }
+        .suggest-item:hover { background: var(--primary-light); color: var(--primary); }
 
-        /* Nút chức năng nâng cao */
-        .btn { border: none; padding: 12px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 14px; width: 100%; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
-        .btn:active { transform: scale(0.98); }
+        /* Nút chức năng nâng cao 3D */
+        .btn { 
+            border: none; 
+            padding: 12px 20px; 
+            border-radius: 10px; 
+            font-weight: 600; 
+            cursor: pointer; 
+            font-size: 14px; 
+            width: 100%; 
+            transition: all 0.2s; 
+            display: inline-flex; 
+            align-items: center; 
+            justify-content: center; 
+            gap: 8px; 
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        }
+        .btn:hover { filter: brightness(1.05); transform: translateY(-1px); }
+        .btn:active { transform: translateY(1px); }
         .btn-primary { background: var(--primary); color: white; }
         .btn-danger { background: var(--danger); color: white; }
         .btn-success { background: var(--success); color: white; }
         .btn-purple { background: var(--purple); color: white; }
         
         /* Nút hành động mini trong bảng */
-        .btn-table-edit { background: #e3f2fd; color: #1e88e5; border: 1px solid #bbdefb; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; margin-right: 5px; transition: all 0.2s; }
-        .btn-table-edit:hover { background: #1e88e5; color: white; }
-        .btn-table-del { background: #ffebee; color: #e53935; border: 1px solid #ffcdd2; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.2s; }
-        .btn-table-del:hover { background: #e53935; color: white; }
+        .btn-table-edit { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600; margin-right: 5px; transition: all 0.2s; }
+        .btn-table-edit:hover { background: #16a34a; color: white; }
+        .btn-table-del { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.2s; }
+        .btn-table-del:hover { background: #dc2626; color: white; }
 
-        .main-panel { display: flex; flex-direction: column; gap: 25px; min-width: 0; }
+        .main-panel { display: flex; flex-direction: column; min-width: 0; }
         .app-section { display: none; }
         .app-section.active { display: block; }
         
-        /* Thanh Tìm kiếm & Lọc */
-        .filter-wrapper { display: flex; gap: 15px; margin-bottom: 20px; background: white; padding: 15px; border-radius: 12px; box-shadow: var(--shadow); flex-wrap: wrap; align-items: center; }
-        .search-bar { flex: 1; min-width: 250px; padding: 11px 16px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; outline: none; background: #fafafa; }
+        /* Thanh Tìm kiếm & Lọc 3D */
+        .filter-wrapper { display: flex; gap: 15px; margin-bottom: 25px; background: white; padding: 16px; border-radius: 16px; box-shadow: var(--shadow-3d); border: 1px solid var(--border); flex-wrap: wrap; align-items: center; }
+        .search-bar { flex: 1; min-width: 250px; padding: 11px 16px; border: 1px solid var(--border); border-radius: 10px; font-size: 14px; outline: none; background: #f8fafc; }
         .search-bar:focus { background: #fff; border-color: var(--primary); }
-        .filter-select { width: 260px; padding: 11px 16px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; background-color: #fff; font-weight: 600; color: var(--dark); outline: none; }
+        .filter-select { width: 260px; padding: 11px 16px; border: 1px solid var(--border); border-radius: 10px; font-size: 14px; background-color: #fff; font-weight: 600; color: var(--dark); outline: none; }
 
         /* Bảng dữ liệu chống giật lag chuyên nghiệp */
         .table-container { 
@@ -135,36 +206,36 @@
             overflow-y: auto; 
             overflow-x: auto; 
             background: white; 
-            border-radius: 12px; 
-            box-shadow: var(--shadow); 
+            border-radius: 16px; 
+            box-shadow: var(--card-3d); 
             border: 1px solid var(--border); 
             -webkit-overflow-scrolling: touch; 
             will-change: scroll-position;
         }
         table { width: 100%; border-collapse: collapse; min-width: 1100px; }
-        th { position: sticky; top: 0; background: #f8fafc; color: var(--dark); font-weight: 700; white-space: nowrap; z-index: 10; border-bottom: 2px solid var(--border); padding: 14px 16px; font-size: 14px; text-transform: uppercase; text-align: left; }
-        td { border-bottom: 1px solid #edf2f7; padding: 12px 16px; font-size: 14px; color: #4a5568; }
+        th { position: sticky; top: 0; background: #f8fafc; color: #475569; font-weight: 700; white-space: nowrap; z-index: 10; border-bottom: 2px solid var(--border); padding: 14px 16px; font-size: 13px; text-transform: uppercase; text-align: left; }
+        td { border-bottom: 1px solid #f1f5f9; padding: 14px 16px; font-size: 14px; color: #334155; }
         tr { contain: tight; transition: background 0.15s; }
         tr:hover { background: #f8fafc; }
         
         .text-center { text-align: center; }
-        .badge { padding: 5px 10px; border-radius: 6px; font-size: 12px; font-weight: bold; text-transform: uppercase; display: inline-block; }
-        .status-using { background: #e8f8f5; color: #2ecc71; }
-        .status-broken { background: #fdebd0; color: #e67e22; }
-        .status-repair { background: #ebf5fb; color: #2980b9; }
+        .badge { padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; display: inline-block; }
+        .status-using { background: #d1fae5; color: #065f46; }
+        .status-broken { background: #fef3c7; color: #92400e; }
+        .status-repair { background: #e0f2fe; color: #0369a1; }
 
-        .hs-todo { background: #fce4e4; color: #e74c3c; }
-        .hs-doing { background: #fef9e7; color: #f39c12; }
-        .hs-done { background: #d4efdf; color: #27ae60; }
+        .hs-todo { background: #fee2e2; color: #991b1b; }
+        .hs-doing { background: #fef3c7; color: #92400e; }
+        .hs-done { background: #d1fae5; color: #065f46; }
         
         /* Cấu trúc hiển thị QR */
-        .qr-canvas { width: 105px; height: 105px; background: #fff; margin: 0 auto; padding: 5px; border: 1px solid #e1e8ed; border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+        .qr-canvas { width: 100px; height: 100px; background: #fff; margin: 0 auto; padding: 4px; border: 1px solid var(--border); border-radius: 8px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
         .qr-canvas img { width: 100% !important; height: 100% !important; }
         
         /* File Upload Zone nâng cấp */
-        .link-file { color: var(--primary); text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; margin-bottom: 5px; background: var(--primary-light); padding: 5px 10px; border-radius: 6px; font-size: 12px; border: 1px solid rgba(30,86,160,0.1); }
-        .link-file:hover { background: #d0e4ff; text-decoration: underline; }
-        .upload-zone { border: 2px dashed #b2bec3; padding: 20px; border-radius: 10px; text-align: center; background: #fafafa; cursor: pointer; transition: all 0.2s ease; }
+        .link-file { color: var(--primary); text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; margin-bottom: 5px; background: var(--primary-light); padding: 6px 12px; border-radius: 8px; font-size: 12px; border: 1px solid rgba(37, 99, 235, 0.1); }
+        .link-file:hover { background: #dbeafe; }
+        .upload-zone { border: 2px dashed #cbd5e1; padding: 22px; border-radius: 12px; text-align: center; background: #f8fafc; cursor: pointer; transition: all 0.2s ease; }
         .upload-zone:hover { border-color: var(--primary); background: var(--primary-light); }
 
         @media (max-width: 1100px) {
@@ -178,42 +249,40 @@
 <body>
 
     <div class="header">
-        <h1>Hệ Thống Tổng Hợp Quản Lý Nhân Sự - Thiết Bị & Sửa Chữa</h1>
-        <div id="cloud_status"><i class="fa-solid fa-cloud-bounce"></i> ĐỒNG BỘ CLOUD ĐA MÁY TRỰC TUYẾN</div>
+        <h1>Hệ Thống Quản Lý Nhân Sự & Thiết Bị QR 3D</h1>
+        <div id="cloud_status"><i class="fa-solid fa-cloud-bolt"></i> ĐỒNG BỘ ĐÁM MÂY TRỰC TUYẾN</div>
     </div>
 
     <div class="nav-tabs">
-        <div class="nav-tab active" id="tab_hoso" onclick="switchSection('hoso')"><i class="fa-solid fa-users"></i> Hồ Sơ Nhân Sự Gốc (<span id="count_ns">0</span>)</div>
-        <div class="nav-tab" id="tab_thietbi" onclick="switchSection('thietbi')"><i class="fa-solid fa-qrcode"></i> Quản Lý & Cấp Phát Thiết Bị QR</div>
-        <div class="nav-tab" id="tab_suachua" onclick="switchSection('suachua')"><i class="fa-solid fa-screwdriver-wrench"></i> Nhật Ký Sửa Chữa Thiết Bị</div>
-        <div class="nav-tab" id="tab_thanhtoan" onclick="switchSection('thanhtoan')"><i class="fa-solid fa-file-invoice-dollar"></i> Quản Lý Hồ Sơ Chi Phí & Đa Chứng Từ Cloud</div>
+        <div class="nav-tab active" id="tab_hoso" onclick="switchSection('hoso')"><i class="fa-solid fa-users"></i> Hồ Sơ Nhân Sự (<span id="count_ns">0</span>)</div>
+        <div class="nav-tab" id="tab_thietbi" onclick="switchSection('thietbi')"><i class="fa-solid fa-qrcode"></i> Cấp Phát Thiết Bị QR</div>
+        <div class="nav-tab" id="tab_suachua" onclick="switchSection('suachua')"><i class="fa-solid fa-screwdriver-wrench"></i> Nhật Ký Sửa Chữa</div>
+        <div class="nav-tab" id="tab_thanhtoan" onclick="switchSection('thanhtoan')"><i class="fa-solid fa-file-invoice-dollar"></i> Đa Chứng Từ Cloud</div>
     </div>
 
     <div class="wrapper">
         <div class="sidebar">
-            <!-- Form Nhân sự -->
             <div class="card s-form" id="form_hoso_panel">
-                <h3><i class="fa-solid fa-file-excel"></i> Nhập Dữ Liệu Excel</h3>
+                <h3><i class="fa-solid fa-file-excel"></i> Nhập Dữ Liệu Gốc</h3>
                 <div class="form-group">
-                    <label>Chọn tệp danh sách nhân sự gốc</label>
+                    <label>Chọn tệp Excel nhân sự gốc</label>
                     <input type="file" id="excel_file" accept=".xlsx, .xls" class="form-control" onchange="importExcelNhanSu(this)">
                 </div>
-                <button class="btn btn-danger" style="margin-top: 10px;" onclick="clearDataCloud('nhan_su')"><i class="fa-solid fa-trash"></i> Xóa sạch toàn bộ nhân sự</button>
+                <button class="btn btn-danger" style="margin-top: 10px;" onclick="clearDataCloud('nhan_su')"><i class="fa-solid fa-trash"></i> Xóa sạch dữ liệu</button>
             </div>
 
-            <!-- Form Thiết bị -->
             <div class="card s-form" id="form_thietbi_panel" style="display:none;">
                 <h3 id="form_device_title"><i class="fa-solid fa-plus"></i> Cấp Phát Thiết Bị</h3>
                 <input type="hidden" id="editing_device_id" value="">
                 <div class="form-group">
-                    <label style="color: var(--primary);">BƯỚC 1: Chọn Nhóm Đơn Vị trước (Nếu có)</label>
+                    <label style="color: var(--primary);">Bước 1: Chọn Nhóm Đơn Vị</label>
                     <select id="dev_filter_donvi" class="form-control" style="font-weight:bold;" onchange="resetSelectedUser()">
                         <option value="">-- Tất cả các đơn vị --</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>BƯỚC 2: Tên Nhân Sự</label>
-                    <input type="text" id="dev_user_search" class="form-control" placeholder="Gõ tìm kiếm hoặc tự điền tay..." onfocus="smartSuggest(this)" oninput="smartSuggest(this)">
+                    <label>Bước 2: Chọn Nhân Sự</label>
+                    <input type="text" id="dev_user_search" class="form-control" placeholder="Gõ tìm kiếm tên..." onfocus="smartSuggest(this)" oninput="smartSuggest(this)">
                     <div id="dev_suggest" class="suggest-box"></div>
                     <input type="hidden" id="dev_user_id">
                 </div>
@@ -226,7 +295,7 @@
                     <input type="text" id="dev_code" class="form-control" placeholder="Bỏ trống hệ thống tự sinh mã">
                 </div>
                 <div class="form-group">
-                    <label>Tình trạng thiết bị ban đầu</label>
+                    <label>Tình trạng thiết bị</label>
                     <select id="dev_status_select" class="form-control">
                         <option value="Đang sử dụng">Đang sử dụng</option>
                         <option value="Thu hồi">Thu hồi nhập kho</option>
@@ -238,7 +307,6 @@
                 <button class="btn btn-danger" id="btn_cancel_edit_device" style="display:none; margin-top:8px;" onclick="cancelEditDevice()"><i class="fa-solid fa-xmark"></i> Hủy Sửa</button>
             </div>
 
-            <!-- Form Sửa chữa -->
             <div class="card s-form" id="form_suachua_panel" style="display:none;">
                 <h3 id="form_repair_title"><i class="fa-solid fa-notes-medical"></i> Khai Báo Sửa Chữa</h3>
                 <input type="hidden" id="editing_repair_id" value="">
@@ -253,8 +321,8 @@
                     <textarea id="repair_damage" class="form-control" rows="2" placeholder="Ví dụ: Máy không lên nguồn..."></textarea>
                 </div>
                 <div class="form-group">
-                    <label>Biện pháp khắc phục xử lý / File đính kèm Cloud</label>
-                    <textarea id="repair_solution" class="form-control" rows="2" placeholder="Ghi chú xử lý kỹ thuật kỹ hơn..."></textarea>
+                    <label>Biện pháp khắc phục xử lý</label>
+                    <textarea id="repair_solution" class="form-control" rows="2" placeholder="Ghi chú kỹ thuật xử lý..."></textarea>
                 </div>
                 <div class="form-group">
                     <label>Chi phí gốc sau báo giá (VNĐ)</label>
@@ -263,26 +331,25 @@
                 <div class="form-group">
                     <label style="color: var(--primary)">Chọn mức Thuế suất (%)</label>
                     <select id="repair_tax_rate" class="form-control" style="font-weight: bold;" onchange="calculateRealtimeTax()">
-                        <option value="1.08" selected>+8% Thuế suất VAT</option>
-                        <option value="1.10">+10% Thuế suất VAT</option>
+                        <option value="1.08" selected>+8% Thuế VAT</option>
+                        <option value="1.10">+10% Thuế VAT</option>
                         <option value="1.00">Không tính Thuế (0%)</option>
                     </select>
                 </div>
                 <div class="form-group">
                     <label style="color: var(--danger)">Thành tiền dự kiến (Có thuế)</label>
-                    <input type="text" id="repair_tax_preview" class="form-control" style="background:#f1f2f6; font-weight:bold; color:var(--danger);" readonly value="0 VND">
+                    <input type="text" id="repair_tax_preview" class="form-control" style="background:#f1f5f9; font-weight:bold; color:var(--danger);" readonly value="0 VND">
                 </div>
                 <button class="btn btn-purple" id="btn_save_repair" onclick="saveRepairConfig()"><i class="fa-solid fa-cloud-arrow-up"></i> Lưu Nhật Ký Sửa Chữa</button>
                 <button class="btn btn-danger" id="btn_cancel_edit_repair" style="display:none; margin-top:8px;" onclick="cancelEditRepair()"><i class="fa-solid fa-xmark"></i> Hủy Sửa</button>
             </div>
 
-            <!-- Form Thanh toán -->
             <div class="card s-form" id="form_thanhtoan_panel" style="display:none;">
                 <h3><i class="fa-solid fa-file-signature"></i> Xử Lý Hồ Sơ Chi Tiết</h3>
                 <input type="hidden" id="pay_log_id" value="">
                 
                 <div class="form-group">
-                    <label style="color: var(--purple)">Trạng thái hồ sơ thanh toán</label>
+                    <label style="color: var(--purple)">Trạng thái hồ sơ</label>
                     <select id="pay_status" class="form-control" style="font-weight: bold;">
                         <option value="Chưa xử lý">🔴 Chưa xử lý</option>
                         <option value="Đang xác minh">🟡 Đang xác minh / Ký duyệt</option>
@@ -290,32 +357,26 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Đơn vị thụ hưởng (Nhà cung cấp / Đối tác)</label>
+                    <label>Đơn vị thụ hưởng (Nhà cung cấp)</label>
                     <input type="text" id="pay_beneficiary" class="form-control" placeholder="Ví dụ: Công ty TNHH ABC...">
                 </div>
                 <div class="form-group">
-                    <label style="color:var(--success);"><i class="fa-solid fa-cloud-arrow-up"></i> TẢI CHỨNG TỪ LÊN CLOUD</label>
+                    <label style="color:var(--success);"><i class="fa-solid fa-cloud-arrow-up"></i> Tải chứng từ lên Cloud</label>
                     <div class="upload-zone" onclick="document.getElementById('file_uploader_multi').click()">
-                        <i class="fa-solid fa-folder-open" style="font-size:26px; color:#aaa;"></i>
-                        <p style="margin:5px 0 0 0; font-size:12px; color:#555;">Bấm chọn <b>Nhiều file cùng lúc</b></p>
+                        <i class="fa-solid fa-folder-open" style="font-size:24px; color:#94a3b8;"></i>
+                        <p style="margin:5px 0 0 0; font-size:12px; color:#475569;">Bấm chọn <b>Nhiều file cùng lúc</b></p>
                     </div>
                     <input type="file" id="file_uploader_multi" multiple style="display:none;" onchange="uploadMultipleFilesToCloud(this)">
-                    
-                    <div style="margin-top: 10px; border-top: 1px dashed #ddd; padding-top: 8px;">
-                        <label style="font-size:11px; color:#666; font-weight: bold;">Hoặc Tải Nguyên Cả Thư Mục:</label>
-                        <input type="file" id="folder_uploader" webkitdirectory directory multiple class="form-control" style="padding:4px;" onchange="uploadMultipleFilesToCloud(this)">
-                    </div>
                 </div>
                 <div class="form-group">
-                    <label>Chuỗi liên kết File trên Cloud hiện hành</label>
-                    <textarea id="pay_document_links_area" class="form-control" rows="2" placeholder="Đường dẫn lưu trữ đa máy..." readonly style="background:#f8f9fa; font-size:11px;"></textarea>
+                    <label>Chuỗi liên kết File hiện hành</label>
+                    <textarea id="pay_document_links_area" class="form-control" rows="2" readonly style="background:#f1f5f9; font-size:11px;"></textarea>
                 </div>
                 <button class="btn btn-primary" onclick="updateCloudPaymentProfile()"><i class="fa-solid fa-circle-check"></i> Lưu Cập Nhật Hồ Sơ</button>
             </div>
         </div>
 
         <div class="main-panel">
-            <!-- SECTION HỒ SƠ NHÂN SỰ -->
             <div id="sec_hoso" class="app-section active">
                 <div class="dashboard-grid">
                     <div class="db-card male"><h4>Lao động Nam</h4><div class="value" id="hr_stat_male">0 người</div></div>
@@ -339,7 +400,6 @@
                 </div>
             </div>
 
-            <!-- SECTION THIẾT BỊ -->
             <div id="sec_thietbi" class="app-section">
                 <div class="filter-wrapper">
                     <input type="text" id="search_thietbi" class="search-bar" placeholder="Tìm nhanh thiết bị, mã tài sản hoặc người giữ..." oninput="displayThietBi()">
@@ -356,7 +416,6 @@
                 </div>
             </div>
 
-            <!-- SECTION SỬA CHỮA -->
             <div id="sec_suachua" class="app-section">
                 <div class="filter-wrapper">
                     <input type="text" id="search_suachua" class="search-bar" placeholder="Tìm kiếm nhanh nhật ký hư hỏng..." oninput="displayRepairLog()">
@@ -373,10 +432,9 @@
                 </div>
             </div>
 
-            <!-- SECTION THANH TOÁN -->
             <div id="sec_thanhtoan" class="app-section">
                 <div class="dashboard-grid">
-                    <div class="db-card paid"><h4>Tổng lượt sửa chữa</h4><div class="value" id="stat_count_total">0 danh mục</div></div>
+                    <div class="db-card paid"><h4>Tổng lượt sửa</h4><div class="value" id="stat_count_total">0 danh mục</div></div>
                     <div class="db-card working"><h4>Sửa đổi gần đây</h4><div class="value" id="stat_latest_repair_device" style="font-size:14px;">N/A</div></div>
                     <div class="db-card paid"><h4>Tổng chi phí gốc</h4><div class="value" id="stat_money_original" style="color: var(--success);">0 VND</div></div>
                     <div class="db-card unpaid"><h4>Quyết toán gồm thuế</h4><div class="value" id="stat_money_taxed" style="color: var(--danger);">0 VND</div></div>
@@ -398,7 +456,6 @@
         </div>
     </div>
 
-    <!-- SCRIPT XỬ LÝ LOGIC TOÀN CỤC VÀ ĐỒNG BỘ SUPABASE -->
     <script>
         const SUPABASE_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co"; 
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ";
@@ -444,7 +501,7 @@
             let uniqueDonVi = [...new Set(DB_NHAN_SU.map(x => x.ma_don_vi).filter(Boolean))].sort();
             const selectHoso = document.getElementById('filter_donvi'); selectHoso.innerHTML = '<option value="">-- Tất cả Mã Đơn Vị --</option>';
             const selectDevForm = document.getElementById('dev_filter_donvi'); selectDevForm.innerHTML = '<option value="">-- Tất cả các đơn vị --</option>';
-            uniqueDonVi.forEach(dv => { selectHoso.innerHTML += `<option value="${dv}">Nhóm Đơn Vị: ${dv}</option>`; selectDevForm.innerHTML += `<option value="${dv}">Nhóm Đơn Vị: ${dv}</option>`; });
+            uniqueDonVi.forEach(dv => { selectHoso.innerHTML += `<option value="${dv}">Mã Đơn Vị: ${dv}</option>`; selectDevForm.innerHTML += `<option value="${dv}">Mã Đơn Vị: ${dv}</option>`; });
         }
 
         function switchSection(target) {
@@ -470,21 +527,16 @@
         function renderNhanSuTable() {
             const tbody = document.getElementById('table_hoso_body'); if(FILTERED_LIST.length === 0) { tbody.innerHTML = `<tr><td colspan="12" class="text-center">Không thấy kết quả.</td></tr>`; return; }
             let chunk = FILTERED_LIST.slice(0, CURRENT_PAGE_SIZE); let html = "";
-            chunk.forEach((x) => { html += `<tr><td class="text-center">#${x.id}</td><td class="text-center">${x.stt_excel||''}</td><td><b>${x.ho_ten}</b></td><td>${x.so_so_bhxh||''}</td><td><mark>${x.so_cccd||''}</mark></td><td class="text-center">${x.gioi_tinh}</td><td class="text-center">${formatDisplayDate(x.nam_sinh)}</td><td class="text-center"><span class="badge" style="background:#e8f4f8; color:#1e56a0;">${x.ma_don_vi}</span></td><td>${x.an_toan_vien||''}</td><td>${x.nndh||''}</td><td class="text-center">${formatDisplayDate(x.nam_ve_huu)}</td><td><small>${x.chuc_danh_cong_viec||''}</small></td></tr>`; });
+            chunk.forEach((x) => { html += `<tr><td class="text-center">#${x.id}</td><td class="text-center">${x.stt_excel||''}</td><td><b>${x.ho_ten}</b></td><td>${x.so_so_bhxh||''}</td><td><mark>${x.so_cccd||''}</mark></td><td class="text-center">${x.gioi_tinh}</td><td class="text-center">${formatDisplayDate(x.nam_sinh)}</td><td class="text-center"><span class="badge" style="background:#f1f5f9; color:#1e293b;">${x.ma_don_vi}</span></td><td>${x.an_toan_vien||''}</td><td>${x.nndh||''}</td><td class="text-center">${formatDisplayDate(x.nam_ve_huu)}</td><td><small>${x.chuc_danh_cong_viec||''}</small></td></tr>`; });
             tbody.innerHTML = html;
         }
 
         function handleTableScroll(container) { 
-            let now = Date.now();
-            if (now - lastScrollCheck < 80) return; 
-            lastScrollCheck = now;
-            if (isPageLoading) return;
+            let now = Date.now(); if (now - lastScrollCheck < 80) return; lastScrollCheck = now; if (isPageLoading) return;
             const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
             if (distanceFromBottom <= 120) { 
                 if (CURRENT_PAGE_SIZE < FILTERED_LIST.length) { 
-                    isPageLoading = true; 
-                    CURRENT_PAGE_SIZE += 40; 
-                    renderNhanSuTable();
+                    isPageLoading = true; CURRENT_PAGE_SIZE += 40; renderNhanSuTable();
                     setTimeout(() => { isPageLoading = false; }, 100); 
                 } 
             } 
@@ -494,35 +546,32 @@
             const files = input.files; if(files.length === 0) return;
             let currentUrls = document.getElementById('pay_document_links_area').value.trim();
             let urlList = currentUrls ? currentUrls.split("\n") : [];
-            alert(`Đang tiến hành tải lên ${files.length} file... Vui lòng chờ.`);
+            alert(`Đang tải lên ${files.length} file... Vui lòng chờ.`);
             for (let i = 0; i < files.length; i++) {
-                let file = files[i];
-                let fileExt = file.name.split('.').pop();
+                let file = files[i]; let fileExt = file.name.split('.').pop();
                 let fileNameNew = `${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
                 let filePath = `${fileNameNew}`; 
-                let { data, error } = await client.storage.from('documents').upload(filePath, file);
+                let { error } = await client.storage.from('documents').upload(filePath, file);
                 if (!error) {
                     let { data: publicData } = client.storage.from('documents').getPublicUrl(filePath);
                     if(publicData && publicData.publicUrl) urlList.push(publicData.publicUrl);
                 }
             }
             document.getElementById('pay_document_links_area').value = urlList.join("\n");
-            alert("Đã tải tệp lên Đám Mây thành công!\n\nHãy nhấn nút 'LƯU CẬP NHẬT HỒ SƠ TRỰC TUYẾN' để lưu.");
+            alert("Đã tải tệp lên Cloud thành công! Hãy bấm 'Lưu Cập Nhật Hồ Sơ' để hoàn tất.");
             input.value = ""; 
         }
 
         async function updateCloudPaymentProfile() {
             let logId = document.getElementById('pay_log_id').value;
-            if(!logId) { alert("Vui lòng chọn một dòng hồ sơ sửa chữa dưới bảng để cập nhật trạng thái thanh toán!"); return; }
+            if(!logId) { alert("Vui lòng chọn một hồ sơ sửa chữa bên dưới bảng trước!"); return; }
             let status = document.getElementById('pay_status').value;
             let beneficiary = document.getElementById('pay_beneficiary').value.trim();
             let links = document.getElementById('pay_document_links_area').value.trim();
             try {
                 let { error } = await client.from('lich_su_sua_chua').update({ trang_thai_ho_so: status, don_vi_thu_huong: beneficiary, link_chung_tu_cloud: links }).eq('id', logId);
-                if(error) throw error;
-                alert("Cập nhật thông tin hồ sơ thanh toán Cloud thành công!");
-                await fetchAllData();
-            } catch(e) { console.error(e); alert("Lỗi cập nhật dữ liệu: " + e.message); }
+                if(error) throw error; alert("Cập nhật thông tin hồ sơ Cloud thành công!"); await fetchAllData();
+            } catch(e) { console.error(e); }
         }
 
         function calculatePaymentStats() {
@@ -531,9 +580,7 @@
             let totalOrigin = 0; let totalTaxed = 0;
             DB_SUA_CHUA.forEach(x => {
                 let cost = parseFloat(x.chi_phi_goc) || 0; totalOrigin += cost;
-                let taxRate = 1.08; 
-                if(x.muc_thue_suat) { taxRate = parseFloat(x.muc_thue_suat); } else if(x.thanh_tien_co_thue && cost > 0) { taxRate = parseFloat(x.thanh_tien_co_thue) / cost; }
-                totalTaxed += (cost * taxRate);
+                let taxRate = parseFloat(x.muc_thue_suat) || 1.08; totalTaxed += (cost * taxRate);
             });
             document.getElementById('stat_money_original').innerText = Math.round(totalOrigin).toLocaleString('vi-VN') + " VND";
             document.getElementById('stat_money_taxed').innerText = Math.round(totalTaxed).toLocaleString('vi-VN') + " VND";
@@ -543,19 +590,19 @@
             const kw = document.getElementById('search_thanhtoan').value.toLowerCase().trim();
             const tbody = document.getElementById('table_thanhtoan_body'); tbody.innerHTML = "";
             let filtered = DB_SUA_CHUA.filter(x => { return !kw || (x.ten_thiet_bi && x.ten_thiet_bi.toLowerCase().includes(kw)) || (x.ma_thiet_bi && x.ma_thiet_bi.toLowerCase().includes(kw)) || (x.don_vi_thu_huong && x.don_vi_thu_huong.toLowerCase().includes(kw)); });
-            if(filtered.length === 0) { tbody.innerHTML = `<tr><td colspan="8" class="text-center">Không tìm thấy dữ liệu hồ sơ phù hợp.</td></tr>`; return; }
+            if(filtered.length === 0) { tbody.innerHTML = `<tr><td colspan="8" class="text-center">Không tìm thấy dữ liệu.</td></tr>`; return; }
             filtered.forEach(x => {
                 let cost = parseFloat(x.chi_phi_goc) || 0; let taxRate = parseFloat(x.muc_thue_suat) || 1.08; let taxedCost = cost * taxRate;
                 let statusClass = "hs-todo";
-                if(x.trang_thai_ho_so === "Đang xác minh" || x.trang_thai_ho_so === "Đang xác minh / Ký duyệt") statusClass = "hs-doing";
-                if(x.trang_thai_ho_so === "Đã hoàn thành" || x.trang_thai_ho_so === "Đã hoàn thành quyết toán") statusClass = "hs-done";
+                if(x.trang_thai_ho_so === "Đang xác minh") statusClass = "hs-doing";
+                if(x.trang_thai_ho_so === "Đã hoàn thành") statusClass = "hs-done";
                 let linkHtml = "";
                 if(x.link_chung_tu_cloud) {
                     let arr = x.link_chung_tu_cloud.split("\n");
                     arr.forEach((link, idx) => { if(link.trim()) { linkHtml += `<a href="${link.trim()}" target="_blank" class="link-file"><i class="fa-solid fa-file-lines"></i> File ${idx+1}</a> `; } });
                 }
                 let tr = document.createElement('tr');
-                tr.innerHTML = `<td class="text-center">${formatDisplayDate(x.created_at)}</td><td class="text-center"><span class="badge ${statusClass}">${x.trang_thai_ho_so || 'Chưa xử lý'}</span></td><td><b>${x.ten_thiet_bi || ''}</b><br><small style="color:#666;">Mã: ${x.ma_thiet_bi || ''}</small></td><td style="text-align:right; font-weight:bold;">${cost.toLocaleString('vi-VN')}</td><td style="text-align:right; font-weight:bold; color:var(--danger);">${Math.round(taxedCost).toLocaleString('vi-VN')}</td><td>${x.don_vi_thu_huong || ''}</td><td>${linkHtml}</td><td class="text-center"><button class="btn-table-edit" onclick="editPaymentProfile(${x.id})"><i class="fa-solid fa-pen-to-square"></i> Xử lý</button></td>`;
+                tr.innerHTML = `<td class="text-center">${formatDisplayDate(x.created_at)}</td><td class="text-center"><span class="badge ${statusClass}">${x.trang_thai_ho_so || 'Chưa xử lý'}</span></td><td><b>${x.ten_thiet_bi || ''}</b><br><small style="color:#64748b;">Mã: ${x.ma_thiet_bi || ''}</small></td><td style="text-align:right; font-weight:bold;">${cost.toLocaleString('vi-VN')}</td><td style="text-align:right; font-weight:bold; color:var(--danger);">${Math.round(taxedCost).toLocaleString('vi-VN')}</td><td>${x.don_vi_thu_huong || ''}</td><td>${linkHtml}</td><td class="text-center"><button class="btn-table-edit" onclick="editPaymentProfile(${x.id})"><i class="fa-solid fa-pen-to-square"></i> Sửa</button></td>`;
                 tbody.appendChild(tr);
             });
         }
@@ -566,28 +613,27 @@
             document.getElementById('pay_status').value = item.trang_thai_ho_so || "Chưa xử lý";
             document.getElementById('pay_beneficiary').value = item.don_vi_thu_huong || "";
             document.getElementById('pay_document_links_area').value = item.link_chung_tu_cloud || "";
-            document.querySelector('.sidebar').scrollTop = 0;
         }
 
         function displayThietBi() {
             const kw = document.getElementById('search_thietbi').value.toLowerCase().trim();
             const tbody = document.getElementById('table_thietbi_body'); tbody.innerHTML = "";
             let filtered = DB_THIET_BI.filter(x => { return !kw || (x.ten_thiet_bi && x.ten_thiet_bi.toLowerCase().includes(kw)) || (x.ma_thiet_bi && x.ma_thiet_bi.toLowerCase().includes(kw)) || (x.ten_nhan_su && x.ten_nhan_su.toLowerCase().includes(kw)); });
-            if(filtered.length === 0) { tbody.innerHTML = `<tr><td colspan="7" class="text-center">Không thấy thiết bị nào.</td></tr>`; return; }
+            if(filtered.length === 0) { tbody.innerHTML = `<tr><td colspan="7" class="text-center">Không thấy thiết bị.</td></tr>`; return; }
             filtered.forEach(x => {
                 let statusBadge = "status-using";
-                if(x.tinh_trang === "Hỏng hóc" || x.tinh_trang === "Hỏng hóc chờ xử lý") statusBadge = "status-broken";
-                if(x.tinh_trang === "Bảo dưỡng" || x.tinh_trang === "Đang bảo dưỡng") statusBadge = "status-repair";
+                if(x.tinh_trang === "Hỏng hóc") statusBadge = "status-broken";
+                if(x.tinh_trang === "Bảo dưỡng") statusBadge = "status-repair";
                 let qrId = "qr_" + x.id;
                 let tr = document.createElement('tr');
-                tr.innerHTML = `<td><div class="qr-canvas" id="${qrId}"></div></td><td><b>${x.ma_thiet_bi || ''}</b></td><td><b>${x.ten_thiet_bi || ''}</b></td><td>${x.ten_nhan_su || 'Tự do / Kho'}</td><td class="text-center"><span class="badge" style="background:#f4f6f9; color:#333;">${x.ma_don_vi || ''}</span></td><td class="text-center"><span class="badge ${statusBadge}">${x.tinh_trang || 'Đang sử dụng'}</span></td><td class="text-center"><button class="btn-table-edit" onclick="editDevice(${x.id})"><i class="fa-solid fa-pen"></i> Sửa</button><button class="btn-table-del" onclick="deleteDevice(${x.id})"><i class="fa-solid fa-trash"></i> Xóa</button></td>`;
+                tr.innerHTML = `<td><div class="qr-canvas" id="${qrId}"></div></td><td><b>${x.ma_thiet_bi || ''}</b></td><td><b>${x.ten_thiet_bi || ''}</b></td><td>${x.ten_nhan_su || 'Kho'}</td><td class="text-center"><span class="badge" style="background:#f1f5f9; color:#334155;">${x.ma_don_vi || ''}</span></td><td class="text-center"><span class="badge ${statusBadge}">${x.tinh_trang || 'Đang sử dụng'}</span></td><td class="text-center"><button class="btn-table-edit" onclick="editDevice(${x.id})"><i class="fa-solid fa-pen"></i> Sửa</button><button class="btn-table-del" onclick="deleteDevice(${x.id})"><i class="fa-solid fa-trash"></i> Xóa</button></td>`;
                 tbody.appendChild(tr);
                 setTimeout(() => {
                     let container = document.getElementById(qrId);
                     if(container) {
                         new QRCode(container, {
                             text: `Mã TB: ${x.ma_thiet_bi || ''}\nTên TB: ${x.ten_thiet_bi || ''}\nNgười giữ: ${x.ten_nhan_su || ''}`,
-                            width: 100, height: 100, colorDark : "#000000", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.H
+                            width: 100, height: 100, colorDark : "#0f172a", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.H
                         });
                     }
                 }, 50);
@@ -603,7 +649,7 @@
             document.getElementById('dev_name').value = item.ten_thiet_bi || "";
             document.getElementById('dev_code').value = item.ma_thiet_bi || "";
             document.getElementById('dev_status_select').value = item.tinh_trang || "Đang sử dụng";
-            document.getElementById('form_device_title').innerHTML = `<i class="fa-solid fa-pen-to-square"></i> Sửa Thiết Bị`;
+            document.getElementById('form_device_title').innerHTML = `<i class="fa-solid fa-pen-to-square"></i> Cập Nhật Thiết Bị`;
             document.getElementById('btn_cancel_edit_device').style.display = "block";
         }
 
@@ -619,7 +665,7 @@
             let userSearch = document.getElementById('dev_user_search').value.trim(); let userId = document.getElementById('dev_user_id').value;
             let devName = document.getElementById('dev_name').value.trim(); let devCode = document.getElementById('dev_code').value.trim();
             let status = document.getElementById('dev_status_select').value;
-            if(!devName) { alert("Vui lòng nhập Tên thiết bị tài sản!"); return; }
+            if(!devName) { alert("Vui lòng nhập Tên thiết bị!"); return; }
             if(!devCode) { devCode = "TB-" + Date.now().toString().substring(6); }
             let payload = { ma_don_vi: donVi, ten_nhan_su: userSearch, nhan_su_id: userId ? parseInt(userId) : null, ten_thiet_bi: devName, ma_thiet_bi: devCode, tinh_trang: status };
             try {
@@ -628,22 +674,21 @@
                     alert("Cập nhật thiết bị thành công!");
                 } else {
                     let { error } = await client.from('cap_phat_thiet_bi').insert([payload]); if(error) throw error;
-                    alert("Thêm mới cấp phát thiết bị thành công!");
+                    alert("Cấp phát thiết bị mới thành công!");
                 }
                 cancelEditDevice(); await fetchAllData();
-            } catch(e) { console.error(e); alert("Lỗi khi lưu thiết bị: " + e.message); }
+            } catch(e) { alert(e.message); }
         }
 
         async function deleteDevice(id) {
-            if(!confirm("Bạn có chắc chắn muốn xóa thiết bị cấp phát này không?")) return;
-            try { let { error } = await client.from('cap_phat_thiet_bi').delete().eq('id', id); if(error) throw error; await fetchAllData(); } catch(e) { console.error(e); }
+            if(!confirm("Bạn muốn xóa thiết bị này?")) return;
+            try { await client.from('cap_phat_thiet_bi').delete().eq('id', id); await fetchAllData(); } catch(e) { console.error(e); }
         }
 
         function displayRepairLog() {
             const kw = document.getElementById('search_suachua').value.toLowerCase().trim();
             const tbody = document.getElementById('table_suachua_body'); tbody.innerHTML = "";
             let filtered = DB_SUA_CHUA.filter(x => { return !kw || (x.ten_thiet_bi && x.ten_thiet_bi.toLowerCase().includes(kw)) || (x.ma_thiet_bi && x.ma_thiet_bi.toLowerCase().includes(kw)) || (x.noi_dung_hu_hong && x.noi_dung_hu_hong.toLowerCase().includes(kw)); });
-            if(filtered.length === 0) { tbody.innerHTML = `<tr><td colspan="7" class="text-center">Không thấy dữ liệu nhật ký sửa chữa.</td></tr>`; return; }
             filtered.forEach(x => {
                 let cost = parseFloat(x.chi_phi_goc) || 0; let tr = document.createElement('tr');
                 tr.innerHTML = `<td class="text-center">${formatDisplayDate(x.created_at)}</td><td><b>${x.ma_thiet_bi || ''}</b></td><td><b>${x.ten_thiet_bi || ''}</b></td><td>${x.noi_dung_hu_hong || ''}</td><td><small>${x.bien_phap_khac_phuc || ''}</small></td><td style="text-align:right; font-weight:bold; color:var(--primary);">${cost.toLocaleString('vi-VN')}</td><td class="text-center"><button class="btn-table-edit" onclick="editRepairLog(${x.id})"><i class="fa-solid fa-pen"></i> Sửa</button><button class="btn-table-del" onclick="deleteRepairLog(${x.id})"><i class="fa-solid fa-trash"></i> Xóa</button></td>`;
@@ -661,7 +706,7 @@
             document.getElementById('repair_cost').value = item.chi_phi_goc || 0;
             if(item.muc_thue_suat) { document.getElementById('repair_tax_rate').value = item.muc_thue_suat; }
             calculateRealtimeTax();
-            document.getElementById('form_repair_title').innerHTML = `<i class="fa-solid fa-pen-to-square"></i> Sửa Nhật Ký Sửa Chữa`;
+            document.getElementById('form_repair_title').innerHTML = `<i class="fa-solid fa-pen-to-square"></i> Sửa Nhật Ký`;
             document.getElementById('btn_cancel_edit_repair').style.display = "block";
         }
 
@@ -676,27 +721,26 @@
             let cpId = document.getElementById('repair_cp_id').value; let damage = document.getElementById('repair_damage').value.trim();
             let solution = document.getElementById('repair_solution').value.trim(); let cost = parseFloat(document.getElementById('repair_cost').value) || 0;
             let taxRate = document.getElementById('repair_tax_rate').value;
-            if(!devSearch) { alert("Vui lòng chọn hoặc điền thông tin thiết bị hư hỏng!"); return; }
-            if(!damage) { alert("Vui lòng nhập nội dung hư hỏng hiện tượng!"); return; }
+            if(!devSearch || !damage) { alert("Vui lòng điền đủ thông tin bắt buộc!"); return; }
             let tName = devSearch; let tCode = "";
             if(devSearch.includes(" (") && devSearch.endsWith(")")) { let parts = devSearch.split(" ("); tName = parts[0]; tCode = parts[1].replace(")", ""); }
             let payload = { thiet_bi_id: cpId ? parseInt(cpId) : null, ten_thiet_bi: tName, ma_thiet_bi: tCode, noi_dung_hu_hong: damage, bien_phap_khac_phuc: solution, chi_phi_goc: cost, muc_thue_suat: taxRate };
             try {
                 if(id) {
-                    let { error } = await client.from('lich_su_sua_chua').update(payload).eq('id', id); if(error) throw error;
-                    alert("Cập nhật nhật ký sửa chữa thành công!");
+                    await client.from('lich_su_sua_chua').update(payload).eq('id', id);
+                    alert("Cập nhật thành công!");
                 } else {
                     payload.trang_thai_ho_so = "Chưa xử lý";
-                    let { error } = await client.from('lich_su_sua_chua').insert([payload]); if(error) throw error;
-                    alert("Khai báo sửa chữa thiết bị thành công!");
+                    await client.from('lich_su_sua_chua').insert([payload]);
+                    alert("Khai báo sửa chữa thành công!");
                 }
                 cancelEditRepair(); await fetchAllData();
-            } catch(e) { console.error(e); alert("Lỗi khi lưu nhật ký sửa chữa: " + e.message); }
+            } catch(e) { alert(e.message); }
         }
 
         async function deleteRepairLog(id) {
-            if(!confirm("Bạn có chắc chắn muốn xóa dòng nhật ký sửa chữa này không?")) return;
-            try { let { error } = await client.from('lich_su_sua_chua').delete().eq('id', id); if(error) throw error; await fetchAllData(); } catch(e) { console.error(e); }
+            if(!confirm("Bạn muốn xóa dòng nhật ký này?")) return;
+            try { await client.from('lich_su_sua_chua').delete().eq('id', id); await fetchAllData(); } catch(e) { console.error(e); }
         }
 
         function smartSuggest(input) {
@@ -705,15 +749,14 @@
             if(!kw) {
                 let chunk = list.slice(0, 15); if(chunk.length === 0) { box.style.display = "none"; return; }
                 chunk.forEach(x => {
-                    let div = document.createElement('div'); div.className = "suggest-item"; div.innerHTML = `<span><b>${x.ho_ten}</b></span> <small style="color:#777;">ĐV: ${x.ma_don_vi}</small>`;
+                    let div = document.createElement('div'); div.className = "suggest-item"; div.innerHTML = `<span><b>${x.ho_ten}</b></span> <small style="color:#64748b;">Mã ĐV: ${x.ma_don_vi}</small>`;
                     div.onclick = function() { input.value = x.ho_ten; document.getElementById('dev_user_id').value = x.id; box.style.display = "none"; }; box.appendChild(div);
                 });
                 box.style.display = "block"; return;
             }
-            let filtered = list.filter(x => x.ho_ten.toLowerCase().includes(kw) || (x.so_cccd && x.so_cccd.includes(kw)));
-            if(filtered.length === 0) { box.style.display = "none"; return; }
-            filtered.slice(0, 20).forEach(x => {
-                let div = document.createElement('div'); div.className = "suggest-item"; div.innerHTML = `<span><b>${x.ho_ten}</b></span> <small style="color:#777;">ĐV: ${x.ma_don_vi}</small>`;
+            let filtered = list.filter(x => x.ho_ten.toLowerCase().includes(kw));
+            filtered.slice(0, 15).forEach(x => {
+                let div = document.createElement('div'); div.className = "suggest-item"; div.innerHTML = `<span><b>${x.ho_ten}</b></span> <small style="color:#64748b;">Mã ĐV: ${x.ma_don_vi}</small>`;
                 div.onclick = function() { input.value = x.ho_ten; document.getElementById('dev_user_id').value = x.id; box.style.display = "none"; }; box.appendChild(div);
             });
             box.style.display = "block";
@@ -726,15 +769,14 @@
             if(!kw) {
                 let chunk = DB_THIET_BI.slice(0, 15); if(chunk.length === 0) { box.style.display = "none"; return; }
                 chunk.forEach(x => {
-                    let div = document.createElement('div'); div.className = "suggest-item"; div.innerHTML = `<span><b>${x.ten_thiet_bi}</b> (${x.ma_thiet_bi || ''})</span><small style="color:#e67e22;">${x.ten_nhan_su || 'Kho'}</small>`;
+                    let div = document.createElement('div'); div.className = "suggest-item"; div.innerHTML = `<span><b>${x.ten_thiet_bi}</b> (${x.ma_thiet_bi || ''})</span>`;
                     div.onclick = function() { input.value = `${x.ten_thiet_bi} (${x.ma_thiet_bi || ''})`; document.getElementById('repair_cp_id').value = x.id; box.style.display = "none"; }; box.appendChild(div);
                 });
                 box.style.display = "block"; return;
             }
             let filtered = DB_THIET_BI.filter(x => (x.ten_thiet_bi && x.ten_thiet_bi.toLowerCase().includes(kw)) || (x.ma_thiet_bi && x.ma_thiet_bi.toLowerCase().includes(kw)));
-            if(filtered.length === 0) { box.style.display = "none"; return; }
-            filtered.slice(0, 20).forEach(x => {
-                let div = document.createElement('div'); div.className = "suggest-item"; div.innerHTML = `<span><b>${x.ten_thiet_bi}</b> (${x.ma_thiet_bi || ''})</span><small style="color:#e67e22;">${x.ten_nhan_su || 'Kho'}</small>`;
+            filtered.slice(0, 15).forEach(x => {
+                let div = document.createElement('div'); div.className = "suggest-item"; div.innerHTML = `<span><b>${x.ten_thiet_bi}</b> (${x.ma_thiet_bi || ''})</span>`;
                 div.onclick = function() { input.value = `${x.ten_thiet_bi} (${x.ma_thiet_bi || ''})`; document.getElementById('repair_cp_id').value = x.id; box.style.display = "none"; }; box.appendChild(div);
             });
             box.style.display = "block";
@@ -747,46 +789,35 @@
 
         async function importExcelNhanSu(input) {
             const file = input.files[0]; if(!file) return;
-            alert("Đang phân tích cấu trúc tệp Excel, xin vui lòng đợi...");
             const reader = new FileReader();
             reader.onload = async function(e) {
                 try {
                     const data = new Uint8Array(e.target.result);
                     const workbook = XLSX.read(data, { type: 'array', cellDates: true });
-                    const sheetName = workbook.SheetNames[0];
-                    const json = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
-                    if(json.length === 0) { alert("Tệp Excel trống!"); return; }
+                    const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
                     let listRows = [];
                     json.forEach((row) => {
-                        let keys = Object.keys(row); let stt = row[keys[0]] || ""; let name = row[keys[1]] || ""; let bhxh = row[keys[2]] || ""; let cccd = row[keys[3]] || ""; let gt = row[keys[4]] || ""; let ns = row[keys[5]] || null; let dv = row[keys[6]] || ""; let atv = row[keys[7]] || ""; let nndh = row[keys[8]] || ""; let vh = row[keys[9]] || null; let cd = row[keys[10]] || "";
+                        let keys = Object.keys(row); let name = row[keys[1]] || "";
                         if(name && String(name).trim() !== "" && String(name).toLowerCase() !== "họ và tên") {
                             listRows.push({
-                                stt_excel: String(stt).trim(), ho_ten: String(name).trim(), so_so_bhxh: String(bhxh).trim(), so_cccd: String(cccd).trim(), gioi_tinh: String(gt).trim(), nam_sinh: ns ? new Date(ns).toISOString() : null, ma_don_vi: String(dv).trim(), an_toan_vien: String(atv).trim(), nndh: String(nndh).trim(), nam_ve_huu: vh ? new Date(vh).toISOString() : null, chuc_danh_cong_viec: String(cd).trim()
+                                stt_excel: String(row[keys[0]]||'').trim(), ho_ten: String(name).trim(), so_so_bhxh: String(row[keys[2]]||'').trim(), so_cccd: String(row[keys[3]]||'').trim(), gioi_tinh: String(row[keys[4]]||'').trim(), nam_sinh: row[keys[5]] ? new Date(row[keys[5]]).toISOString() : null, ma_don_vi: String(row[keys[6]]||'').trim(), an_toan_vien: String(row[keys[7]]||'').trim(), nndh: String(row[keys[8]]||'').trim(), nam_ve_huu: row[keys[9]] ? new Date(row[keys[9]]).toISOString() : null, chuc_danh_cong_viec: String(row[keys[10]]||'').trim()
                             });
                         }
                     });
-                    if(listRows.length === 0) { alert("Không lọc được bản ghi hợp lệ nào từ Excel!"); return; }
-                    alert(`Đang tiến hành đẩy đồng bộ ${listRows.length} nhân sự lên Đám Mây...`);
-                    const CHUNK_SIZE = 100;
-                    for (let i = 0; i < listRows.length; i += CHUNK_SIZE) {
-                        let chunk = listRows.slice(i, i + CHUNK_SIZE);
-                        let { error } = await client.from('nhan_su').insert(chunk); if(error) throw error;
+                    alert(`Đang đẩy dữ liệu ${listRows.length} nhân sự lên Cloud...`);
+                    for (let i = 0; i < listRows.length; i += 100) {
+                        await client.from('nhan_su').insert(listRows.slice(i, i + 100));
                     }
-                    alert("Đồng bộ danh sách nhân sự lên cơ sở dữ liệu Cloud thành công!");
-                    input.value = ""; await fetchAllData();
-                } catch(err) { console.error(err); alert("Lỗi import tệp Excel: " + err.message); }
+                    alert("Đồng bộ thành công!"); input.value = ""; await fetchAllData();
+                } catch(err) { alert("Lỗi: " + err.message); }
             };
             reader.readAsArrayBuffer(file);
         }
 
         async function clearDataCloud(tableName) {
-            if(!confirm("CẢNH BÁO: Bạn có chắc chắn muốn XÓA SẠCH toàn bộ dữ liệu của bảng này trên Đám mây?")) return;
-            let pass = prompt("Nhập mật khẩu xác thực của Hệ Thống:");
-            if(pass !== "admin123") { alert("Sai mã xác thực hệ thống!"); return; }
-            try {
-                let { error } = await client.from(tableName).delete().neq('id', 0); if(error) throw error;
-                alert("Đã xóa trắng dữ liệu bảng Cloud thành công!"); await fetchAllData();
-            } catch(e) { console.error(e); alert("Lỗi khi xóa dữ liệu: " + e.message); }
+            if(!confirm("Xóa toàn bộ dữ liệu trên Đám mây?")) return;
+            let pass = prompt("Nhập mã bảo mật hệ thống:"); if(pass !== "admin123") return;
+            try { await client.from(tableName).delete().neq('id', 0); await fetchAllData(); } catch(e) { alert(e.message); }
         }
     </script>
 </body>
