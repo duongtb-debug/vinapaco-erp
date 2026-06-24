@@ -391,8 +391,6 @@
                 calculateHRStats(); 
                 buildDropdowns(); 
                 triggerFilterReset();
-                
-                // VÁ LỖI: Luôn gọi lại hàm hiển thị thiết bị khi tải dữ liệu thành công
                 displayThietBi();
             } catch (e) { console.error(e); }
         }
@@ -434,6 +432,7 @@
             document.getElementById('tab_' + target).classList.add('active'); 
             document.getElementById('sec_' + target).classList.add('active');
             
+            // Cập nhật hiển thị form tương ứng ở sidebar
             document.getElementById('form_hoso_panel').style.display = (target === 'hoso') ? 'block' : 'none';
             document.getElementById('form_thietbi_panel').style.display = (target === 'thietbi') ? 'block' : 'none';
             
@@ -539,7 +538,7 @@
             });
 
             if(filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="text-center" style="color:#64748b; padding:30px;">Chưa có thiết bị nào hoặc không tìm thấy kết quả phù hợp.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center" style="color:#64748b; padding:30px;">Chưa có thiết bị nào được cấp phát hoặc không tìm thấy kết quả phù hợp.</td></tr>`;
                 return;
             }
 
@@ -560,7 +559,6 @@
                 `;
                 tbody.appendChild(tr);
 
-                // Sử dụng setTimeout tối ưu hóa vẽ QR chống xung đột DOM chậm
                 setTimeout(() => {
                     const qrContainer = document.getElementById(`qr_${x.device_code}`);
                     if(qrContainer) {
@@ -572,7 +570,7 @@
                             correctLevel: QRCode.CorrectLevel.M
                         });
                     }
-                }, 10);
+                }, 20);
             });
         }
 
@@ -641,14 +639,19 @@
                     alert("Thêm cấp phát thiết bị mới thành công!");
                 }
                 
+                // Reset form nhập
                 document.getElementById('editing_device_id').value = "";
                 document.getElementById('dev_name').value = "";
                 document.getElementById('dev_code').value = "";
                 resetSelectedUser();
                 document.getElementById('form_device_title').innerHTML = `<i class="fa-solid fa-plus"></i> Cấp Phát Thiết Bị`;
 
-                // Tải lại toàn bộ dữ liệu từ cloud
-                await fetchAllData();
+                // VÁ BIẾN CỐ LỚN: Tải lại mảng dữ liệu mới từ Cloud
+                let r2 = await client.from('thiet_bi').select('*').order('id', { ascending: false });
+                DB_THIET_BI = r2.data || [];
+
+                // TỰ ĐỘNG CHUYỂN TAB SANG THIẾT BỊ để hiển thị ngay kết quả lập tức!
+                switchSection('thietbi');
             } catch (err) { alert("Lỗi: " + err.message); }
         }
 
@@ -671,7 +674,9 @@
             if(!confirm("Bạn có chắc chắn muốn xóa thiết bị tài sản này không?")) return;
             try {
                 await client.from('thiet_bi').delete().eq('id', id);
-                await fetchAllData();
+                let r2 = await client.from('thiet_bi').select('*').order('id', { ascending: false });
+                DB_THIET_BI = r2.data || [];
+                displayThietBi();
             } catch (e) { alert(e.message); }
         }
 
