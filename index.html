@@ -309,6 +309,7 @@
             <div id="sec_thietbi" class="app-section">
                 <div class="filter-wrapper">
                     <input type="text" id="search_thietbi" class="search-bar" placeholder="Tìm nhanh thiết bị, số seri hoặc người giữ..." oninput="displayThietBi()">
+                    <button class="btn btn-primary" style="width:auto; padding: 11px 20px;" onclick="fetchAndReloadThietBi()"><i class="fa-solid fa-rotate"></i> Tải lại dữ liệu</button>
                 </div>
                 <div class="table-container">
                     <table>
@@ -393,6 +394,14 @@
                 triggerFilterReset();
                 displayThietBi();
             } catch (e) { console.error("Lỗi Tải Dữ Liệu Toàn Cục:", e); }
+        }
+
+        async function fetchAndReloadThietBi() {
+            try {
+                let r2 = await client.from('thiet_bi').select('*').order('id', { ascending: false });
+                DB_THIET_BI = r2.data || [];
+                displayThietBi();
+            } catch (e) { console.error("Lỗi reload thiết bị:", e); }
         }
 
         function calculateHRStats() {
@@ -562,7 +571,6 @@
                 `;
                 tbody.appendChild(tr);
 
-                // KHẮC PHỤC CHỐNG SẬP: Kiểm tra thư viện QRCode có bị undefined hay không
                 setTimeout(() => {
                     const qrContainer = document.getElementById(`qr_${x.device_code}`);
                     if(qrContainer) {
@@ -578,11 +586,9 @@
                                     correctLevel: QRCode.CorrectLevel.M
                                 });
                             } catch (errQR) {
-                                console.error("Lỗi vẽ QRCode bằng Lib:", errQR);
                                 qrContainer.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=95x95&data=${encodeURIComponent(textData)}" />`;
                             }
                         } else {
-                            // Dự phòng khi CDN chết không làm sập giao diện
                             qrContainer.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=95x95&data=${encodeURIComponent(textData)}" />`;
                         }
                     }
@@ -658,18 +664,21 @@
                     alert("Thêm cấp phát thiết bị mới thành công!");
                 }
                 
-                // Reset form nhập tránh dính dữ liệu cũ
+                // Reset form nhập dữ liệu
                 document.getElementById('editing_device_id').value = "";
                 document.getElementById('dev_name').value = "";
                 document.getElementById('dev_code').value = "";
                 resetSelectedUser();
                 document.getElementById('form_device_title').innerHTML = `<i class="fa-solid fa-plus"></i> Cấp Phát Thiết Bị`;
 
-                // VÁ CHẾT: Đồng bộ dữ liệu cục bộ trước khi chuyển Tab vẽ lại
-                let r2 = await client.from('thiet_bi').select('*').order('id', { ascending: false });
-                DB_THIET_BI = r2.data || [];
+                // Xóa bộ lọc ô tìm kiếm thiết bị cũ tránh xung đột bộ lọc
+                const searchTb = document.getElementById('search_thietbi');
+                if(searchTb) searchTb.value = "";
 
-                // Ép chuyển Tab sang phân hệ Thiết bị ngay lập tức
+                // Đồng bộ và vẽ trực tiếp từ Cloud
+                await fetchAndReloadThietBi();
+
+                // Chuyển sang Tab hiển thị
                 switchSection('thietbi');
             } catch (err) { 
                 alert("Lỗi lưu cấu hình: " + err.message); 
@@ -696,9 +705,7 @@
             if(!confirm("Bạn có chắc chắn muốn xóa thiết bị tài sản này không?")) return;
             try {
                 await client.from('thiet_bi').delete().eq('id', id);
-                let r2 = await client.from('thiet_bi').select('*').order('id', { ascending: false });
-                DB_THIET_BI = r2.data || [];
-                displayThietBi();
+                await fetchAndReloadThietBi();
             } catch (e) { alert(e.message); }
         }
 
