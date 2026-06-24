@@ -330,7 +330,7 @@
                     <table>
                         <thead>
                             <tr>
-                                <th class="text-center" style="width:100px;">Ngày Nhập</th><th style="width:140px;" class="text-center">Trạng Thế Hồ Sơ</th><th>Mã / Tên Thiết Bị Sửa Chữa</th><th style="text-align:right; width:130px; color:var(--primary);">Chi Phí Gốc</th><th style="text-align:right; width:150px; color:var(--danger);">Quyết Toán Có Thuế</th><th>Đơn Vị Thụ Hưởng</th><th style="width:220px;" class="text-center">Hóa Đơn & Đa Chứng Từ Trực Tuyến</th><th class="text-center" style="width:140px;">Thao Tác</th>
+                                <th class="text-center" style="width:100px;">Ngày Nhập</th><th style="width:140px;" class="text-center">Trạng Thái Hồ Sơ</th><th>Mã / Tên Thiết Bị Sửa Chữa</th><th style="text-align:right; width:130px; color:var(--primary);">Chi Phí Gốc</th><th style="text-align:right; width:150px; color:var(--danger);">Quyết Toán Có Thuế</th><th>Đơn Vị Thụ Hưởng</th><th style="width:220px;" class="text-center">Hóa Đơn & Đa Chứng Từ Trực Tuyến</th><th class="text-center" style="width:140px;">Thao Tác</th>
                             </tr>
                         </thead>
                         <tbody id="table_thanhtoan_body"></tbody>
@@ -451,22 +451,294 @@
                 }
             }
             document.getElementById('pay_document_links_area').value = urlList.join("\n");
-            alert("Tải lên tệp/thư mục thành công!");
+            alert("Đã tải tệp lên Đám Mây thành công!\n\nHãy nhấn nút 'LƯU CẬP NHẬT HỒ SƠ TRỰC TUYẾN' để lưu.");
+            input.value = ""; 
         }
 
-        // Các hàm giả định trống bổ sung để tránh phát sinh lỗi console do cấu trúc UI gọi đến
-        function displayThietBi() {}
-        function displayRepairLog() {}
-        function calculatePaymentStats() {}
-        function displayPaymentTable() {}
-        function resetSelectedUser() {}
-        function smartSuggest(el) {}
-        function saveDeviceCofig() {}
-        function repairSuggest(el) {}
-        function saveRepairConfig() {}
-        function updateCloudPaymentProfile() {}
-        async function clearDataCloud(tbl) {}
-        function importExcelNhanSu(el) {}
+        /* 🚀 TỐI ƯU CẢI TIẾN LOGIC CHỐNG TRÙNG MÃ QR THEO "NGƯỜI GIỮ" + "MÃ ĐƠN VỊ" */
+        async function saveDeviceCofig() {
+            const editingId = document.getElementById('editing_device_id').value; 
+            const nsNameRaw = document.getElementById('dev_user_search').value.trim();
+            const name = document.getElementById('dev_name').value.trim(); 
+            let code = document.getElementById('dev_code').value.trim();
+            let selectedDonVi = document.getElementById('dev_filter_donvi').value;
+
+            if(!nsNameRaw || !name) { alert("Vui lòng điền đủ Tên Nhân sự và Tên Thiết bị!"); return; } 
+
+            let nsId = document.getElementById('dev_user_id').value; 
+            let finalEmployeeName = nsNameRaw; 
+            let finalDonVi = selectedDonVi || "KHO_LE";
+
+            const matchedNs = DB_NHAN_SU.find(x => x.ho_ten.toUpperCase() === nsNameRaw.toUpperCase());
+            if (matchedNs) { 
+                nsId = matchedNs.id; 
+                finalEmployeeName = matchedNs.ho_ten; 
+                finalDonVi = matchedNs.ma_don_vi; 
+            } else { 
+                nsId = null; 
+            }
+
+            let payload = { 
+                nhan_su_id: nsId ? parseInt(nsId) : null, 
+                ten_nhan_vien: finalEmployeeName.toUpperCase(), 
+                ma_don_vi: finalDonVi, 
+                ten_thiet_bi: name, 
+                trang_thai: document.getElementById('dev_status_select').value 
+            };
+
+            // Trường hợp 1: Đang ở chế độ Sửa thủ công (Bấm nút Sửa trên dòng)
+            if(editingId) {
+                if(code) payload.ma_thiet_bi = code.toUpperCase();
+                await client.from('cap_phat_thiet_bi').update(payload).eq('id', editingId); 
+                cancelEditDevice();
+                alert("Cập nhật thay đổi thiết bị hoàn thành!");
+            } else {
+                // Trường hợp 2: Thêm mới -> Tiến hành quét tìm trùng lặp "Tên nhân viên" + "Mã đơn vị" thời gian thực trên Cloud
+                let checkName = finalEmployeeName.toUpperCase();
+                let { data: existingRecords, error: checkError } = await client
+                    .from('cap_phat_thiet_bi')
+                    .select('*')
+                    .eq('ten_nhan_vien', checkName)
+                    .eq('ma_don_vi', finalDonVi);
+
+                if (existingRecords && existingRecords.length > 0) {
+                    // Nếu ĐÃ CÓ người này giữ thiết bị ở đơn vị này -> Gom dữ liệu, giữ nguyên mã QR cũ, cập nhật thông tin mới
+                    let oldRecord = existingRecords[0];
+                    payload.ma_thiet_bi = oldRecord.ma_thiet_bi; // Giữ nguyên mã cũ tuyệt đối
+                    
+                    await client.from('cap_phat_thiet_bi').update(payload).eq('id', oldRecord.id);
+                    clearDeviceForm();
+                    alert(`Phát hiện trùng lặp! Hệ thống đã tự động cập nhật thiết bị vào Mã QR cũ: ${oldRecord.ma_thiet_bi}`);
+                } else {
+                    // Nếu CHƯA CÓ bản ghi nào -> Tiến hành cấp mã QR mới
+                    if(!code) code = "EQ-" + Date.now().toString().slice(-6);
+                    payload.ma_thiet_bi = code.toUpperCase();
+                    
+                    await client.from('cap_phat_thiet_bi').insert([payload]); 
+                    clearDeviceForm();
+                    alert("Cấp phát thiết bị và sinh mã QR mới thành công!");
+                }
+            } 
+            await fetchAllData(); 
+        }
+
+        function smartSuggest(input) {
+            const val = input.value.toLowerCase().trim(); const box = document.getElementById('dev_suggest'); const targetDonVi = document.getElementById('dev_filter_donvi').value; box.innerHTML = "";
+            let matches = DB_NHAN_SU.filter(n => n.ho_ten.toLowerCase().includes(val) && (!targetDonVi || n.ma_don_vi === targetDonVi));
+            if(matches.length > 0) {
+                matches.slice(0, 15).forEach(n => {
+                    let div = document.createElement('div'); div.className = 'suggest-item'; div.innerHTML = `<span><b>${n.ho_ten}</b> [ĐV: ${n.ma_don_vi}]</span>`;
+                    div.onclick = () => { document.getElementById('dev_user_search').value = `${n.ho_ten}`; document.getElementById('dev_user_id').value = n.id; box.style.display = 'none'; }; box.appendChild(div);
+                }); box.style.display = 'block';
+            } else { box.style.display = 'none'; }
+        }
+
+        function displayThietBi() {
+            const tbody = document.getElementById('table_thietbi_body'); tbody.innerHTML = "";
+            const kw = document.getElementById('search_thietbi').value.toLowerCase().trim();
+            let filtered = DB_THIET_BI.filter(x => !kw || x.ten_thiet_bi.toLowerCase().includes(kw) || x.ma_thiet_bi.toLowerCase().includes(kw) || x.ten_nhan_vien.toLowerCase().includes(kw));
+            if(filtered.length === 0) { tbody.innerHTML = `<tr><td colspan="7" class="text-center">Không tìm thấy thiết bị nào phù hợp.</td></tr>`; return; }
+            filtered.forEach((x, i) => {
+                let qrId = `qr_box_${i}`;
+                tbody.innerHTML += `<tr>
+                    <td><div id="${qrId}" class="qr-canvas"></div></td><td><mark><b>${x.ma_thiet_bi}</b></mark></td><td><b>${x.ten_thiet_bi}</b></td><td>${x.ten_nhan_vien}</td>
+                    <td class="text-center"><span class="badge" style="background:#eee; color:#333;">${x.ma_don_vi || ''}</span></td>
+                    <td class="text-center"><span class="badge ${x.trang_thai==='Bảo dưỡng'?'status-repair': x.trang_thai==='Hỏng hóc'?'status-broken':'status-using'}">${x.trang_thai || 'Đang sử dụng'}</span></td>
+                    <td class="text-center"><button class="btn-table-edit" onclick="editDevice(${x.id})">Sửa</button><button class="btn-table-del" onclick="deleteDevice(${x.id}, '${x.ten_thiet_bi}')">Xóa</button></td>
+                </tr>`;
+                
+                setTimeout(() => { 
+                    const container = document.getElementById(qrId);
+                    if(container) { 
+                        container.innerHTML = ""; 
+                        new QRCode(container, { 
+                            text: `https://duongtb-debug.github.io/vinapaco-erp/view.html?device_code=${x.ma_thiet_bi}&t=${Date.now()}`, 
+                            width: 110, 
+                            height: 110, 
+                            correctLevel: QRCode.CorrectLevel.H 
+                        }); 
+                    }
+                }, 30);
+            });
+        }
+
+        function editDevice(id) {
+            const dev = DB_THIET_BI.find(x => x.id == id); if(!dev) return;
+            document.getElementById('editing_device_id').value = dev.id; document.getElementById('dev_user_id').value = dev.nhan_su_id || ""; document.getElementById('dev_user_search').value = dev.ten_nhan_vien; document.getElementById('dev_name').value = dev.ten_thiet_bi; document.getElementById('dev_code').value = dev.ma_thiet_bi; document.getElementById('dev_status_select').value = dev.trang_thai || "Đang sử dụng";
+            document.getElementById('form_device_title').innerHTML = `Thông Tin Chi Tiết Thiết Bị`; document.getElementById('btn_save_device').innerHTML = `Cập Nhật Thay Đổi`; document.getElementById('btn_cancel_edit_device').style.display = "block"; switchSection('thietbi'); window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        function cancelEditDevice() { document.getElementById('editing_device_id').value = ""; clearDeviceForm(); document.getElementById('btn_cancel_edit_device').style.display = "none"; document.getElementById('form_device_title').innerHTML = `<i class="fa-solid fa-plus"></i> Cấp Phát Thiết Bị`; document.getElementById('btn_save_device').innerHTML = `<i class="fa-solid fa-floppy-disk"></i> Lưu & Xuất Mã QR`;}
+        function clearDeviceForm() { document.getElementById('dev_name').value = ""; document.getElementById('dev_code').value = ""; document.getElementById('dev_user_search').value = ""; document.getElementById('dev_user_id').value = ""; }
+        async function deleteDevice(id, name) { if(confirm(`Xóa thiết bị ${name}?`)) { await client.from('lich_su_sua_chua').delete().eq('cap_phat_id', id); await client.from('cap_phat_thiet_bi').delete().eq('id', id); await fetchAllData(); } }
+
+        function displayRepairLog() {
+            const tbody = document.getElementById('table_suachua_body'); tbody.innerHTML = "";
+            const kw = document.getElementById('search_suachua').value.toLowerCase().trim();
+            let filtered = DB_SUA_CHUA.filter(x => !kw || (x.ten_thiet_bi && x.ten_thiet_bi.toLowerCase().includes(kw)) || (x.ma_thiet_bi && x.ma_thiet_bi.toLowerCase().includes(kw)));
+            filtered.forEach(x => {
+                let costOriginal = parseFloat(x.chi_phi) || 0;
+                let cleanSolution = x.bien_phap_khac_phuc || "";
+                if(cleanSolution.includes("===PAYMENT_PROFILE===")) { cleanSolution = cleanSolution.split("===PAYMENT_PROFILE===")[0].trim(); }
+                tbody.innerHTML += `<tr>
+                    <td class="text-center"><b>${formatDisplayDate(x.created_at)}</b></td><td><mark><b>${x.ma_thiet_bi || ''}</b></mark></td><td><b>${x.ten_thiet_bi || 'Thiết bị không rõ'}</b></td><td>${x.noi_dung_hong || ''}</td>
+                    <td style="max-width:250px; overflow:hidden; text-overflow:ellipsis;"><small>${cleanSolution}</small></td>
+                    <td style="text-align:right; font-weight:bold; color:var(--primary);">${costOriginal.toLocaleString('vi-VN')}</td>
+                    <td class="text-center"><button class="btn-table-edit" onclick="editRepairLog(${x.id})">Sửa</button><button class="btn-table-del" onclick="deleteRepairLog(${x.id}, '${x.ten_thiet_bi}')">Xóa</button></td>
+                </tr>`;
+            });
+        }
+
+        async function saveRepairConfig() {
+            const editingRepairId = document.getElementById('editing_repair_id').value; const cpId = document.getElementById('repair_cp_id').value; const damage = document.getElementById('repair_damage').value.trim(); const searchText = document.getElementById('repair_dev_search').value.trim();
+            if(!damage) { alert("Vui lòng nhập nội dung hư hỏng!"); return; }
+            let dev = cpId ? DB_THIET_BI.find(x => x.id == cpId) : DB_THIET_BI.find(x => searchText.toUpperCase().includes(x.ma_thiet_bi.toUpperCase()));
+            if(!dev) { alert("Không tìm thấy thông tin thiết bị!"); return; }
+            let baseSolution = document.getElementById('repair_solution').value.trim();
+            let currentTaxRate = document.getElementById('repair_tax_rate').value;
+            let payload = { cap_phat_id: parseInt(dev.id), ma_thiet_bi: dev.ma_thiet_bi.toUpperCase(), ten_thiet_bi: dev.ten_thiet_bi, noi_dung_hong: damage, bien_phap_khac_phuc: baseSolution, chi_phi: parseFloat(document.getElementById('repair_cost').value) || 0 };
+            if(editingRepairId) {
+                const oldLog = DB_SUA_CHUA.find(x => x.id == editingRepairId);
+                if(oldLog && oldLog.bien_phap_khac_phuc.includes("===PAYMENT_PROFILE===")) {
+                    try {
+                        let segs = oldLog.bien_phap_khac_phuc.split("===PAYMENT_PROFILE===");
+                        let jsonProfile = JSON.parse(segs[1].trim());
+                        jsonProfile.tax_rate = currentTaxRate;
+                        payload.bien_phap_khac_phuc = `${baseSolution.split("===PAYMENT_PROFILE===")[0].trim()}\n\n===PAYMENT_PROFILE===\n${JSON.stringify(jsonProfile)}`;
+                    } catch(e){}
+                } else {
+                    let defaultProfile = { trang_thai_hs: "Chưa xử lý", don_vi_thu_huong: "", links: "", tax_rate: currentTaxRate };
+                    payload.bien_phap_khac_phuc = `${baseSolution}\n\n===PAYMENT_PROFILE===\n${JSON.stringify(defaultProfile)}`;
+                }
+                await client.from('lich_su_sua_chua').update(payload).eq('id', editingRepairId); cancelEditRepair(); 
+            } else {
+                let defaultProfile = { trang_thai_hs: "Chưa xử lý", don_vi_thu_huong: "", links: "", tax_rate: currentTaxRate };
+                payload.bien_phap_khac_phuc = `${baseSolution}\n\n===PAYMENT_PROFILE===\n${JSON.stringify(defaultProfile)}`;
+                await client.from('lich_su_sua_chua').insert([payload]); clearRepairForm(); 
+            } 
+            await fetchAllData(); alert("Lưu nhật ký sửa chữa thành công!");
+        }
+
+        function editRepairLog(id) {
+            const log = DB_SUA_CHUA.find(x => x.id == id); if(!log) return;
+            document.getElementById('editing_repair_id').value = log.id; document.getElementById('repair_cp_id').value = log.cap_phat_id; document.getElementById('repair_dev_search').value = log.ma_thiet_bi ? `${log.ma_thiet_bi} [${log.ten_thiet_bi}]` : (log.ten_thiet_bi || ''); document.getElementById('repair_damage').value = log.noi_dung_hong || ''; 
+            let cleanSolution = log.bien_phap_khac_phuc || ""; let selectedTax = "1.08";
+            if(cleanSolution.includes("===PAYMENT_PROFILE===")) {
+                try {
+                    let segs = cleanSolution.split("===PAYMENT_PROFILE==="); cleanSolution = segs[0].trim();
+                    let profileData = JSON.parse(segs[1].trim()); if(profileData.tax_rate) selectedTax = profileData.tax_rate;
+                } catch(e){}
+            }
+            document.getElementById('repair_solution').value = cleanSolution; document.getElementById('repair_cost').value = log.chi_phi || 0; document.getElementById('repair_tax_rate').value = selectedTax;
+            calculateRealtimeTax(); switchSection('suachua'); document.getElementById('btn_cancel_edit_repair').style.display = "block"; window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        function cancelEditRepair() { document.getElementById('editing_repair_id').value = ""; clearRepairForm(); document.getElementById('btn_cancel_edit_repair').style.display = "none"; }
+        function clearRepairForm() { document.getElementById('repair_dev_search').value = ""; document.getElementById('repair_damage').value = ""; document.getElementById('repair_solution').value = ""; document.getElementById('repair_cost').value = 0; document.getElementById('repair_tax_rate').value = "1.08"; document.getElementById('repair_tax_preview').value = "0 VND"; document.getElementById('repair_cp_id').value = ""; }
+        async function deleteRepairLog(id, name) { if(confirm(`Xóa nhật ký sửa chữa của máy: ${name}?`)) { await client.from('lich_su_sua_chua').delete().eq('id', id); await fetchAllData(); } }
+
+        function calculatePaymentStats() {
+            let orig = 0, totalTaxedSum = 0;
+            DB_SUA_CHUA.forEach((x, idx) => { 
+                let c = parseFloat(x.chi_phi) || 0; orig += c; let rate = 1.08;
+                if(x.bien_phap_khac_phuc && x.bien_phap_khac_phuc.includes("===PAYMENT_PROFILE===")) {
+                    try {
+                        let p = JSON.parse(x.bien_phap_khac_phuc.split("===PAYMENT_PROFILE===")[1].trim()); if(p.tax_rate) rate = parseFloat(p.tax_rate);
+                    } catch(e){}
+                }
+                totalTaxedSum += (c * rate); if(idx === 0) document.getElementById('stat_latest_repair_device').innerText = x.ten_thiet_bi || 'N/A'; 
+            });
+            document.getElementById('stat_count_total').innerText = DB_SUA_CHUA.length + " danh mục"; 
+            document.getElementById('stat_money_original').innerText = orig.toLocaleString('vi-VN') + " VND"; 
+            document.getElementById('stat_money_taxed').innerText = totalTaxedSum.toLocaleString('vi-VN') + " VND";
+        }
+
+        function displayPaymentTable() {
+            const tbody = document.getElementById('table_thanhtoan_body'); tbody.innerHTML = "";
+            const kw = document.getElementById('search_thanhtoan').value.toLowerCase().trim();
+            let list = DB_SUA_CHUA.filter(x => !kw || (x.ten_thiet_bi && x.ten_thiet_bi.toLowerCase().includes(kw)) || (x.ma_thiet_bi && x.ma_thiet_bi.toLowerCase().includes(kw)) || (x.bien_phap_khac_phuc && x.bien_phap_khac_phuc.toLowerCase().includes(kw)));
+            if(list.length === 0) { tbody.innerHTML = `<tr><td colspan="8" class="text-center">Không tìm thấy bản ghi chi phí nào.</td></tr>`; return; }
+            list.forEach(x => {
+                let costOriginal = parseFloat(x.chi_phi) || 0; let rawText = x.bien_phap_khac_phuc || "";
+                let statusHS = "Chưa xử lý"; let donVi = "Chưa khai báo"; let linkString = ""; let currentRate = 1.08; 
+                if (rawText.includes("===PAYMENT_PROFILE===")) {
+                    try {
+                        let segments = rawText.split("===PAYMENT_PROFILE==="); let jsonData = JSON.parse(segments[1].trim());
+                        statusHS = jsonData.trang_thai_hs || "Chưa xử lý"; donVi = jsonData.don_vi_thu_huong || "Chưa khai báo"; linkString = jsonData.links || ""; if(jsonData.tax_rate) currentRate = parseFloat(jsonData.tax_rate);
+                    } catch(e) { }
+                }
+                let badgeClass = statusHS === "Đã hoàn thành" ? "hs-done" : (statusHS === "Đang xác minh" ? "hs-doing" : "hs-todo");
+                let ratePercentText = currentRate === 1.10 ? " (10%)" : (currentRate === 1.00 ? " (0%)" : " (8%)");
+                let docCell = `<i style="color:#aaa">Trống</i>`;
+                if(linkString && linkString.trim() !== "") {
+                    docCell = ""; let splitLinks = linkString.split("\n"); let fileCount = 1;
+                    splitLinks.forEach((lk) => {
+                        if(lk.trim()) { docCell += `<a href="${lk.trim()}" target="_blank" class="link-file"><i class="fa-solid fa-file-pdf"></i> Tệp ${fileCount}</a><br>`; fileCount++; }
+                    });
+                }
+                tbody.innerHTML += `<tr>
+                    <td class="text-center"><b>${formatDisplayDate(x.created_at)}</b></td><td class="text-center"><span class="badge ${badgeClass}">${statusHS}</span></td><td><b>[${x.ma_thiet_bi || 'N/A'}] - ${x.ten_thiet_bi || ''}</b></td>
+                    <td style="text-align:right; font-weight:bold; color:#1e56a0;">${costOriginal.toLocaleString('vi-VN')}</td><td style="text-align:right; font-weight:bold; color:#c0392b;">${(costOriginal * currentRate).toLocaleString('vi-VN')}<br><span style="font-size:11px; font-weight:normal; color:#777;">VAT ${ratePercentText}</span></td>
+                    <td><b>${donVi}</b></td><td>${docCell}</td><td class="text-center"><button class="btn-table-edit" onclick="selectForPaymentProfile(${x.id})">Xử lý HS</button></td>
+                </tr>`;
+            });
+        }
+
+        function selectForPaymentProfile(id) {
+            document.getElementById('pay_log_id').value = id; const log = DB_SUA_CHUA.find(x => x.id == id);
+            let statusHS = "Chưa xử lý"; let donVi = ""; let linkString = ""; let rawText = log ? (log.bien_phap_khac_phuc || "") : "";
+            if (rawText.includes("===PAYMENT_PROFILE===")) {
+                try {
+                    let segments = rawText.split("===PAYMENT_PROFILE==="); let jsonData = JSON.parse(segments[1].trim());
+                    statusHS = jsonData.trang_thai_hs || "Chưa xử lý"; donVi = jsonData.don_vi_thu_huong || ""; linkString = jsonData.links || "";
+                } catch(e) {}
+            }
+            document.getElementById('pay_status').value = statusHS; document.getElementById('pay_beneficiary').value = donVi; document.getElementById('pay_document_links_area').value = linkString;
+            switchSection('thanhtoan'); window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        async function updateCloudPaymentProfile() {
+            const logId = document.getElementById('pay_log_id').value; if(!logId) { alert("Vui lòng bấm nút 'Xử lý HS' trước!"); return; }
+            const log = DB_SUA_CHUA.find(x => x.id == logId); if(!log) return;
+            let status = document.getElementById('pay_status').value; let beneficiary = document.getElementById('pay_beneficiary').value.trim(); let allLinks = document.getElementById('pay_document_links_area').value.trim();
+            let baseSolution = log.bien_phap_khac_phuc || ""; let existingTaxRate = "1.08"; 
+            if (baseSolution.includes("===PAYMENT_PROFILE===")) {
+                try {
+                    let oldJson = JSON.parse(baseSolution.split("===PAYMENT_PROFILE===")[1].trim()); if(oldJson.tax_rate) existingTaxRate = oldJson.tax_rate;
+                } catch(e){}
+                baseSolution = baseSolution.split("===PAYMENT_PROFILE===")[0].trim();
+            }
+            let profileJson = { trang_thai_hs: status, don_vi_thu_huong: beneficiary, links: allLinks, tax_rate: existingTaxRate };
+            let finalSolutionField = `${baseSolution}\n\n===PAYMENT_PROFILE===\n${JSON.stringify(profileJson)}`;
+            const { error } = await client.from('lich_su_sua_chua').update({ bien_phap_khac_phuc: finalSolutionField }).eq('id', logId);
+            if (error) { alert("Lỗi: " + error.message); } else { alert("Đã cập nhật thành công!"); clearPaymentFormFields(); await fetchAllData(); }
+        }
+
+        function clearPaymentFormFields() { document.getElementById('pay_log_id').value = ""; document.getElementById('pay_beneficiary').value = ""; document.getElementById('pay_document_links_area').value = ""; }
+        function cleanStr(s) { return String(s || "").toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/[\s_\-\t\n\r]/g, ""); }
+        function importExcelNhanSu(input) {
+            const file = input.files[0]; if(!file) return; const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result); const workbook = XLSX.read(data, { type: 'array' }); const sheet = workbook.Sheets[workbook.SheetNames[0]]; const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+                    let headerIdx = 0; for (let i = 0; i < Math.min(rows.length, 15); i++) { let combined = rows[i].map(cleanStr).join(""); if(combined.includes("hoten") || combined.includes("cccd")) { headerIdx = i; break; } }
+                    let colMap = { stt: -1, ho_ten: -1, madv: -1 }; rows[headerIdx].forEach((cell, idx) => { let c = cleanStr(cell); if (c === "stt" || c === "id") colMap.stt = idx; else if (c.includes("hovaten") || c === "hoten") colMap.ho_ten = idx; else if (c.includes("madonvi") || c === "madv") colMap.madv = idx; });
+                    let bulkData = []; for(let i = headerIdx + 1; i < rows.length; i++) { let r = rows[i]; if(!r || r.length === 0) continue; let hoTenStr = colMap.ho_ten !== -1 ? String(r[colMap.ho_ten] || "").trim() : ""; if(!hoTenStr || hoTenStr.toUpperCase().includes("HỌ VÀ TÊN")) continue; bulkData.push({ stt_excel: colMap.stt !== -1 ? parseInt(String(r[colMap.stt]).replace(/[^\d]/g, "")) || null : null, ho_ten: hoTenStr.toUpperCase(), ma_don_vi: colMap.madv !== -1 ? String(r[colMap.madv] || "CHƯA RÕ").trim() : "CHƯA RÕ", gioi_tinh: "Nam" }); }
+                    await client.from('nhan_su').insert(bulkData); alert("Nạp thành công!"); await fetchAllData();
+                } catch(err) { alert("Lỗi: " + err.message); } finally { input.value = ""; }
+            }; reader.readAsArrayBuffer(file);
+        }
+        async function clearDataCloud(table) { if(confirm("Xóa sạch dữ liệu đám mây?")) { await client.from(table).delete().neq('id', 0); await fetchAllData(); } }
+        function repairSuggest(input) {
+            const val = input.value.toLowerCase().trim(); const box = document.getElementById('repair_suggest'); box.innerHTML = "";
+            let matches = DB_THIET_BI.filter(t => !val || (t.ten_thiet_bi && t.ten_thiet_bi.toLowerCase().includes(val)) || (t.ma_thiet_bi && t.ma_thiet_bi.toLowerCase().includes(val)));
+            if(matches.length > 0) {
+                matches.slice(0, 15).forEach(t => {
+                    let div = document.createElement('div'); div.className = 'suggest-item'; div.innerHTML = `<span><b>${t.ma_thiet_bi}</b> - ${t.ten_thiet_bi}</span>`;
+                    div.onclick = () => { document.getElementById('repair_dev_search').value = `${t.ma_thiet_bi} [${t.ten_thiet_bi}]`; document.getElementById('repair_cp_id').value = t.id; box.style.display = 'none'; }; box.appendChild(div);
+                }); box.style.display = 'block';
+            } else { box.style.display = 'none'; }
+        }
+        function resetSelectedUser() { document.getElementById('dev_user_search').value = ''; document.getElementById('dev_user_id').value = ''; }
+        window.onclick = function(e) { if (!e.target.matches('.form-control')) { document.getElementById('dev_suggest').style.display = 'none'; document.getElementById('repair_suggest').style.display = 'none'; } }
     </script>
 </body>
 </html>
