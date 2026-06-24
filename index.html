@@ -281,7 +281,7 @@
             <!-- List panel (Right-hand side) -->
             <div class="lg:col-span-8">
                 <div class="toolbar bg-slate-50 p-5 rounded-xl flex items-center mb-5 border border-slate-200">
-                    <div class="search-box w-full flex gap-3">
+                    <div class="search-box w-full">
                         <input type="text" id="search_thietbi" oninput="displayThietBi()" placeholder="Tìm thiết bị theo tên, mã sê-ri hoặc nhân sự tiếp quản..." class="w-full bg-white border border-slate-300 rounded-lg">
                     </div>
                 </div>
@@ -493,7 +493,7 @@
     <!-- ========================================== -->
     <!-- OVERLAY UTILITIES (TOASTS, MODALS, PREVIEWERS, LABELS) -->
     <!-- ========================================== -->
-    <div id="toast-container"></div>
+    <div id="toast-container" class="fixed bottom-5 right-5 z-[9999] flex flex-col gap-3"></div>
 
     <!-- Custom Confirmation Modal -->
     <div id="custom-modal-bg" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] hidden flex items-center justify-center p-4">
@@ -569,14 +569,24 @@
         </div>
     </div>
 
-
     <!-- ========================================== -->
     <!-- BACKEND APPLICATION CONTROLLERS -->
     <!-- ========================================== -->
     <script>
         const SUPABASE_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co"; 
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ";
-        const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        
+        let client = null;
+        // Bọc bảo vệ khởi tạo đám mây chống treo hoàn toàn nếu mất mạng/CDN lỗi
+        try {
+            if (typeof supabase !== 'undefined') {
+                client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            } else {
+                console.warn("Supabase CDN failed to load. Running in Local Offline Mode.");
+            }
+        } catch (e) {
+            console.error("Supabase client initialization failed: ", e);
+        }
 
         let DB_NHAN_SU = []; 
         let DB_THIET_BI = []; 
@@ -710,15 +720,34 @@
             confirmCallback = null;
         }
 
+        // Kiểm tra trực tiếp sự tồn tại của cột trong Database phòng tránh Swagger/OpenAPI Cache lỗi
+        async function checkColumnExists(tableName, columnName) {
+            if (!client) return false;
+            try {
+                const { error } = await client.from(tableName).select(columnName).limit(1);
+                if (error && (error.code === '42703' || error.message.toLowerCase().includes('column') || error.message.toLowerCase().includes('not find'))) {
+                    return false;
+                }
+                return true;
+            } catch (e) {
+                return false;
+            }
+        }
+
         async function fetchAllData() {
             try {
-                let r1 = await client.from('nhan_su').select('*').order('id', { ascending: true }); 
-                if (r1.error) {
-                    console.error("Lỗi Supabase:", r1.error);
-                    showNotification("Không thể kết nối đến máy chủ. Đang sử dụng cơ sở dữ liệu cục bộ.", "error");
+                if (client) {
+                    let r1 = await client.from('nhan_su').select('*').order('id', { ascending: true }); 
+                    if (r1.error) {
+                        console.error("Lỗi Supabase:", r1.error);
+                        showNotification("Không thể kết nối máy chủ. Đang sử dụng CSDL cục bộ.", "error");
+                    }
+                    DB_NHAN_SU = r1.data || [];
+                } else {
+                    DB_NHAN_SU = [];
                 }
-                DB_NHAN_SU = r1.data || [];
                 
+                // Đồng bộ lai bộ nhớ cục bộ (Local Sync Fallback)
                 const localMapping = JSON.parse(localStorage.getItem('local_atv_nndh') || '{}');
                 DB_NHAN_SU.forEach(x => {
                     let key = String(x.ho_ten || '').trim() + "_" + String(x.so_cccd || '').trim();
@@ -736,16 +765,19 @@
 
                 if(document.getElementById('count_ns')) document.getElementById('count_ns').innerText = DB_NHAN_SU.length;
                 
-                let r2 = await client.from('thiet_bi').select('*').order('id', { ascending: false });
-                DB_THIET_BI = r2.data || [];
+                if (client) {
+                    let r2 = await client.from('thiet_bi').select('*').order('id', { ascending: false });
+                    DB_THIET_BI = r2.data || [];
+                } else {
+                    DB_THIET_BI = [];
+                }
 
                 calculateHRStats(); 
                 buildDropdowns(); 
                 triggerFilterReset();
                 displayThietBi();
             } catch (e) { 
-                console.error("Lỗi tải dữ liệu:", e); 
-                // Cơ chế tự động hồi phục: nạp danh sách rỗng và tắt trạng thái treo
+                console.error("Lỗi tải dữ liệu tổng quan:", e); 
                 DB_NHAN_SU = [];
                 DB_THIET_BI = [];
                 triggerFilterReset();
@@ -755,16 +787,22 @@
 
         async function fetchAndReloadThietBi() {
             try {
-                let r2 = await client.from('thiet_bi').select('*').order('id', { ascending: false });
-                DB_THIET_BI = r2.data || [];
+                if (client) {
+                    let r2 = await client.from('thiet_bi').select('*').order('id', { ascending: false });
+                    DB_THIET_BI = r2.data || [];
+                }
                 displayThietBi();
             } catch (e) { console.error(e); }
         }
 
         async function fetchRepairLogs() {
             try {
-                let r3 = await client.from('nhat_ky_sua_chua').select('*').order('id', { ascending: false });
-                DB_NHAT_KY = r3.data || [];
+                if (client) {
+                    let r3 = await client.from('nhat_ky_sua_chua').select('*').order('id', { ascending: false });
+                    DB_NHAT_KY = r3.data || [];
+                } else {
+                    DB_NHAT_KY = [];
+                }
                 calculateRepairDashboard();
                 displayRepairLogs();
             } catch(e) { console.error(e); }
@@ -808,7 +846,6 @@
             if(document.getElementById('lbl_stat_total_before')) document.getElementById('lbl_stat_total_before').innerText = Math.round(sumBefore).toLocaleString('vi-VN') + " đ";
             if(document.getElementById('lbl_stat_total_after')) document.getElementById('lbl_stat_total_after').innerText = Math.round(sumAfter).toLocaleString('vi-VN') + " đ";
 
-            // Render Tab 3 Maintenance and Document Charts
             renderRepairCharts();
         }
 
@@ -874,7 +911,7 @@
         function renderNhanSuTable(append = false) {
             const tbody = document.getElementById('table_hoso_body'); if(!tbody) return;
             if(!append) tbody.innerHTML = "";
-            if(FILTERED_LIST.length === 0) { tbody.innerHTML = `<tr><td colspan="13" class="text-center font-semibold py-8">Không tìm thấy kết quả phù hợp trong danh sách.</td></tr>`; return; }
+            if(FILTERED_LIST.length === 0) { tbody.innerHTML = `<tr><td colspan="13" class="text-center py-12 text-slate-500">Không tìm thấy kết quả phù hợp trong danh sách.</td></tr>`; return; }
             
             let start = append ? tbody.children.length : 0;
             let chunk = FILTERED_LIST.slice(start, CURRENT_PAGE_SIZE);
@@ -927,186 +964,180 @@
         }
 
         function renderCharts(data) {
-            const retireYears = {};
-            const genderCounts = { "Nam": 0, "Nữ": 0 };
-            const deptCounts = {};
+            if (typeof Chart === 'undefined') {
+                console.warn("Chart.js is not loaded.");
+                return;
+            }
 
-            data.forEach(x => {
-                if(x.nam_ve_huu) {
-                    const year = x.nam_ve_huu.split("-")[0];
-                    retireYears[year] = (retireYears[year] || 0) + 1;
-                }
-                
-                let gt = String(x.gioi_tinh || "").trim();
-                if(gt === "Nữ" || gt === "F") genderCounts["Nữ"]++;
-                else genderCounts["Nam"]++;
+            try {
+                const retireYears = {};
+                const genderCounts = { "Nam": 0, "Nữ": 0 };
+                const deptCounts = {};
 
-                if(x.ma_don_vi) {
-                    deptCounts[x.ma_don_vi] = (deptCounts[x.ma_don_vi] || 0) + 1;
-                }
-            });
+                data.forEach(x => {
+                    if(x.nam_ve_huu) {
+                        const year = x.nam_ve_huu.split("-")[0];
+                        retireYears[year] = (retireYears[year] || 0) + 1;
+                    }
+                    
+                    let gt = String(x.gioi_tinh || "").trim();
+                    if(gt === "Nữ" || gt === "F") genderCounts["Nữ"]++;
+                    else genderCounts["Nam"]++;
 
-            const retireLabels = Object.keys(retireYears).sort();
-            const retireData = retireLabels.map(y => retireYears[y]);
+                    if(x.ma_don_vi) {
+                        deptCounts[x.ma_don_vi] = (deptCounts[x.ma_don_vi] || 0) + 1;
+                    }
+                });
 
-            const sortedDepts = Object.entries(deptCounts).sort((a,b) => b[1] - a[1]).slice(0, 5);
-            const deptLabels = sortedDepts.map(d => `ĐV ${d[0]}`);
-            const deptData = sortedDepts.map(d => d[1]);
+                const retireLabels = Object.keys(retireYears).sort();
+                const retireData = retireLabels.map(y => retireYears[y]);
 
-            Chart.defaults.font.family = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
-            Chart.defaults.font.size = 13;
-            Chart.defaults.color = '#334155';
+                const sortedDepts = Object.entries(deptCounts).sort((a,b) => b[1] - a[1]).slice(0, 5);
+                const deptLabels = sortedDepts.map(d => `ĐV ${d[0]}`);
+                const deptData = sortedDepts.map(d => d[1]);
 
-            // 1. Retirement Chart
-            if (retireChartInst) retireChartInst.destroy();
-            const ctxRetire = document.getElementById('retireChart').getContext('2d');
-            retireChartInst = new Chart(ctxRetire, {
-                type: 'bar',
-                data: {
-                    labels: retireLabels,
-                    datasets: [{
-                        label: 'Nhân sự nghỉ hưu',
-                        data: retireData,
-                        backgroundColor: 'rgba(37, 99, 235, 0.85)',
-                        borderRadius: 6
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false }
+                Chart.defaults.font.family = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
+                Chart.defaults.font.size = 13;
+                Chart.defaults.color = '#334155';
+
+                // 1. Retirement Chart
+                if (retireChartInst) retireChartInst.destroy();
+                const ctxRetire = document.getElementById('retireChart').getContext('2d');
+                retireChartInst = new Chart(ctxRetire, {
+                    type: 'bar',
+                    data: {
+                        labels: retireLabels,
+                        datasets: [{
+                            label: 'Nhân sự nghỉ hưu',
+                            data: retireData,
+                            backgroundColor: 'rgba(37, 99, 235, 0.85)',
+                            borderRadius: 6
+                        }]
                     },
-                    scales: {
-                        y: { beginAtZero: true, ticks: { stepSize: 1 } }
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
                     }
-                }
-            });
+                });
 
-            // 2. Gender Chart
-            if (genderChartInst) genderChartInst.destroy();
-            const ctxGender = document.getElementById('genderChart').getContext('2d');
-            genderChartInst = new Chart(ctxGender, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Nam', 'Nữ'],
-                    datasets: [{
-                        data: [genderCounts["Nam"], genderCounts["Nữ"]],
-                        backgroundColor: ['rgba(59, 130, 246, 0.85)', 'rgba(244, 63, 94, 0.85)'],
-                        borderWidth: 0
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    cutout: '65%',
-                    plugins: {
-                        legend: { position: 'bottom' }
-                    }
-                }
-            });
-
-            // 3. Departments Distribution
-            if (deptChartInst) deptChartInst.destroy();
-            const ctxDept = document.getElementById('deptChart').getContext('2d');
-            deptChartInst = new Chart(ctxDept, {
-                type: 'bar',
-                data: {
-                    labels: deptLabels,
-                    datasets: [{
-                        label: 'Nhân sự',
-                        data: deptData,
-                        backgroundColor: 'rgba(16, 185, 129, 0.85)',
-                        borderRadius: 6
-                    }]
-                },
-                options: {
-                    indexAxis: 'y',
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false }
+                // 2. Gender Chart
+                if (genderChartInst) genderChartInst.destroy();
+                const ctxGender = document.getElementById('genderChart').getContext('2d');
+                genderChartInst = new Chart(ctxGender, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Nam', 'Nữ'],
+                        datasets: [{
+                            data: [genderCounts["Nam"], genderCounts["Nữ"]],
+                            backgroundColor: ['rgba(59, 130, 246, 0.85)', 'rgba(244, 63, 94, 0.85)'],
+                            borderWidth: 0
+                        }]
                     },
-                    scales: {
-                        x: { beginAtZero: true, ticks: { stepSize: 1 } }
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '65%',
+                        plugins: { legend: { position: 'bottom' } }
                     }
-                }
-            });
+                });
+
+                // 3. Departments Distribution
+                if (deptChartInst) deptChartInst.destroy();
+                const ctxDept = document.getElementById('deptChart').getContext('2d');
+                deptChartInst = new Chart(ctxDept, {
+                    type: 'bar',
+                    data: {
+                        labels: deptLabels,
+                        datasets: [{
+                            label: 'Nhân sự',
+                            data: deptData,
+                            backgroundColor: 'rgba(16, 185, 129, 0.85)',
+                            borderRadius: 6
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } }
+                    }
+                });
+            } catch (err) {
+                console.error("Failed to render Tab 1 Charts: ", err);
+            }
         }
 
-        /* NEW STREAMING_CHUNK: Instantiating Premium visual charts for Tab 3: Maintenance Logs */
         function renderRepairCharts() {
-            const deptCosts = {};
-            const paymentStatuses = { "Chưa thanh toán": 0, "Chờ duyệt": 0, "Đã thanh toán": 0 };
+            if (typeof Chart === 'undefined') return;
 
-            DB_NHAT_KY.forEach(x => {
-                // Collect cost by department
-                const dept = x.don_vi_thu_huong || "KHO";
-                const cost = parseFloat(x.tong_chi_phi) || 0;
-                deptCosts[dept] = (deptCosts[dept] || 0) + cost;
+            try {
+                const deptCosts = {};
+                const paymentStatuses = { "Chưa thanh toán": 0, "Chờ duyệt": 0, "Đã thanh toán": 0 };
 
-                // Collect statuses
-                const status = String(x.payment_status || "Chưa thanh toán").trim();
-                if (paymentStatuses[status] !== undefined) {
-                    paymentStatuses[status]++;
-                } else {
-                    paymentStatuses[status] = 1;
-                }
-            });
+                DB_NHAT_KY.forEach(x => {
+                    const dept = x.don_vi_thu_huong || "KHO";
+                    const cost = parseFloat(x.tong_chi_phi) || 0;
+                    deptCosts[dept] = (deptCosts[dept] || 0) + cost;
 
-            const deptLabels = Object.keys(deptCosts).map(d => `Đơn vị ${d}`);
-            const deptData = Object.values(deptCosts);
+                    const status = String(x.payment_status || "Chưa thanh toán").trim();
+                    if (paymentStatuses[status] !== undefined) {
+                        paymentStatuses[status]++;
+                    } else {
+                        paymentStatuses[status] = 1;
+                    }
+                });
 
-            // Repair cost by Dept
-            if (repairCostChartInst) repairCostChartInst.destroy();
-            const ctxRepairCost = document.getElementById('repairCostChart').getContext('2d');
-            repairCostChartInst = new Chart(ctxRepairCost, {
-                type: 'bar',
-                data: {
-                    labels: deptLabels,
-                    datasets: [{
-                        label: 'Chi phí bảo trì (đ)',
-                        data: deptData,
-                        backgroundColor: 'rgba(79, 70, 229, 0.85)',
-                        borderColor: '#4f46e5',
-                        borderWidth: 1,
-                        borderRadius: 6
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false }
+                const deptLabels = Object.keys(deptCosts).map(d => `Đơn vị ${d}`);
+                const deptData = Object.values(deptCosts);
+
+                if (repairCostChartInst) repairCostChartInst.destroy();
+                const ctxRepairCost = document.getElementById('repairCostChart').getContext('2d');
+                repairCostChartInst = new Chart(ctxRepairCost, {
+                    type: 'bar',
+                    data: {
+                        labels: deptLabels,
+                        datasets: [{
+                            label: 'Chi phí bảo trì (đ)',
+                            data: deptData,
+                            backgroundColor: 'rgba(79, 70, 229, 0.85)',
+                            borderColor: '#4f46e5',
+                            borderWidth: 1,
+                            borderRadius: 6
+                        }]
                     },
-                    scales: {
-                        y: { beginAtZero: true }
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: { y: { beginAtZero: true } }
                     }
-                }
-            });
+                });
 
-            // Repair Payment Statuses
-            if (repairPaymentChartInst) repairPaymentChartInst.destroy();
-            const ctxRepairPayment = document.getElementById('repairPaymentChart').getContext('2d');
-            repairPaymentChartInst = new Chart(ctxRepairPayment, {
-                type: 'doughnut',
-                data: {
-                    labels: Object.keys(paymentStatuses),
-                    datasets: [{
-                        data: Object.values(paymentStatuses),
-                        backgroundColor: ['#dc2626', '#f59e0b', '#10b981'],
-                        borderWidth: 2
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    cutout: '70%',
-                    plugins: {
-                        legend: { position: 'bottom' }
+                if (repairPaymentChartInst) repairPaymentChartInst.destroy();
+                const ctxRepairPayment = document.getElementById('repairPaymentChart').getContext('2d');
+                repairPaymentChartInst = new Chart(ctxRepairPayment, {
+                    type: 'doughnut',
+                    data: {
+                        labels: Object.keys(paymentStatuses),
+                        datasets: [{
+                            data: Object.values(paymentStatuses),
+                            backgroundColor: ['#dc2626', '#f59e0b', '#10b981'],
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '70%',
+                        plugins: { legend: { position: 'bottom' } }
                     }
-                }
-            });
+                });
+            } catch (err) {
+                console.error("Failed to render Repair Charts: ", err);
+            }
         }
 
         function handleTableScroll(container) { 
@@ -1157,7 +1188,7 @@
                 `;
                 tbody.appendChild(tr);
 
-                // Dynamically build QR
+                // Dùng cơ chế QRCode-Generator chuẩn tạo thẻ <img> Base64 trực tiếp không lo tab ẩn
                 setTimeout(() => {
                     const qrContainer = document.getElementById(`qr_${x.device_code}`);
                     if(qrContainer) {
@@ -1171,12 +1202,16 @@
                             `Sử dụng: ${x.user_name || 'KHO'}`;
 
                         try {
-                            const typeNumber = 0; 
-                            const errorCorrectionLevel = 'M';
-                            const qr = qrcode(typeNumber, errorCorrectionLevel);
-                            qr.addData(rawTagString);
-                            qr.make();
-                            qrContainer.innerHTML = qr.createImgTag(2.5, 2); 
+                            if (typeof qrcode !== 'undefined') {
+                                const typeNumber = 0; 
+                                const errorCorrectionLevel = 'M';
+                                const qr = qrcode(typeNumber, errorCorrectionLevel);
+                                qr.addData(rawTagString);
+                                qr.make();
+                                qrContainer.innerHTML = qr.createImgTag(2.5, 2); 
+                            } else {
+                                qrContainer.innerHTML = `<span class='text-xs text-slate-400'>No QR Code Engine</span>`;
+                            }
                         } catch(err) {
                             console.error("Lỗi vẽ QR Code: ", err);
                             qrContainer.innerHTML = `<span class='text-xs text-rose-500'>Lỗi QR</span>`;
@@ -1194,16 +1229,19 @@
             document.getElementById('print_lbl_user').innerText = item.user_name || "Hệ Thống Kho";
             document.getElementById('print_lbl_dept').innerText = item.ma_don_vi || "--";
 
-            // Generate high quality QR specifically for the label sticker
             const qrCanvas = document.getElementById('print_qr_canvas');
             if (qrCanvas) {
                 qrCanvas.innerHTML = "";
                 let tagStr = `MÃ: ${item.device_code}\nTÊN: ${item.device_name}\nĐV: ${item.ma_don_vi || ''}\nSD: ${item.user_name || 'KHO'}`;
                 try {
-                    const qr = qrcode(0, 'M');
-                    qr.addData(tagStr);
-                    qr.make();
-                    qrCanvas.innerHTML = qr.createImgTag(3.5, 1);
+                    if (typeof qrcode !== 'undefined') {
+                        const qr = qrcode(0, 'M');
+                        qr.addData(tagStr);
+                        qr.make();
+                        qrCanvas.innerHTML = qr.createImgTag(3.5, 1);
+                    } else {
+                        qrCanvas.innerHTML = `<span class='text-xs text-slate-400'>N/A</span>`;
+                    }
                 } catch(e) {
                     qrCanvas.innerHTML = `<span class='text-xs text-rose-500'>Lỗi</span>`;
                 }
@@ -1216,6 +1254,7 @@
             document.getElementById('print-label-modal').classList.add('hidden');
         }
 
+        // Tự động tối ưu gợi ý nhân sự thuộc bộ phận được lựa chọn
         function handleUnitChange() {
             const searchInput = document.getElementById('dev_user_search');
             if(searchInput) {
@@ -1232,9 +1271,10 @@
             if(!box) return; 
             box.innerHTML = ""; 
 
+            // Cho hiển thị trọn vẹn danh sách nếu rỗng, tự động lọc theo đơn vị đã chọn
             let matches = DB_NHAN_SU.filter(x => {
                 let matchName = !val || (x.ho_ten && x.ho_ten.toLowerCase().includes(val));
-                let matchDV = !selectedDV || String(x.ma_don_vi) === String(selectedDV);
+                let matchDV = !selectedDV || String(x.ma_don_vi).trim() === String(selectedDV).trim();
                 return matchName && matchDV;
             }).slice(0, 15); 
 
@@ -1271,8 +1311,10 @@
 
             let rowData = { device_name: devName, device_code: devCode, user_id: userId ? String(userId).replace('#', '') : null, user_name: userName, ma_don_vi: donVi || "10", status: status };
 
-            if(editId) await client.from('thiet_bi').update(rowData).eq('id', editId);
-            else await client.from('thiet_bi').insert([rowData]);
+            if(client) {
+                if(editId) await client.from('thiet_bi').update(rowData).eq('id', editId);
+                else await client.from('thiet_bi').insert([rowData]);
+            }
             
             showNotification("Lưu cấu hình thiết bị thành công!", "success");
             document.getElementById('editing_device_id').value = ""; 
@@ -1296,7 +1338,7 @@
 
         function confirmDeleteDevice(id) {
             showCustomConfirm("Xác nhận xóa", "Bạn có chắc chắn muốn xóa thiết bị này khỏi hệ thống không?", "danger", async () => {
-                await client.from('thiet_bi').delete().eq('id', id); 
+                if(client) await client.from('thiet_bi').delete().eq('id', id); 
                 showNotification("Đã xóa thiết bị thành công!", "success");
                 await fetchAndReloadThietBi();
             });
@@ -1311,7 +1353,6 @@
             reader.onload = function(e) {
                 uploadedDocumentBase64 = e.target.result;
                 
-                // Show uploaded indicator preview block
                 const previewBlock = document.getElementById('file_uploaded_preview');
                 const pName = document.getElementById('uploaded_file_name');
                 if (previewBlock && pName) {
@@ -1412,16 +1453,17 @@
                 don_vi_thu_huong: beneficiary,
                 so_tai_khoan: accountNum,
                 ten_ngan_hang: bankName,
-                attachment_base64: uploadedDocumentBase64 || null, // New support for documents
+                attachment_base64: uploadedDocumentBase64 || null,
                 attachment_name: uploadedDocumentName || null
             };
 
-            let { error } = await client.from('nhat_ky_sua_chua').insert([logData]);
-            if(error) { showNotification("Lỗi cơ sở dữ liệu: " + error.message, "error"); return; }
+            if (client) {
+                let { error } = await client.from('nhat_ky_sua_chua').insert([logData]);
+                if(error) { showNotification("Lỗi cơ sở dữ liệu: " + error.message, "error"); return; }
+            }
 
             showNotification("Đã hạch toán sửa chữa thành công!", "success");
             
-            // Clean forms
             document.getElementById('rep_file_name').value = "";
             document.getElementById('rep_beneficiary').value = "";
             document.getElementById('rep_account_number').value = "";
@@ -1461,7 +1503,6 @@
                 if(pStatus === "Đã thanh toán") badgeClass = "bg-emerald-100 text-emerald-700";
                 if(pStatus === "Chờ duyệt") badgeClass = "bg-amber-100 text-amber-700";
 
-                // Attachment viewer config
                 let attachmentBtn = `<span class="text-slate-400 font-semibold italic">Không có</span>`;
                 if (x.attachment_base64) {
                     attachmentBtn = `<button class="text-blue-600 hover:text-blue-800 font-black px-3 py-1 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-md shadow-sm flex items-center gap-1 text-sm justify-center mx-auto" onclick="previewDocument('${x.id}')">
@@ -1492,7 +1533,6 @@
             });
         }
 
-        /* NEW STREAMING_CHUNK: Interactive Base64 Attachment Preview & Download utility controllers */
         function previewDocument(id) {
             const item = DB_NHAT_KY.find(x => String(x.id) === String(id));
             if (!item || !item.attachment_base64) return;
@@ -1508,7 +1548,6 @@
 
             const mime = item.attachment_base64.split(';')[0].split(':')[1];
 
-            // Render according to mime classification (Images vs general attachments)
             if (mime.startsWith('image/')) {
                 const img = document.createElement('img');
                 img.src = item.attachment_base64;
@@ -1581,10 +1620,20 @@
         }
 
         async function importExcelNhanSu(input) {
+            if (typeof XLSX === 'undefined') {
+                showNotification("Không thể nạp thư viện xử lý Excel. Vui lòng kiểm tra lại mạng.", "error");
+                return;
+            }
+
             const file = input.files[0]; if(!file) return;
             const reader = new FileReader();
             reader.onload = async function(e) {
                 try {
+                    const hasAnToanVien = await checkColumnExists('nhan_su', 'an_toan_vien');
+                    const hasAtv = await checkColumnExists('nhan_su', 'atv');
+                    const hasNgheDocHai = await checkColumnExists('nhan_su', 'nghe_doc_hai');
+                    const hasNndh = await checkColumnExists('nhan_su', 'nndh');
+
                     const data = new Uint8Array(e.target.result);
                     const workbook = XLSX.read(data, { type: 'array', cellDates: false, raw: true });
                     const sheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -1638,7 +1687,7 @@
                     };
 
                     if(!checkColumnExist(["hovaten", "hoten", "ten"])) {
-                        showNotification("LỖI: Hệ thống không thể định vị được cột 'Họ và tên' trong file Excel này.", "error");
+                        showNotification("LỖI: Hệ thống không thể định vị được cột 'Họ và tên' trong file Excel.", "error");
                         return;
                     }
 
@@ -1687,10 +1736,14 @@
                             nam_sinh: birthStr, 
                             nam_ve_huu: retStr,
                             ma_don_vi: maDonVi || "10", 
-                            chuc_danh_cong_viec: chucDanh,
-                            an_toan_vien: atvVal || null,
-                            nghe_doc_hai: nndhVal || null
+                            chuc_danh_cong_viec: chucDanh
                         };
+
+                        if (hasAnToanVien) record['an_toan_vien'] = atvVal;
+                        else if (hasAtv) record['atv'] = atvVal;
+
+                        if (hasNgheDocHai) record['nghe_doc_hai'] = nndhVal;
+                        else if (hasNndh) record['nndh'] = nndhVal;
 
                         listRows.push(record);
                     });
@@ -1699,9 +1752,11 @@
 
                     localStorage.setItem('local_atv_nndh', JSON.stringify(localMapping));
 
-                    await client.from('nhan_su').delete().neq('id', 0);
-                    let { error } = await client.from('nhan_su').insert(listRows);
-                    if(error) { showNotification("Lỗi tải lên cơ sở dữ liệu: " + error.message, "error"); return; }
+                    if (client) {
+                        await client.from('nhan_su').delete().neq('id', 0);
+                        let { error } = await client.from('nhan_su').insert(listRows);
+                        if(error) { showNotification("Lỗi tải lên cơ sở dữ liệu: " + error.message, "error"); return; }
+                    }
                     
                     showNotification(`Thành công! Đã đồng bộ ${listRows.length} nhân sự với thông tin chuẩn hóa.`, "success"); 
                     await fetchAllData();
@@ -1717,9 +1772,11 @@
                     showNotification("Sai mã bảo mật! Thao tác bị hủy.", "error");
                     return;
                 }
-                await client.from(tableName).delete().neq('id', 0); 
+                if (client) {
+                    await client.from(tableName).delete().neq('id', 0); 
+                }
                 localStorage.removeItem('local_atv_nndh'); 
-                showNotification("Đã xóa sạch dữ liệu trên đám mây thành công!", "success");
+                showNotification("Đã xóa sạch dữ liệu thành công!", "success");
                 await fetchAllData();
             });
         }
