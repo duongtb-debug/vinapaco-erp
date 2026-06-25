@@ -333,7 +333,7 @@
                 <div class="overflow-x-auto rounded-xl border border-slate-150" style="-webkit-overflow-scrolling: touch;">
                     <table class="w-full text-left border-collapse min-w-[900px]">
                         <thead>
-                            <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 text-sm font-semibold">
+                            <tr class="bg-slate-50 border-b border-slate-200 text-slate-550 text-sm font-semibold">
                                 <th class="p-3.5 w-32 text-center">Thẻ QR</th>
                                 <th class="p-3.5 w-36">Mã Tài Sản</th>
                                 <th class="p-3.5">Tên Thiết Bị / Tài Sản</th>
@@ -384,7 +384,9 @@
 
             <!-- PHẦN NHẬP PHIẾU HẠCH TOÁN SỬA CHỮA & TÀI KHOẢN THỤ HƯỞNG -->
             <div class="bg-white p-5 sm:p-6 rounded-xl border border-slate-200 shadow-sm">
-                <h3 class="text-sm font-bold text-slate-800 uppercase border-l-4 border-blue-600 pl-3 mb-5"><i class="fa-solid fa-receipt"></i> Lập Phiếu quyết toán bảo dưỡng / sửa chữa</h3>
+                <h3 id="form_repair_title" class="text-sm font-bold text-slate-800 uppercase border-l-4 border-blue-600 pl-3 mb-5"><i class="fa-solid fa-receipt"></i> Lập Phiếu quyết toán bảo dưỡng / sửa chữa</h3>
+                <input type="hidden" id="editing_repair_id">
+
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
                     
                     <div class="form-group relative">
@@ -442,13 +444,13 @@
                         <input type="date" id="rep_date" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition h-11">
                     </div>
 
-                    <div class="form-group">
+                    <div class="form-group col-span-1 sm:col-span-2 lg:col-span-1">
                         <label class="block font-bold text-xs text-slate-500 mb-2">Đính kèm chứng từ thanh toán (PDF/Hình ảnh)</label>
                         <div class="relative bg-slate-50 border border-dashed border-slate-300 rounded-lg p-2.5 flex items-center justify-center cursor-pointer hover:bg-slate-100 transition h-11">
-                            <span class="text-xs text-slate-500"><i class="fa-solid fa-cloud-arrow-up"></i> Chọn tài liệu...</span>
-                            <input type="file" id="rep_doc_file" onchange="handleDocumentUpload(this)" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full">
+                            <span class="text-xs text-slate-500"><i class="fa-solid fa-cloud-arrow-up"></i> Chọn tài liệu (Nhiều tệp)...</span>
+                            <!-- Cho phép tải lên nhiều file cùng lúc bằng thuộc tính multiple -->
+                            <input type="file" id="rep_doc_file" multiple onchange="handleDocumentUpload(this)" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full">
                         </div>
-                        <input type="hidden" id="rep_doc_base64">
                     </div>
 
                     <div class="form-group sm:col-span-2">
@@ -466,13 +468,23 @@
                     </div>
                 </div>
 
+                <!-- KHU VỰC HIỂN THỊ FILE ĐÃ CHỌN ĐỂ XEM TRƯỚC (Pre-visualization Panel) -->
+                <div class="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-xl hidden" id="preview_files_container">
+                    <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+                        <i class="fa-solid fa-paperclip"></i> Danh sách tài liệu chuẩn bị đính kèm (<span id="preview_files_count">0</span> tệp)
+                    </h4>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3" id="preview_files_grid">
+                        <!-- Các thẻ ảnh nhỏ/tệp đính kèm sẽ tự động hiển thị ở đây -->
+                    </div>
+                </div>
+
                 <div class="bg-slate-50 p-4 sm:p-5 rounded-xl mt-5 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4">
                     <div class="flex flex-col sm:flex-row gap-2 sm:gap-6 text-sm text-slate-600">
                         <span>Tiền thuế VAT: <b id="lbl_tax_money" class="text-amber-700">0 VNĐ</b></span>
                         <span>Tổng chi phí quyết toán: <b id="lbl_total_cost" class="text-emerald-700 font-bold">0 VNĐ</b></span>
                     </div>
                     <div class="flex flex-col sm:flex-row gap-2">
-                        <button onclick="resetRepairForm()" class="w-full sm:w-auto bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-sm px-5 py-3 rounded-lg transition flex items-center justify-center gap-2 h-11">
+                        <button onclick="resetRepairForm()" class="w-full sm:w-auto bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-sm px-5 py-3 sm:py-2.5 rounded-lg transition flex items-center justify-center gap-2 h-11 sm:h-auto">
                             <i class="fa-solid fa-eraser"></i> Xóa trắng form
                         </button>
                         <button onclick="saveRepairLog()" class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm px-6 py-3 rounded-lg shadow-md transition flex items-center justify-center gap-2 h-11">
@@ -507,6 +519,7 @@
                                 <th class="p-3.5 text-center">Thanh Toán</th>
                                 <th class="p-3.5 text-center">Chứng Từ</th>
                                 <th class="p-3.5 text-center">Ngày Làm</th>
+                                <th class="p-3.5 text-center w-40">Hành Động</th>
                             </tr>
                         </thead>
                         <tbody id="table_suachua_body" class="divide-y divide-slate-100 text-sm text-slate-600">
@@ -529,24 +542,26 @@
     </div>
 
     <!-- ================================================================================================= -->
-    <!-- HỘP THOẠI XEM CHỨNG TỪ (DOCS / PDF / IMAGES MODAL) - Trượt lên từ cạnh dưới trên Mobile -->
+    <!-- HỘP THOẠI XEM CHỨNG TỪ (DOCS / PDF / IMAGES MODAL) - Hỗ trợ xem nhiều file đính kèm -->
     <!-- ================================================================================================= -->
     <div id="docViewerModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 z-[100] hidden" onclick="closeDocViewer()">
-        <div class="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl max-w-2xl w-full max-h-[85vh] overflow-hidden flex flex-col transform transition-transform duration-300" onclick="event.stopPropagation()">
+        <div class="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col transform transition-transform duration-300" onclick="event.stopPropagation()">
             <div class="bg-slate-900 text-white p-4 flex justify-between items-center shrink-0">
-                <span class="text-sm font-bold uppercase" id="docViewerTitle">Chứng từ đính kèm</span>
+                <span class="text-sm font-bold uppercase" id="docViewerTitle">Chứng từ đính kèm quyết toán</span>
                 <button onclick="closeDocViewer()" class="text-slate-400 hover:text-white p-2">
                     <i class="fa-solid fa-xmark text-lg"></i>
                 </button>
             </div>
-            <div class="p-4 sm:p-6 overflow-y-auto flex-grow flex items-center justify-center bg-slate-100 min-h-[250px]" id="docViewerBody">
-                <!-- Nội dung hiển thị tài liệu -->
+            
+            <!-- Phân mảnh nội dung xem trước Album ảnh chứng từ -->
+            <div class="p-4 sm:p-6 overflow-y-auto flex-grow bg-slate-100">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="docViewerBody">
+                    <!-- Album chứng từ đính kèm sẽ được dựng động tại đây -->
+                </div>
             </div>
+            
             <div class="bg-slate-50 p-4 border-t border-slate-100 flex flex-col sm:flex-row justify-end gap-2.5 shrink-0">
-                <a id="docViewerDownloadLink" download="Chung_Tu_Vat.png" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-5 py-2 rounded-lg transition flex items-center gap-1.5 cursor-pointer">
-                    <i class="fa-solid fa-download"></i> Tải về tệp gốc
-                </a>
-                <button onclick="closeDocViewer()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold px-5 py-2 rounded-lg transition">Đóng lại</button>
+                <button onclick="closeDocViewer()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold px-5 py-2.5 rounded-lg transition h-11 sm:h-auto">Đóng lại</button>
             </div>
         </div>
     </div>
@@ -593,7 +608,9 @@
             { id: 3, stt_excel: "3", ho_ten: "ĐÀO NGỌC CƯỜNG", so_so_bhxh: "8202002964", so_cccd: "025077009527", gioi_tinh: "Nam", nam_sinh: "1977-10-17", nam_ve_huu: "2039-10-17", an_toan_vien: "0", nghe_doc_hai: "0", ma_don_vi: "ĐẢNG ỦY", chuc_danh_cong_viec: "Phó Bí thư Đảng ủy Tổng công ty Giấy Việt Nam" },
             { id: 4, stt_excel: "4", ho_ten: "MẠC MẠNH ĐANG", so_so_bhxh: "8200002530", so_cccd: "030075013293", gioi_tinh: "Nam", nam_sinh: "1975-05-11", nam_ve_huu: "2037-05-11", an_toan_vien: "0", nghe_doc_hai: "0", ma_don_vi: "BAN GĐ", chuc_danh_cong_viec: "Phó Tổng giám đốc- Tổng công ty Giấy Việt Nam." },
             { id: 5, stt_excel: "5", ho_ten: "TRIỆU THỊ NĂM", so_so_bhxh: "8298010513", so_cccd: "025169015152", gioi_tinh: "Nữ", nam_sinh: "1969-08-10", nam_ve_huu: "2029-08-10", an_toan_vien: "0", nghe_doc_hai: "0", ma_don_vi: "PX Cơ khí", chuc_danh_cong_viec: "Công nhân nguội sửa chữa cơ khí, Phân xưởng Cơ khí, Xí nghiệp Bảo dưỡng, Tổng công ty Giấy Việt Nam." },
-            { id: 6, stt_excel: "6", ho_ten: "NGUYỄN THỊ THẠCH", so_so_bhxh: "8200102787", so_cccd: "042174013492", gioi_tinh: "Nữ", nam_sinh: "1974-08-01", nam_ve_huu: "2034-08-01", an_toan_vien: "0", nghe_doc_hai: "0", ma_don_vi: "Tổng kho", huc_danh_cong_viec: "Thủ kho giấy thành phẩm, Tổng kho" }
+            { id: 6, stt_excel: "6", ho_ten: "NGUYỄN THỊ THẠCH", so_so_bhxh: "8200102787", so_cccd: "042174013492", gioi_tinh: "Nữ", nam_sinh: "1974-08-01", nam_ve_huu: "2034-08-01", an_toan_vien: "0", nghe_doc_hai: "0", ma_don_vi: "Tổng kho", chuc_danh_cong_viec: "Thủ kho giấy thành phẩm, Tổng kho" },
+            { id: 7, stt_excel: "7", ho_ten: "NGÔ THỊ THU LAN", so_so_bhxh: "8200102773", so_cccd: "025169012622", gioi_tinh: "Nữ", nam_sinh: "1969-09-01", nam_ve_huu: "2029-09-01", an_toan_vien: "0", nghe_doc_hai: "Độc hại", ma_don_vi: "PX Nguyên liệu", chuc_danh_cong_viec: "Công nhân vận hành máy bóc vỏ gỗ, máy nạp, chặt, sàng nguyên liệu, Phân xưởng Nguyên liệu, Nhà máy Giấy" },
+            { id: 8, stt_excel: "8", ho_ten: "LƯU TRUNG ĐÔNG", so_so_bhxh: "8200100788", so_cccd: "025071000234", gioi_tinh: "Nam", nam_sinh: "1971-04-12", nam_ve_huu: "2033-04-12", an_toan_vien: "Hoạt động", nghe_doc_hai: "0", ma_don_vi: "PX Điện", chuc_danh_cong_viec: "Kỹ sư điện tự động hóa, Phân xưởng Điện - Nhà máy Bột Giấy" }
         ];
 
         const defaultDevices = [
@@ -609,6 +626,9 @@
         let FILTERED_LIST = []; 
         let CURRENT_PAGE_SIZE = 30;
         let isPageLoading = false;
+
+        // Quản lý lưu danh sách nhiều file đang tải lên để xem trước
+        let selectedRepairFiles = [];
 
         // Quản lý phân trang cho danh sách thiết bị để tránh quá tải QR Code
         let CURRENT_DEVICE_LIMIT = 15;
@@ -1490,15 +1510,99 @@ ${rawTagString}
             });
         }
 
+        // Đọc danh sách nhiều file hóa đơn đính kèm và tạo vùng xem trước (Preview Panel)
         function handleDocumentUpload(input) {
-            const file = input.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                document.getElementById('rep_doc_base64').value = e.target.result;
-                showToast("Đã đính kèm chứng từ thanh toán!");
-            };
-            reader.readAsDataURL(file);
+            const files = input.files;
+            if (!files || files.length === 0) return;
+
+            const previewContainer = document.getElementById('preview_files_container');
+            const previewGrid = document.getElementById('preview_files_grid');
+            const previewCount = document.getElementById('preview_files_count');
+
+            if (!previewContainer || !previewGrid) return;
+
+            // Đọc tuần tự các file bằng Promise.all để chuyển đổi sang định dạng Base64
+            const readPromises = Array.from(files).map(file => {
+                return new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        resolve({
+                            name: file.name,
+                            type: file.type,
+                            size: (file.size / 1024).toFixed(1) + " KB",
+                            base64: e.target.result
+                        });
+                    };
+                    reader.readAsDataURL(file);
+                });
+            });
+
+            Promise.all(readPromises).then(processedFiles => {
+                // Gộp thêm vào danh sách tài liệu hiện có
+                selectedRepairFiles = [...selectedRepairFiles, ...processedFiles];
+                renderSelectedFilesPreview();
+                showToast(`Đã tải lên thành công ${processedFiles.length} tệp chứng từ!`, "success");
+            });
+        }
+
+        // Vẽ danh sách tệp đính kèm xem trước tinh tế có hình ảnh thu nhỏ
+        function renderSelectedFilesPreview() {
+            const container = document.getElementById('preview_files_grid');
+            const panel = document.getElementById('preview_files_container');
+            const countLabel = document.getElementById('preview_files_count');
+
+            if (!container || !panel) return;
+            container.innerHTML = "";
+
+            if (selectedRepairFiles.length === 0) {
+                panel.classList.add('hidden');
+                return;
+            }
+
+            panel.classList.remove('hidden');
+            if (countLabel) countLabel.innerText = selectedRepairFiles.length;
+
+            selectedRepairFiles.forEach((file, idx) => {
+                let thumbnailHtml = "";
+                if (file.base64.startsWith("data:image")) {
+                    thumbnailHtml = `<img src="${file.base64}" class="w-full h-20 object-cover rounded-md border border-slate-200">`;
+                } else {
+                    thumbnailHtml = `
+                        <div class="w-full h-20 bg-blue-50 text-blue-700 rounded-md border border-slate-200 flex flex-col items-center justify-center text-[10px] font-bold uppercase p-1">
+                            <i class="fa-solid fa-file-invoice-dollar text-xl mb-1 text-blue-500"></i>
+                            <span class="truncate max-w-full">${file.name.split('.').pop()}</span>
+                        </div>
+                    `;
+                }
+
+                const card = document.createElement('div');
+                card.className = "relative group bg-white border border-slate-200 p-2 rounded-xl flex flex-col justify-between shadow-xs";
+                card.innerHTML = `
+                    <div class="relative">
+                        ${thumbnailHtml}
+                        <button onclick="removeSelectedFile(${idx})" class="absolute -top-1.5 -right-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-full w-5 h-5 flex items-center justify-center text-[9px] shadow-sm transition">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                    <div class="mt-1.5">
+                        <div class="text-[10px] font-bold text-slate-800 truncate" title="${file.name}">${file.name}</div>
+                        <div class="text-[9px] text-slate-400 font-medium">${file.size}</div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function removeSelectedFile(index) {
+            selectedRepairFiles.splice(index, 1);
+            renderSelectedFilesPreview();
+            showToast("Đã gỡ tệp khỏi hàng chờ đính kèm!", "warning");
+        }
+
+        function clearUploadedFile() {
+            selectedRepairFiles = [];
+            renderSelectedFilesPreview();
+            document.getElementById('rep_doc_file').value = "";
         }
 
         function toggleCustomTaxField() {
@@ -1522,6 +1626,7 @@ ${rawTagString}
         }
 
         async function saveRepairLog() {
+            const editId = document.getElementById('editing_repair_id').value;
             let devCode = document.getElementById('rep_device_code').value;
             let devName = document.getElementById('rep_device_name').value;
             const deviceSearchVal = document.getElementById('rep_device_search').value.trim();
@@ -1534,7 +1639,6 @@ ${rawTagString}
             const selectRate = document.getElementById('rep_tax_rate').value;
             const payStatus = document.getElementById('rep_payment_status').value;
             const repDate = document.getElementById('rep_date').value;
-            const docBase64 = document.getElementById('rep_doc_base64').value;
 
             // Nếu người dùng gõ tay mà không chọn gợi ý dropdown, tự động bắt cặp hoặc sinh mã tạm
             if (!devCode && deviceSearchVal) {
@@ -1560,6 +1664,9 @@ ${rawTagString}
             let taxPercent = (selectRate === 'custom') ? (parseFloat(document.getElementById('rep_tax_custom_val').value) || 0) : parseFloat(selectRate);
             let taxMoney = Math.round(costBefore * (taxPercent / 100));
             let totalCost = costBefore + taxMoney;
+
+            // Nén toàn bộ mảng dữ liệu nhiều tệp Base64 thành chuỗi JSON nén an toàn
+            const serializedAttachments = selectedRepairFiles.length > 0 ? JSON.stringify(selectedRepairFiles) : null;
 
             // Xây dựng logData động chỉ chứa các cột thực tế có trên Cloud Supabase của bạn
             let logData = {
@@ -1587,29 +1694,127 @@ ${rawTagString}
             if (SCHEMA_REPAIR.has_bank_name) logData['bank_name'] = bankName;
             if (SCHEMA_REPAIR.has_ten_ngan_hang) logData['ten_ngan_hang'] = bankName;
 
-            if (SCHEMA_REPAIR.has_attachment) logData['attachment'] = docBase64;
-            if (SCHEMA_REPAIR.has_attachment_base64) logData['attachment_base64'] = docBase64;
+            if (SCHEMA_REPAIR.has_attachment) logData['attachment'] = serializedAttachments;
+            if (SCHEMA_REPAIR.has_attachment_base64) logData['attachment_base64'] = serializedAttachments;
 
             // Lưu trữ cục bộ tức thì trước để đảm bảo phản hồi tức thì 0.05 giây
-            const tempId = "local_rep_" + Date.now();
-            DB_NHAT_KY.unshift({ id: tempId, ...logData });
+            if (editId) {
+                const index = DB_NHAT_KY.findIndex(x => String(x.id) === String(editId));
+                if (index !== -1) {
+                    DB_NHAT_KY[index] = { ...DB_NHAT_KY[index], ...logData, id: editId };
+                }
+            } else {
+                const tempId = "local_rep_" + Date.now();
+                DB_NHAT_KY.unshift({ id: tempId, ...logData });
+            }
+            
             localStorage.setItem('local_db_nhat_ky_v2', JSON.stringify(DB_NHAT_KY));
             calculateRepairDashboard();
             displayRepairLogs();
 
             try {
-                let { error } = await client.from('nhat_ky_sua_chua').insert([logData]);
-                if (error) throw error;
-                showToast("Hạch toán hồ sơ thành công!");
+                if (editId) {
+                    if (String(editId).startsWith('local_')) {
+                        let { error } = await client.from('nhat_ky_sua_chua').insert([logData]);
+                        if (error) throw error;
+                    } else {
+                        let { error } = await client.from('nhat_ky_sua_chua').update(logData).eq('id', editId);
+                        if (error) throw error;
+                    }
+                    showToast("Đã cập nhật quyết toán thành công!");
+                } else {
+                    let { error } = await client.from('nhat_ky_sua_chua').insert([logData]);
+                    if (error) throw error;
+                    showToast("Hạch toán hồ sơ thành công!");
+                }
             } catch (err) {
                 console.warn("Lưu đám mây gặp sự cố, dữ liệu đã lưu trữ an toàn tại máy cục bộ.", err);
-                showToast("Đã ghi nhận dữ liệu ngoại tuyến thành công!", "warning");
+                showToast("Đã lưu tạm dữ liệu ngoại tuyến thành công!", "warning");
             }
             resetRepairForm();
             await fetchRepairLogs();
         }
 
+        function editRepairLog(id) {
+            let item = DB_NHAT_KY.find(x => String(x.id) === String(id));
+            if(!item) return;
+            
+            document.getElementById('form_repair_title').innerHTML = `<i class="fa-solid fa-pen"></i> Chỉnh sửa Phiếu quyết toán bảo dưỡng / sửa chữa`;
+            document.getElementById('editing_repair_id').value = item.id;
+            
+            document.getElementById('rep_device_code').value = item.device_code || '';
+            document.getElementById('rep_device_name').value = item.device_name || '';
+            document.getElementById('rep_device_search').value = item.device_name ? `${item.device_name} (${item.device_code})` : (item.device_code || '');
+            
+            document.getElementById('rep_title').value = item.title || item.ten_ho_so || '';
+            document.getElementById('rep_beneficiary').value = item.beneficiary || item.don_vi_thu_huong || '';
+            document.getElementById('rep_bank_account').value = item.bank_account || item.so_tai_khoan || '';
+            document.getElementById('rep_bank_name').value = item.bank_name || item.ten_ngan_hang || '';
+            document.getElementById('rep_content').value = item.noi_dung || '';
+            document.getElementById('rep_cost_before').value = item.chi_phi_truoc_thue || 0;
+            
+            // Set Tax Rate
+            const taxRate = item.thue_suat !== undefined ? item.thue_suat : 10;
+            const selectRate = document.getElementById('rep_tax_rate');
+            if (['0', '5', '8', '10'].includes(String(taxRate))) {
+                selectRate.value = String(taxRate);
+                document.getElementById('custom_tax_group').style.display = 'none';
+            } else {
+                selectRate.value = 'custom';
+                document.getElementById('rep_tax_custom_val').value = taxRate;
+                document.getElementById('custom_tax_group').style.display = 'block';
+            }
+            
+            document.getElementById('rep_payment_status').value = item.payment_status || item.status || 'Chưa thanh toán';
+            document.getElementById('rep_date').value = item.ngay_thuc_hien || '';
+            
+            // Attachments
+            selectedRepairFiles = [];
+            const x_attachment = item.attachment || item.attachment_base64;
+            if (x_attachment) {
+                try {
+                    const parsed = JSON.parse(x_attachment);
+                    if (Array.isArray(parsed)) {
+                        selectedRepairFiles = parsed;
+                    } else {
+                        selectedRepairFiles = [{ name: item.attachment_name || "chung-tu.png", base64: x_attachment, size: "N/A" }];
+                    }
+                } catch (e) {
+                    selectedRepairFiles = [{ name: item.attachment_name || "chung-tu.png", base64: x_attachment, size: "N/A" }];
+                }
+            }
+            renderSelectedFilesPreview();
+            calculateFlexibleTax();
+            
+            document.getElementById('form_repair_title').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function deleteRepairLog(id) {
+            showConfirmDialog("Xóa quyết toán sửa chữa", "Bạn có thực sự muốn xóa hồ sơ quyết toán này khỏi hệ thống?", async () => {
+                // Lớp 1: Xóa nhanh trên UI
+                DB_NHAT_KY = DB_NHAT_KY.filter(x => String(x.id) !== String(id));
+                localStorage.setItem('local_db_nhat_ky_v2', JSON.stringify(DB_NHAT_KY));
+                calculateRepairDashboard();
+                displayRepairLogs();
+
+                // Lớp 2: Đồng bộ xóa đám mây ngầm
+                try {
+                    if (!String(id).startsWith('local_')) {
+                        await client.from('nhat_ky_sua_chua').delete().eq('id', id); 
+                    }
+                    showToast("Đã xóa quyết toán thành công!", "success");
+                } catch (e) {
+                    console.error(e);
+                    showToast("Đã xóa tạm thời tại thiết bị này!", "warning");
+                }
+                await fetchRepairLogs();
+            });
+        }
+
         function resetRepairForm() {
+            document.getElementById('editing_repair_id').value = "";
+            document.getElementById('form_repair_title').innerHTML = `<i class="fa-solid fa-receipt"></i> Lập Phiếu quyết toán bảo dưỡng / sửa chữa`;
+            
             document.getElementById('rep_device_search').value = ""; 
             document.getElementById('rep_device_code').value = "";
             document.getElementById('rep_device_name').value = "";
@@ -1619,8 +1824,8 @@ ${rawTagString}
             document.getElementById('rep_bank_name').value = ""; 
             document.getElementById('rep_content').value = ""; 
             document.getElementById('rep_cost_before').value = "0";
-            document.getElementById('rep_doc_base64').value = "";
             document.getElementById('rep_doc_file').value = "";
+            clearUploadedFile();
             calculateFlexibleTax();
         }
 
@@ -1635,15 +1840,11 @@ ${rawTagString}
                 const x_title = x.title || x.ten_ho_so || '';
                 const x_beneficiary = x.beneficiary || x.don_vi_thu_huong || '';
                 if(!kw) return true;
-                return (x.device_code && x.device_code.toLowerCase().includes(kw)) || 
-                       (x.noi_dung && x.noi_dung.toLowerCase().includes(kw)) || 
-                       (x.device_name && x.device_name.toLowerCase().includes(kw)) || 
-                       (x_title && x_title.toLowerCase().includes(kw)) || 
-                       (x_beneficiary && x_beneficiary.toLowerCase().includes(kw));
+                return (x.device_code && x.device_code.toLowerCase().includes(kw)) || (x.noi_dung && x.noi_dung.toLowerCase().includes(kw)) || (x.device_name && x.device_name.toLowerCase().includes(kw)) || (x_title && x_title.toLowerCase().includes(kw)) || (x_beneficiary && x_beneficiary.toLowerCase().includes(kw));
             });
 
             if(filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="10" class="text-center p-8 text-slate-400 text-sm">Không thấy nhật ký sửa chữa phù hợp.</td></tr>`; return;
+                tbody.innerHTML = `<tr><td colspan="11" class="text-center p-8 text-slate-400 text-sm">Không thấy nhật ký sửa chữa phù hợp.</td></tr>`; return;
             }
 
             filtered.forEach(x => {
@@ -1658,9 +1859,19 @@ ${rawTagString}
                 const x_bank_name = x.bank_name || x.ten_ngan_hang || '';
                 const x_attachment = x.attachment || x.attachment_base64 || '';
 
+                // Phân tích xem trường đính kèm có phải là mảng nhiều file JSON không
                 let docLink = "";
                 if(x_attachment) {
-                    docLink = `<button onclick="viewDocAttachment('${x.id}')" class="text-blue-600 hover:text-blue-800 text-sm font-bold flex items-center gap-1.5 mx-auto justify-center"><i class="fa-solid fa-file-invoice"></i> Xem</button>`;
+                    try {
+                        const parsedFiles = JSON.parse(x_attachment);
+                        if (Array.isArray(parsedFiles)) {
+                            docLink = `<button onclick="viewDocAttachment('${x.id}')" class="bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800 text-xs font-bold px-2.5 py-1.5 rounded-lg border border-blue-200 flex items-center gap-1 mx-auto justify-center"><i class="fa-solid fa-folder-open"></i> Xem (${parsedFiles.length} file)</button>`;
+                        } else {
+                            docLink = `<button onclick="viewDocAttachment('${x.id}')" class="text-blue-600 hover:text-blue-800 text-sm font-bold flex items-center gap-1.5 mx-auto justify-center"><i class="fa-solid fa-file-invoice"></i> Xem</button>`;
+                        }
+                    } catch (e) {
+                        docLink = `<button onclick="viewDocAttachment('${x.id}')" class="text-blue-600 hover:text-blue-800 text-sm font-bold flex items-center gap-1.5 mx-auto justify-center"><i class="fa-solid fa-file-invoice"></i> Xem</button>`;
+                    }
                 } else {
                     docLink = `<span class="text-slate-300">--</span>`;
                 }
@@ -1689,34 +1900,79 @@ ${rawTagString}
                     <td class="p-3.5 text-center"><span class="badge ${badgeClass} px-2.5 py-1 rounded font-semibold text-xs">${pStatus}</span></td>
                     <td class="p-3.5 text-center">${docLink}</td>
                     <td class="p-3.5 text-center text-slate-500 text-xs">${x.ngay_thuc_hien || ''}</td>
+                    <td class="p-3.5 text-center font-bold">
+                        <button class="text-blue-600 hover:text-blue-800 font-bold mr-3 text-sm" onclick="editRepairLog('${x.id}')"><i class="fa-solid fa-pen"></i> Sửa</button>
+                        <button class="text-rose-600 hover:text-rose-800 font-bold text-sm" onclick="deleteRepairLog('${x.id}')"><i class="fa-solid fa-trash"></i> Xóa</button>
+                    </td>
                 `;
                 tbody.appendChild(tr);
             });
         }
 
+        // Hỗ trợ xem mảng nhiều hóa đơn chứng từ trong tệp nén JSON
         function viewDocAttachment(id) {
             let item = DB_NHAT_KY.find(x => String(x.id) === String(id));
             if(!item) return;
 
             const x_attachment = item.attachment || item.attachment_base64;
-            const x_attachment_name = item.attachment_name || "chung-tu-khoasor.png";
+            const x_attachment_name = item.attachment_name || "chung-tu.png";
             if(!x_attachment) return;
 
             const modal = document.getElementById('docViewerModal');
             const body = document.getElementById('docViewerBody');
-            const dl = document.getElementById('docViewerDownloadLink');
+            if(!modal || !body) return;
 
             body.innerHTML = "";
-            dl.href = x_attachment;
-            dl.download = x_attachment_name;
+            let fileList = [];
 
-            if (x_attachment.startsWith("data:image")) {
-                body.innerHTML = `<img src="${x_attachment}" class="max-w-full max-h-[50vh] sm:max-h-[60vh] object-contain rounded border">`;
-            } else if (x_attachment.startsWith("data:application/pdf")) {
-                body.innerHTML = `<embed src="${x_attachment}" type="application/pdf" width="100%" height="450px" class="rounded border">`;
-            } else {
-                body.innerHTML = `<p class="text-sm text-slate-500">Tệp định dạng không xác định. Vui lòng tải về để xem chi tiết.</p>`;
+            try {
+                // Thử giải nén chuỗi JSON chứa danh sách file
+                const parsed = JSON.parse(x_attachment);
+                if (Array.isArray(parsed)) {
+                    fileList = parsed;
+                } else {
+                    fileList = [{ name: item.attachment_name || "chung-tu.png", base64: x_attachment, size: "N/A" }];
+                }
+            } catch (e) {
+                fileList = [{ name: item.attachment_name || "chung-tu.png", base64: x_attachment, size: "N/A" }];
             }
+
+            // Dựng album ảnh hóa đơn chứng từ chuyên nghiệp kèm liên kết tải xuống tiện lợi
+            fileList.forEach(file => {
+                let docContent = "";
+                const isImg = file.base64.startsWith("data:image");
+
+                if (isImg) {
+                    docContent = `<img src="${file.base64}" class="max-w-full h-auto max-h-[350px] object-contain rounded-lg mx-auto shadow-sm border">`;
+                } else if (file.base64.startsWith("data:application/pdf")) {
+                    docContent = `<embed src="${file.base64}" type="application/pdf" width="100%" height="320px" class="rounded border">`;
+                } else {
+                    docContent = `
+                        <div class="p-6 text-center border-2 border-dashed border-slate-300 rounded-xl bg-white">
+                            <i class="fa-solid fa-file-invoice-dollar text-4xl text-blue-500 mb-2"></i>
+                            <div class="text-xs font-bold text-slate-700 truncate max-w-[200px] mx-auto">${file.name}</div>
+                        </div>
+                    `;
+                }
+
+                const card = document.createElement('div');
+                card.className = "bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between gap-3";
+                card.innerHTML = `
+                    <div class="flex-grow flex items-center justify-center bg-slate-50 p-2 rounded-lg">
+                        ${docContent}
+                    </div>
+                    <div class="flex items-center justify-between border-t border-slate-100 pt-3">
+                        <div class="min-w-0 flex-1 pr-2">
+                            <div class="text-xs font-bold text-slate-800 truncate" title="${file.name}">${file.name}</div>
+                            <div class="text-[10px] text-slate-400 font-medium mt-0.5">${file.size || 'N/A'}</div>
+                        </div>
+                        <a href="${file.base64}" download="${file.name}" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold px-3 py-2 rounded-lg border border-emerald-200 flex items-center gap-1.5 shrink-0 transition-colors">
+                            <i class="fa-solid fa-download"></i> Tải về
+                        </a>
+                    </div>
+                `;
+                body.appendChild(card);
+            });
 
             modal.classList.remove('hidden');
         }
