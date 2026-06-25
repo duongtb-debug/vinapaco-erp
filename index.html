@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Hệ Thống Quản Trị Nhân Sự & Thiết Bị - VINAPACO</title>
 
     <!-- Tailwind CSS -->
@@ -26,6 +26,8 @@
             background-color: #f8fafc;
             -webkit-font-smoothing: antialiased;
             font-size: 15px;
+            /* Chặn hiện tượng nhấp nháy màu xanh khi chạm trên di động */
+            -webkit-tap-highlight-color: transparent;
         }
         /* Cho phép cuộn trơn toàn trang và không giật lag */
         html, body {
@@ -36,8 +38,8 @@
         }
         /* Thanh cuộn tối giản hiện đại */
         ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
+            width: 6px;
+            height: 6px;
         }
         ::-webkit-scrollbar-track {
             background: #f1f5f9;
@@ -49,17 +51,29 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #94a3b8;
         }
-        /* CSS căn chỉnh riêng cho thẻ ảnh QR hiển thị vừa vặn, đẹp mắt */
+        /* CSS căn chỉnh riêng cho thẻ ảnh QR hiển thị vừa vặn, sắc nét và kích cỡ tối ưu để quét ngay lập tức */
         .qr-canvas img {
             display: block;
             margin: 0 auto;
-            max-width: 75px;
-            height: auto;
-            border: 1px solid #e2e8f0;
-            border-radius: 6px;
+            width: 95px !important; /* Đảm bảo kích thước tối ưu để camera di động bắt nét ngay lập tức */
+            height: 95px !important;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
             padding: 4px;
             background: #ffffff;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            transition: transform 0.2s ease-in-out;
+        }
+        .qr-canvas img:hover {
+            transform: scale(1.05);
+        }
+        /* Hiệu ứng mượt mà khi di chuyển các tab trên di động */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
         }
         /* Tối ưu hóa chế độ in ấn tem nhãn dán */
         @media print {
@@ -81,7 +95,8 @@
                 margin-bottom: 0.5rem !important;
             }
             .sticker-card img {
-                max-width: 80px !important;
+                width: 110px !important; /* Mã QR khi in tem to hơn một chút để quét siêu nhạy */
+                height: 110px !important;
             }
         }
     </style>
@@ -91,36 +106,36 @@
     <!-- HEADER / LOGO ĐIỀU HÀNH CHÍNH (no-print) -->
     <header class="no-print bg-slate-900 text-white shadow-md border-b border-slate-800 sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center h-20">
-                <div class="flex items-center space-x-4">
-                    <div class="bg-blue-600 text-white p-3 rounded-xl flex items-center justify-center shadow-lg">
-                        <i class="fa-solid fa-layer-group text-2xl"></i>
+            <div class="flex justify-between items-center h-16 sm:h-20">
+                <div class="flex items-center space-x-3 sm:space-x-4">
+                    <div class="bg-blue-600 text-white p-2 sm:p-3 rounded-xl flex items-center justify-center shadow-lg">
+                        <i class="fa-solid fa-layer-group text-lg sm:text-2xl"></i>
                     </div>
                     <div>
-                        <h1 class="text-lg font-bold tracking-wider leading-tight uppercase text-white">VINAPACO ERP</h1>
-                        <p class="text-xs text-slate-400 font-medium mt-0.5">Hệ thống điều hành & quản trị nhân sự - thiết bị toàn diện</p>
+                        <h1 class="text-base sm:text-lg font-bold tracking-wider leading-tight uppercase text-white">VINAPACO ERP</h1>
+                        <p class="hidden sm:block text-xs text-slate-400 font-medium mt-0.5">Hệ thống điều hành & quản trị nhân sự - thiết bị toàn diện</p>
                     </div>
                 </div>
                 <div class="flex items-center space-x-3">
-                    <span class="text-sm bg-slate-800 text-blue-400 font-semibold px-4 py-2 rounded-lg border border-slate-700 flex items-center gap-2">
-                        <i class="fa-solid fa-cloud text-xs"></i> <span id="count_ns" class="font-bold">0</span> Nhân sự Đám Mây
+                    <span class="text-xs sm:text-sm bg-slate-800 text-blue-400 font-semibold px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg border border-slate-700 flex items-center gap-1.5 sm:gap-2">
+                        <i class="fa-solid fa-cloud text-[10px] sm:text-xs"></i> <span id="count_ns" class="font-bold">0</span> <span class="hidden sm:inline">Nhân sự Đám Mây</span><span class="sm:hidden">Mây</span>
                     </span>
                 </div>
             </div>
         </div>
     </header>
 
-    <!-- THANH MENU CHUYỂN TAB CHÍNH (no-print) -->
-    <div class="no-print max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
-        <div class="flex space-x-2 border-b border-slate-200">
-            <button id="tabBtn_hoso" onclick="switchSection('hoso')" class="px-6 py-4 border-b-2 border-blue-600 font-bold text-sm text-blue-600 flex items-center gap-2.5 hover:text-blue-700 transition">
+    <!-- THANH MENU CHUYỂN TAB CHÍNH (no-print) - Đã tối ưu trượt ngang trơn tru trên di động -->
+    <div class="no-print max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 sm:mt-6">
+        <div class="flex space-x-2 border-b border-slate-200 overflow-x-auto no-scrollbar flex-nowrap -mx-4 px-4 sm:mx-0 sm:px-0" style="-webkit-overflow-scrolling: touch;">
+            <button id="tabBtn_hoso" onclick="switchSection('hoso')" class="px-5 py-3 sm:px-6 sm:py-4 border-b-2 border-blue-600 font-bold text-sm text-blue-600 flex items-center gap-2 whitespace-nowrap shrink-0 transition-all">
                 <i class="fa-solid fa-address-card text-base"></i> Hồ sơ Nhân sự
             </button>
-            <button id="tabBtn_thietbi" onclick="switchSection('thietbi')" class="px-6 py-4 border-b-2 border-transparent font-bold text-sm text-slate-500 flex items-center gap-2.5 hover:text-slate-800 transition">
+            <button id="tabBtn_thietbi" onclick="switchSection('thietbi')" class="px-5 py-3 sm:px-6 sm:py-4 border-b-2 border-transparent font-bold text-sm text-slate-500 flex items-center gap-2 whitespace-nowrap shrink-0 transition-all">
                 <i class="fa-solid fa-laptop-code text-base"></i> Cấp phát Thiết bị / TS
             </button>
-            <button id="tabBtn_suachua" onclick="switchSection('suachua')" class="px-6 py-4 border-b-2 border-transparent font-bold text-sm text-slate-500 flex items-center gap-2.5 hover:text-slate-800 transition">
-                <i class="fa-solid fa-screwdriver-wrench text-base"></i> Nhật ký Sửa chữa & Chứng từ
+            <button id="tabBtn_suachua" onclick="switchSection('suachua')" class="px-5 py-3 sm:px-6 sm:py-4 border-b-2 border-transparent font-bold text-sm text-slate-500 flex items-center gap-2 whitespace-nowrap shrink-0 transition-all">
+                <i class="fa-solid fa-screwdriver-wrench text-base"></i> Sửa chữa & Chứng từ
             </button>
         </div>
     </div>
@@ -128,91 +143,96 @@
     <!-- ================================================================================================= -->
     <!-- TAB 1: HỒ SƠ NHÂN SỰ -->
     <!-- ================================================================================================= -->
-    <section id="sec_hoso" class="app-section no-print max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <section id="sec_hoso" class="app-section no-print max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
         
-        <!-- CARD THỐNG KÊ KPI NHÂN SỰ -->
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-5 mb-6">
-            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+        <!-- CARD THỐNG KÊ KPI NHÂN SỰ - Responsive từ 1 đến 4 cột tùy màn hình -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 mb-6">
+            <div class="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
                 <div>
                     <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Lao Động Nam</p>
-                    <h3 class="text-2xl font-bold text-slate-900 mt-1" id="hr_stat_male">0</h3>
+                    <h3 class="text-xl sm:text-2xl font-bold text-slate-900 mt-1" id="hr_stat_male">0</h3>
                 </div>
-                <div class="h-12 w-12 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-lg">
+                <div class="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-base sm:text-lg">
                     <i class="fa-solid fa-mars"></i>
                 </div>
             </div>
-            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+            <div class="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
                 <div>
                     <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Lao Động Nữ</p>
-                    <h3 class="text-2xl font-bold text-slate-900 mt-1" id="hr_stat_female">0</h3>
+                    <h3 class="text-xl sm:text-2xl font-bold text-slate-900 mt-1" id="hr_stat_female">0</h3>
                 </div>
-                <div class="h-12 w-12 rounded-lg bg-pink-50 text-pink-600 flex items-center justify-center text-lg">
+                <div class="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-pink-50 text-pink-600 flex items-center justify-center text-base sm:text-lg">
                     <i class="fa-solid fa-venus"></i>
                 </div>
             </div>
-            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+            <div class="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
                 <div>
                     <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">An Toàn Viên (ATV)</p>
-                    <h3 class="text-2xl font-bold text-emerald-700 mt-1" id="hr_stat_atv">0</h3>
+                    <h3 class="text-xl sm:text-2xl font-bold text-emerald-700 mt-1" id="hr_stat_atv">0</h3>
                 </div>
-                <div class="h-12 w-12 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg">
+                <div class="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center text-base sm:text-lg">
                     <i class="fa-solid fa-shield-halved"></i>
                 </div>
             </div>
-            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+            <div class="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
                 <div>
                     <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Nghề Nguy Hiểm (NNĐH)</p>
-                    <h3 class="text-2xl font-bold text-amber-700 mt-1" id="hr_stat_nndh">0</h3>
+                    <h3 class="text-xl sm:text-2xl font-bold text-amber-700 mt-1" id="hr_stat_nndh">0</h3>
                 </div>
-                <div class="h-12 w-12 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center text-lg">
+                <div class="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center text-base sm:text-lg">
                     <i class="fa-solid fa-biohazard"></i>
                 </div>
             </div>
         </div>
 
-        <!-- KHU VỰC ĐỒ THỊ TRỰC QUAN HÀI HÒA -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-            <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+        <!-- KHU VỰC ĐỒ THỊ TRỰC QUAN HÀI HÒA - Responsive linh hoạt -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6 sm:mb-8">
+            <div class="bg-white p-4 sm:p-6 rounded-xl border border-slate-200 shadow-sm">
                 <h4 class="text-sm font-bold text-slate-800 uppercase border-l-4 border-blue-600 pl-3 mb-4">Dự báo nghỉ hưu tương lai</h4>
-                <div style="position: relative; width:100%; height: 260px;">
+                <div style="position: relative; width:100%; height: 220px; sm:height: 260px;">
                     <canvas id="retireChart"></canvas>
                 </div>
             </div>
-            <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+            <div class="bg-white p-4 sm:p-6 rounded-xl border border-slate-200 shadow-sm">
                 <h4 class="text-sm font-bold text-slate-800 uppercase border-l-4 border-blue-600 pl-3 mb-4">Cơ cấu giới tính</h4>
-                <div style="position: relative; width:100%; height: 260px;">
+                <div style="position: relative; width:100%; height: 220px; sm:height: 260px;">
                     <canvas id="genderChart"></canvas>
                 </div>
             </div>
-            <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+            <div class="bg-white p-4 sm:p-6 rounded-xl border border-slate-200 shadow-sm">
                 <h4 class="text-sm font-bold text-slate-800 uppercase border-l-4 border-blue-600 pl-3 mb-4">Phân bổ đơn vị chủ lực</h4>
-                <div style="position: relative; width:100%; height: 260px;">
+                <div style="position: relative; width:100%; height: 220px; sm:height: 260px;">
                     <canvas id="deptChart"></canvas>
                 </div>
             </div>
         </div>
 
-        <!-- BỘ LỌC VÀ ĐỒNG BỘ DỮ LIỆU -->
-        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm mb-6 flex flex-col md:flex-row gap-4 items-center justify-between">
-            <div class="w-full md:w-auto flex flex-col sm:flex-row gap-3 flex-1 max-w-2xl">
-                <input type="text" id="search_hoso" placeholder="Tìm nhanh theo Họ Tên hoặc số CCCD..." class="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition">
-                <select id="filter_donvi" class="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500">
+        <!-- BỘ LỌC VÀ ĐỒNG BỘ DỮ LIỆU - Thiết kế xếp chồng trên Mobile -->
+        <div class="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-sm mb-6 flex flex-col lg:flex-row gap-4 items-stretch lg:items-center lg:justify-between">
+            <div class="w-full lg:w-auto flex flex-col sm:flex-row gap-3 flex-1 max-w-3xl">
+                <input type="text" id="search_hoso" placeholder="Tìm nhanh theo Họ Tên hoặc số CCCD..." class="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition h-12">
+                <select id="filter_donvi" class="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 h-12">
                     <option value="">-- Tất cả Mã Đơn Vị --</option>
                 </select>
             </div>
-            <div class="flex gap-3 w-full md:w-auto">
-                <div class="relative bg-sky-500 hover:bg-sky-600 text-white font-bold text-sm px-5 py-3 rounded-lg transition shadow-md cursor-pointer flex items-center gap-2 justify-center flex-1 md:flex-none">
+            <div class="flex flex-col sm:flex-row gap-3 w-full lg:w-auto shrink-0">
+                <div class="relative bg-sky-500 hover:bg-sky-600 text-white font-bold text-sm px-5 py-3 rounded-lg transition shadow-md cursor-pointer flex items-center gap-2 justify-center h-12">
                     <i class="fa-solid fa-file-excel"></i> Đồng bộ File gốc Excel
                     <input type="file" onchange="importExcelNhanSu(this)" accept=".xlsx, .xls" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full">
                 </div>
-                <button onclick="clearDataCloud('nhan_su')" class="bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm px-5 py-3 rounded-lg transition shadow-md flex items-center gap-2 justify-center flex-1 md:flex-none">
+                <button onclick="clearDataCloud('nhan_su')" class="bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm px-5 py-3 rounded-lg transition shadow-md flex items-center gap-2 justify-center h-12">
                     <i class="fa-solid fa-trash-can"></i> Xóa Đám mây
                 </button>
             </div>
         </div>
 
+        <!-- Chỉ báo trượt ngang bảng di động -->
+        <div class="block md:hidden text-right text-xs text-blue-600 font-semibold mb-2 animate-pulse">
+            Vuốt ngang để xem thêm <i class="fa-solid fa-angles-right"></i>
+        </div>
+
         <!-- BẢNG HỒ SƠ NHÂN SỰ TRẢI DÀI KHÔNG BỊ NẢY CUỘN -->
-        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto" style="-webkit-overflow-scrolling: touch;">
             <table class="w-full text-left border-collapse min-w-[1200px]">
                 <thead>
                     <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 text-sm font-semibold tracking-wider">
@@ -238,7 +258,7 @@
         </div>
         
         <!-- Điểm mốc thông minh cho IntersectionObserver xử lý cuộn lười cực mượt -->
-        <div id="nhansu_sentinel" class="h-12 flex items-center justify-center text-slate-400 font-semibold text-xs mt-4">
+        <div id="nhansu_sentinel" class="h-14 flex items-center justify-center text-slate-400 font-semibold text-xs mt-4">
             <span id="nhansu_sentinel_text">Đang cuộn xuống để tải thêm dữ liệu...</span>
         </div>
     </section>
@@ -246,59 +266,64 @@
     <!-- ================================================================================================= -->
     <!-- TAB 2: CẤP PHÁT THIẾT BỊ TÀI SẢN -->
     <!-- ================================================================================================= -->
-    <section id="sec_thietbi" class="app-section no-print max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 hidden">
+    <section id="sec_thietbi" class="app-section no-print max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 hidden">
         <div class="flex flex-col gap-6">
             
-            <!-- BIỂU MẪU CẤP PHÁT THIẾT BỊ MỚI (GRID NGANG TOÀN MÀN HÌNH RỘNG RÃI) -->
-            <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+            <!-- BIỂU MẪU CẤP PHÁT THIẾT BỊ MỚI (GRID CO GIÃN THÔNG MINH) -->
+            <div class="bg-white p-5 sm:p-6 rounded-xl border border-slate-200 shadow-sm">
                 <h3 id="form_device_title" class="text-sm font-bold text-slate-800 uppercase border-l-4 border-blue-600 pl-3 mb-5"><i class="fa-solid fa-square-plus"></i> Biểu mẫu Cấp phát thiết bị mới</h3>
                 <input type="hidden" id="editing_device_id">
 
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
-                    <div class="form-group">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+                    <div class="form-group sm:col-span-2 lg:col-span-1">
                         <label class="block font-bold text-xs text-slate-500 mb-2">Tên thiết bị tài sản *</label>
-                        <input type="text" id="dev_name" placeholder="Ví dụ: Máy tính Laptop Dell XPS" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition">
+                        <input type="text" id="dev_name" placeholder="Ví dụ: Máy tính Laptop Dell XPS" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition h-11">
                     </div>
                     <div class="form-group">
-                        <label class="block font-bold text-xs text-slate-500 mb-2">Số Sê-ri / Mã tài sản (Để trống tự tạo)</label>
-                        <input type="text" id="dev_code" placeholder="Ví dụ: EQ882910" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition">
+                        <label class="block font-bold text-xs text-slate-500 mb-2">Số Sê-ri / Mã tài sản</label>
+                        <input type="text" id="dev_code" placeholder="Ví dụ: EQ882910" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition h-11">
                     </div>
                     <div class="form-group">
                         <label class="block font-bold text-xs text-slate-500 mb-2">Mã đơn vị tiếp quản</label>
-                        <select id="dev_filter_donvi" onchange="resetSelectedUser()" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition">
+                        <select id="dev_filter_donvi" onchange="resetSelectedUser()" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition h-11">
                             <option value="">-- Chọn đơn vị --</option>
                         </select>
                     </div>
                     <div class="form-group relative">
                         <label class="block font-bold text-xs text-slate-500 mb-2">Tìm nhân sự bàn giao</label>
-                        <input type="text" id="dev_user_search" onfocus="smartSuggest(this)" oninput="smartSuggest(this)" placeholder="Click để chọn nhân viên..." class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition">
+                        <input type="text" id="dev_user_search" onfocus="smartSuggest(this)" oninput="smartSuggest(this)" placeholder="Click để chọn nhân viên..." class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition h-11">
                         <input type="hidden" id="dev_user_id">
                         <div id="dev_suggest" class="suggest-box absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto hidden z-20"></div>
                     </div>
                     <div class="form-group">
                         <label class="block font-bold text-xs text-slate-500 mb-2">Trạng thái vận hành</label>
-                        <select id="dev_status_select" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition">
+                        <select id="dev_status_select" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition h-11">
                             <option value="Đang sử dụng">Đang sử dụng</option>
                             <option value="Hỏng hóc / Đang sửa">Hỏng hóc / Đang sửa</option>
                         </select>
                     </div>
                 </div>
 
-                <div class="flex justify-end gap-3 mt-6">
-                    <button onclick="saveDeviceConfig()" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs px-5 py-2.5 rounded-lg shadow-sm transition flex items-center gap-1.5">
+                <div class="flex flex-col sm:flex-row justify-end gap-3 mt-6">
+                    <button onclick="saveDeviceConfig()" class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm px-6 py-3 rounded-lg shadow-sm transition flex items-center justify-center gap-1.5 h-11">
                         <i class="fa-solid fa-floppy-disk"></i> Ghi nhận Hệ thống
                     </button>
-                    <button onclick="resetDeviceForm()" class="bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold text-xs px-5 py-2.5 rounded-lg transition">Hủy bỏ</button>
+                    <button onclick="resetDeviceForm()" class="w-full sm:w-auto bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold text-sm px-6 py-3 rounded-lg transition h-11">Hủy bỏ</button>
                 </div>
             </div>
 
             <!-- BẢNG DANH SÁCH THIẾT BỊ CẤP PHÁT -->
-            <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-5">
+            <div class="bg-white p-5 sm:p-6 rounded-xl border border-slate-200 shadow-sm">
+                <div class="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 mb-5">
                     <h3 class="text-sm font-bold text-slate-800 uppercase border-l-4 border-blue-600 pl-3">Danh sách Thiết bị & QR Code</h3>
-                    <input type="text" id="search_thietbi" placeholder="Tìm kiếm nhanh thiết bị tài sản..." class="w-full md:w-80 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition">
+                    <input type="text" id="search_thietbi" placeholder="Tìm kiếm nhanh thiết bị tài sản..." class="w-full md:w-80 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition h-11">
                 </div>
-                <div class="overflow-x-auto rounded-xl border border-slate-150">
+
+                <div class="block md:hidden text-right text-xs text-blue-600 font-semibold mb-2 animate-pulse">
+                    Vuốt ngang để xem thêm <i class="fa-solid fa-angles-right"></i>
+                </div>
+
+                <div class="overflow-x-auto rounded-xl border border-slate-150" style="-webkit-overflow-scrolling: touch;">
                     <table class="w-full text-left border-collapse min-w-[900px]">
                         <thead>
                             <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 text-sm font-semibold">
@@ -319,7 +344,7 @@
                 
                 <!-- Nút tải thêm thiết bị bảo vệ chống tràn bộ nhớ do vẽ QR nhiều -->
                 <div id="device_more_container" class="mt-4 flex justify-center hidden">
-                    <button onclick="loadMoreDevices()" class="bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs px-6 py-2.5 rounded-lg border transition">
+                    <button onclick="loadMoreDevices()" class="bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs px-6 py-2.5 rounded-lg border transition h-11">
                         <i class="fa-solid fa-angles-down mr-1"></i> Tải thêm thiết bị...
                     </button>
                 </div>
@@ -331,66 +356,66 @@
     <!-- ================================================================================================= -->
     <!-- TAB 3: NHẬT KÝ SỬA CHỮA & CHỨNG TỪ -->
     <!-- ================================================================================================= -->
-    <section id="sec_suachua" class="app-section no-print max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 hidden">
+    <section id="sec_suachua" class="app-section no-print max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 hidden">
         <div class="flex flex-col gap-6">
 
             <!-- THẺ ĐỒNG HỒ KPI SỬA CHỮA -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
-                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-center">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
+                <div class="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-center">
                     <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Số lượng hạch toán</p>
-                    <h3 class="text-2xl font-bold text-slate-900 mt-1" id="lbl_stat_rep_count">0 hồ sơ</h3>
+                    <h3 class="text-xl sm:text-2xl font-bold text-slate-900 mt-1" id="lbl_stat_rep_count">0 hồ sơ</h3>
                 </div>
-                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-center">
+                <div class="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-center">
                     <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Chi phí trước thuế</p>
-                    <h3 class="text-2xl font-bold text-amber-600 mt-1" id="lbl_stat_total_before">0 đ</h3>
+                    <h3 class="text-xl sm:text-2xl font-bold text-amber-600 mt-1" id="lbl_stat_total_before">0 đ</h3>
                 </div>
-                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-center">
+                <div class="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-center">
                     <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Tổng quyết toán (Gồm Thuế)</p>
-                    <h3 class="text-2xl font-bold text-emerald-600 mt-1" id="lbl_stat_total_after">0 đ</h3>
+                    <h3 class="text-xl sm:text-2xl font-bold text-emerald-600 mt-1" id="lbl_stat_total_after">0 đ</h3>
                 </div>
             </div>
 
             <!-- PHẦN NHẬP PHIẾU HẠCH TOÁN SỬA CHỮA & TÀI KHOẢN THỤ HƯỞNG -->
-            <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+            <div class="bg-white p-5 sm:p-6 rounded-xl border border-slate-200 shadow-sm">
                 <h3 class="text-sm font-bold text-slate-800 uppercase border-l-4 border-blue-600 pl-3 mb-5"><i class="fa-solid fa-receipt"></i> Lập Phiếu quyết toán bảo dưỡng / sửa chữa</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
                     
                     <div class="form-group relative">
                         <label class="block font-bold text-xs text-slate-500 mb-2">Tìm chọn thiết bị *</label>
-                        <input type="text" id="rep_device_search" onfocus="suggestRepairDevice(this)" placeholder="Tìm mã hoặc tên thiết bị..." class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition">
+                        <input type="text" id="rep_device_search" onfocus="suggestRepairDevice(this)" placeholder="Tìm mã hoặc tên thiết bị..." class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition h-11">
                         <input type="hidden" id="rep_device_code">
                         <input type="hidden" id="rep_device_name">
                         <div id="rep_device_suggest" class="suggest-box absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto hidden z-20"></div>
                     </div>
                     
-                    <div class="form-group col-span-1 md:col-span-2">
+                    <div class="form-group sm:col-span-2">
                         <label class="block font-bold text-xs text-slate-500 mb-2">Tên hồ sơ quyết toán *</label>
-                        <input type="text" id="rep_title" placeholder="Ví dụ: Thay thế linh kiện và sửa chữa bo mạch chính" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition">
+                        <input type="text" id="rep_title" placeholder="Ví dụ: Thay thế linh kiện và sửa chữa bo mạch chính" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition h-11">
                     </div>
 
                     <div class="form-group">
-                        <label class="block font-bold text-xs text-slate-500 mb-2">Đơn vị thụ hưởng (Bên sửa chữa) *</label>
-                        <input type="text" id="rep_beneficiary" placeholder="Ví dụ: Cty sửa chữa Điện tử Tùng Bách" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition">
+                        <label class="block font-bold text-xs text-slate-500 mb-2">Đơn vị thụ hưởng *</label>
+                        <input type="text" id="rep_beneficiary" placeholder="Ví dụ: Cty sửa chữa Điện tử Tùng Bách" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition h-11">
                     </div>
 
                     <div class="form-group">
                         <label class="block font-bold text-xs text-slate-500 mb-2">Số tài khoản thụ hưởng</label>
-                        <input type="text" id="rep_bank_account" placeholder="Ví dụ: 19033488291012" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition">
+                        <input type="text" id="rep_bank_account" placeholder="Ví dụ: 19033488291012" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition h-11">
                     </div>
 
                     <div class="form-group">
                         <label class="block font-bold text-xs text-slate-500 mb-2">Ngân hàng thụ hưởng</label>
-                        <input type="text" id="rep_bank_name" placeholder="Ví dụ: Techcombank" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition">
+                        <input type="text" id="rep_bank_name" placeholder="Ví dụ: Techcombank" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition h-11">
                     </div>
 
                     <div class="form-group">
                         <label class="block font-bold text-xs text-slate-500 mb-2">Chi phí trước thuế (VNĐ) *</label>
-                        <input type="number" id="rep_cost_before" value="0" oninput="calculateFlexibleTax()" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition">
+                        <input type="number" id="rep_cost_before" value="0" oninput="calculateFlexibleTax()" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition h-11">
                     </div>
 
                     <div class="form-group">
                         <label class="block font-bold text-xs text-slate-500 mb-2">Thuế suất VAT</label>
-                        <select id="rep_tax_rate" onchange="toggleCustomTaxField()" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition">
+                        <select id="rep_tax_rate" onchange="toggleCustomTaxField()" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition h-11">
                             <option value="0">0% (Không thuế)</option>
                             <option value="5">5%</option>
                             <option value="8">8%</option>
@@ -401,31 +426,31 @@
 
                     <div class="form-group" id="custom_tax_group" style="display:none;">
                         <label class="block font-bold text-xs text-slate-500 mb-2">Nhập mức thuế riêng (%)</label>
-                        <input type="number" id="rep_tax_custom_val" value="0" oninput="calculateFlexibleTax()" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition">
+                        <input type="number" id="rep_tax_custom_val" value="0" oninput="calculateFlexibleTax()" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition h-11">
                     </div>
 
                     <div class="form-group">
                         <label class="block font-bold text-xs text-slate-500 mb-2">Ngày thực hiện</label>
-                        <input type="date" id="rep_date" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition">
+                        <input type="date" id="rep_date" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition h-11">
                     </div>
 
                     <div class="form-group">
                         <label class="block font-bold text-xs text-slate-500 mb-2">Đính kèm chứng từ thanh toán (PDF/Hình ảnh)</label>
-                        <div class="relative bg-slate-50 border border-dashed border-slate-300 rounded-lg p-2.5 flex items-center justify-center cursor-pointer hover:bg-slate-100 transition">
+                        <div class="relative bg-slate-50 border border-dashed border-slate-300 rounded-lg p-2.5 flex items-center justify-center cursor-pointer hover:bg-slate-100 transition h-11">
                             <span class="text-xs text-slate-500"><i class="fa-solid fa-cloud-arrow-up"></i> Chọn tài liệu...</span>
                             <input type="file" id="rep_doc_file" onchange="handleDocumentUpload(this)" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full">
                         </div>
                         <input type="hidden" id="rep_doc_base64">
                     </div>
 
-                    <div class="form-group col-span-1 md:col-span-2">
+                    <div class="form-group sm:col-span-2">
                         <label class="block font-bold text-xs text-slate-500 mb-2">Nội dung bảo dưỡng chi tiết *</label>
-                        <textarea id="rep_content" rows="2" placeholder="Ghi nhận cụ thể tình trạng và quá trình xử lý thiết bị..." class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition"></textarea>
+                        <textarea id="rep_content" rows="2" placeholder="Ghi nhận cụ thể tình trạng và quá trình xử lý thiết bị..." class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition min-h-[44px]"></textarea>
                     </div>
 
                     <div class="form-group">
                         <label class="block font-bold text-xs text-slate-500 mb-2">Trạng thái thanh toán</label>
-                        <select id="rep_payment_status" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition">
+                        <select id="rep_payment_status" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition h-11">
                             <option value="Chưa thanh toán">Chưa thanh toán</option>
                             <option value="Chờ duyệt">Chờ duyệt</option>
                             <option value="Đã thanh toán">Đã thanh toán</option>
@@ -433,24 +458,29 @@
                     </div>
                 </div>
 
-                <div class="bg-slate-50 p-5 rounded-xl mt-5 flex flex-col md:flex-row justify-between items-center gap-4">
-                    <div class="flex gap-6 text-sm text-slate-600">
+                <div class="bg-slate-50 p-4 sm:p-5 rounded-xl mt-5 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4">
+                    <div class="flex flex-col sm:flex-row gap-2 sm:gap-6 text-sm text-slate-600">
                         <span>Tiền thuế VAT: <b id="lbl_tax_money" class="text-amber-700">0 VNĐ</b></span>
                         <span>Tổng chi phí quyết toán: <b id="lbl_total_cost" class="text-emerald-700 font-bold">0 VNĐ</b></span>
                     </div>
-                    <button onclick="saveRepairLog()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm px-6 py-3 rounded-lg shadow-md transition flex items-center gap-2 w-full md:w-auto justify-center">
+                    <button onclick="saveRepairLog()" class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm px-6 py-3 rounded-lg shadow-md transition flex items-center justify-center gap-2 h-11">
                         <i class="fa-solid fa-calculator"></i> Chốt quyết toán & Lưu trữ
                     </button>
                 </div>
             </div>
 
             <!-- BẢNG NHẬT KÝ SỬA CHỮA VÀ CHỨNG TỪ HOÀN THIỆN -->
-            <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-5">
+            <div class="bg-white p-5 sm:p-6 rounded-xl border border-slate-200 shadow-sm">
+                <div class="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 mb-5">
                     <h3 class="text-sm font-bold text-slate-800 uppercase border-l-4 border-blue-600 pl-3">Nhật ký Quyết toán bảo dưỡng</h3>
-                    <input type="text" id="search_suachua_input" placeholder="Tìm kiếm nhanh nhật ký sửa chữa..." class="w-full md:w-80 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition">
+                    <input type="text" id="search_suachua_input" placeholder="Tìm kiếm nhanh nhật ký sửa chữa..." class="w-full md:w-80 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition h-11">
                 </div>
-                <div class="overflow-x-auto rounded-xl border border-slate-150">
+
+                <div class="block md:hidden text-right text-xs text-blue-600 font-semibold mb-2 animate-pulse">
+                    Vuốt ngang để xem thêm <i class="fa-solid fa-angles-right"></i>
+                </div>
+
+                <div class="overflow-x-auto rounded-xl border border-slate-150" style="-webkit-overflow-scrolling: touch;">
                     <table class="w-full text-left border-collapse min-w-[1100px]">
                         <thead>
                             <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 text-sm font-semibold">
@@ -486,31 +516,33 @@
     </div>
 
     <!-- ================================================================================================= -->
-    <!-- HỘP THOẠI XEM CHỨNG TỪ (DOCS / PDF / IMAGES MODAL) -->
+    <!-- HỘP THOẠI XEM CHỨNG TỪ (DOCS / PDF / IMAGES MODAL) - Trượt lên từ cạnh dưới trên Mobile -->
     <!-- ================================================================================================= -->
-    <div id="docViewerModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden" onclick="closeDocViewer()">
-        <div class="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[85vh] overflow-hidden flex flex-col" onclick="event.stopPropagation()">
-            <div class="bg-slate-900 text-white p-4 flex justify-between items-center">
+    <div id="docViewerModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 z-[100] hidden" onclick="closeDocViewer()">
+        <div class="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl max-w-2xl w-full max-h-[85vh] sm:max-h-[90vh] overflow-hidden flex flex-col transform transition-transform duration-300" onclick="event.stopPropagation()">
+            <div class="bg-slate-900 text-white p-4 flex justify-between items-center shrink-0">
                 <span class="text-sm font-bold uppercase" id="docViewerTitle">Chứng từ đính kèm</span>
-                <button onclick="closeDocViewer()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+                <button onclick="closeDocViewer()" class="text-slate-400 hover:text-white p-2">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
             </div>
-            <div class="p-6 overflow-y-auto flex-grow flex items-center justify-center bg-slate-100" id="docViewerBody">
+            <div class="p-4 sm:p-6 overflow-y-auto flex-grow flex items-center justify-center bg-slate-100 min-h-[250px]" id="docViewerBody">
                 <!-- Nội dung hiển thị tài liệu -->
             </div>
-            <div class="bg-slate-50 p-4 border-t border-slate-100 flex justify-end gap-2.5">
-                <a id="docViewerDownloadLink" download="Chung_Tu_Vat.png" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-5 py-2 rounded-lg transition flex items-center gap-1.5 cursor-pointer">
+            <div class="bg-slate-50 p-4 border-t border-slate-100 flex flex-col sm:flex-row justify-end gap-2.5 shrink-0">
+                <a id="docViewerDownloadLink" download="Chung_Tu_Vat.png" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-5 py-3 sm:py-2.5 rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer h-11 sm:h-auto">
                     <i class="fa-solid fa-download"></i> Tải về tệp gốc
                 </a>
-                <button onclick="closeDocViewer()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold px-5 py-2 rounded-lg transition">Đóng lại</button>
+                <button onclick="closeDocViewer()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold px-5 py-3 sm:py-2.5 rounded-lg transition h-11 sm:h-auto">Đóng lại</button>
             </div>
         </div>
     </div>
 
     <!-- ================================================================================================= -->
-    <!-- HỘP THOẠI CUSTOM CONFIRM DIALOG (MODAL THAY THẾ CHẶN ALERT TRÌNH DUYỆT) -->
+    <!-- HỘP THOẠI CUSTOM CONFIRM DIALOG (MODAL THAY THẾ CHẶN ALERT TRÌNH DUYỆT) - Trượt lên trên Mobile -->
     <!-- ================================================================================================= -->
-    <div id="confirmModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
-        <div class="bg-white rounded-xl shadow-xl max-w-md w-full overflow-hidden">
+    <div id="confirmModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 z-[110] hidden">
+        <div class="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl max-w-md w-full overflow-hidden transform transition-transform duration-300">
             <div class="p-5">
                 <div class="flex items-start gap-4">
                     <div class="h-10 w-10 bg-amber-50 text-amber-600 rounded-lg flex items-center justify-center text-lg shrink-0">
@@ -522,17 +554,17 @@
                     </div>
                 </div>
             </div>
-            <div class="bg-slate-50 px-5 py-3.5 border-t border-slate-100 flex justify-end gap-2.5">
-                <button id="confirmYesBtn" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-4 py-2 rounded-lg transition">Xác nhận</button>
-                <button id="confirmNoBtn" class="bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold px-4 py-2 rounded-lg transition">Hủy bỏ</button>
+            <div class="bg-slate-50 p-4 border-t border-slate-100 flex flex-col sm:flex-row justify-end gap-2.5">
+                <button id="confirmYesBtn" class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-5 py-3 sm:py-2.5 rounded-lg transition h-11 sm:h-auto">Xác nhận</button>
+                <button id="confirmNoBtn" class="w-full sm:w-auto bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold px-5 py-3 sm:py-2.5 rounded-lg transition h-11 sm:h-auto">Hủy bỏ</button>
             </div>
         </div>
     </div>
 
-    <!-- TOAST THÔNG BÁO NỔI -->
-    <div id="toast" class="fixed bottom-5 right-5 bg-slate-900 text-white px-5 py-3.5 rounded-lg shadow-lg flex items-center space-x-3 text-xs transform translate-y-20 opacity-0 transition duration-300 z-50">
-        <span id="toastIcon"><i class="fa-solid fa-circle-check text-emerald-400 text-sm"></i></span>
-        <span id="toastMessage">Xử lý thành công!</span>
+    <!-- TOAST THÔNG BÁO NỔI - Đã tối ưu hóa căn lề cho Mobile -->
+    <div id="toast" class="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-5 sm:max-w-sm bg-slate-900 text-white px-4 py-3 rounded-xl shadow-xl flex items-center space-x-3 text-xs sm:text-sm transform translate-y-20 opacity-0 transition duration-300 z-[200]">
+        <span id="toastIcon" class="shrink-0"><i class="fa-solid fa-circle-check text-emerald-400 text-base"></i></span>
+        <span id="toastMessage" class="flex-grow">Xử lý thành công!</span>
     </div>
 
     <!-- SCRIPT ĐIỀU KHIỂN HOẠT ĐỘNG CHÍNH -->
@@ -1008,7 +1040,7 @@
                 let statusClass = (currentStatus === "Đang sử dụng") ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800";
                 
                 // Chuẩn bị nội dung mã QR tối giản chuẩn hóa, không dấu phức tạp để quét nhạy 100% bằng điện thoại/Zalo
-                let qrTagString = 
+                let rawTagString = 
                     `[VINAPACO ASSET]\n` +
                     `Ma TS: ${x.device_code}\n` +
                     `Ten: ${removeVietnameseTones(x.device_name)}\n` +
@@ -1022,7 +1054,7 @@
                 tr.className = "hover:bg-slate-55 transition-colors";
                 tr.innerHTML = `
                     <td class="p-3 text-center">
-                        <div class="qr-canvas flex justify-center py-1 cursor-pointer" onclick="viewDetailedQR('${x.device_code}', '${x.device_name}', '${x.ma_don_vi || ''}', '${x.user_name || 'KHO'}')">
+                        <div class="qr-canvas flex justify-center py-1">
                             ${qrImageHtml}
                         </div>
                     </td>
@@ -1372,7 +1404,7 @@
             dl.href = item.attachment;
 
             if (item.attachment.startsWith("data:image")) {
-                body.innerHTML = `<img src="${item.attachment}" class="max-w-full max-h-[60vh] object-contain rounded border">`;
+                body.innerHTML = `<img src="${item.attachment}" class="max-w-full max-h-[50vh] sm:max-h-[60vh] object-contain rounded border">`;
             } else if (item.attachment.startsWith("data:application/pdf")) {
                 body.innerHTML = `<embed src="${item.attachment}" type="application/pdf" width="100%" height="450px" class="rounded border">`;
             } else {
@@ -1568,7 +1600,7 @@
                     let { error } = await client.from('nhan_su').insert(listRows);
                     if(error) { showToast("Lỗi đẩy dữ liệu: " + error.message, "danger"); return; }
                     
-                    showToast(`Bắn thành công ${listRows.length} nhân sự lên đám mây!`); 
+                    showToast("Bắn thành công " + listRows.length + " nhân sự lên đám mây!"); 
                     await fetchAllData();
                 } catch(err) { showToast("Sự cố phân giải tệp: " + err.message, "danger"); }
             };
