@@ -1678,4 +1678,88 @@
                             so_so_bhxh: bhxhVal, 
                             so_cccd: cccdVal,
                             gioi_tinh: gt, 
-                            nam_sinh
+                            nam_sinh: birthStr, 
+                            nam_ve_huu: retStr,
+                            ma_don_vi: maDonVi || "Chưa rõ", 
+                            chuc_danh_cong_viec: chucDanh
+                        };
+
+                        if (hasAnToanVien) record['an_toan_vien'] = atvVal;
+                        else if (hasAtv) record['atv'] = atvVal;
+
+                        if (hasNgheDocHai) record['nghe_doc_hai'] = nndhVal;
+                        else if (hasNndh) record['nndh'] = nndhVal;
+
+                        listRows.push(record);
+                    });
+
+                    if (listRows.length === 0) { showToast("Không có dòng dữ liệu hợp lệ!", "danger"); return; }
+
+                    localStorage.setItem('local_atv_nndh', JSON.stringify(localMapping));
+
+                    await client.from('nhan_su').delete().neq('id', 0);
+                    let { error } = await client.from('nhan_su').insert(listRows);
+                    if(error) { showToast("Lỗi đẩy dữ liệu: " + error.message, "danger"); return; }
+                    
+                    showToast("Bắn thành công " + listRows.length + " nhân sự lên đám mây!"); 
+                    await fetchAllData();
+                } catch(err) { showToast("Sự cố phân giải tệp: " + err.message, "danger"); }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        async function clearDataCloud(tableName) {
+            showConfirmDialog("Xóa toàn bộ dữ liệu", "Hành động này sẽ xóa vĩnh viễn toàn bộ dữ liệu đám mây của bạn. Bạn chắc chắn chứ?", async () => {
+                let pass = prompt("Mã bảo mật hệ thống:"); if(pass !== "admin123") { showToast("Mật khẩu không hợp lệ!", "danger"); return; }
+                await client.from(tableName).delete().neq('id', 0); 
+                localStorage.removeItem('local_atv_nndh');
+                showToast("Hệ thống đám mây đã được dọn sạch!", "success");
+                await fetchAllData();
+            });
+        }
+
+        // =================================================================================================
+        // HỆ THỐNG CUSTOM DIALOG & NOTIFICATIONS (THAY THẾ TOÀN DIỆN CHO ALERT CỦA TRÌNH DUYỆT)
+        // =================================================================================================
+        function showToast(message, type = "success") {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toastMessage');
+            const toastIcon = document.getElementById('toastIcon');
+
+            toastMsg.innerText = message;
+            if(type === "success") {
+                toastIcon.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400 text-sm"></i>`;
+            } else if (type === "warning") {
+                toastIcon.innerHTML = `<i class="fa-solid fa-circle-exclamation text-amber-400 text-sm"></i>`;
+            } else {
+                toastIcon.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-rose-500 text-sm"></i>`;
+            }
+
+            toast.classList.remove('opacity-0', 'translate-y-20');
+            toast.classList.add('opacity-100', 'translate-y-0');
+
+            setTimeout(() => {
+                toast.classList.remove('opacity-100', 'translate-y-0');
+                toast.classList.add('opacity-0', 'translate-y-20');
+            }, 3000);
+        }
+
+        function showConfirmDialog(title, text, onConfirm) {
+            const modal = document.getElementById('confirmModal');
+            document.getElementById('confirmTitle').innerText = title;
+            document.getElementById('confirmText').innerText = text;
+
+            modal.classList.remove('hidden');
+
+            document.getElementById('confirmYesBtn').onclick = () => {
+                onConfirm();
+                modal.classList.add('hidden');
+            };
+
+            document.getElementById('confirmNoBtn').onclick = () => {
+                modal.classList.add('hidden');
+            };
+        }
+    </script>
+</body>
+</html>
