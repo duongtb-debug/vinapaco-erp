@@ -620,25 +620,27 @@
             
             // Đồng bộ dữ liệu từ đám mây
             await fetchAllData();
-            
-            // Thiết lập Trình theo dõi điểm mốc (Intersection Observer) thay thế sự kiện cuộn cũ giúp chống giật lag
-            setupInfiniteScrollObserver();
+            await fetchRepairLogs();
 
-            // Ràng buộc sự kiện tìm kiếm an toàn qua bộ chống dội Debounce (300ms)
+            // Sắp xếp bộ lọc tìm kiếm dội chống treo tab
             document.getElementById('search_hoso').addEventListener('input', debounce(triggerFilterReset, 300));
             document.getElementById('filter_donvi').addEventListener('change', triggerFilterReset);
             document.getElementById('search_thietbi').addEventListener('input', debounce(resetDeviceLimitAndDisplay, 300));
             document.getElementById('search_suachua_input').addEventListener('input', debounce(displayRepairLogs, 300));
-            document.getElementById('rep_device_search').addEventListener('input', debounce((e) => suggestRepairDevice(e.target), 300));
 
-            // Đóng hộp gợi ý tự động khi click bên ngoài màn hình
+            // Tự động tải thêm nhân sự khi cuộn xuống dưới cùng của trình duyệt
+            window.addEventListener('scroll', handleWindowScroll);
+
+            // Bắt sự kiện click ngoài vùng để đóng hộp gợi ý
             document.addEventListener('click', function(e) {
                 const devSuggest = document.getElementById('dev_suggest');
-                if (devSuggest && !document.getElementById('dev_user_search').contains(e.target)) {
+                const devSearch = document.getElementById('dev_user_search');
+                if (devSuggest && devSearch && !devSuggest.contains(e.target) && e.target !== devSearch) {
                     devSuggest.classList.add('hidden');
                 }
                 const repSuggest = document.getElementById('rep_device_suggest');
-                if (repSuggest && !document.getElementById('rep_device_search').contains(e.target)) {
+                const repSearch = document.getElementById('rep_device_search');
+                if (repSuggest && repSearch && !repSuggest.contains(e.target) && e.target !== repSearch) {
                     repSuggest.classList.add('hidden');
                 }
             });
@@ -688,8 +690,32 @@
 
         async function fetchAllData() {
             try {
+                // Lớp 1: Khởi tạo dữ liệu cục bộ tức thì từ localStorage
+                const cachedNhanSu = localStorage.getItem('local_db_nhan_su');
+                if (cachedNhanSu) {
+                    DB_NHAN_SU = JSON.parse(cachedNhanSu);
+                    if(document.getElementById('count_ns')) document.getElementById('count_ns').innerText = DB_NHAN_SU.length;
+                    calculateHRStats();
+                    buildDropdowns();
+                    triggerFilterReset();
+                }
+
+                const cachedThietBi = localStorage.getItem('local_db_thiet_bi');
+                if (cachedThietBi) {
+                    DB_THIET_BI = JSON.parse(cachedThietBi);
+                    displayThietBi();
+                }
+
+                // Lớp 2: Đồng bộ ngầm không đồng bộ từ Supabase Cloud
                 let r1 = await client.from('nhan_su').select('*').order('id', { ascending: true }); 
-                DB_NHAN_SU = r1.data || [];
+                if (!r1.error && r1.data && r1.data.length > 0) {
+                    DB_NHAN_SU = r1.data;
+                    localStorage.setItem('local_db_nhan_su', JSON.stringify(DB_NHAN_SU));
+                    if(document.getElementById('count_ns')) document.getElementById('count_ns').innerText = DB_NHAN_SU.length;
+                    calculateHRStats(); 
+                    buildDropdowns(); 
+                    triggerFilterReset();
+                }
                 
                 const localBackup = JSON.parse(localStorage.getItem('local_atv_nndh') || '{}');
                 DB_NHAN_SU.forEach(x => {
@@ -706,33 +732,52 @@
                     }
                 });
 
-                if(document.getElementById('count_ns')) document.getElementById('count_ns').innerText = DB_NHAN_SU.length;
-                
                 let r2 = await client.from('thiet_bi').select('*').order('id', { ascending: false });
-                DB_THIET_BI = r2.data || [];
-
-                calculateHRStats(); 
-                buildDropdowns(); 
-                triggerFilterReset();
-                displayThietBi();
-            } catch (e) { console.error("Lỗi đồng bộ cơ sở dữ liệu:", e); }
+                if (!r2.error && r2.data) {
+                    DB_THIET_BI = r2.data;
+                    localStorage.setItem('local_db_thiet_bi', JSON.stringify(DB_THIET_BI));
+                    displayThietBi();
+                }
+            } catch (e) { 
+                console.error("Lỗi đồng bộ cơ sở dữ liệu:", e); 
+                displayThietBi(); // Vẫn hiển thị dữ liệu cục bộ nếu lỗi mạng
+            }
         }
 
         async function fetchAndReloadThietBi() {
             try {
                 let r2 = await client.from('thiet_bi').select('*').order('id', { ascending: false });
-                DB_THIET_BI = r2.data || [];
+                if (!r2.error && r2.data) {
+                    DB_THIET_BI = r2.data;
+                    localStorage.setItem('local_db_thiet_bi', JSON.stringify(DB_THIET_BI));
+                }
                 displayThietBi();
-            } catch (e) { console.error(e); }
+            } catch (e) { 
+                console.error(e); 
+                displayThietBi(); // Đảm bảo dòng dữ liệu luôn được vẽ kể cả khi lỗi mạng
+            }
         }
 
         async function fetchRepairLogs() {
             try {
+                const cachedNhatKy = localStorage.getItem('local_db_nhat_ky');
+                if (cachedNhatKy) {
+                    DB_NHAT_KY = JSON.parse(cachedNhatKy);
+                    calculateRepairDashboard();
+                    displayRepairLogs();
+                }
+
                 let r3 = await client.from('nhat_ky_sua_chua').select('*').order('id', { ascending: false });
-                DB_NHAT_KY = r3.data || [];
-                calculateRepairDashboard();
+                if (!r3.error && r3.data) {
+                    DB_NHAT_KY = r3.data;
+                    localStorage.setItem('local_db_nhat_ky', JSON.stringify(DB_NHAT_KY));
+                    calculateRepairDashboard();
+                    displayRepairLogs();
+                }
+            } catch(e) { 
+                console.error(e); 
                 displayRepairLogs();
-            } catch(e) { console.error(e); }
+            }
         }
 
         function calculateHRStats() {
@@ -776,7 +821,13 @@
         }
 
         function buildDropdowns() {
-            let uniqueDonVi = [...new Set(DB_NHAN_SU.map(x => String(x.ma_don_vi || '').trim()).filter(Boolean))].sort((a, b) => parseFloat(a) - parseFloat(b));
+            let uniqueDonVi = [...new Set(DB_NHAN_SU.map(x => String(x.ma_don_vi || '').trim()).filter(Boolean))];
+            // Các đơn vị dự phòng tiêu chuẩn của VINAPACO đề phòng mây tải chậm
+            if (uniqueDonVi.length === 0) {
+                uniqueDonVi = ["CĐ TCT", "HĐTV", "ĐẢNG ỦY", "BAN GĐ", "PX Cơ khí", "Tổng kho", "PX Nguyên liệu", "PX Điện"];
+            }
+            uniqueDonVi.sort((a, b) => a.localeCompare(b));
+
             const selectHoso = document.getElementById('filter_donvi'); 
             if(selectHoso) selectHoso.innerHTML = '<option value="">-- Tất cả Mã Đơn Vị --</option>';
             const selectDev = document.getElementById('dev_filter_donvi');
@@ -996,7 +1047,7 @@
         }
 
         // =================================================================================================
-        // LOGIC TAB 2: QUẢN LÝ THIẾT BỊ & IN NHÃN QR CODE (ĐÃ NÂNG CẤP CHỐNG LỖI TAB ẨN)
+        // LOGIC TAB 2: QUẢN LÝ THIẾT BỊ & IN NHÃN QR CODE (LƯU TRỮ LAI HAI LỚP ĐẢM BẢO CHẠY NGAY)
         // =================================================================================================
         function resetDeviceLimitAndDisplay() {
             CURRENT_DEVICE_LIMIT = 15;
@@ -1039,22 +1090,22 @@
                 let currentStatus = x.status || "Đang sử dụng";
                 let statusClass = (currentStatus === "Đang sử dụng") ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800";
                 
-                // Chuẩn bị nội dung mã QR tối giản chuẩn hóa, không dấu phức tạp để quét nhạy 100% bằng điện thoại/Zalo
+                // Chuẩn bị nội dung mã QR chuẩn hóa có dấu tiếng Việt trọn vẹn, quét được bằng mọi ứng dụng (Zalo/Camera)
                 let rawTagString = 
                     `[VINAPACO ASSET]\n` +
-                    `Ma TS: ${x.device_code}\n` +
-                    `Ten: ${removeVietnameseTones(x.device_name)}\n` +
-                    `Bo phan: DV-${x.ma_don_vi || ''}\n` +
-                    `Nguoi giu: ${removeVietnameseTones(x.user_name || 'KHO')}`;
+                    `Mã tài sản: ${x.device_code}\n` +
+                    `Tên thiết bị: ${x.device_name}\n` +
+                    `Đơn vị bàn giao: ĐV-${x.ma_don_vi || ''}\n` +
+                    `Người tiếp quản: ${x.user_name || 'KHO'}`;
                 
                 // Sinh trực tiếp ảnh QR dạng Base64 đồng bộ (Không bị ảnh hưởng bởi Tab ẩn/hiện)
-                let qrImageHtml = generateQRCodeHTML(qrTagString, 3);
+                let qrImageHtml = generateQRCodeHTML(rawTagString, 3.5);
 
                 let tr = document.createElement('tr');
-                tr.className = "hover:bg-slate-55 transition-colors";
+                tr.className = "hover:bg-slate-50 transition-colors";
                 tr.innerHTML = `
                     <td class="p-3 text-center">
-                        <div class="qr-canvas flex justify-center py-1">
+                        <div class="qr-canvas flex justify-center py-1 cursor-pointer" onclick="viewDetailedQR('${x.device_code}', '${x.device_name}', '${x.ma_don_vi || ''}', '${x.user_name || 'KHO'}')">
                             ${qrImageHtml}
                         </div>
                     </td>
@@ -1063,7 +1114,7 @@
                     <td class="p-3 text-sm"><i class="fa-solid fa-user text-slate-400 text-xs mr-1"></i> ${x.user_name || 'Hệ Thống Kho'}</td>
                     <td class="p-3 text-center"><span class="badge bg-slate-100 text-slate-700 px-3 py-1 rounded font-bold text-xs">ĐV ${x.ma_don_vi||''}</span></td>
                     <td class="p-3 text-center"><span class="badge ${statusClass} px-2.5 py-1 rounded font-semibold text-xs">${currentStatus}</span></td>
-                    <td class="p-3 text-center">
+                    <td class="p-3 text-center font-bold">
                         <button class="text-blue-600 hover:text-blue-800 font-bold mr-4 text-sm" onclick="editDevice('${x.id}')"><i class="fa-solid fa-pen"></i> Sửa</button>
                         <button class="text-emerald-600 hover:text-emerald-800 font-bold mr-4 text-sm" onclick="printSingleLabel('${x.id}')"><i class="fa-solid fa-print"></i> In Tem</button>
                         <button class="text-rose-600 hover:text-rose-800 font-bold text-sm" onclick="deleteDevice('${x.id}')"><i class="fa-solid fa-trash"></i> Xóa</button>
@@ -1079,12 +1130,12 @@
             printGrid.innerHTML = "";
             const qrText = 
                 `[VINAPACO ASSET]\n` +
-                `Ma TS: ${code}\n` +
-                `Ten: ${removeVietnameseTones(name)}\n` +
-                `Bo phan: DV-${donvi}\n` +
-                `Nguoi giu: ${removeVietnameseTones(user)}`;
+                `Mã tài sản: ${code}\n` +
+                `Tên thiết bị: ${name}\n` +
+                `Đơn vị: ĐV-${donvi}\n` +
+                `Người tiếp quản: ${user}`;
             
-            showConfirmDialog(`Mã QR Tài sản: ${code}`, `Nội dung mã hóa chuẩn quốc tế:\n\n${qrText}\n\nBạn có muốn tiến hành in tem dán cho thiết bị này không?`, () => {
+            showConfirmDialog(`Mã QR Thiết bị: ${code}`, `Nội dung mã hóa tiếng Việt chuẩn:\n\n${qrText}\n\nBạn có muốn tiến hành in tem dán cho thiết bị này không?`, () => {
                 let idItem = DB_THIET_BI.find(x => x.device_code === code)?.id;
                 if(idItem) printSingleLabel(idItem);
             });
@@ -1127,6 +1178,7 @@
             if(document.getElementById('dev_user_id')) document.getElementById('dev_user_id').value = ""; 
         }
 
+        // Ghi nhận thiết bị (Tích hợp Dual-Engine: Local Cache + Cloud Sync)
         async function saveDeviceConfig() {
             const devName = document.getElementById('dev_name').value.trim(); 
             let devCode = document.getElementById('dev_code').value.trim();
@@ -1139,15 +1191,42 @@
             if(!devName) { showToast("Vui lòng nhập tên thiết bị tài sản!", "warning"); return; }
             if(!devCode) { devCode = "EQ" + Math.floor(100000 + Math.random() * 900000); }
 
-            let rowData = { device_name: devName, device_code: devCode, user_id: userId ? String(userId) : null, user_name: userName, ma_don_vi: donVi || "10", status: status };
+            let rowData = { 
+                device_name: devName, 
+                device_code: devCode, 
+                user_id: userId ? String(userId) : null, 
+                user_name: userName, 
+                ma_don_vi: donVi || "10", 
+                status: status 
+            };
 
-            if(editId) {
-                await client.from('thiet_bi').update(rowData).eq('id', editId);
-                showToast("Đã sửa đổi thông tin thiết bị!");
+            // Lớp 1: Ghi và vẽ lên giao diện lập tức không trễ
+            if (editId) {
+                const index = DB_THIET_BI.findIndex(x => String(x.id) === String(editId));
+                if (index !== -1) {
+                    DB_THIET_BI[index] = { ...DB_THIET_BI[index], ...rowData };
+                }
             } else {
-                await client.from('thiet_bi').insert([rowData]);
-                showToast("Cấp phát thiết bị thành công!");
+                const tempId = "local_dev_" + Date.now();
+                DB_THIET_BI.unshift({ id: tempId, ...rowData });
             }
+            localStorage.setItem('local_db_thiet_bi', JSON.stringify(DB_THIET_BI));
+            displayThietBi(); // Dựng bảng ngay lập tức!
+
+            // Lớp 2: Gửi đồng bộ mây ngầm
+            try {
+                if (editId) {
+                    await client.from('thiet_bi').update(rowData).eq('id', editId);
+                    showToast("Đã sửa đổi thông tin thiết bị!");
+                } else {
+                    await client.from('thiet_bi').insert([rowData]);
+                    showToast("Cấp phát thiết bị thành công!");
+                }
+            } catch (e) {
+                console.error("Lỗi khi ghi nhận thiết bị:", e);
+                showToast("Dữ liệu đã được lưu trữ an toàn tại trình duyệt cục bộ!", "warning");
+            }
+
             resetDeviceForm();
             await fetchAndReloadThietBi();
         }
@@ -1173,10 +1252,21 @@
             if(document.getElementById('form_device_title')) document.getElementById('form_device_title').innerHTML = `<i class="fa-solid fa-square-plus"></i> Biểu mẫu Cấp phát thiết bị mới`;
         }
 
-        function deleteDevice(id) {
+        async function deleteDevice(id) {
             showConfirmDialog("Xóa thiết bị", "Bạn có thực sự muốn xóa thiết bị này khỏi hệ thống?", async () => {
-                await client.from('thiet_bi').delete().eq('id', id); 
-                showToast("Đã xóa thiết bị thành công!", "success");
+                // Lớp 1: Xóa nhanh trên UI
+                DB_THIET_BI = DB_THIET_BI.filter(x => String(x.id) !== String(id));
+                localStorage.setItem('local_db_thiet_bi', JSON.stringify(DB_THIET_BI));
+                displayThietBi();
+
+                // Lớp 2: Đồng bộ xóa đám mây ngầm
+                try {
+                    await client.from('thiet_bi').delete().eq('id', id); 
+                    showToast("Đã xóa thiết bị thành công!", "success");
+                } catch (e) {
+                    console.error(e);
+                    showToast("Đã xóa tạm thời tại thiết bị này!", "warning");
+                }
                 await fetchAndReloadThietBi();
             });
         }
@@ -1187,13 +1277,13 @@
             const printGrid = document.getElementById('printGrid');
             printGrid.innerHTML = "";
 
-            // Định dạng chuỗi QR quốc tế không dấu cực kỳ nhạy khi quét bằng Camera thường hoặc Zalo
+            // Định dạng chuỗi QR quốc tế tiếng Việt có dấu chuẩn hóa, cực kỳ nhạy khi quét bằng Camera thường hoặc Zalo
             let rawTagString = 
                 `[VINAPACO ASSET]\n` +
-                `Ma TS: ${item.device_code}\n` +
-                `Ten: ${removeVietnameseTones(item.device_name)}\n` +
-                `Bo phan: DV-${item.ma_don_vi || ''}\n` +
-                `Người giữ: ${removeVietnameseTones(item.user_name || 'KHO')}`;
+                `Mã tài sản: ${item.device_code}\n` +
+                `Tên thiết bị: ${item.device_name}\n` +
+                `Đơn vị bàn giao: ĐV-${item.ma_don_vi || ''}\n` +
+                `Người tiếp quản: ${item.user_name || 'KHO'}`;
 
             let qrHMTL = generateQRCodeHTML(rawTagString, 3.5); // tăng kích cỡ tế bào QR lên mức 3.5 giúp sắc nét dễ quét
 
@@ -1312,10 +1402,21 @@
                 attachment: docBase64
             };
 
-            let { error } = await client.from('nhat_ky_sua_chua').insert([logData]);
-            if(error) { showToast("Lỗi đồng bộ: " + error.message, "danger"); return; }
+            // Lớp 1: Lưu cục bộ ngay
+            const tempId = "local_rep_" + Date.now();
+            DB_NHAT_KY.unshift({ id: tempId, ...logData });
+            localStorage.setItem('local_db_nhat_ky', JSON.stringify(DB_NHAT_KY));
+            calculateRepairDashboard();
+            displayRepairLogs();
 
-            showToast("Hạch toán hồ sơ thành công!");
+            // Lớp 2: Gửi đám mây
+            try {
+                await client.from('nhat_ky_sua_chua').insert([logData]);
+                showToast("Hạch toán hồ sơ thành công!");
+            } catch (e) {
+                console.error(e);
+                showToast("Dữ liệu đã được lưu tạm tại trình duyệt cục bộ!", "warning");
+            }
             resetRepairForm();
             await fetchRepairLogs();
         }
@@ -1577,88 +1678,4 @@
                             so_so_bhxh: bhxhVal, 
                             so_cccd: cccdVal,
                             gioi_tinh: gt, 
-                            nam_sinh: birthStr, 
-                            nam_ve_huu: retStr,
-                            ma_don_vi: maDonVi || "Chưa rõ", 
-                            chuc_danh_cong_viec: chucDanh
-                        };
-
-                        if (hasAnToanVien) record['an_toan_vien'] = atvVal;
-                        else if (hasAtv) record['atv'] = atvVal;
-
-                        if (hasNgheDocHai) record['nghe_doc_hai'] = nndhVal;
-                        else if (hasNndh) record['nndh'] = nndhVal;
-
-                        listRows.push(record);
-                    });
-
-                    if (listRows.length === 0) { showToast("Không có dòng dữ liệu hợp lệ!", "danger"); return; }
-
-                    localStorage.setItem('local_atv_nndh', JSON.stringify(localMapping));
-
-                    await client.from('nhan_su').delete().neq('id', 0);
-                    let { error } = await client.from('nhan_su').insert(listRows);
-                    if(error) { showToast("Lỗi đẩy dữ liệu: " + error.message, "danger"); return; }
-                    
-                    showToast("Bắn thành công " + listRows.length + " nhân sự lên đám mây!"); 
-                    await fetchAllData();
-                } catch(err) { showToast("Sự cố phân giải tệp: " + err.message, "danger"); }
-            };
-            reader.readAsArrayBuffer(file);
-        }
-
-        async function clearDataCloud(tableName) {
-            showConfirmDialog("Xóa toàn bộ dữ liệu", "Hành động này sẽ xóa vĩnh viễn toàn bộ dữ liệu đám mây của bạn. Bạn chắc chắn chứ?", async () => {
-                let pass = prompt("Mã bảo mật hệ thống:"); if(pass !== "admin123") { showToast("Mật khẩu không hợp lệ!", "danger"); return; }
-                await client.from(tableName).delete().neq('id', 0); 
-                localStorage.removeItem('local_atv_nndh');
-                showToast("Hệ thống đám mây đã được dọn sạch!", "success");
-                await fetchAllData();
-            });
-        }
-
-        // =================================================================================================
-        // HỆ THỐNG CUSTOM DIALOG & NOTIFICATIONS (THAY THẾ TOÀN DIỆN CHO ALERT CỦA TRÌNH DUYỆT)
-        // =================================================================================================
-        function showToast(message, type = "success") {
-            const toast = document.getElementById('toast');
-            const toastMsg = document.getElementById('toastMessage');
-            const toastIcon = document.getElementById('toastIcon');
-
-            toastMsg.innerText = message;
-            if(type === "success") {
-                toastIcon.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400 text-sm"></i>`;
-            } else if (type === "warning") {
-                toastIcon.innerHTML = `<i class="fa-solid fa-circle-exclamation text-amber-400 text-sm"></i>`;
-            } else {
-                toastIcon.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-rose-500 text-sm"></i>`;
-            }
-
-            toast.classList.remove('opacity-0', 'translate-y-20');
-            toast.classList.add('opacity-100', 'translate-y-0');
-
-            setTimeout(() => {
-                toast.classList.remove('opacity-100', 'translate-y-0');
-                toast.classList.add('opacity-0', 'translate-y-20');
-            }, 3000);
-        }
-
-        function showConfirmDialog(title, text, onConfirm) {
-            const modal = document.getElementById('confirmModal');
-            document.getElementById('confirmTitle').innerText = title;
-            document.getElementById('confirmText').innerText = text;
-
-            modal.classList.remove('hidden');
-
-            document.getElementById('confirmYesBtn').onclick = () => {
-                onConfirm();
-                modal.classList.add('hidden');
-            };
-
-            document.getElementById('confirmNoBtn').onclick = () => {
-                modal.classList.add('hidden');
-            };
-        }
-    </script>
-</body>
-</html>
+                            nam_sinh
