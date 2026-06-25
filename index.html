@@ -276,7 +276,7 @@
     <section id="sec_thietbi" class="app-section no-print max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 hidden">
         <div class="flex flex-col gap-6">
             
-            <!-- BIỂU MẪU CẤP PHÁT THIẾT BỊ MỚI -->
+            <!-- BIỂU MẪU CẤP PHÁT THIẾT BỊ MỚ -->
             <div class="bg-white p-5 sm:p-6 rounded-xl border border-slate-200 shadow-sm">
                 <h3 id="form_device_title" class="text-sm font-bold text-slate-800 uppercase border-l-4 border-blue-600 pl-3 mb-5"><i class="fa-solid fa-square-plus"></i> Biểu mẫu Cấp phát thiết bị mới</h3>
                 <input type="hidden" id="editing_device_id">
@@ -389,7 +389,8 @@
                     
                     <div class="form-group relative">
                         <label class="block font-bold text-xs text-slate-500 mb-2">Tìm chọn thiết bị *</label>
-                        <input type="text" id="rep_device_search" onfocus="suggestRepairDevice(this)" placeholder="Tìm mã hoặc tên thiết bị..." class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition h-11">
+                        <!-- Thêm onfocus và onclick để kích vào hiện ngay danh sách gợi ý thiết bị đã cấp phát -->
+                        <input type="text" id="rep_device_search" onfocus="suggestRepairDevice(this)" onclick="suggestRepairDevice(this)" placeholder="Tìm mã hoặc tên thiết bị..." class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition h-11">
                         <input type="hidden" id="rep_device_code">
                         <input type="hidden" id="rep_device_name">
                         <div id="rep_device_suggest" class="suggest-box absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto hidden z-20"></div>
@@ -596,7 +597,7 @@
         ];
 
         const defaultRepairLogs = [
-            { id: "local_rep_1", device_code: "EQ882910", device_name: "Máy tính Dell Latitude 3420", title: "Thay ổ SSD & Vệ sinh định kỳ", beneficiary: "Cửa hàng điện tử Phong Vũ", bank_account: "19033488291012", bank_name: "Techcombank", noi_dung: "Nâng cấp ổ cứng 512GB và tra keo tản nhiệt máy văn phòng", chi_phi_truoc_thue: 1200000, thue_suat: 10, tien_thue: 120000, tong_chi_phi: 1320000, payment_status: "Đã thanh toán", ngay_thuc_hien: "2026-06-25" }
+            { id: "local_rep_1", device_code: "EQ882910", device_name: "Máy tính Dell Latitude 3420", title: "Thay ổ SSD & Vệ sinh định kỳ", beneficiary: "Cửa hàng điện tử Phong Vũ", bank_account: "19033488291012", bank_name: "Techcombank", noi_dung: "Nâng cấp ổ cứng 512GB và tra keo tản nhiệt máy văn phòng", chi_phi_truoc_thue: 1200000, thue_suat: 10, tien_thue: 120000, ...},
         ];
 
         let DB_NHAN_SU = []; 
@@ -1138,7 +1139,7 @@
                 let qrImageHtml = generateQRCodeHTML(rawTagString, 3.5);
 
                 let tr = document.createElement('tr');
-                tr.className = "hover:bg-slate-55 transition-colors";
+                tr.className = "hover:bg-slate-50 transition-colors";
                 tr.innerHTML = `
                     <td class="p-3 text-center">
                         <div class="qr-canvas flex justify-center py-1 cursor-pointer" onclick="viewDetailedQR('${x.device_code}', '${x.device_name}', '${x.ma_don_vi || ''}', '${x.user_name || 'KHO'}')">
@@ -1161,10 +1162,10 @@
         }
 
         // Xem QR chi tiết chuẩn quốc tế có dấu tiếng Việt trực quan khi kích vào dòng
+        // Tối ưu hóa kích cỡ tế bào QR to hơn (4.5) để người dùng có thể quét trực tiếp nhanh chóng ngay trên màn hình máy tính
         function viewDetailedQR(code, name, donvi, user) {
             const rawTagString = buildQRTextCard(code, name, donvi, user);
             
-            // Kích hoạt kích cỡ tế bào QR to hơn (4.5) để người dùng có thể quét trực tiếp nhanh chóng ngay trên màn hình máy tính
             let qrHMTL = generateQRCodeHTML(rawTagString, 4.5);
 
             const contentHtml = `
@@ -1352,20 +1353,47 @@ ${rawTagString}
         // =================================================================================================
         // LOGIC TAB 3: NHẬT KÝ SỬA CHỮA & CHỨNG TỪ – HẠCH TOÁN AN TOÀN
         // =================================================================================================
+        // Hàm hiển thị danh sách thiết bị gợi ý khi click hoặc gõ vào ô tìm kiếm ở Tab Sửa chữa
         function suggestRepairDevice(input) {
-            const val = input.value.toLowerCase().trim(); const box = document.getElementById('rep_device_suggest');
-            if(!box) return; box.innerHTML = ""; if(!val) { box.classList.add('hidden'); return; }
+            const val = input.value.toLowerCase().trim(); 
+            const box = document.getElementById('rep_device_suggest');
+            if(!box) return; 
+            box.innerHTML = "";
             
-            let matches = DB_THIET_BI.filter(x => (x.device_name && x.device_name.toLowerCase().includes(val)) || (x.device_code && x.device_code.toLowerCase().includes(val))).slice(0, 5);
-            if(matches.length === 0) { box.classList.add('hidden'); return; }
+            // Nếu ô tìm kiếm trống, lấy 15 thiết bị đầu tiên để hiển thị ngay cho người dùng chọn
+            let matches = [];
+            if (!val) {
+                matches = DB_THIET_BI.slice(0, 15);
+            } else {
+                matches = DB_THIET_BI.filter(x => 
+                    (x.device_name && x.device_name.toLowerCase().includes(val)) || 
+                    (x.device_code && x.device_code.toLowerCase().includes(val))
+                ).slice(0, 15);
+            }
+
+            if(matches.length === 0) {
+                box.innerHTML = `<div class="p-3 text-slate-400 text-sm text-center">Chưa có thiết bị nào phù hợp</div>`;
+                box.classList.remove('hidden');
+                return;
+            }
+            
             box.classList.remove('hidden');
             matches.forEach(m => {
-                let div = document.createElement('div'); div.className = "suggest-item p-3 cursor-pointer hover:bg-slate-100 text-sm border-b border-slate-100";
-                div.innerHTML = `<span><b>${m.device_name}</b> - Seri: ${m.device_code}</span>`;
+                let div = document.createElement('div');
+                div.className = "suggest-item p-3 cursor-pointer hover:bg-slate-100 text-sm border-b border-slate-100 flex justify-between items-center";
+                div.innerHTML = `
+                    <div>
+                        <div class="font-bold text-slate-800">${m.device_name}</div>
+                        <div class="text-xs text-slate-400 font-mono">Seri: ${m.device_code} | Người giữ: ${m.user_name || 'KHO'}</div>
+                    </div>
+                    <span class="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-bold">${m.ma_don_vi || '--'}</span>
+                `;
                 div.onclick = () => {
                     input.value = `${m.device_name} (${m.device_code})`;
                     document.getElementById('rep_device_code').value = m.device_code;
                     document.getElementById('rep_device_name').value = m.device_name;
+                    // Tự động điền đơn vị bàn giao hiện tại vào đơn vị thụ hưởng/bảo dưỡng thụ hưởng
+                    document.getElementById('rep_beneficiary').value = m.user_name || '';
                     box.classList.add('hidden');
                 };
                 box.appendChild(div);
@@ -1580,4 +1608,23 @@ ${rawTagString}
                 let parts = str.split("/");
                 if (parts.length === 3) {
                     let day = parts[0].trim().padStart(2, '0');
-                    let month = parts
+                    let month = parts[1].trim().padStart(2, '0');
+                    let year = parts[2].trim();
+                    if (year.length === 4) return `${year}-${month}-${day}`;
+                }
+            }
+            if (str.includes("-") && str.split("-")[0].length !== 4) {
+                let parts = str.split("-");
+                if (parts.length === 3) {
+                    return `${parts[2].trim()}-${parts[1].trim().padStart(2, '0')}-${parts[0].trim().padStart(2, '0')}`;
+                }
+            }
+            if (str.includes("-") && str.split("-")[0].length === 4) {
+                return str;
+            }
+            return null;
+        }
+
+        async function importExcelNhanSu(input) {
+            const file = input.files[0]; if(!file) return;
+            const
