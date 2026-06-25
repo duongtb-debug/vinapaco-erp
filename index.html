@@ -15,8 +15,8 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- SheetJS Excel Parser -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <!-- QRCode JS Library -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- Thư viện sinh mã QR Base64 siêu ổn định (qrcode-generator) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -49,6 +49,18 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #94a3b8;
         }
+        /* CSS căn chỉnh riêng cho thẻ ảnh QR hiển thị vừa vặn, đẹp mắt */
+        .qr-canvas img {
+            display: block;
+            margin: 0 auto;
+            max-width: 75px;
+            height: auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 4px;
+            background: #ffffff;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
         /* Tối ưu hóa chế độ in ấn tem nhãn dán */
         @media print {
             .no-print {
@@ -67,6 +79,9 @@
                 box-shadow: none !important;
                 background-color: #ffffff !important;
                 margin-bottom: 0.5rem !important;
+            }
+            .sticker-card img {
+                max-width: 80px !important;
             }
         }
     </style>
@@ -180,7 +195,6 @@
         <!-- BỘ LỌC VÀ ĐỒNG BỘ DỮ LIỆU -->
         <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm mb-6 flex flex-col md:flex-row gap-4 items-center justify-between">
             <div class="w-full md:w-auto flex flex-col sm:flex-row gap-3 flex-1 max-w-2xl">
-                <!-- Loại bỏ sự kiện inline để thay thế bằng debounced event listener trong Javascript -->
                 <input type="text" id="search_hoso" placeholder="Tìm nhanh theo Họ Tên hoặc số CCCD..." class="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition">
                 <select id="filter_donvi" class="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500">
                     <option value="">-- Tất cả Mã Đơn Vị --</option>
@@ -547,6 +561,22 @@
                 clearTimeout(timeout);
                 timeout = setTimeout(() => func.apply(this, args), wait);
             };
+        }
+
+        // Hàm helper sinh HTML mã QR (Base64) cực kỳ ổn định, không lỗi tab ẩn
+        function generateQRCodeHTML(text, size = 3) {
+            try {
+                // Mã hóa chuẩn bảo vệ tiếng Việt UTF-8
+                const safeText = unescape(encodeURIComponent(text));
+                const qr = qrcode(0, 'M');
+                qr.addData(safeText);
+                qr.make();
+                // createImgTag(cellSize, margin)
+                return qr.createImgTag(size, 2);
+            } catch (e) {
+                console.error("Lỗi tạo QR Code: ", e);
+                return `<span class="text-xs text-rose-500 font-bold">Lỗi QR</span>`;
+            }
         }
 
         window.onload = async function() {
@@ -934,7 +964,7 @@
         }
 
         // =================================================================================================
-        // LOGIC TAB 2: QUẢN LÝ THIẾT BỊ & IN NHÃN QR CODE
+        // LOGIC TAB 2: QUẢN LÝ THIẾT BỊ & IN NHÃN QR CODE (ĐÃ NÂNG CẤP CHỐNG LỖI TAB ẨN)
         // =================================================================================================
         function resetDeviceLimitAndDisplay() {
             CURRENT_DEVICE_LIMIT = 15;
@@ -976,10 +1006,25 @@
             paginated.forEach(x => {
                 let currentStatus = x.status || "Đang sử dụng";
                 let statusClass = (currentStatus === "Đang sử dụng") ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800";
+                
+                // Chuẩn bị nội dung chữ Việt có dấu an toàn cho mã QR
+                let rawTagString = 
+                    `MÃ TÀI SẢN: ${x.device_code}\n` +
+                    `Tên: ${x.device_name}\n` +
+                    `Bộ phận: ĐV-${x.ma_don_vi || ''}\n` +
+                    `Người giữ: ${x.user_name || 'KHO'}`;
+                
+                // Sinh trực tiếp ảnh QR dạng Base64 đồng bộ (Không bị ảnh hưởng bởi Tab ẩn/hiện)
+                let qrImageHtml = generateQRCodeHTML(rawTagString, 3);
+
                 let tr = document.createElement('tr');
                 tr.className = "hover:bg-slate-50 transition-colors";
                 tr.innerHTML = `
-                    <td class="p-3 text-center"><div class="qr-canvas flex justify-center py-1" id="qr_${x.device_code}"></div></td>
+                    <td class="p-3 text-center">
+                        <div class="qr-canvas flex justify-center py-1">
+                            ${qrImageHtml}
+                        </div>
+                    </td>
                     <td class="p-3"><code class="font-bold text-slate-800 text-sm font-mono">${x.device_code}</code></td>
                     <td class="p-3 font-semibold text-sm">${x.device_name}</td>
                     <td class="p-3 text-sm"><i class="fa-solid fa-user text-slate-400 text-xs mr-1"></i> ${x.user_name || 'Hệ Thống Kho'}</td>
@@ -992,29 +1037,6 @@
                     </td>
                 `;
                 tbody.appendChild(tr);
-
-                // Sử dụng requestAnimationFrame để vẽ QR Code nhẹ hơn mà không làm đơ giao diện
-                requestAnimationFrame(() => {
-                    const qrContainer = document.getElementById(`qr_${x.device_code}`);
-                    if(qrContainer) {
-                        qrContainer.innerHTML = "";
-                        let rawTagString = 
-                            `MÃ TÀI SẢN: ${x.device_code}\n` +
-                            `Tên: ${x.device_name}\n` +
-                            `Bộ phận: ĐV-${x.ma_don_vi || ''}\n` +
-                            `Người giữ: ${x.user_name || 'KHO'}`;
-                        try {
-                            new QRCode(qrContainer, {
-                                text: unescape(encodeURIComponent(rawTagString)),
-                                width: 75,
-                                height: 75,
-                                colorDark : "#0f172a",
-                                colorLight : "#ffffff",
-                                correctLevel : QRCode.CorrectLevel.M
-                            });
-                        } catch (qrErr) { console.error(qrErr); }
-                    }
-                });
             });
         }
 
@@ -1115,6 +1137,14 @@
             const printGrid = document.getElementById('printGrid');
             printGrid.innerHTML = "";
 
+            let rawTagString = 
+                `MÃ TÀI SẢN: ${item.device_code}\n` +
+                `Tên: ${item.device_name}\n` +
+                `Bộ phận: ĐV-${item.ma_don_vi || ''}\n` +
+                `Người giữ: ${item.user_name || 'KHO'}`;
+
+            let qrHMTL = generateQRCodeHTML(rawTagString, 3);
+
             let div = document.createElement('div');
             div.className = "sticker-card bg-white border border-slate-400 p-5 rounded-lg flex items-center justify-between gap-4 shadow-sm";
             div.innerHTML = `
@@ -1127,27 +1157,14 @@
                         <div class="truncate">Người giữ: ${item.user_name || 'KHO'}</div>
                     </div>
                 </div>
-                <div class="flex-shrink-0 bg-white p-1 border rounded flex items-center justify-center" style="width: 90px; height: 90px;" id="print_qr_area"></div>
+                <div class="flex-shrink-0 bg-white p-1 border rounded flex items-center justify-center" style="width: 90px; height: 90px;" id="print_qr_area">
+                    ${qrHMTL}
+                </div>
             `;
             printGrid.appendChild(div);
 
             setTimeout(() => {
-                let rawTagString = 
-                    `MÃ TÀI SẢN: ${item.device_code}\n` +
-                    `Tên: ${item.device_name}\n` +
-                    `Bộ phận: ĐV-${item.ma_don_vi || ''}\n` +
-                    `Người giữ: ${item.user_name || 'KHO'}`;
-                try {
-                    new QRCode(document.getElementById("print_qr_area"), {
-                        text: unescape(encodeURIComponent(rawTagString)),
-                        width: 80,
-                        height: 80,
-                        colorDark : "#000000",
-                        colorLight : "#ffffff",
-                        correctLevel : QRCode.CorrectLevel.M
-                    });
-                    window.print();
-                } catch (qrErr) { console.error(qrErr); }
+                window.print();
             }, 150);
         }
 
