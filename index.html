@@ -1007,21 +1007,22 @@
                 let currentStatus = x.status || "Đang sử dụng";
                 let statusClass = (currentStatus === "Đang sử dụng") ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800";
                 
-                // Chuẩn bị nội dung chữ Việt có dấu an toàn cho mã QR
-                let rawTagString = 
-                    `MÃ TÀI SẢN: ${x.device_code}\n` +
-                    `Tên: ${x.device_name}\n` +
-                    `Bộ phận: ĐV-${x.ma_don_vi || ''}\n` +
-                    `Người giữ: ${x.user_name || 'KHO'}`;
+                // Chuẩn bị nội dung mã QR tối giản chuẩn hóa, không dấu phức tạp để quét nhạy 100% bằng điện thoại/Zalo
+                let qrTagString = 
+                    `[VINAPACO ASSET]\n` +
+                    `Ma TS: ${x.device_code}\n` +
+                    `Ten: ${removeVietnameseTones(x.device_name)}\n` +
+                    `Bo phan: DV-${x.ma_don_vi || ''}\n` +
+                    `Nguoi giu: ${removeVietnameseTones(x.user_name || 'KHO')}`;
                 
                 // Sinh trực tiếp ảnh QR dạng Base64 đồng bộ (Không bị ảnh hưởng bởi Tab ẩn/hiện)
-                let qrImageHtml = generateQRCodeHTML(rawTagString, 3);
+                let qrImageHtml = generateQRCodeHTML(qrTagString, 3);
 
                 let tr = document.createElement('tr');
-                tr.className = "hover:bg-slate-50 transition-colors";
+                tr.className = "hover:bg-slate-55 transition-colors";
                 tr.innerHTML = `
                     <td class="p-3 text-center">
-                        <div class="qr-canvas flex justify-center py-1">
+                        <div class="qr-canvas flex justify-center py-1 cursor-pointer" onclick="viewDetailedQR('${x.device_code}', '${x.device_name}', '${x.ma_don_vi || ''}', '${x.user_name || 'KHO'}')">
                             ${qrImageHtml}
                         </div>
                     </td>
@@ -1037,6 +1038,23 @@
                     </td>
                 `;
                 tbody.appendChild(tr);
+            });
+        }
+
+        // Xem QR chi tiết chuẩn quốc tế khi kích vào dòng
+        function viewDetailedQR(code, name, donvi, user) {
+            const printGrid = document.getElementById('printGrid');
+            printGrid.innerHTML = "";
+            const qrText = 
+                `[VINAPACO ASSET]\n` +
+                `Ma TS: ${code}\n` +
+                `Ten: ${removeVietnameseTones(name)}\n` +
+                `Bo phan: DV-${donvi}\n` +
+                `Nguoi giu: ${removeVietnameseTones(user)}`;
+            
+            showConfirmDialog(`Mã QR Tài sản: ${code}`, `Nội dung mã hóa chuẩn quốc tế:\n\n${qrText}\n\nBạn có muốn tiến hành in tem dán cho thiết bị này không?`, () => {
+                let idItem = DB_THIET_BI.find(x => x.device_code === code)?.id;
+                if(idItem) printSingleLabel(idItem);
             });
         }
 
@@ -1137,13 +1155,15 @@
             const printGrid = document.getElementById('printGrid');
             printGrid.innerHTML = "";
 
+            // Định dạng chuỗi QR quốc tế không dấu cực kỳ nhạy khi quét bằng Camera thường hoặc Zalo
             let rawTagString = 
-                `MÃ TÀI SẢN: ${item.device_code}\n` +
-                `Tên: ${item.device_name}\n` +
-                `Bộ phận: ĐV-${item.ma_don_vi || ''}\n` +
-                `Người giữ: ${item.user_name || 'KHO'}`;
+                `[VINAPACO ASSET]\n` +
+                `Ma TS: ${item.device_code}\n` +
+                `Ten: ${removeVietnameseTones(item.device_name)}\n` +
+                `Bo phan: DV-${item.ma_don_vi || ''}\n` +
+                `Người giữ: ${removeVietnameseTones(item.user_name || 'KHO')}`;
 
-            let qrHMTL = generateQRCodeHTML(rawTagString, 3);
+            let qrHMTL = generateQRCodeHTML(rawTagString, 3.5); // tăng kích cỡ tế bào QR lên mức 3.5 giúp sắc nét dễ quét
 
             let div = document.createElement('div');
             div.className = "sticker-card bg-white border border-slate-400 p-5 rounded-lg flex items-center justify-between gap-4 shadow-sm";
@@ -1157,7 +1177,7 @@
                         <div class="truncate">Người giữ: ${item.user_name || 'KHO'}</div>
                     </div>
                 </div>
-                <div class="flex-shrink-0 bg-white p-1 border rounded flex items-center justify-center" style="width: 90px; height: 90px;" id="print_qr_area">
+                <div class="flex-shrink-0 bg-white p-1 border rounded flex items-center justify-center" style="width: 100px; height: 100px;" id="print_qr_area">
                     ${qrHMTL}
                 </div>
             `;
