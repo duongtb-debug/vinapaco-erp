@@ -252,7 +252,7 @@
                         <th class="p-4 text-center">Ngày Sinh</th>
                         <th class="p-4 text-center">Tuổi</th>
                         <th class="p-4 text-center">ATV</th>
-                        <th class="p-4 text-center">NNĐH</th>
+                        <th class="p-4 text-center">NNDH</th>
                         <th class="p-4 text-center">Ngày Về Hưu</th>
                         <th class="p-4 text-center">Mã Đơn Vị</th>
                         <th class="p-4">Chức Danh Công Việc</th>
@@ -487,7 +487,7 @@
                         <button onclick="resetRepairForm()" class="w-full sm:w-auto bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-sm px-5 py-3 sm:py-2.5 rounded-lg transition flex items-center justify-center gap-2 h-11 sm:h-auto">
                             <i class="fa-solid fa-eraser"></i> Xóa trắng form
                         </button>
-                        <button onclick="saveRepairLog()" class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm px-6 py-3 rounded-lg shadow-md transition flex items-center justify-center gap-2 h-11">
+                        <button onclick="saveRepairLog()" class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm px-6 py-3 rounded-lg shadow-md transition flex items-center justify-center gap-2 h-11">
                             <i class="fa-solid fa-calculator"></i> Chốt quyết toán & Lưu trữ
                         </button>
                     </div>
@@ -618,7 +618,6 @@
             { id: "local_dev_2", device_name: "Máy in HP Laser Pro M404dn", device_code: "EQ120485", user_id: "2", user_name: "NGUYỄN QUẾ SƠN", ma_don_vi: "HĐTV", status: "Đang sử dụng" }
         ];
 
-        // Sửa dứt điểm mảng rỗng ban đầu, không còn ký tự "..." gây lỗi cú pháp đứng hệ thống
         const defaultRepairLogs = [];
 
         let DB_NHAN_SU = []; 
@@ -1399,117 +1398,6 @@ ${rawTagString}
             document.getElementById('dev_filter_donvi').value = item.ma_don_vi || "";
             document.getElementById('dev_status_select').value = item.status || "Đang sử dụng";
             document.getElementById('form_device_title').scrollIntoView({ behavior: 'smooth' });
-        }
-
-        function resetDeviceForm() {
-            document.getElementById('editing_device_id').value = ""; 
-            document.getElementById('dev_name').value = ""; 
-            document.getElementById('dev_code').value = ""; 
-            resetSelectedUser();
-            if(document.getElementById('form_device_title')) document.getElementById('form_device_title').innerHTML = `<i class="fa-solid fa-square-plus"></i> Biểu mẫu Cấp phát thiết bị mới`;
-        }
-
-        async function deleteDevice(id) {
-            showConfirmDialog("Xóa thiết bị", "Bạn có thực sự muốn xóa thiết bị này khỏi hệ thống?", async () => {
-                // Lớp 1: Xóa nhanh trên UI
-                DB_THIET_BI = DB_THIET_BI.filter(x => String(x.id) !== String(id));
-                localStorage.setItem('local_db_thiet_bi_v2', JSON.stringify(DB_THIET_BI));
-                displayThietBi();
-
-                // Lớp 2: Đồng bộ xóa đám mây ngầm
-                try {
-                    await client.from('thiet_bi').delete().eq('id', id); 
-                    showToast("Đã xóa thiết bị thành công!", "success");
-                } catch (e) {
-                    console.error(e);
-                    showToast("Đã xóa tạm thời tại thiết bị này!", "warning");
-                }
-                await fetchAndReloadThietBi();
-            });
-        }
-
-        // PHẦN IN TEM NHÃN DÁN sticker CÂN ĐỐI 50X30MM (In Tem)
-        function printSingleLabel(id) {
-            let item = DB_THIET_BI.find(x => String(x.id) === String(id)); if(!item) return;
-            const printGrid = document.getElementById('printGrid');
-            printGrid.innerHTML = "";
-
-            // Định dạng chuỗi QR quốc tế tiếng Việt có dấu chuẩn hóa, cực kỳ nhạy khi quét bằng Camera thường hoặc Zalo
-            let rawTagString = buildQRTextCard(item.device_code, item.device_name, item.ma_don_vi || '', item.user_name || 'KHO');
-
-            let qrHMTL = generateQRCodeHTML(rawTagString, 3.5); // tăng kích cỡ tế bào QR lên mức 3.5 giúp sắc nét dễ quét
-
-            let div = document.createElement('div');
-            div.className = "sticker-card bg-white border border-slate-400 p-5 rounded-lg flex items-center justify-between gap-4 shadow-sm";
-            div.innerHTML = `
-                <div class="flex-1 min-w-0 text-left">
-                    <div class="text-slate-400 font-bold text-[9px] uppercase tracking-wider">VINAPACO ASSET</div>
-                    <h4 class="text-sm font-bold text-slate-900 mt-1 uppercase truncate">${item.device_name}</h4>
-                    <p class="text-xs text-blue-600 font-semibold mt-0.5">Đơn vị: ${item.ma_don_vi || 'N/A'}</p>
-                    <div class="mt-3 text-slate-600 text-xs space-y-0.5 leading-normal">
-                        <div>Mã TS: <strong class="font-mono text-slate-800">${item.device_code}</strong></div>
-                        <div class="truncate">Người giữ: ${item.user_name || 'KHO'}</div>
-                    </div>
-                </div>
-                <div class="flex-shrink-0 bg-white p-1 border rounded flex items-center justify-center" style="width: 100px; height: 100px;" id="print_qr_area">
-                    ${qrHMTL}
-                </div>
-            `;
-            printGrid.appendChild(div);
-
-            setTimeout(() => {
-                window.print();
-            }, 150);
-        }
-
-        // =================================================================================================
-        // LOGIC TAB 3: NHẬT KÝ SỬA CHỮA & CHỨNG TỪ – HẠCH TOÁN AN TOÀN
-        // =================================================================================================
-        // Hàm hiển thị danh sách thiết bị gợi ý khi click hoặc gõ vào ô tìm kiếm ở Tab Sửa chữa
-        function suggestRepairDevice(input) {
-            const val = input.value.toLowerCase().trim(); 
-            const box = document.getElementById('rep_device_suggest');
-            if(!box) return; 
-            box.innerHTML = "";
-            
-            // Nếu ô tìm kiếm trống, lấy 15 thiết bị đầu tiên để hiển thị ngay cho người dùng chọn
-            let matches = [];
-            if (!val) {
-                matches = DB_THIET_BI.slice(0, 15);
-            } else {
-                matches = DB_THIET_BI.filter(x => 
-                    (x.device_name && x.device_name.toLowerCase().includes(val)) || 
-                    (x.device_code && x.device_code.toLowerCase().includes(val))
-                ).slice(0, 15);
-            }
-
-            if(matches.length === 0) {
-                box.innerHTML = `<div class="p-3 text-slate-400 text-sm text-center">Chưa có thiết bị nào phù hợp</div>`;
-                box.classList.remove('hidden');
-                return;
-            }
-            
-            box.classList.remove('hidden');
-            matches.forEach(m => {
-                let div = document.createElement('div');
-                div.className = "suggest-item p-3 cursor-pointer hover:bg-slate-100 text-sm border-b border-slate-100 flex justify-between items-center";
-                div.innerHTML = `
-                    <div>
-                        <div class="font-bold text-slate-800">${m.device_name}</div>
-                        <div class="text-xs text-slate-400 font-mono">Seri: ${m.device_code} | Người giữ: ${m.user_name || 'KHO'}</div>
-                    </div>
-                    <span class="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-bold">${m.ma_don_vi || '--'}</span>
-                `;
-                div.onclick = () => {
-                    input.value = `${m.device_name} (${m.device_code})`;
-                    document.getElementById('rep_device_code').value = m.device_code;
-                    document.getElementById('rep_device_name').value = m.device_name;
-                    // Tự động điền đơn vị bàn giao hiện tại vào đơn vị thụ hưởng/bảo dưỡng thụ hưởng
-                    document.getElementById('rep_beneficiary').value = m.user_name || '';
-                    box.classList.add('hidden');
-                };
-                box.appendChild(div);
-            });
         }
 
         // Đọc danh sách nhiều file hóa đơn đính kèm và tạo vùng xem trước (Preview Panel)
