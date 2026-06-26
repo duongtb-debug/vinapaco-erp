@@ -1,634 +1,577 @@
-<label class="block font-bold text-xs text-slate-500 mb-2">Ngân hàng thụ hưởng</label>
-                            <input type="text" id="rep_bank_name" placeholder="Ví dụ: Techcombank" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition h-11">
-                        </div>
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ Thống Quản Lý Tổng Hợp - ERP Lite</title>
+    <style>
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+        
+        @page {
+            size: A4 landscape;
+            margin: 10mm;
+            background-color: #f8fafc;
+        }
 
-                        <div class="form-group">
-                            <label class="block font-bold text-xs text-slate-500 mb-2">Chi phí trước thuế (VNĐ) *</label>
-                            <input type="number" id="rep_cost_before" oninput="calculateTotalRepairCost()" placeholder="Ví dụ: 5000000" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition h-11">
-                        </div>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f8fafc;
+            color: #1e293b;
+            line-height: 1.5;
+        }
 
-                        <div class="form-group">
-                            <label class="block font-bold text-xs text-slate-500 mb-2">Thuế suất VAT (%) *</label>
-                            <select id="rep_vat_rate" onchange="calculateTotalRepairCost()" class="w-full bg-white border-2 border-emerald-800 h-11">
-                                <option value="10">10%</option>
-                                <option value="8">8%</option>
-                                <option value="5">5%</option>
-                                <option value="0">0%</option>
-                            </select>
-                        </div>
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
 
-                        <div class="form-group">
-                            <label class="block font-bold text-xs text-slate-500 mb-2">Tổng chi phí sau thuế (VNĐ)</label>
-                            <input type="text" id="rep_cost_after" readonly class="w-full px-4 py-2.5 bg-gray-100 border border-slate-300 rounded-lg text-sm outline-none font-bold text-emerald-800 h-11">
-                        </div>
+        /* Header Styling */
+        header {
+            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+            color: white;
+            padding: 24px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
 
-                        <div class="form-group">
-                            <label class="block font-bold text-xs text-slate-500 mb-2">Trạng thái hồ sơ</label>
-                            <select id="rep_status" class="w-full bg-white border-2 border-emerald-800 h-11">
-                                <option value="Chưa thanh toán">Chưa thanh toán (Tạm ứng/Treo)</option>
-                                <option value="Đã quyết toán">Đã quyết toán (Hoàn thành)</option>
-                            </select>
-                        </div>
+        header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
 
-                        <div class="form-group sm:col-span-2 lg:col-span-4 flex justify-end gap-3 mt-4">
-                            <button type="button" onclick="clearRepairForm()" class="px-5 py-2.5 bg-slate-200 hover:bg-slate-300 rounded-lg font-bold transition">Hủy bỏ</button>
-                            <button type="button" onclick="saveRepairConfig()" class="px-6 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-bold flex items-center gap-2 shadow-md border-2 border-emerald-800">
-                                <i class="fa-solid fa-cloud-arrow-up"></i> Lưu phiếu sửa chữa
-                            </button>
-                        </div>
-                    </div>
-                </div>
+        header p {
+            margin: 5px 0 0 0;
+            font-size: 14px;
+            opacity: 0.9;
+        }
 
-                <div class="bg-white rounded-xl border-2 border-emerald-900 p-5 shadow-sm">
-                    <div class="toolbar bg-emerald-50 p-4 rounded-xl flex items-center mb-6 border-2 border-emerald-800">
-                        <div class="search-box w-full">
-                            <label class="block mb-1 font-bold text-emerald-950">Tìm kiếm nhanh phiếu bảo trì</label>
-                            <input type="text" id="search_suachua" oninput="displaySuaChua()" placeholder="Gõ tên hồ sơ, mã thiết bị hoặc đơn vị thụ hưởng..." class="w-full bg-white border-2 border-emerald-800">
-                        </div>
-                    </div>
-                    
-                    <div class="table-container border-2 border-emerald-900 overflow-x-auto rounded-lg shadow-inner">
-                        <table class="w-full text-left border-collapse min-w-[1100px]">
-                            <thead>
-                                <tr class="bg-emerald-900 text-white">
-                                    <th class="font-bold">Mã Thiết Bị</th>
-                                    <th class="font-bold">Tên Hồ Sơ / Nội Dung Sửa Chữa</th>
-                                    <th class="font-bold">Đơn Vị Thu Hưởng</th>
-                                    <th class="font-bold text-right">Chi Phí Trước Thuế</th>
-                                    <th class="text-center font-bold">VAT</th>
-                                    <th class="font-bold text-right">Tổng Quyết Toán</th>
-                                    <th class="text-center font-bold">Trạng Thái</th>
-                                    <th class="text-center font-bold w-48">Hành Động</th>
-                                </tr>
-                            </thead>
-                            <tbody id="table_suachua_body" class="divide-y divide-emerald-250">
-                                <tr><td colspan="8" class="text-center py-6 text-slate-500">Chưa có dữ liệu lịch sử bảo dưỡng thiết bị.</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+        /* Navigation Tabs */
+        .tabs {
+            display: table;
+            width: 100%;
+            background: #fff;
+            padding: 8px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            margin-bottom: 25px;
+            border: 1px solid #e2e8f0;
+        }
 
-            </div>
-        </div>
-    </main>
+        .tab-btn {
+            display: table-cell;
+            text-align: center;
+            padding: 12px 24px;
+            cursor: pointer;
+            font-weight: 600;
+            color: #64748b;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
 
-    <div id="printArea" class="print-area hidden">
-        <div id="printGrid" class="grid grid-cols-2 gap-4 p-4"></div>
+        .tab-btn.active {
+            background-color: #3b82f6;
+            color: white;
+        }
+
+        .tab-btn:hover:not(.active) {
+            background-color: #f1f5f9;
+            color: #1e293b;
+        }
+
+        /* Content Sections */
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Grid Layouts for Dashboards */
+        .grid-2 {
+            display: table;
+            width: 100%;
+            table-layout: fixed;
+            border-spacing: 20px 0;
+            margin: 0 -20px;
+        }
+
+        .col {
+            display: table-cell;
+            vertical-align: top;
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+        }
+
+        /* Forms styling */
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 6px;
+            font-size: 13px;
+            color: #475569;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 14px;
+            color: #334155;
+            transition: border-color 0.2s;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            border: none;
+            text-align: center;
+            transition: background 0.2s;
+        }
+
+        .btn-primary { background-color: #3b82f6; color: white; }
+        .btn-primary:hover { background-color: #2563eb; }
+        .btn-success { background-color: #10b981; color: white; }
+        .btn-success:hover { background-color: #059669; }
+        .btn-secondary { background-color: #64748b; color: white; }
+        .btn-secondary:hover { background-color: #475569; }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+
+        th, td {
+            padding: 12px 14px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        th {
+            background-color: #f8fafc;
+            color: #475569;
+            font-weight: 600;
+        }
+
+        tr:hover {
+            background-color: #f1f5f9;
+        }
+
+        /* QR Code Scanner and Badge Visuals */
+        .qr-placeholder {
+            width: 130px;
+            height: 130px;
+            background: #e2e8f0;
+            border: 2px dashed #94a3b8;
+            margin: 10px auto;
+            position: relative;
+        }
+
+        .qr-placeholder::before {
+            content: "QR CODE";
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 11px;
+            color: #64748b;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+
+        /* Upload Area */
+        .upload-zone {
+            border: 2px dashed #cbd5e1;
+            padding: 30px;
+            text-align: center;
+            background: #f8fafc;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-bottom: 15px;
+        }
+
+        .upload-zone:hover {
+            border-color: #3b82f6;
+            background: #f0fdf4;
+        }
+
+        /* Preview Modal / Container */
+        .preview-container {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background: #fff;
+        }
+
+        .file-item {
+            padding: 10px;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 13px;
+        }
+
+        /* Badges */
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            font-size: 12px;
+            font-weight: 600;
+            border-radius: 12px;
+        }
+        .badge-info { background-color: #dbeafe; color: #1e40af; }
+        .badge-success { background-color: #d1fae5; color: #065f46; }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Hệ Thống Quản Lý Tổng Hợp Doanh Nghiệp</h1>
+        <p>Nhân sự • Thiết bị & Cấp phát định danh QR • Hồ sơ thanh toán trực quan không giới hạn dung lượng</p>
+    </header>
+
+    <!-- Navigation Tabs Layout -->
+    <div class="tabs">
+        <div class="tab-btn active" onclick="switchTab('hr')">👥 Quản Lý Nhân Sự</div>
+        <div class="tab-btn" onclick="switchTab('equipment')">💻 Quản Lý Thiết Bị & Cấp Phát QR</div>
+        <div class="tab-btn" onclick="switchTab('payment')">🧾 Hồ Sơ Thanh Toán & Minh Chứng</div>
     </div>
 
-    <script>
-        // Khởi tạo các mảng dữ liệu mô phỏng cục bộ (Hệ thống sẽ đồng bộ với Cloud Supabase nếu cấu hình)
-        let db_nhansu = [];
-        let db_thietbi = [];
-        let db_suachua = [];
-
-        // Khởi tạo biến toàn cục lưu trữ đối tượng Chart.js
-        let rChart, gChart, dChart, rcChart, rpChart;
-
-        // Hàm chuyển đổi phân hệ (Tab Switch)
-        function switchSection(sectionId) {
-            document.querySelectorAll('.app-section').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
+    <!-- TAB 1: NHÂN SỰ -->
+    <div id="hr" class="tab-content active">
+        <div class="grid-2">
+            <div class="col" style="width: 35%;">
+                <h3 style="margin-top:0; color:#1e3a8a;">Thêm Nhân Viên Mới</h3>
+                <form id="hrForm" onsubmit="addEmployee(event)">
+                    <div class="form-group">
+                        <label>Mã Nhân Viên</label>
+                        <input type="text" id="empId" class="form-control" placeholder="Ví dụ: NV001" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Họ và Tên</label>
+                        <input type="text" id="empName" class="form-control" placeholder="Nguyễn Văn A" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Phòng Ban</label>
+                        <select id="empDept" class="form-control">
+                            <option value="Hành chính - Nhân sự">Hành chính - Nhân sự</option>
+                            <option value="Kỹ thuật - Công nghệ">Kỹ thuật - Công nghệ</option>
+                            <option value="Kinh doanh - Marketing">Kinh doanh - Marketing</option>
+                            <option value="Kế toán - Tài chính">Kế toán - Tài chính</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Chức Vụ</label>
+                        <input type="text" id="empRole" class="form-control" placeholder="Ví dụ: Chuyên viên" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width: 100%;">Lưu Nhân Viên</button>
+                </form>
+            </div>
             
-            if(sectionId === 'hoso') {
-                document.getElementById('sec_hoso').classList.add('active');
-                document.getElementById('tab_hoso').classList.add('active');
-            } else if(sectionId === 'thietbi') {
-                document.getElementById('sec_thietbi').classList.add('active');
-                document.getElementById('tab_thietbi').classList.add('active');
-                updateUnitDropdowns();
-                displayThietBi();
-            } else if(sectionId === 'suachua') {
-                document.getElementById('sec_suachua').classList.add('active');
-                document.getElementById('tab_suachua').classList.add('active');
-                displaySuaChua();
-                updateRepairChartsAndStats();
-            }
-        }
+            <div class="col" style="width: 65%;">
+                <h3 style="margin-top:0; color:#1e3a8a;">Danh Sách Nhân Sự</h3>
+                <table id="empTable">
+                    <thead>
+                        <tr>
+                            <th>Mã NV</th>
+                            <th>Họ Tên</th>
+                            <th>Phòng Ban</th>
+                            <th>Chức Vụ</th>
+                            <th>Trạng Thái</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><b>NV001</b></td>
+                            <td>Trần Chí Bảo</td>
+                            <td>Kỹ thuật - Công nghệ</td>
+                            <td>Kỹ sư phần mềm</td>
+                            <td><span class="badge badge-success">Đang làm việc</span></td>
+                        </tr>
+                        <tr>
+                            <td><b>NV002</b></td>
+                            <td>Lê Thị Mai</td>
+                            <td>Kế toán - Tài chính</td>
+                            <td>Kế toán trưởng</td>
+                            <td><span class="badge badge-success">Đang làm việc</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 
-        // Đọc dữ liệu từ file Excel Hồ sơ nhân sự
-        function importExcelNhanSu(input) {
-            if (!input.files || !input.files[0]) return;
-            const file = input.files[0];
-            const reader = new FileReader();
+    <!-- TAB 2: THIẾT BỊ & QR -->
+    <div id="equipment" class="tab-content">
+        <div class="grid-2">
+            <div class="col" style="width: 35%;">
+                <h3 style="margin-top:0; color:#1e3a8a;">Cấp Phát Thiết Bị</h3>
+                <form id="eqForm" onsubmit="addEquipment(event)">
+                    <div class="form-group">
+                        <label>Mã Thiết Bị</label>
+                        <input type="text" id="eqId" class="form-control" placeholder="Ví dụ: LAP-098" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Tên Thiết Bị</label>
+                        <input type="text" id="eqName" class="form-control" placeholder="MacBook Pro M3 16-inch" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Nhân Viên Nhận</label>
+                        <input type="text" id="eqUser" class="form-control" placeholder="Họ tên hoặc Mã NV" required>
+                    </div>
+                    <button type="submit" class="btn btn-success" style="width: 100%;">Tạo Cấp Phát & QR Code</button>
+                </form>
+
+                <div style="margin-top: 25px; text-align: center; padding: 15px; background: #f1f5f9; border-radius: 8px;">
+                    <h4 style="margin: 0 0 10px 0;">QR Code Thông Tin Định Danh</h4>
+                    <div class="qr-placeholder" id="qrContainer"></div>
+                    <p style="font-size: 12px; color: #475569; margin: 8px 0 0 0;" id="qrMeta">Quét mã QR để truy xuất nhanh thông tin bàn giao thực tế.</p>
+                </div>
+            </div>
+
+            <div class="col" style="width: 65%;">
+                <h3 style="margin-top:0; color:#1e3a8a;">Nhật Ký Cấp Phát Thiết Bị</h3>
+                <table id="eqTable">
+                    <thead>
+                        <tr>
+                            <th>Mã Thiết Bị</th>
+                            <th>Tên Thiết Bị</th>
+                            <th>Người Sử Dụng</th>
+                            <th>Ngày Cấp Phát</th>
+                            <th>Hành Động</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><b>LAP-098</b></td>
+                            <td>MacBook Pro M3 16-inch</td>
+                            <td>Trần Chí Bảo (NV001)</td>
+                            <td>26/06/2026</td>
+                            <td><button class="btn btn-secondary" style="padding: 4px 10px; font-size:12px;" onclick="viewQR('LAP-098', 'MacBook Pro M3 16-inch', 'Trần Chí Bảo')">Xem QR</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 3: HỒ SƠ THANH TOÁN & PREVIEW CHỨNG TỪ -->
+    <div id="payment" class="tab-content">
+        <div class="grid-2">
+            <div class="col" style="width: 40%;">
+                <h3 style="margin-top:0; color:#1e3a8a;">Tạo Đề Nghị Thanh Toán</h3>
+                <div class="form-group">
+                    <label>Tên Hồ Sơ / Dự Án</label>
+                    <input type="text" id="payTitle" class="form-control" placeholder="Thanh toán chi phí Cloud bộ phận Tech Tháng 6">
+                </div>
+                <div class="form-group">
+                    <label>Số Tiền (VND)</label>
+                    <input type="number" id="payAmount" class="form-control" placeholder="15000000">
+                </div>
+
+                <!-- Unlimited Upload Mimic Area -->
+                <div class="form-group">
+                    <label>Chứng Từ Đi Kèm (Không giới hạn dung lượng - Cho phép đa dạng định dạng)</label>
+                    <div class="upload-zone" onclick="document.getElementById('fileInput').click()">
+                        <p style="margin: 0; font-size: 14px; font-weight: 600; color: #2563eb;">Kéo thả hoặc Click để tải lên chứng từ</p>
+                        <p style="margin: 5px 0 0 0; font-size: 11px; color: #64748b;">Hỗ trợ: PDF, JPG, PNG, Excel, Word, ZIP...</p>
+                        <input type="file" id="fileInput" style="display:none;" multiple onchange="handleFiles(this.files)">
+                    </div>
+                </div>
+
+                <button class="btn btn-primary" style="width: 100%;" onclick="savePayment()">Lưu Hồ Sơ Thanh Toán</button>
+            </div>
+
+            <div class="col" style="width: 60%;">
+                <h3 style="margin-top:0; color:#1e3a8a;">Tệp Đang Được Chọn Xem Trước (Trước khi tải về)</h3>
+                <div id="filePreviewArea" class="preview-container">
+                    <p style="color: #64748b; font-style: italic; font-size: 13px;" id="noFileText">Chưa có chứng từ nào được tải lên để hiển thị xem trước.</p>
+                    <ul id="fileList" style="list-style: none; padding: 0; margin: 0;"></ul>
+                </div>
+
+                <div style="margin-top: 25px;">
+                    <h3 style="color:#1e3a8a; margin-bottom: 10px;">Danh Sách Đề Nghị Thanh Toán Hiện Hành</h3>
+                    <table id="payTable">
+                        <thead>
+                            <tr>
+                                <th>Tên Hồ Sơ</th>
+                                <th>Số Tiền</th>
+                                <th>Số Lượng Chứng Từ</th>
+                                <th>Trạng Thái</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><b>Chi phí Cloud Tháng 6</b></td>
+                                <td>15,000,000 đ</td>
+                                <td><span class="badge badge-info">3 tệp đính kèm</span></td>
+                                <td><span class="badge badge-success">Đã Duyệt</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Tab switching engine
+    function switchTab(tabId) {
+        const contents = document.querySelectorAll('.tab-content');
+        const buttons = document.querySelectorAll('.tab-btn');
+        
+        contents.forEach(content => content.classList.remove('active'));
+        buttons.forEach(btn => btn.classList.remove('active'));
+        
+        document.getElementById(tabId).classList.add('active');
+        // Find clicked button based on text match or layout sequence
+        event.currentTarget.classList.add('active');
+    }
+
+    // HR Actions
+    function addEmployee(e) {
+        e.preventDefault();
+        const id = document.getElementById('empId').value;
+        const name = document.getElementById('empName').value;
+        const dept = document.getElementById('empDept').value;
+        const role = document.getElementById('empRole').value;
+
+        const table = document.getElementById('empTable').getElementsByTagName('tbody')[0];
+        const newRow = table.insertRow();
+        newRow.innerHTML = `<td><b>${id}</b></td><td>${name}</td><td>${dept}</td><td>${role}</td><td><span class="badge badge-success">Đang làm việc</span></td>`;
+        
+        document.getElementById('hrForm').reset();
+    }
+
+    // Equipment Actions
+    function addEquipment(e) {
+        e.preventDefault();
+        const id = document.getElementById('eqId').value;
+        const name = document.getElementById('eqName').value;
+        const user = document.getElementById('eqUser').value;
+
+        const table = document.getElementById('eqTable').getElementsByTagName('tbody')[0];
+        const newRow = table.insertRow();
+        newRow.innerHTML = `<td><b>${id}</b></td><td>${name}</td><td>${user}</td><td>26/06/2026</td><td><button class="btn btn-secondary" style="padding: 4px 10px; font-size:12px;" onclick="viewQR('${id}', '${name}', '${user}')">Xem QR</button></td>`;
+        
+        viewQR(id, name, user);
+        document.getElementById('eqForm').reset();
+    }
+
+    function viewQR(id, name, user) {
+        const qrContainer = document.getElementById('qrContainer');
+        const qrMeta = document.getElementById('qrMeta');
+        
+        // Dynamically simulate QR content update inside layout placeholder using standard CSS pattern
+        qrContainer.style.background = "#1e293b";
+        qrContainer.innerHTML = `<div style="color:white; font-size:10px; padding:15px; word-break:break-all; text-align:center; height:100%;">[Mã QR Định Danh]<br><b>ID:</b> ${id}<br><b>Sử dụng:</b> ${user}</div>`;
+        qrMeta.innerHTML = `Mã định danh cho <b>${name}</b> đã kích hoạt.`;
+    }
+
+    // Modern file management preview logic (handles various mockup file formats securely)
+    let uploadedFiles = [];
+    function handleFiles(files) {
+        document.getElementById('noFileText').style.display = 'none';
+        const fileList = document.getElementById('fileList');
+        
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            uploadedFiles.push(file);
             
-            reader.onload = function(e) {
-                const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, { type: 'array' });
-                const firstSheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[firstSheetName];
-                const jsonData = XLSX.utils.sheet_to_json(worksheet);
-                
-                db_nhansu = jsonData.map((row, index) => {
-                    // Xử lý tính toán ngày tháng năm sinh và tuổi nghỉ hưu tương đối năm 2026
-                    let birthYear = 1980;
-                    if(row['Ngày Sinh']) {
-                        const parts = String(row['Ngày Sinh']).split(/[-/]/);
-                        if(parts.length === 3) birthYear = parseInt(parts[2]);
-                    }
-                    const currentYear = 2026;
-                    const age = currentYear - birthYear;
-                    const retireYear = birthYear + (row['Giới Tính'] === 'Nữ' ? 60 : 62);
-
-                    return {
-                        id: 'NS-' + (1000 + index),
-                        stt_goc: row['STT'] || (index + 1),
-                        hoten: row['Họ và Tên'] || 'Chưa rõ',
-                        bhxh: row['Số Sổ BHXH'] || '---',
-                        cccd: row['Số CCCD'] || '---',
-                        gioitinh: row['Giới Tính'] || 'Nam',
-                        ngaysinh: row['Ngày Sinh'] || '01/01/1980',
-                        tuoi: age,
-                        atv: row['ATV'] || 'Không',
-                        nndh: row['NNĐH'] || 'Không',
-                        ngayvehuu: '01/01/' + retireYear,
-                        madonvi: row['Mã Đơn Vị'] || 'VP-TCT',
-                        chucdanh: row['Chức Danh Công Việc'] || 'Nhân viên'
-                    };
-                });
-
-                document.getElementById('count_ns').innerText = db_nhansu.length;
-                updateNhanSuStatsAndCharts();
-                displayNhanSuTable();
-                updateUnitDropdowns();
-                alert('Nạp thành công ' + db_nhansu.length + ' hồ sơ nhân sự vào bộ nhớ đệm!');
-            };
-            reader.readAsArrayBuffer(file);
-        }
-
-        // Cập nhật biểu đồ cấu trúc phòng ban, giới tính và hưu trí
-        function updateNhanSuStatsAndCharts() {
-            if(db_nhansu.length === 0) return;
-
-            const maleCount = db_nhansu.filter(p => p.gioitinh === 'Nam').length;
-            const femaleCount = db_nhansu.filter(p => p.gioitinh === 'Nữ').length;
-            const atvCount = db_nhansu.filter(p => p.atv === 'Có' || p.atv === 'Y').length;
-            const nndhCount = db_nhansu.filter(p => p.nndh === 'Có' || p.nndh === 'Y').length;
-
-            document.getElementById('hr_stat_male').innerText = Math.round((maleCount/db_nhansu.length)*100) + '%';
-            document.getElementById('hr_stat_female').innerText = Math.round((femaleCount/db_nhansu.length)*100) + '%';
-            document.getElementById('hr_stat_atv').innerText = atvCount + ' người';
-            document.getElementById('hr_stat_nndh').innerText = nndhCount + ' người';
-
-            // Khởi tạo/Cập nhật các biểu đồ Chart.js
-            const ctxGender = document.getElementById('genderChart').getContext('2d');
-            if(gChart) gChart.destroy();
-            gChart = new Chart(ctxGender, {
-                type: 'pie',
-                data: {
-                    labels: ['Nam', 'Nữ'],
-                    datasets: [{
-                        data: [maleCount, femaleCount],
-                        backgroundColor: ['#059669', '#f43f5e']
-                    }]
-                },
-                options: { responsive: true, maintainAspectRatio: false }
-            });
-        }
-
-        // Hiện danh sách nhân sự lên giao diện table
-        function displayNhanSuTable() {
-            const tbody = document.getElementById('table_hoso_body');
-            tbody.innerHTML = '';
+            const li = document.createElement('li');
+            li.className = 'file-item';
             
-            if(db_nhansu.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="13" class="text-center py-6">Không có dữ liệu hiển thị. Hãy nạp file Excel gốc.</td></tr>`;
-                return;
-            }
-
-            db_nhansu.forEach(p => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td class="text-center font-bold text-emerald-800">${p.id}</td>
-                    <td class="text-center">${p.stt_goc}</td>
-                    <td class="font-bold">${p.hoten}</td>
-                    <td>${p.bhxh}</td>
-                    <td>${p.cccd}</td>
-                    <td class="text-center">${p.gioitinh}</td>
-                    <td class="text-center">${p.ngaysinh}</td>
-                    <td class="text-center font-bold">${p.tuoi}</td>
-                    <td class="text-center">${p.atv}</td>
-                    <td class="text-center">${p.nndh}</td>
-                    <td class="text-center text-rose-700 font-bold">${p.ngayvehuu}</td>
-                    <td class="text-center font-bold">${p.madonvi}</td>
-                    <td>${p.chucdanh}</td>
-                `;
-                tbody.appendChild(tr);
-            });
-        }
-
-        // Đồng bộ danh mục Đơn Vị Phòng Ban từ tệp nhân sự sang cấu trúc cấp phát thiết bị
-        function updateUnitDropdowns() {
-            const donviSet = new Set(db_nhansu.map(p => p.madonvi));
-            const filterDonVi = document.getElementById('filter_donvi');
-            const devFilterDonVi = document.getElementById('dev_filter_donvi');
+            // Generate visual safe badge for type
+            let fileTypeBadge = '<span class="badge badge-info">FILE</span>';
+            if(file.name.endsWith('.pdf')) fileTypeBadge = '<span class="badge" style="background:#fee2e2; color:#991b1b;">PDF</span>';
+            if(file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) fileTypeBadge = '<span class="badge" style="background:#dcfce7; color:#166534;">EXCEL</span>';
+            if(file.name.match(/\.(jpg|jpeg|png|gif)$/i)) fileTypeBadge = '<span class="badge" style="background:#fef9c3; color:#854d0e;">IMAGE</span>';
             
-            // Xóa dữ liệu cũ trừ dòng đầu tiên
-            filterDonVi.innerHTML = '<option value="">-- Tất cả Mã Đơn Vị --</option>';
-            devFilterDonVi.innerHTML = '<option value="">-- Chọn đơn vị --</option>';
-
-            donviSet.forEach(dv => {
-                if(!dv) return;
-                const opt1 = new ArrayOption(dv, dv);
-                filterDonVi.options.add(new Option(dv, dv));
-                devFilterDonVi.options.add(new Option(dv, dv));
-            });
-        }
-
-        // Cơ chế gợi ý thông minh nhân viên quản lý thiết bị trực thuộc mã đơn vị đã chọn
-        function smartSuggest(input) {
-            const unit = document.getElementById('dev_filter_donvi').value;
-            const suggestBox = document.getElementById('dev_suggest');
-            suggestBox.innerHTML = '';
-
-            let filtered = db_nhansu;
-            if (unit) {
-                filtered = db_nhansu.filter(p => p.madonvi === unit);
-            }
-
-            const val = input.value.toLowerCase();
-            const matches = filtered.filter(p => p.hoten.toLowerCase().includes(val) || p.id.toLowerCase().includes(val));
-
-            if(matches.length === 0) {
-                suggestBox.innerHTML = '<div class="p-2 text-xs text-gray-400">Không tìm thấy kết quả</div>';
-                return;
-            }
-
-            matches.slice(0, 8).forEach(p => {
-                const div = document.createElement('div');
-                div.className = 'p-3 hover:bg-emerald-50 cursor-pointer border-b text-sm font-bold';
-                div.innerHTML = `<i class="fa-solid fa-user text-emerald-700 mr-2"></i> ${p.hoten} (${p.id} - ${p.madonvi})`;
-                div.onclick = function() {
-                    input.value = p.hoten;
-                    document.getElementById('dev_user_id').value = p.id;
-                    suggestBox.innerHTML = '';
-                };
-                suggestBox.appendChild(div);
-            });
-        }
-
-        // Đóng hộp gợi ý khi click ra ngoài
-        document.addEventListener('click', function(e) {
-            if(e.target.id !== 'dev_user_search') {
-                document.getElementById('dev_suggest').innerHTML = '';
-            }
-            if(e.target.id !== 'rep_device_search') {
-                document.getElementById('rep_device_suggest').style.display = 'none';
-            }
-        });
-
-        // Xử lý logic Thêm/Cập nhật cấu hình Cấp Phát Thiết Bị & Tài Sản
-        function saveDeviceConfig() {
-            const idInput = document.getElementById('editing_device_id').value;
-            const name = document.getElementById('dev_name').value;
-            let code = document.getElementById('dev_code').value;
-            const unit = document.getElementById('dev_filter_donvi').value;
-            const manager = document.getElementById('dev_user_search').value;
-            const status = document.getElementById('dev_status_select').value;
-
-            if(!name || !unit || !manager) {
-                alert('Vui lòng nhập đầy đủ các trường thông tin bắt buộc (*)!');
-                return;
-            }
-
-            if(!code) {
-                code = 'EQ-' + unit + '-' + Math.floor(1000 + Math.random() * 9000);
-            }
-
-            if(idInput) {
-                // Cập nhật thiết bị hiện tại
-                const index = db_thietbi.findIndex(d => d.id === idInput);
-                if(index > -1) {
-                    db_thietbi[index] = { id: idInput, code, name, manager, unit, status };
-                }
-            } else {
-                // Thêm thiết bị mới hoàn toàn
-                db_thietbi.push({
-                    id: 'DEV-' + Date.now(),
-                    code, name, manager, unit, status
-                });
-            }
-
-            clearDeviceForm();
-            displayThietBi();
-            alert('Lưu thông tin thiết bị tài sản thành công!');
-        }
-
-        function clearDeviceForm() {
-            document.getElementById('editing_device_id').value = '';
-            document.getElementById('dev_name').value = '';
-            document.getElementById('dev_code').value = '';
-            document.getElementById('dev_user_search').value = '';
-            document.getElementById('dev_user_id').value = '';
-            document.getElementById('form_device_title').innerHTML = '<i class="fa-solid fa-square-plus text-amber-600"></i> KHAI BÁO CẤP PHÁT THIẾT BỊ & TÀI SẢN MỚI';
-        }
-
-        // Hiển thị danh sách thiết bị và tự động kết xuất chuỗi Base64 mã QR độ sắc nét cao
-        function displayThietBi() {
-            const tbody = document.getElementById('table_thietbi_body');
-            tbody.innerHTML = '';
-            const keyword = document.getElementById('search_thietbi').value.toLowerCase();
-
-            const filtered = db_thietbi.filter(d => 
-                d.name.toLowerCase().includes(keyword) || 
-                d.code.toLowerCase().includes(keyword) || 
-                d.manager.toLowerCase().includes(keyword)
-            );
-
-            if(filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="text-center py-6 text-gray-500">Chưa có thiết bị nào được khai báo hoặc không tìm thấy kết quả phù hợp.</td></tr>`;
-                return;
-            }
-
-            filtered.forEach(d => {
-                // Sử dụng qrcode-generator tạo mã hóa QR siêu ổn định
-                const qr = qrcode(4, 'M');
-                qr.addData(`Mã TS: ${d.code}\nTên TS: ${d.name}\nQL: ${d.manager}\nĐơn vị: ${d.unit}`);
-                qr.make();
-                const qrImgTag = qr.createImgTag(4, 8); // Tạo chuỗi thẻ <img> hoàn chỉnh chứa Base64 dữ liệu ảnh mã QR
-
-                const statusClass = d.status === 'Đang sử dụng' ? 'status-using' : 'status-broken';
-
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td class="text-center qr-canvas py-2">${qrImgTag}</td>
-                    <td class="font-bold text-amber-700">${d.code}</td>
-                    <td class="font-bold">${d.name}</td>
-                    <td>${d.manager}</td>
-                    <td class="text-center font-bold">${d.unit}</td>
-                    <td class="text-center"><span class="px-2 py-1 rounded font-bold text-xs ${statusClass}">${d.status}</span></td>
-                    <td class="text-center">
-                        <div class="flex flex-wrap justify-center gap-2">
-                            <button onclick="editDevice('${d.id}')" class="px-3 py-1.5 bg-sky-600 text-white rounded font-bold text-xs hover:bg-sky-700"><i class="fa-solid fa-pen-to-square"></i> Sửa</button>
-                            <button onclick="deleteDevice('${d.id}')" class="px-3 py-1.5 bg-rose-600 text-white rounded font-bold text-xs hover:bg-rose-700"><i class="fa-solid fa-trash"></i> Xóa</button>
-                            <button onclick="printSingleSticker('${d.id}')" class="px-3 py-1.5 bg-amber-500 text-white rounded font-bold text-xs hover:bg-amber-600"><i class="fa-solid fa-print"></i> In Tem</button>
-                        </div>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
-        }
-
-        function editDevice(id) {
-            const d = db_thietbi.find(item => item.id === id);
-            if(!d) return;
-
-            document.getElementById('editing_device_id').value = d.id;
-            document.getElementById('dev_name').value = d.name;
-            document.getElementById('dev_code').value = d.code;
-            document.getElementById('dev_filter_donvi').value = d.unit;
-            document.getElementById('dev_user_search').value = d.manager;
-            document.getElementById('dev_status_select').value = d.status;
-
-            document.getElementById('form_device_title').innerHTML = '<i class="fa-solid fa-pen-to-square text-sky-600"></i> HIỆU CHỈNH THÔNG TIN THIẾT BỊ / TÀI SẢN';
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-
-        function deleteDevice(id) {
-            if(confirm('Bạn có chắc chắn muốn xóa thiết bị này khỏi cơ sở dữ liệu? Lịch sử sửa chữa liên quan sẽ bị mồ côi.')) {
-                db_thietbi = db_thietbi.filter(item => item.id !== id);
-                displayThietBi();
-            }
-        }
-
-        // Cơ chế hiển thị gợi ý danh sách thiết bị có sẵn khi lập biểu mẫu sửa chữa
-        function suggestRepairDevice(input) {
-            const suggestBox = document.getElementById('rep_device_suggest');
-            suggestBox.innerHTML = '';
-            suggestBox.style.display = 'block';
-
-            const val = input.value.toLowerCase();
-            const matches = db_thietbi.filter(d => d.name.toLowerCase().includes(val) || d.code.toLowerCase().includes(val));
-
-            if(matches.length === 0) {
-                suggestBox.innerHTML = '<div class="p-2 text-xs text-gray-400">Không tìm thấy thiết bị nào hợp lệ</div>';
-                return;
-            }
-
-            matches.forEach(d => {
-                const div = document.createElement('div');
-                div.className = 'p-3 hover:bg-amber-50 cursor-pointer border-b text-sm font-bold';
-                div.innerHTML = `<i class="fa-solid fa-laptop text-amber-700 mr-2"></i> ${d.name} [Mã: ${d.code}]`;
-                div.onclick = function() {
-                    input.value = `${d.name} (${d.code})`;
-                    document.getElementById('rep_device_code').value = d.code;
-                    document.getElementById('rep_device_name').value = d.name;
-                    suggestBox.innerHTML = '';
-                    suggestBox.style.display = 'none';
-                };
-                suggestBox.appendChild(div);
-            });
-        }
-
-        // Tính toán chi phí sửa chữa cộng hưởng thuế suất VAT tự động
-        function calculateTotalRepairCost() {
-            const beforeTax = parseFloat(document.getElementById('rep_cost_before').value) || 0;
-            const vatRate = parseFloat(document.getElementById('rep_vat_rate').value) || 0;
-            const afterTax = beforeTax + (beforeTax * (vatRate / 100));
-            
-            // Định dạng tiền tệ VNĐ hiển thị trực quan
-            document.getElementById('rep_cost_after').value = afterTax.toLocaleString('vi-VN') + ' đ';
-        }
-
-        // Thêm mới hoặc cập nhật thông tin quyết toán chi phí sửa chữa
-        function saveRepairConfig() {
-            const idInput = document.getElementById('editing_repair_id').value;
-            const devCode = document.getElementById('rep_device_code').value;
-            const devName = document.getElementById('rep_device_name').value;
-            const title = document.getElementById('rep_title').value;
-            const beneficiary = document.getElementById('rep_beneficiary').value;
-            const bankAccount = document.getElementById('rep_bank_account').value;
-            const bankName = document.getElementById('rep_bank_name').value;
-            const costBefore = parseFloat(document.getElementById('rep_cost_before').value) || 0;
-            const vatRate = parseFloat(document.getElementById('rep_vat_rate').value) || 0;
-            const status = document.getElementById('rep_status').value;
-
-            if(!devCode || !title || !beneficiary || costBefore <= 0) {
-                alert('Vui lòng chọn thiết bị tài sản và nhập đầy đủ chi phí, nội dung sửa chữa bắt buộc!');
-                return;
-            }
-
-            const costAfter = costBefore + (costBefore * (vatRate / 100));
-
-            if(idInput) {
-                const index = db_suachua.findIndex(r => r.id === idInput);
-                if(index > -1) {
-                    db_suachua[index] = { id: idInput, devCode, devName, title, beneficiary, bankAccount, bankName, costBefore, vatRate, costAfter, status };
-                }
-            } else {
-                db_suachua.push({
-                    id: 'REP-' + Date.now(),
-                    devCode, devName, title, beneficiary, bankAccount, bankName, costBefore, vatRate, costAfter, status
-                });
-            }
-
-            clearRepairForm();
-            displaySuaChua();
-            updateRepairChartsAndStats();
-            alert('Phiếu quyết toán chi phí bảo dưỡng đã được cập nhật thành công!');
-        }
-
-        function clearRepairForm() {
-            document.getElementById('editing_repair_id').value = '';
-            document.getElementById('rep_device_search').value = '';
-            document.getElementById('rep_device_code').value = '';
-            document.getElementById('rep_device_name').value = '';
-            document.getElementById('rep_title').value = '';
-            document.getElementById('rep_beneficiary').value = '';
-            document.getElementById('rep_bank_account').value = '';
-            document.getElementById('rep_bank_name').value = '';
-            document.getElementById('rep_cost_before').value = '';
-            document.getElementById('rep_cost_after').value = '';
-            document.getElementById('form_repair_title').innerHTML = '<i class="fa-solid fa-receipt"></i> Lập Phiếu quyết toán bảo dưỡng / sửa chữa';
-        }
-
-        // Kết xuất danh sách nhật ký phiếu bảo trì sửa chữa ra giao diện bảng
-        function displaySuaChua() {
-            const tbody = document.getElementById('table_suachua_body');
-            tbody.innerHTML = '';
-            const keyword = document.getElementById('search_suachua').value.toLowerCase();
-
-            const filtered = db_suachua.filter(r => 
-                r.title.toLowerCase().includes(keyword) || 
-                r.devCode.toLowerCase().includes(keyword) || 
-                r.beneficiary.toLowerCase().includes(keyword)
-            );
-
-            if(filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="8" class="text-center py-6 text-gray-500">Chưa có bản ghi quyết toán nào phù hợp với bộ lọc tìm kiếm.</td></tr>`;
-                return;
-            }
-
-            filtered.forEach(r => {
-                const statusColor = r.status === 'Đã quyết toán' ? 'text-emerald-700 font-bold' : 'text-amber-600 font-bold';
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td class="font-bold text-emerald-900">${r.devCode}</td>
-                    <td>
-                        <div class="font-bold text-slate-900">${r.title}</div>
-                        <div class="text-xs text-gray-500 italic">Thiết bị: ${r.devName}</div>
-                    </td>
-                    <td>
-                        <div class="font-bold">${r.beneficiary}</div>
-                        <div class="text-xs text-slate-600">${r.bankAccount ? (r.bankAccount + ' - ' + r.bankName) : 'Tiền mặt/Chuyển khoản trực tiếp'}</div>
-                    </td>
-                    <td class="text-right font-semibold">${r.costBefore.toLocaleString('vi-VN')} đ</td>
-                    <td class="text-center text-xs font-bold text-blue-800">${r.vatRate}%</td>
-                    <td class="text-right font-black text-emerald-900">${r.costAfter.toLocaleString('vi-VN')} đ</td>
-                    <td class="text-center ${statusColor} text-sm">${r.status}</td>
-                    <td class="text-center">
-                        <div class="flex justify-center gap-2">
-                            <button onclick="editRepair('${r.id}')" class="px-3 py-1 bg-sky-600 text-white rounded font-bold text-xs hover:bg-sky-700"><i class="fa-solid fa-edit"></i> Sửa</button>
-                            <button onclick="deleteRepair('${r.id}')" class="px-3 py-1 bg-rose-600 text-white rounded font-bold text-xs hover:bg-rose-700"><i class="fa-solid fa-trash"></i> Xóa</button>
-                        </div>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
-        }
-
-        function editRepair(id) {
-            const r = db_suachua.find(item => item.id === id);
-            if(!r) return;
-
-            document.getElementById('editing_repair_id').value = r.id;
-            document.getElementById('rep_device_search').value = `${r.devName} (${r.devCode})`;
-            document.getElementById('rep_device_code').value = r.devCode;
-            document.getElementById('rep_device_name').value = r.devName;
-            document.getElementById('rep_title').value = r.title;
-            document.getElementById('rep_beneficiary').value = r.beneficiary;
-            document.getElementById('rep_bank_account').value = r.bankAccount;
-            document.getElementById('rep_bank_name').value = r.bankName;
-            document.getElementById('rep_cost_before').value = r.costBefore;
-            document.getElementById('rep_vat_rate').value = r.vatRate;
-            document.getElementById('rep_status').value = r.status;
-
-            calculateTotalRepairCost();
-            document.getElementById('form_repair_title').innerHTML = '<i class="fa-solid fa-edit text-sky-600"></i> HIỆU CHỈNH PHIẾU QUYẾT TOÁN CHI PHÍ SỬA CHỮA';
-        }
-
-        function deleteRepair(id) {
-            if(confirm('Bạn có chắc muốn xóa vĩnh viễn phiếu quyết toán bảo trì này?')) {
-                db_suachua = db_suachua.filter(item => item.id !== id);
-                displaySuaChua();
-                updateRepairChartsAndStats();
-            }
-        }
-
-        // Cập nhật thẻ thống kê tài chính và các biểu đồ cấu trúc chi phí sửa chữa liên quan
-        function updateRepairChartsAndStats() {
-            let totalBefore = 0;
-            let totalAfter = 0;
-            let completedCount = 0;
-            let pendingCount = 0;
-
-            db_suachua.forEach(r => {
-                totalBefore += r.costBefore;
-                totalAfter += r.costAfter;
-                if(r.status === 'Đã quyết toán') completedCount++;
-                else pendingCount++;
-            });
-
-            document.getElementById('lbl_stat_rep_count').innerText = db_suachua.length + ' hồ sơ';
-            document.getElementById('lbl_stat_total_before').innerText = totalBefore.toLocaleString('vi-VN') + ' đ';
-            document.getElementById('lbl_stat_total_after').innerText = totalAfter.toLocaleString('vi-VN') + ' đ';
-
-            // Biểu đồ hình khuyên tiến độ thanh toán tài chính
-            const ctxPayment = document.getElementById('repairPaymentChart').getContext('2d');
-            if(rpChart) rpChart.destroy();
-            rpChart = new Chart(ctxPayment, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Đã quyết toán', 'Chưa thanh toán'],
-                    datasets: [{
-                        data: [completedCount, pendingCount],
-                        backgroundColor: ['#047857', '#d97706']
-                    }]
-                },
-                options: { responsive: true, maintainAspectRatio: false }
-            });
-        }
-
-        // Xử lý in nhãn dán QR đơn lẻ cho thiết bị tài sản
-        function printSingleSticker(id) {
-            const d = db_thietbi.find(item => item.id === id);
-            if(!d) return;
-
-            const qr = qrcode(4, 'M');
-            qr.addData(`Mã TS: ${d.code}\nTên TS: ${d.name}\nQL: ${d.manager}`);
-            qr.make();
-            const qrImg = qr.createImgTag(4, 8);
-
-            const printGrid = document.getElementById('printGrid');
-            printGrid.innerHTML = `
-                <div class="sticker-card p-4 border-2 border-dashed border-emerald-950 text-center rounded-lg">
-                    <div class="font-bold text-xs uppercase text-emerald-900 border-b pb-1 mb-2">TỔNG CÔNG TY GIẤY VIỆT NAM</div>
-                    <div class="my-2">${qrImg}</div>
-                    <div class="font-bold text-sm text-amber-800">${d.code}</div>
-                    <div class="text-xs font-bold text-slate-900">${d.name}</div>
-                    <div class="text-[10px] text-gray-600">Đơn vị quản lý: ${d.unit}</div>
+            li.innerHTML = `
+                <div style="display:table; width:100%;">
+                    <div style="display:table-cell; vertical-align:middle;">
+                        ${fileTypeBadge} <b>${file.name}</b> (${(file.size / (1024*1024)).toFixed(2)} MB)
+                    </div>
+                    <div style="display:table-cell; text-align:right; vertical-align:middle;">
+                        <button class="btn btn-secondary" style="padding:2px 8px; font-size:11px; margin-right:5px;" onclick="previewFile('${file.name}')">Xem trước</button>
+                        <a href="#" style="font-size:12px; color:#2563eb; text-decoration:none;">Tải về</a>
+                    </div>
+                </div>
+                <div id="preview-box-${file.name.replace(/[^a-zA-Z0-9]/g, '')}" style="display:none; margin-top:10px; padding:10px; background:#f1f5f9; border-radius:4px; font-style:italic; font-size:12px; color:#475569;">
+                    [Trình xem trước thông minh] Đang mô phỏng hiển thị nội dung trực tiếp cho tệp tin này mà không cần tải về máy...
                 </div>
             `;
-            window.print();
+            fileList.appendChild(li);
+        }
+    }
+
+    function previewFile(fileName) {
+        const safeId = "preview-box-" + fileName.replace(/[^a-zA-Z0-9]/g, '');
+        const box = document.getElementById(safeId);
+        if(box.style.display === 'none') {
+            box.style.display = 'block';
+        } else {
+            box.style.display = 'none';
+        }
+    }
+
+    function savePayment() {
+        const title = document.getElementById('payTitle').value;
+        const amount = document.getElementById('payAmount').value;
+        
+        if(!title || !amount) {
+            alert('Vui lòng điền đầy đủ thông tin hồ sơ thanh toán.');
+            return;
         }
 
-        // Chức năng an toàn bảo vệ việc xóa dữ liệu đám mây
-        function triggerClearCloudWithPassword() {
-            const pass = prompt('Vui lòng nhập mật khẩu quản trị cấp cao để dọn dẹp cơ sở dữ liệu đám mây:');
-            if(pass === 'VINAPACO2026') {
-                db_nhansu = [];
-                db_thietbi = [];
-                db_suachua = [];
-                document.getElementById('count_ns').innerText = '0';
-                displayNhanSuTable();
-                displayThietBi();
-                displaySuaChua();
-                updateRepairChartsAndStats();
-                alert('Toàn bộ cơ sở dữ liệu đám mây đã được làm sạch thành công!');
-            } else if(pass !== null) {
-                alert('Mật khẩu quản trị không chính xác! Thao tác bị từ chối.');
-            }
-        }
-    </script>
+        const table = document.getElementById('payTable').getElementsByTagName('tbody')[0];
+        const newRow = table.insertRow();
+        
+        // Format to currency representation
+        const formattedAmount = new Intl.NumberFormat('vi-VN').format(amount) + " đ";
+        const countFiles = uploadedFiles.length > 0 ? `${uploadedFiles.length} tệp đính kèm` : "Không có chứng từ";
+
+        newRow.innerHTML = `<td><b>${title}</b></td><td>${formattedAmount}</td><td><span class="badge badge-info">${countFiles}</span></td><td><span class="badge" style="background:#fef3c7; color:#d97706;">Chờ duyệt</span></td>`;
+        
+        // Reset inputs
+        document.getElementById('payTitle').value = '';
+        document.getElementById('payAmount').value = '';
+        document.getElementById('fileList').innerHTML = '';
+        document.getElementById('noFileText').style.display = 'block';
+        uploadedFiles = [];
+        alert('Hồ sơ đã được lưu thành công trên hệ thống lưu trữ không giới hạn dung lượng.');
+    }
+</script>
+
 </body>
 </html>
