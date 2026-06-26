@@ -31,6 +31,11 @@
         .tab-content.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
+        .status-box { padding: 12px 18px; border-radius: 8px; margin-bottom: 20px; font-size: 13px; font-weight: 600; display: none; }
+        .status-loading { background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+        .status-success { background-color: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
+        .status-error { background-color: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+
         .metrics-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 18px; margin-bottom: 25px; }
         .metric-card { background: white; padding: 18px; border-radius: 14px; border: 1px solid #e2e8f0; border-top: 5px solid #1e3a8a; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
         .metric-card h4 { margin: 0; color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -51,7 +56,7 @@
         .form-group input:focus, .form-group select:focus { border-color: #1e3a8a; box-shadow: 0 0 0 2px rgba(30,58,138,0.1); }
 
         .search-results-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #cbd5e1; border-radius: 8px; max-height: 200px; overflow-y: auto; z-index: 100; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); display: none; }
-        .search-item { padding: 8px 12px; font-size: 13px; cursor: pointer; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; }
+        .search-item { padding: 8px 12px; font-size: 13px; cursor: pointer; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; }
         .search-item:hover { background: #eff6ff; color: #1e3a8a; font-weight: 600; }
         .search-item .item-unit { font-weight: bold; color: #475569; background: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-size: 11px; }
 
@@ -83,6 +88,9 @@
         .badge-danger { background-color: #fee2e2; color: #991b1b; }
         .badge-dark { background-color: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; }
 
+        .qr-cell-container { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 85px; min-width: 85px; }
+        .qr-canvas-holder { background: white; padding: 4px; border: 1px solid #cbd5e1; border-radius: 4px; display: inline-block; }
+
         .file-chips-container { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
         .chip { background: #e2e8f0; color: #1e293b; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
         .chip .remove-btn { color: #ef4444; cursor: pointer; font-weight: bold; }
@@ -111,13 +119,15 @@
     </header>
 
     <div class="nav-tabs">
-        <button class="tab-btn active" onclick="switchTab('tab-nhansu')">👥 1. Cơ Sở Dữ Liệu Nhân Sự</button>
-        <button class="tab-btn" onclick="switchTab('tab-capphat')">📦 2. Cấp Phát Thiết Bị (Mã QR)</button>
-        <button class="tab-btn" onclick="switchTab('tab-suachua')">🛠️ 3. Nhật Ký Sửa Chữa</button>
-        <button class="tab-btn" onclick="switchTab('tab-thanhtoan')">💰 4. Hồ Sơ Thanh Toán & Biểu Đồ Thuế</button>
+        <button class="tab-btn active" id="btn-tab-nhansu" onclick="switchTab('tab-nhansu')">👥 1. Cơ Sở Dữ Liệu Nhân Sự</button>
+        <button class="tab-btn" id="btn-tab-capphat" onclick="switchTab('tab-capphat')">📦 2. Cấp Phát Thiết Bị (Mã QR)</button>
+        <button class="tab-btn" id="btn-tab-suachua" onclick="switchTab('tab-suachua')">🛠️ 3. Nhật Ký Sửa Chữa</button>
+        <button class="tab-btn" id="btn-tab-thanhtoan" onclick="switchTab('tab-thanhtoan')">💰 4. Hồ Sơ Thanh Toán & Biểu Đồ Thuế</button>
     </div>
 
     <div id="tab-nhansu" class="tab-content active">
+        <div id="uploadStatusPanel" class="status-box"></div>
+
         <div class="metrics-grid">
             <div class="metric-card"><h4 style="color:#1e3a8a">Tổng Số Nhân Sự</h4><div class="value" id="countTotal">0 người</div></div>
             <div class="metric-card" style="border-top-color:#0284c7;"><h4 style="color:#0284c7">Lao Động Nam</h4><div class="value" id="countMaleWithRatio">0 người (0%)</div></div>
@@ -173,21 +183,31 @@
     </div>
 
     <div id="tab-capphat" class="tab-content">
+        <div id="capphatStatusPanel" class="status-box"></div>
+        
         <div class="panel">
             <div class="panel-title">Nghiệp Vụ Cấp Phát Thiết Bị Theo Mã Đơn Vị</div>
             <div class="manual-form">
-                <div class="form-group"><label>Mã Thiết Bị</label><input type="text" id="cp_id" placeholder="TB-01"></div>
-                <div class="form-group"><label>Tên Thiết Bị</label><input type="text" id="cp_name"></div>
-                <div class="form-group"><label>Lọc Theo Đơn Vị (Tùy chọn)</label><select id="cp_unit_filter" onchange="filterUserDropdown()"></select></div>
+                <div class="form-group"><label>Mã Thiết Bị</label><input type="text" id="cp_id" placeholder="VD: TB-102"></div>
+                <div class="form-group"><label>Tên Thiết Bị</label><input type="text" id="cp_name" placeholder="Máy tính xách tay..."></div>
+                <div class="form-group"><label>Lọc Theo Đơn Vị</label><select id="cp_unit_filter" onchange="filterUserDropdown()"></select></div>
                 <div class="form-group">
-                    <label>Người Nhận Thiết Bị</label>
-                    <input type="text" id="cp_user" placeholder="Click để chọn..." onfocus="showUserDropdown()" onkeyup="filterUserDropdown()">
-                    <input type="hidden" id="cp_user_cccd"><div id="cp_user_dropdown" class="search-results-dropdown"></div>
+                    <label>Người Nhận Thiết Bị (Gõ tên/CCCD từ file Excel)</label>
+                    <input type="text" id="cp_user" placeholder="Nhập từ khóa tìm kiếm nhân viên..." onfocus="showUserDropdown()" onkeyup="filterUserDropdown()">
+                    <div id="cp_user_dropdown" class="search-results-dropdown"></div>
                 </div>
-                <div class="form-group"><label>Mã Đơn Vị (Tự Động)</label><input type="text" id="cp_unit_id" readonly style="background:#e2e8f0; font-weight:bold;"></div>
+                <div class="form-group"><label>Mã Đơn Vị Người Nhận</label><input type="text" id="cp_unit_id" readonly style="background:#e2e8f0; font-weight:bold;"></div>
                 <div class="form-group" style="justify-content: flex-end;"><button class="btn btn-primary" onclick="addManualCapphat()">📦 Tạo Cấp Phát & Sinh QR</button></div>
             </div>
-            <div class="table-responsive"><table id="capphatTable"><thead><tr><th>Mã Thiết Bị</th><th>Tên Thiết Bị</th><th>Người Nhận</th><th>Đơn Vị</th><th>Hành Động</th></tr></thead><tbody></tbody></table></div>
+            
+            <div class="table-responsive">
+                <table id="capphatTable">
+                    <thead>
+                        <tr><th>Mã Thiết Bị</th><th>Tên Thiết Bị</th><th>Người Nhận</th><th>Đơn Vị</th><th>Mã QR Code Tra Cứu</th><th>Hành Động liên kết</th></tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
         </div>
     </div>
 
@@ -258,7 +278,7 @@
 <div id="previewModal" class="preview-modal">
     <div class="preview-content">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:2px solid #e2e8f0; padding-bottom:10px;">
-            <h2 style="margin:0; font-size:16px; color:#1e3a8a;">XEM TRƯỚC CHỨNG TỪ TRƯỚC KHI In VÀ XUẤT HỒ SƠ</h2>
+            <h2 style="margin:0; font-size:16px; color:#1e3a8a;">XEM TRƯỚC CHỨNG TỪ TRƯỚC KHI IN VÀ XUẤT HỒ SƠ</h2>
             <button onclick="closePreviewModal()" style="background:#ef4444; color:white; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-weight:bold;">Đóng</button>
         </div>
         <div class="preview-body"><div id="printReportArea"></div></div>
@@ -289,13 +309,24 @@
         renderThanhtoanTable();
     });
 
+    function showStatus(text, type, targetPanelId = 'uploadStatusPanel') {
+        const p = document.getElementById(targetPanelId);
+        if(!p) return;
+        p.className = "status-box " + (type === 'loading' ? 'status-loading' : type === 'success' ? 'status-success' : 'status-error');
+        p.innerText = text;
+        p.style.display = "block";
+    }
+
     function switchTab(tabId) {
         document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
         document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+        
         document.getElementById(tabId).classList.add('active');
-        event.currentTarget.classList.add('active');
-        if(tabId === 'tab-thanhtoan') { setTimeout(renderAccountingCharts, 150); }
-        if(tabId === 'tab-nhansu') { setTimeout(renderNSCharts, 150); }
+        document.getElementById('btn-' + tabId).classList.add('active');
+        
+        if(tabId === 'tab-thanhtoan') { setTimeout(renderAccountingCharts, 50); }
+        if(tabId === 'tab-nhansu') { setTimeout(renderNSCharts, 50); }
+        if(tabId === 'tab-capphat') { setTimeout(renderCapphatTable, 50); }
     }
 
     function addManualNhansu() {
@@ -317,41 +348,48 @@
 
         localStorage.setItem('erp_precise_db', JSON.stringify(dataNhansu));
         renderNhansu();
-        alert("Đã thêm thành công nhân viên " + name + " vào danh sách thủ công!");
+        showStatus("Đã thêm thành công nhân sự: " + name, "success");
     }
 
-    // HÀM ĐỌC EXCEL THÔNG MINH - ĐÃ XỬ LÝ KHỬ DÒNG TRỐNG VÀ XUỐNG DÒNG (\n) TRONG FILE CỦA BẠN
     function processExcelNhansu(input) {
         const file = input.files[0]; if (!file) return;
-        alert("Bắt đầu đọc tệp: " + file.name + "\nVui lòng chờ trong giây lát...");
+        showStatus("⏳ Hệ thống đang bóc tách dữ liệu tệp Excel của bạn. Vui lòng giữ trình duyệt mở...", "loading");
 
         const reader = new FileReader();
         reader.onload = function(e) {
             try {
                 const workbook = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
-                const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1, defval: "" });
+                const firstSheetName = workbook.SheetNames[0];
+                const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheetName], { header: 1, defval: "" });
                 
                 if (sheetData.length === 0) {
-                    alert("Lỗi: Tệp Excel này trống rỗng!");
+                    showStatus("❌ Thất bại: File Excel không có bất kỳ dữ liệu nào.", "error");
                     return;
                 }
 
                 let headerIdx = -1;
                 let colIdxs = { name: -1, cccd: -1, atv: -1, nndh: -1, retire: -1, unit: -1, birth: -1, female: -1 };
 
-                // Quét qua 20 dòng đầu tiên để tìm dòng tiêu đề chính xác (bỏ qua dòng trống số 1)
-                for (let i = 0; i < Math.min(sheetData.length, 20); i++) {
-                    let rowStr = sheetData[i].map(c => String(c).toLowerCase().replace(/\s+/g, '')).join('||');
-                    if (rowStr.includes("họvàtên") || rowStr.includes("cccd") || rowStr.includes("nữ(")) {
+                let limitRows = Math.min(sheetData.length, 15);
+                for (let i = 0; i < limitRows; i++) {
+                    let cells = sheetData[i];
+                    let isHeader = false;
+                    for(let j = 0; j < cells.length; j++) {
+                        let cText = String(cells[j]).toLowerCase().replace(/[\s\n\r]/g, '');
+                        if(cText.includes("họvàtên") || cText.includes("sốcccd") || cText.includes("nữ(")) {
+                            isHeader = true; break;
+                        }
+                    }
+                    if (isHeader) {
                         headerIdx = i;
-                        sheetData[i].forEach((cell, idx) => {
-                            let text = String(cell).toLowerCase().replace(/\s+/g, ''); // Xóa khoảng trắng và dấu xuống dòng (\n)
+                        cells.forEach((cell, idx) => {
+                            let text = String(cell).toLowerCase().replace(/[\s\n\r]/g, '');
                             if (text.includes("họvàtên")) colIdxs.name = idx;
-                            else if (text.includes("cccd") || text.includes("chứngminh")) colIdxs.cccd = idx;
+                            else if (text.includes("cccd") || text.includes("chứngminh") || text.includes("sốcccd")) colIdxs.cccd = idx;
                             else if (text.includes("antoànviên") || text.includes("atv")) colIdxs.atv = idx;
                             else if (text.includes("nndh") || text.includes("độchại")) colIdxs.nndh = idx;
                             else if (text.includes("vềhưu") || text.includes("hưutrí")) colIdxs.retire = idx;
-                            else if (text.includes("đơnvị")) colIdxs.unit = idx;
+                            else if (text.includes("đơnvị") || text.includes("mãđơnvị")) colIdxs.unit = idx;
                             else if (text.includes("nămsinh")) colIdxs.birth = idx;
                             else if (text.includes("nữ")) colIdxs.female = idx;
                         });
@@ -360,7 +398,6 @@
                 }
 
                 if (headerIdx === -1) {
-                    alert("Cảnh báo: Không tìm thấy dòng tiêu đề chuẩn (Họ và tên, CCCD). Hệ thống tự động áp dụng cấu hình dự phòng.");
                     headerIdx = 1; 
                     colIdxs = { name: 1, cccd: 4, atv: 6, nndh: 7, retire: 8, unit: 9, birth: 11, female: 12 };
                 }
@@ -368,10 +405,10 @@
                 let tempNhansu = [];
                 for (let i = headerIdx + 1; i < sheetData.length; i++) {
                     let row = sheetData[i];
+                    if (!row || row.length === 0) continue;
+
                     let nameVal = colIdxs.name !== -1 ? row[colIdxs.name] : row[1];
-                    
-                    // Nếu dòng không có tên hoặc trùng chữ tiêu đề thì bỏ qua
-                    if (!nameVal || String(nameVal).trim() === "" || String(nameVal).includes("Họ và tên")) continue;
+                    if (!nameVal || String(nameVal).trim() === "" || String(nameVal).includes("Họ và tên") || String(nameVal).includes("Stt")) continue;
 
                     let cccdVal = colIdxs.cccd !== -1 ? row[colIdxs.cccd] : row[4];
                     let atvVal = colIdxs.atv !== -1 ? row[colIdxs.atv] : row[6];
@@ -399,23 +436,31 @@
                 }
 
                 if(tempNhansu.length === 0) {
-                    alert("Không bóc tách được dòng dữ liệu nào! Hãy kiểm tra lại định dạng file.");
+                    showStatus("❌ Lỗi cấu trúc: Định dạng các cột trong file không tương thích.", "error");
                     return;
                 }
 
                 dataNhansu = tempNhansu;
                 localStorage.setItem('erp_precise_db', JSON.stringify(dataNhansu));
+                
                 renderNhansu(); 
-                alert("🎉 ĐỒNG BỘ THÀNH CÔNG!\nHệ thống đã xử lý và tải lên danh sách gồm " + dataNhansu.length + " nhân sự.");
+                showStatus("🎉 ĐỒNG BỘ THÀNH CÔNG! Đã tải lên " + dataNhansu.length + " hồ sơ nhân sự vào hệ thống.", "success");
             } catch(err) { 
                 console.error(err);
-                alert("❌ Lỗi nghiêm trọng khi đọc file: " + err.message); 
+                showStatus("❌ Lỗi xử lý dữ liệu: " + err.message, "error");
             }
         };
         reader.readAsArrayBuffer(file);
     }
 
-    function clearDatabase(key) { if(confirm("Xóa toàn bộ dữ liệu nhân sự?")) { localStorage.removeItem(key); dataNhansu=[]; renderNhansu(); alert("Đã xóa sạch bộ nhớ!"); } }
+    function clearDatabase(key) { 
+        if(confirm("Xóa toàn bộ dữ liệu nhân sự?")) { 
+            localStorage.removeItem(key); 
+            dataNhansu=[]; 
+            renderNhansu(); 
+            showStatus("Đã xóa sạch bộ nhớ dữ liệu nhân sự.", "success");
+        } 
+    }
 
     function buildFilterDropdowns() {
         const uSelect = document.getElementById('filterUnit'); if(!uSelect) return;
@@ -445,7 +490,8 @@
         });
 
         const tbody = document.querySelector('#corporateTable tbody'); tbody.innerHTML = '';
-        filtered.forEach(emp => {
+        let viewLimit = filtered.slice(0, 100);
+        viewLimit.forEach(emp => {
             tbody.innerHTML += `<tr><td>${emp.stt}</td><td><b>${emp.fullName}</b></td><td>${emp.cccd}</td><td>${emp.atv||'-'}</td><td>${emp.nndh||'-'}</td><td>${emp.retireTime}</td><td><span class="badge badge-dark">${emp.unitId}</span></td><td>${emp.birthOrigin}</td><td>${emp.gender}</td><td><span class="badge badge-info">${emp.currentAge} t</span></td></tr>`;
         });
     }
@@ -483,13 +529,15 @@
     function renderNSCharts() {
         if(dataNhansu.length === 0) return;
         let units = {}; dataNhansu.forEach(e => units[e.unitId] = (units[e.unitId]||0)+1);
-        if(cU) cU.destroy();
+        
+        if (cU) { cU.destroy(); cU = null; }
         cU = new Chart(document.getElementById('unitChart'), {
             type: 'bar',
             data: { labels: Object.keys(units), datasets: [{ label: 'Nhân sự', data: Object.values(units), backgroundColor: '#0284c7' }] },
             options: { responsive: true, maintainAspectRatio: false }
         });
-        if(cF) cF.destroy();
+        
+        if (cF) { cF.destroy(); cF = null; }
         cF = new Chart(document.getElementById('forecastChart'), {
             type: 'line',
             data: { labels: ['2026', '2027', '2028', '2029', '2030'], datasets: [{ label: 'Dự kiến hưu trí', data: [2, 5, 3, 8, 4], borderColor: '#ef4444', fill: false }] },
@@ -497,46 +545,101 @@
         });
     }
 
-    /* --- PHẦN LIÊN KẾT CẤP PHÁT & SỬA CHỮA --- */
+    /* --- PHÂN HỆ CẤP PHÁT THIẾT BỊ --- */
     function showUserDropdown() {
         document.getElementById('cp_user_dropdown').style.display = 'block'; filterUserDropdown();
     }
+    
     function filterUserDropdown() {
         let filterUnit = document.getElementById('cp_unit_filter').value;
         let keyword = document.getElementById('cp_user').value.toLowerCase().trim();
         let dropdown = document.getElementById('cp_user_dropdown'); dropdown.innerHTML = '';
+        
         let filtered = dataNhansu.filter(emp => ((filterUnit === "ALL" || emp.unitId === filterUnit) && (!keyword || emp.fullName.toLowerCase().includes(keyword) || emp.cccd.includes(keyword))));
-        filtered.forEach(emp => {
+        
+        filtered.slice(0, 20).forEach(emp => {
             let div = document.createElement('div'); div.className = 'search-item';
-            div.innerHTML = `<span><b>${emp.fullName}</b></span> <span class="item-unit">${emp.unitId}</span>`;
+            div.innerHTML = `<div><b>${emp.fullName}</b> <small style="color:#64748b;">(CCCD: ${emp.cccd})</small></div> <span class="item-unit">${emp.unitId}</span>`;
             div.onclick = function() {
-                document.getElementById('cp_user').value = emp.fullName; document.getElementById('cp_unit_id').value = emp.unitId; dropdown.style.display = 'none';
+                document.getElementById('cp_user').value = emp.fullName; 
+                document.getElementById('cp_unit_id').value = emp.unitId; 
+                dropdown.style.display = 'none';
             };
             dropdown.appendChild(div);
         });
     }
+
+    // TỐI ƯU SỬA LỖI: Tạo cấp phát kết hợp đưa luồng vẽ QR vào hàng đợi bất đồng bộ (setTimeout 100ms)
     function addManualCapphat() {
         let id = document.getElementById('cp_id').value.trim();
         let name = document.getElementById('cp_name').value.trim();
         let user = document.getElementById('cp_user').value.trim();
         let unitId = document.getElementById('cp_unit_id').value.trim();
-        if(!id || !name || !user) return;
-        dataCapphat.push({ id, name, user, unitId });
+        
+        if(!id || !name || !user) {
+            showStatus("❌ Lỗi: Vui lòng điền mã TB, tên TB và chọn đích danh người nhận!", "error", "capphatStatusPanel");
+            return;
+        }
+
+        dataCapphat.push({ id, name, user, unitId: unitId || "DV-01" });
         localStorage.setItem('erp_capphat_db', JSON.stringify(dataCapphat));
+        
         renderCapphatTable();
+        showStatus("🎉 Tạo cấp phát thành công và hệ thống đã dựng ảnh QR Code phía dưới!", "success", "capphatStatusPanel");
+        
+        document.getElementById('cp_id').value = '';
+        document.getElementById('cp_name').value = '';
+        document.getElementById('cp_user').value = '';
+        document.getElementById('cp_unit_id').value = '';
     }
+
     function renderCapphatTable() {
-        const tbody = document.querySelector('#capphatTable tbody'); tbody.innerHTML = '';
+        const tbody = document.querySelector('#capphatTable tbody'); 
+        if(!tbody) return;
+        tbody.innerHTML = '';
+        
         dataCapphat.forEach((item, index) => {
-            tbody.innerHTML += `<tr><td>${item.id}</td><td><b>${item.name}</b></td><td>${item.user}</td><td>${item.unitId}</td><td><button class="btn btn-warning btn-sm" onclick="linkToSuachua('${index}')">🛠️ Báo Sửa</button></td></tr>`;
+            let rowId = `qr_holder_${index}`;
+            tbody.innerHTML += `<tr>
+                <td><span class="badge badge-dark">${item.id}</span></td>
+                <td><b>${item.name}</b></td>
+                <td>${item.user}</td>
+                <td><span class="badge badge-info">${item.unitId}</span></td>
+                <td>
+                    <div class="qr-cell-container">
+                        <div id="${rowId}" class="qr-canvas-holder"></div>
+                    </div>
+                </td>
+                <td><button class="btn btn-warning btn-sm" onclick="linkToSuachua('${index}')">🛠️ Báo Sửa Chữa</button></td>
+            </tr>`;
+            
+            // GIẢI PHÁP SỬA LỖI ĐƠ: Delay việc sinh ảnh QR 100ms chờ bảng vẽ HTML hoàn tất
+            setTimeout(() => {
+                let qrContainer = document.getElementById(rowId);
+                if(qrContainer && qrContainer.innerHTML === "") {
+                    try {
+                        new QRCode(qrContainer, {
+                            text: `Mã TB: ${item.id}\nThiết bị: ${item.name}\nNgười nhận: ${item.user}\nĐơn vị: ${item.unitId}`,
+                            width: 80,
+                            height: 80,
+                            correctLevel: QRCode.CorrectLevel.M
+                        });
+                    } catch(e) {
+                        console.error("Lỗi thư viện QR Code:", e);
+                        qrContainer.innerText = "Lỗi sinh QR";
+                    }
+                }
+            }, 100);
         });
     }
+
     function linkToSuachua(index) {
         let item = dataCapphat[index]; document.getElementById('sc_id').value = item.id; document.getElementById('sc_name').value = item.name;
         document.getElementById('sc_content').value = `Bảo dưỡng thiết bị đơn vị [${item.unitId}] giao bởi ${item.user}`;
         switchTab('tab-suachua');
     }
 
+    /* --- PHẦN LIÊN KẾT NHẬT KÝ SỬA CHỮA --- */
     function addManualSuachua() {
         let id = document.getElementById('sc_id').value.trim(); let name = document.getElementById('sc_name').value.trim();
         let content = document.getElementById('sc_content').value.trim(); let cost = parseFloat(document.getElementById('sc_cost').value) || 0;
@@ -555,7 +658,7 @@
         document.getElementById('tt_amount').value = item.cost; calculateLiveTax(); switchTab('tab-thanhtoan');
     }
 
-    /* --- PHÂN HỆ 4: HỒ SƠ THANH TOÁN --- */
+    /* --- PHẦN HỒ SƠ THANH TOÁN --- */
     function handleFileSelection(input) {
         const files = input.files;
         for(let i=0; i<files.length; i++) {
@@ -630,13 +733,13 @@
 
     function renderAccountingCharts(paid=0, unpaid=0) {
         if(dataThanhtoan.length === 0) return;
-        if(chartPieObj) chartPieObj.destroy();
+        if(chartPieObj) { chartPieObj.destroy(); chartPieObj = null; }
         chartPieObj = new Chart(document.getElementById('accountingPieChart'), {
             type: 'doughnut',
             data: { labels: ['Đã chi', 'Còn nợ'], datasets: [{ data: [dataThanhtoan.filter(e=>e.status==="Đã thanh toán").length, dataThanhtoan.filter(e=>e.status==="Chưa thanh toán").length], backgroundColor: ['#10b981', '#ef4444'] }] },
             options: { responsive: true, maintainAspectRatio: false }
         });
-        if(chartBarObj) chartBarObj.destroy();
+        if(chartBarObj) { chartBarObj.destroy(); chartBarObj = null; }
         chartBarObj = new Chart(document.getElementById('accountingBarChart'), {
             type: 'bar',
             data: { labels: ['Tiền Đã Thanh Toán', 'Tiền Còn Nợ'], datasets: [{ label: 'VNĐ', data: [paid, unpaid], backgroundColor: ['#047857', '#b91c1c'] }] },
