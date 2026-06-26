@@ -79,7 +79,7 @@
     <header>
         <div>
             <h1>Hệ Thống Phân Tích Dữ Liệu Nhân Sự Doanh Nghiệp</h1>
-            <p>Sửa lỗi nhận diện cột chứa ký tự xuống dòng • Tự động tính Tuổi hiện tại & Tuổi về hưu chuẩn hóa</p>
+            <p>Giải mã triệt để Số Sê-ri Ngày của Excel (20841...) • Ép kiểu hiển thị chuẩn ngày Việt Nam</p>
         </div>
         <div style="text-align: right; font-size: 12px; background: rgba(255,255,255,0.12); padding: 8px 16px; border-radius: 6px;">
             Năm vận hành ERP: <b>2026</b>
@@ -114,11 +114,11 @@
             <div class="panel-title">Cơ Sở Đầu Vào Tệp Tin</div>
             <div class="upload-wrapper">
                 <div class="upload-zone" onclick="document.getElementById('excelFile').click()">
-                    <p>📁 Chọn File Excel / CSV</p>
+                    <p>📁 Tải Lên Tập Tin Excel Để Sửa Lỗi</p>
                     <input type="file" id="excelFile" accept=".xlsx, .xls, .csv" style="display: none;" onchange="processCorporateExcel(this)">
                 </div>
                 <div style="font-size: 13px; color: #475569; line-height: 1.6; padding-left: 10px;">
-                    💡 <b>Đã sửa lỗi:</b> Thuật toán mới tự động chuẩn hóa mọi ký tự đặc biệt lẩn khuất trong tiêu đề cột của file Excel (ví dụ các cột có dấu xuống dòng như <i>Nữ (x)</i>, <i>Mã đơn vị</i>) để xuất ra báo cáo giới tính chính xác 100%.
+                    🎯 <b>Cập nhật thuật toán lõi phục hồi số sê-ri ngày:</b> Hệ thống đã tích hợp bộ chuyển đổi tự động dịch chuỗi mã số thô (ví dụ: `20841`) trở lại chính xác định dạng ngày tháng năm sinh và thời điểm về hưu một cách hoàn chỉnh.
                 </div>
             </div>
         </div>
@@ -146,7 +146,7 @@
                             <th>An Toàn Viên</th>
                             <th>Mã Đơn Vị</th>
                             <th>Năm Biến Động</th>
-                            <th>Năm Sinh Gốc</th>
+                            <th>Ngày Sinh Gốc</th>
                             <th>Chức Danh Công Việc & Đơn Vị Công Tác</th>
                         </tr>
                     </thead>
@@ -166,6 +166,72 @@
 <script>
     let masterData = [];
     const CURRENT_YEAR = 2026;
+
+    // THUẬT TOÁN ĐẶC CHỦN: Dịch ngược Số Sê-ri Ngày của Excel về đối tượng Date
+    function convertExcelSerialToDate(serial) {
+        let s = parseFloat(serial);
+        if (isNaN(s) || s <= 0) return null;
+        
+        // Excel có một lỗi lịch sử cố ý tính năm 1900 là năm nhuận, nên cần trừ đi 1 ngày nếu số > 60
+        let utc_days  = Math.floor(s - (s > 60 ? 25569 : 25568));
+        let utc_value = utc_days * 86400;
+        let date_info = new Date(utc_value * 1000);
+        
+        // Trả về đối tượng chứa ngày tháng năm chuẩn xác
+        return {
+            day: date_info.getUTCDate(),
+            month: date_info.getUTCMonth() + 1,
+            year: date_info.getUTCFullYear()
+        };
+    }
+
+    // Trích xuất năm để tính tuổi
+    function parseYearFromValue(val) {
+        if (!val) return 0;
+        let sVal = String(val).trim();
+        
+        // Nếu lọt số sê-ri ngày của Excel (ví dụ: 20841)
+        if (!isNaN(sVal) && parseFloat(sVal) > 1000 && parseFloat(sVal) < 100000) {
+            let dObj = convertExcelSerialToDate(sVal);
+            if (dObj) return dObj.year;
+        }
+
+        if (sVal.includes("-")) {
+            let parts = sVal.split("-");
+            if (parts[0].length === 4) return parseInt(parts[0]);
+            if (parts[2].length === 4) return parseInt(parts[2]);
+        }
+        if (sVal.includes("/")) {
+            let parts = sVal.split("/");
+            if (parts[2].length === 4) return parseInt(parts[2]);
+            if (parts[0].length === 4) return parseInt(parts[0]);
+        }
+        
+        let match = sVal.match(/\d{4}/);
+        return match ? parseInt(match[0]) : 0;
+    }
+
+    // Định dạng chuỗi hiển thị DD/MM/YYYY ra bảng
+    function formatToVietnameseDate(val) {
+        if (!val) return "-";
+        let sVal = String(val).trim();
+
+        // Xử lý triệt để số sê-ri ngày
+        if (!isNaN(sVal) && parseFloat(sVal) > 1000 && parseFloat(sVal) < 100000) {
+            let dObj = convertExcelSerialToDate(sVal);
+            if (dObj) {
+                let d = dObj.day < 10 ? "0" + dObj.day : dObj.day;
+                let m = dObj.month < 10 ? "0" + dObj.month : dObj.month;
+                return `${d}/${m}/${dObj.year}`;
+            }
+        }
+
+        if (sVal.includes("-")) {
+            let parts = sVal.split("-");
+            if (parts[0].length === 4) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+        }
+        return sVal;
+    }
 
     function processCorporateExcel(input) {
         const file = input.files[0];
@@ -190,21 +256,10 @@
                 let validIndex = 1;
 
                 rawJson.forEach(row => {
-                    let rawName = "";
-                    let rawCccd = "";
-                    let rawBirth = "";
-                    let rawRetire = "";
-                    let rawBhxh = "";
-                    let isFemaleVal = false;
-                    let rawNndh = "";
-                    let rawAtv = "";
-                    let rawUnitId = "";
-                    let rawFluctuate = "";
-                    let rawJob = "";
-                    let rawStt = "";
-                    let rawFirstName = "";
+                    let rawName = ""; let rawCccd = ""; let rawBirth = ""; let rawRetire = "";
+                    let rawBhxh = ""; let isFemaleVal = false; let rawNndh = ""; let rawAtv = "";
+                    let rawUnitId = ""; let rawFluctuate = ""; let rawJob = ""; let rawStt = ""; let rawFirstName = "";
 
-                    // THUẬT TOÁN KHỚP TIÊU ĐỀ NỚI LỎNG TOÀN DIỆN (Xóa khoảng trắng, xóa dấu xuống dòng \n, đưa về chữ thường)
                     for (let key in row) {
                         let cleanKey = key.replace(/[\r\n\t]+/g, '').replace(/\s+/g, '').toLowerCase();
                         let cellVal = String(row[key]).trim();
@@ -222,7 +277,6 @@
                         if (cleanKey === "năm" || cleanKey === "nam") rawFluctuate = cellVal;
                         if (cleanKey === "chứcdanhcôngviệc" || cleanKey === "chucdanh") rawJob = cellVal;
                         
-                        // Bắt trúng cột giới tính "Nữ (x)" hoặc "Nữ" bất kể dấu xuống dòng
                         if (cleanKey.includes("nữ")) {
                             if (cellVal && cellVal.toLowerCase() !== "nam" && cellVal !== "0") {
                                 isFemaleVal = true;
@@ -231,22 +285,10 @@
                     }
                     
                     if (rawName && rawName !== "Họ và tên" && rawCccd !== "Số CCCD") {
-                        // Tính toán tuổi hiện tại
-                        let birthYear = 0;
-                        if (rawBirth.includes("-")) {
-                            birthYear = parseInt(rawBirth.split("-")[0]);
-                        } else {
-                            birthYear = parseInt(rawBirth);
-                        }
+                        let birthYear = parseYearFromValue(rawBirth);
                         let currentAge = (birthYear > 0) ? (CURRENT_YEAR - birthYear) : 0;
 
-                        // Tính toán tuổi về hưu
-                        let retireYear = 0;
-                        if (rawRetire.includes("-")) {
-                            retireYear = parseInt(rawRetire.split("-")[0]);
-                        } else {
-                            retireYear = parseInt(rawRetire);
-                        }
+                        let retireYear = parseYearFromValue(rawRetire);
                         let retireAge = (retireYear > 0 && birthYear > 0) ? (retireYear - birthYear) : 0;
 
                         masterData.push({
@@ -257,13 +299,13 @@
                             cccd: rawCccd,
                             currentAge: currentAge,
                             retireAge: retireAge,
-                            retireTime: rawRetire || "-",
+                            retireTime: formatToVietnameseDate(rawRetire),
                             gender: isFemaleVal ? "Nữ" : "Nam",
                             nndh: rawNndh,
                             atv: rawAtv,
                             unitId: rawUnitId,
                             fluctuationYear: rawFluctuate,
-                            birthOrigin: rawBirth,
+                            birthOrigin: formatToVietnameseDate(rawBirth),
                             jobTitle: rawJob
                         });
                         validIndex++;
@@ -272,7 +314,7 @@
 
                 renderCorporateEngine();
                 calculateDashboardKPIs();
-                alert(`Thành công! Đã nạp diện rộng ${masterData.length} nhân sự, sửa hoàn toàn lỗi giới tính.`);
+                alert(`Thành công! Đã đồng bộ ${masterData.length} nhân sự, giải mã hoàn toàn số sê-ri ngày lỗi.`);
             } catch (err) {
                 alert("Lỗi thực thi dữ liệu Excel: " + err.message);
             }
@@ -305,12 +347,12 @@
                 <td><code>${emp.cccd}</code></td>
                 <td><span class="badge badge-info" style="font-size:12px;">${emp.currentAge} tuổi</span></td>
                 <td><span class="badge badge-purple" style="font-size:12px;">${emp.retireAge} tuổi</span></td>
-                <td><b>${emp.retireTime}</b></td>
+                <td><b style="color: #1e3a8a;">${emp.retireTime}</b></td>
                 <td>${genderMarkup}</td>
                 <td>${nndhMarkup}</td>
                 <td>${atvMarkup}</td>
                 <td><small class="text-muted">${emp.unitId}</small></td>
-                <td>${emp.fluctuationYear}</td>
+                <td><span class="badge badge-dark">${emp.fluctuationYear}</span></td>
                 <td>${emp.birthOrigin}</td>
                 <td class="job-cell">${emp.jobTitle}</td>
             `;
