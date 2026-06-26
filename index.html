@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hệ Thống Quản Trị ERP Hợp Nhất 3D - Bộ Lọc Thông Minh</title>
+    <title>Hệ Thống Quản Trị ERP Hợp Nhất 3D - Chuẩn Hóa An Toàn Viên</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -69,11 +69,11 @@
         .badge { display: inline-block; padding: 4px 8px; font-size: 11px; font-weight: 700; border-radius: 5px; }
         .badge-info { background-color: #dbeafe; color: #1e40af; }
         .badge-success { background-color: #d1fae5; color: #065f46; }
-        .badge-warning { background-color: #fef3c7; color: #d97706; }
+        .badge-warning { background-color: #fff7ed; color: #c2410c; border: 1px solid #ffedd5; }
         .badge-danger { background-color: #fee2e2; color: #991b1b; }
         .badge-dark { background-color: #1e293b; color: white; }
 
-        /* CSS cho Preview Modal */
+        /* Preview Modal */
         .preview-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center; }
         .preview-content { background: white; width: 85%; height: 90%; border-radius: 16px; padding: 30px; display: flex; flex-direction: column; }
         .preview-body { flex: 1; overflow-y: auto; border: 1px solid #cbd5e1; padding: 25px; }
@@ -92,7 +92,7 @@
     <header>
         <div>
             <h1>Hệ Thống Phân Tích Nhân Sự & Quản Trị ERP Toàn Diện</h1>
-            <p>Hiển thị chính xác Nghề độc hại & An toàn viên • Bộ lọc dữ liệu thông minh đa tiêu chí</p>
+            <p>Đã đồng bộ chuẩn hóa cột An toàn viên • Bộ lọc đa tiêu chí thông minh</p>
         </div>
         <div style="font-size: 12px; background: rgba(255,255,255,0.15); padding: 8px 16px; border-radius: 8px; font-weight: bold;">
             Chế độ: Đọc dữ liệu chuẩn hóa 2026
@@ -385,8 +385,10 @@
                 rawJson.forEach(row => {
                     let rName="", rCccd="", rBirth="", rRetire="", rBhxh="", isFem=false, rNndh="", rAtv="", rUnit="", rNam="", rJob="", rFirst="";
                     for (let k in row) {
+                        // Chuẩn hóa loại bỏ khoảng trắng thừa và ký tự xuống dòng trong tiêu đề
                         let ck = k.replace(/[\r\n\t]+/g, '').replace(/\s+/g, '').toLowerCase();
                         let v = String(row[k]).trim();
+                        
                         if (ck === "stt") idx = parseInt(v) || idx;
                         if (ck === "họvàtên" || ck === "hoten") rName = v;
                         if (ck === "tên" || ck === "ten") rFirst = v;
@@ -395,9 +397,9 @@
                         if (ck === "nămsinh") rBirth = v;
                         if (ck === "nămvềhưu") rRetire = v;
                         
-                        // Đọc chính xác Nghề Độc hại & An toàn viên dựa trên tiêu đề cột cấu trúc gốc
-                        if (ck === "nnđh" || ck === "nndh") rNndh = v;
-                        if (ck === "antoànviên" || ck === "atv" || ck.includes("antoàn")) rAtv = v;
+                        // Khớp từ khóa thông minh cho Nghề độc hại & An toàn viên
+                        if (ck === "nnđh" || ck === "nndh" || ck.includes("độchại")) rNndh = v;
+                        if (ck === "antoànviên" || ck === "atv" || ck.includes("toàn")) rAtv = v;
                         
                         if (ck === "mãđơnvị" || ck === "madonvi" || ck.includes("đơnvị")) rUnit = v;
                         if (ck === "năm" || ck === "nam") rNam = v;
@@ -416,15 +418,14 @@
                     }
                 });
                 localStorage.setItem('erp_online_db', JSON.stringify(dataNhansu));
-                buildFilterDropdowns(); // Thiết lập lại danh mục bộ lọc thông minh dựa trên file mới nạp
+                buildFilterDropdowns();
                 renderNhansu();
-                alert(`Thành công! Đã nạp và xử lý thông tin ${dataNhansu.length} nhân sự.`);
+                alert(`Thành công! Đã nạp và chuẩn hóa dữ liệu ${dataNhansu.length} nhân sự.`);
             } catch(err) { alert("Lỗi đọc file: " + err.message); }
         };
         reader.readAsArrayBuffer(file);
     }
 
-    // Tự động tạo danh mục tùy chọn (Dropdown) cho bộ lọc thông minh từ dữ liệu thực tế
     function buildFilterDropdowns() {
         const uSelect = document.getElementById('filterUnit');
         const ySelect = document.getElementById('filterYear');
@@ -439,7 +440,7 @@
         uniqueYears.forEach(y => { if(y && y !== "-") ySelect.innerHTML += `<option value="${y}">Năm ${y}</option>`; });
     }
 
-    // ================= CƠ CHẾ BỘ LỌC ĐA DẠNG VÀ THÔNG MINH NHẤT =================
+    // ================= BỘ LỌC ĐA TIÊU CHÍ NÂNG CAO =================
     function executeAdvancedFilter() {
         let keyword = document.getElementById('filterSearch').value.toLowerCase().trim();
         let gender = document.getElementById('filterGender').value;
@@ -448,20 +449,19 @@
         let nndhOpt = document.getElementById('filterNndh').value;
         let atvOpt = document.getElementById('filterAtv').value;
 
-        // Tiến hành lọc đa điều kiện trên mảng dữ liệu gốc
         let filteredData = dataNhansu.filter(emp => {
-            // 1. Kiểm tra từ khóa tìm kiếm nhanh
             let matchKeyword = !keyword || emp.fullName.toLowerCase().includes(keyword) || emp.cccd.includes(keyword) || emp.jobTitle.toLowerCase().includes(keyword) || emp.firstName.toLowerCase().includes(keyword);
-            // 2. Kiểm tra giới tính
             let matchGender = (gender === "ALL") || (emp.gender === gender);
-            // 3. Kiểm tra Mã Đơn vị
             let matchUnit = (unit === "ALL") || (String(emp.unitId) === unit);
-            // 4. Kiểm tra năm biến động
             let matchYear = (year === "ALL") || (String(emp.fluctuationYear) === year);
-            // 5. Kiểm tra Nghề độc hại NNĐH
-            let matchNndh = (nndhOpt === "ALL") || (nndhOpt === "YES" && emp.nndh && emp.nndh !== "0") || (nndhOpt === "NO" && (!emp.nndh || emp.nndh === "0"));
-            // 6. Kiểm tra An toàn viên
-            let matchAtv = (atvOpt === "ALL") || (atvOpt === "YES" && emp.atv && emp.atv.toUpperCase() === "X") || (atvOpt === "NO" && (!emp.atv || emp.atv.trim() === ""));
+            
+            // Logic lọc chính xác nghề độc hại
+            let hasNndh = emp.nndh && emp.nndh !== "0" && emp.nndh.trim() !== "";
+            let matchNndh = (nndhOpt === "ALL") || (nndhOpt === "YES" && hasNndh) || (nndhOpt === "NO" && !hasNndh);
+            
+            // Logic lọc chính xác tuyệt đối vai trò An toàn viên
+            let isAtv = emp.atv && emp.atv.toUpperCase().trim() === "X";
+            let matchAtv = (atvOpt === "ALL") || (atvOpt === "YES" && isAtv) || (atvOpt === "NO" && !isAtv);
 
             return matchKeyword && matchGender && matchUnit && matchYear && matchNndh && matchAtv;
         });
@@ -472,17 +472,18 @@
     function populateTable(displayList) {
         const tbody = document.querySelector('#corporateTable tbody'); tbody.innerHTML = '';
         if(displayList.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="15" style="text-align:center; padding:20px; color:#ef4444; font-weight:bold;">Không tìm thấy nhân sự phù hợp với điều kiện lọc!</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="15" style="text-align:center; padding:20px; color:#ef4444; font-weight:bold;">Không tìm thấy kết quả phù hợp!</td></tr>';
             return;
         }
         displayList.forEach(emp => {
             let row = tbody.insertRow();
-            // Định dạng nổi bật các trường thông tin độc hại & an toàn viên để dễ kiểm tra
-            let nndhBadge = emp.nndh && emp.nndh !== "0" ? `<span class="badge badge-danger">🔥 Có (Mức ${emp.nndh})</span>` : `-`;
-            let atvBadge = emp.atv && emp.atv.toUpperCase() === "X" ? `<span class="badge badge-warning">✅ An Toàn Viên</span>` : `-`;
+            let nndhBadge = emp.nndh && emp.nndh !== "0" && emp.nndh.trim() !== "" ? `<span class="badge badge-danger">🔥 Có (Mức ${emp.nndh})</span>` : `-`;
+            
+            // Render giao diện chuẩn xác cho An toàn viên
+            let atvBadge = emp.atv && emp.atv.toUpperCase().trim() === "X" ? `<span class="badge badge-warning">🛡️ An Toàn Viên</span>` : `-`;
 
             row.innerHTML = `<td>${emp.stt}</td><td style="font-weight:700;">${emp.fullName}</td><td>${emp.firstName}</td><td>${emp.bhxh}</td><td>${emp.cccd}</td>
-            <td><span class="badge badge-info">${emp.currentAge} tuổi</span></td><td><span class="badge badge-warning">${emp.retireAge} tuổi</span></td><td><b>${emp.retireTime}</b></td>
+            <td><span class="badge badge-info">${emp.currentAge} tuổi</span></td><td><span class="badge badge-purple">${emp.retireAge} tuổi</span></td><td><b>${emp.retireTime}</b></td>
             <td>${emp.gender === "Nữ" ? '🔮 Nữ':'💼 Nam'}</td><td>${nndhBadge}</td><td>${atvBadge}</td>
             <td><b>${emp.unitId}</b></td><td><span class="badge badge-dark">${emp.fluctuationYear}</span></td><td>${emp.birthOrigin}</td><td style="white-space:normal; font-size:12px;">${emp.jobTitle}</td>`;
         });
@@ -503,8 +504,10 @@
         let male = total - female;
         document.getElementById('countTotal').innerText = total + " người";
         document.getElementById('countGenderRatio').innerText = `👨 ${male} / 👩 ${female}`;
-        document.getElementById('countNndh').innerText = dataNhansu.filter(e => e.nndh && e.nndh !== "0").length + " người";
-        document.getElementById('countAtv').innerText = dataNhansu.filter(e => e.atv && e.atv.toUpperCase() === "X").length + " người";
+        document.getElementById('countNndh').innerText = dataNhansu.filter(e => e.nndh && e.nndh !== "0" && e.nndh.trim() !== "").length + " người";
+        
+        // Đếm chính xác tổng số An toàn viên trên bảng KPI nhanh
+        document.getElementById('countAtv').innerText = dataNhansu.filter(e => e.atv && e.atv.toUpperCase().trim() === "X").length + " người";
         document.getElementById('avgAge').innerText = Math.round(dataNhansu.reduce((sum, e) => sum + e.currentAge, 0) / total) + " tuổi";
     }
 
