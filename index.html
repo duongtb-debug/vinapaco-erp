@@ -1468,4 +1468,350 @@
                     <td><small class="text-slate-800 font-bold">${x.chuc_danh_cong_viec||''}</small></td>
                 </tr>`; 
             });
-            if (append) tbody.insertAdjacentHTML('beforeend', html); else tbody.innerHTML =
+            if (append) tbody.insertAdjacentHTML('beforeend', html); else tbody.innerHTML = html;
+        }
+
+        function renderCharts(data) {
+            if (typeof Chart === 'undefined') return;
+
+            try {
+                const retireYears = {};
+                const genderCounts = { "Nam": 0, "Nữ": 0 };
+                const deptCounts = {};
+
+                data.forEach(x => {
+                    if(x.nam_ve_huu) {
+                        const year = x.nam_ve_huu.split("-")[0];
+                        retireYears[year] = (retireYears[year] || 0) + 1;
+                    }
+                    
+                    let gt = String(x.gioi_tinh || "").trim();
+                    if(gt === "Nữ" || gt === "F") genderCounts["Nữ"]++;
+                    else genderCounts["Nam"]++;
+
+                    if(x.ma_don_vi) {
+                        deptCounts[x.ma_don_vi] = (deptCounts[x.ma_don_vi] || 0) + 1;
+                    }
+                });
+
+                const retireLabels = Object.keys(retireYears).sort();
+                const retireData = retireLabels.map(y => retireYears[y]);
+
+                const sortedDepts = Object.entries(deptCounts).sort((a,b) => b[1] - a[1]).slice(0, 5);
+                const deptLabels = sortedDepts.map(d => `ĐV ${d[0]}`);
+                const deptData = sortedDepts.map(d => d[1]);
+
+                Chart.defaults.font.family = "'Times New Roman', Times, serif";
+                Chart.defaults.font.size = 14;
+                Chart.defaults.font.weight = "bold";
+                Chart.defaults.color = '#111111';
+
+                if (retireChartInst) retireChartInst.destroy();
+                const ctxRetire = document.getElementById('retireChart').getContext('2d');
+                retireChartInst = new Chart(ctxRetire, {
+                    type: 'bar',
+                    data: {
+                        labels: retireLabels,
+                        datasets: [{
+                            label: 'Nhân sự nghỉ hưu',
+                            data: retireData,
+                            backgroundColor: 'rgba(5, 150, 105, 0.9)',
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+                    }
+                });
+
+                if (genderChartInst) genderChartInst.destroy();
+                const ctxGender = document.getElementById('genderChart').getContext('2d');
+                genderChartInst = new Chart(ctxGender, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Nam', 'Nữ'],
+                        datasets: [{
+                            data: [genderCounts["Nam"], genderCounts["Nữ"]],
+                            backgroundColor: ['rgba(30, 58, 138, 0.9)', 'rgba(220, 38, 38, 0.9)'],
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '60%',
+                        plugins: { legend: { position: 'bottom' } }
+                    }
+                });
+
+                if (deptChartInst) deptChartInst.destroy();
+                const ctxDept = document.getElementById('deptChart').getContext('2d');
+                deptChartInst = new Chart(ctxDept, {
+                    type: 'bar',
+                    data: {
+                        labels: deptLabels,
+                        datasets: [{
+                            label: 'Nhân sự',
+                            data: deptData,
+                            backgroundColor: 'rgba(217, 119, 6, 0.9)',
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } }
+                    }
+                });
+            } catch (err) {
+                console.error("Lỗi vẽ biểu đồ Tab 1: ", err);
+            }
+        }
+
+        function renderRepairCharts() {
+            if (typeof Chart === 'undefined') return;
+
+            try {
+                const deptCosts = {};
+                const paymentStatuses = { "Chưa thanh toán": 0, "Chờ duyệt": 0, "Đã thanh toán": 0 };
+
+                DB_NHAT_KY.forEach(x => {
+                    const dept = x.don_vi_thu_huong || "KHO";
+                    const cost = parseFloat(x.tong_chi_phi) || 0;
+                    deptCosts[dept] = (deptCosts[dept] || 0) + cost;
+
+                    const status = String(x.payment_status || x.status || "Chưa thanh toán").trim();
+                    if (paymentStatuses[status] !== undefined) {
+                        paymentStatuses[status]++;
+                    } else {
+                        paymentStatuses[status] = 1;
+                    }
+                });
+
+                const deptLabels = Object.keys(deptCosts).map(d => `${d}`);
+                const deptData = Object.values(deptCosts);
+
+                if (repairCostChartInst) repairCostChartInst.destroy();
+                const ctxRepairCost = document.getElementById('repairCostChart').getContext('2d');
+                repairCostChartInst = new Chart(ctxRepairCost, {
+                    type: 'bar',
+                    data: {
+                        labels: deptLabels,
+                        datasets: [{
+                            label: 'Chi phí bảo trì (đ)',
+                            data: deptData,
+                            backgroundColor: 'rgba(5, 150, 105, 0.9)',
+                            borderColor: '#047857',
+                            borderWidth: 2,
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: { y: { beginAtZero: true } }
+                    }
+                });
+
+                if (repairPaymentChartInst) repairPaymentChartInst.destroy();
+                const ctxRepairPayment = document.getElementById('repairPaymentChart').getContext('2d');
+                repairPaymentChartInst = new Chart(ctxRepairPayment, {
+                    type: 'doughnut',
+                    data: {
+                        labels: Object.keys(paymentStatuses),
+                        datasets: [{
+                            data: Object.values(paymentStatuses),
+                            backgroundColor: ['#dc2626', '#f59e0b', '#10b981'],
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '60%',
+                        plugins: { legend: { position: 'bottom' } }
+                    }
+                });
+            } catch (err) {
+                console.error("Lỗi vẽ biểu đồ Tab 3: ", err);
+            }
+        }
+    </script>
+    <script>
+        // CƠ CHẾ SINH QR CODE ĐỒNG BỘ ĐÁM MÂY KẾT HỢP FALLBACK NGOẠI TUYẾN
+        function generateQRCode(container, text, id) {
+            if (!container) return;
+            container.innerHTML = "";
+
+            // Tạo ảnh mã QR từ API chuẩn quốc tế làm giải pháp an toàn hàng đầu, cam kết hiển thị 100% không lo đứng máy
+            let img = document.createElement('img');
+            // TĂNG KÍCH THƯỚC LÊN 200x200 VÀ CẤU HÌNH ECC LEVEL Q ĐỂ QUÉT CỰC NHANH TRÊN ZALO / ĐIỆN THOẠI
+            img.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(text)}&ecc=Q&charset-source=UTF-8&margin=2`;
+            img.alt = "Mã QR";
+            img.className = "w-24 h-24 mx-auto block cursor-pointer border border-slate-300 rounded shadow-sm hover:scale-105 transition-transform duration-200 p-1 bg-white";
+            img.title = "Nhấp chuột để xem Lý Lịch Thẻ Tab của thiết bị này";
+            
+            // Ràng buộc sự kiện nhấn vào mã QR để hiển thị Lý Lịch Thiết Bị dạng Tab đẹp mắt
+            img.onclick = function() {
+                showDevicePassport(id);
+            };
+
+            // Cơ chế Fallback khẩn cấp nếu gặp sự cố ngoại tuyến (Mất mạng Internet)
+            img.onerror = function() {
+                try {
+                    container.innerHTML = "";
+                    if (typeof qrcode !== 'undefined') {
+                        // Tăng Error Correction mức cao Q offline
+                        const qr = qrcode(0, 'Q');
+                        qr.addData(utf16to8(text));
+                        qr.make();
+                        
+                        let tempDiv = document.createElement('div');
+                        tempDiv.innerHTML = qr.createImgTag(4, 4); // pixel size 4, margin 4
+                        let qrImg = tempDiv.querySelector('img');
+                        if (qrImg) {
+                            qrImg.className = "w-24 h-24 mx-auto block cursor-pointer border border-slate-300 rounded shadow-sm hover:scale-105 transition-transform p-1 bg-white";
+                            qrImg.onclick = function() {
+                                showDevicePassport(id);
+                            };
+                            container.appendChild(qrImg);
+                        }
+                    } else {
+                        container.innerHTML = "<span class='text-xs text-red-700 font-bold'>Lỗi kết nối</span>";
+                    }
+                } catch(e) {
+                    container.innerHTML = "<span class='text-xs text-red-700 font-bold'>Lỗi nạp mã</span>";
+                }
+            };
+
+            container.appendChild(img);
+        }
+
+        // HÀM HIỂN THỊ LÝ LỊCH THIẾT BỊ DẠNG THẺ TAB ĐẸP MẮT CHO NGƯỜI TRUNG TUỔI
+        function showDevicePassport(id) {
+            let item = DB_THIET_BI.find(x => String(x.id) === String(id));
+            if(!item) return;
+
+            // Nạp dữ liệu Tab 1: Hồ Sơ Kỹ Thuật
+            document.getElementById('pp_lbl_name').innerText = item.device_name || '--';
+            document.getElementById('pp_lbl_code').innerText = item.device_code || '--';
+            
+            let currentStatus = item.status || "Đang sử dụng";
+            let statusClass = (currentStatus === "Đang sử dụng") ? "status-using" : "status-broken";
+            let statusHTML = `<span class="badge ${statusClass} px-2.5 py-1 rounded font-semibold text-xs">${currentStatus}</span>`;
+            document.getElementById('pp_lbl_status').innerHTML = statusHTML;
+
+            // Tab 2: Bàn Giao
+            document.getElementById('pp_lbl_user').innerText = item.user_name || 'Hệ Thống Kho';
+            document.getElementById('pp_lbl_dept').innerText = item.ma_don_vi || '--';
+
+            // Tab 3: Lịch Sử Sửa
+            const historyBody = document.getElementById('pp_history_body');
+            historyBody.innerHTML = "";
+            let historyList = DB_NHAT_KY.filter(x => String(x.device_code).trim() === String(item.device_code).trim());
+            
+            if (historyList.length === 0) {
+                historyBody.innerHTML = `<tr><td colspan="3" class="text-center p-3 text-slate-500 font-bold">Chưa phát sinh nhật ký bảo dưỡng nào.</td></tr>`;
+            } else {
+                historyList.forEach(log => {
+                    let tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td class="p-2 text-xs font-semibold">${log.ngay_thuc_hien || ''}</td>
+                        <td class="p-2 text-xs">${log.title || ''}</td>
+                        <td class="p-2 text-xs text-right font-bold text-emerald-700">${(log.tong_chi_phi || 0).toLocaleString('vi-VN')} đ</td>
+                    `;
+                    historyBody.appendChild(tr);
+                });
+            }
+
+            document.getElementById('device-passport-modal').classList.remove('hidden');
+        }
+
+        function closeDevicePassport() {
+            document.getElementById('device-passport-modal').classList.add('hidden');
+        }
+
+        function switchPassportTab(tabId) {
+            document.querySelectorAll('.passport-tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(tabId).classList.remove('hidden');
+
+            document.querySelectorAll('[id^="btn_pp_tab_"]').forEach(el => {
+                el.classList.remove('text-blue-900', 'border-blue-900', 'bg-white');
+                el.classList.add('text-slate-700', 'border-transparent');
+            });
+
+            const btn = document.getElementById('btn_' + tabId);
+            if (btn) {
+                btn.classList.add('text-blue-900', 'border-blue-900', 'bg-white');
+                btn.classList.remove('text-slate-700', 'border-transparent');
+            }
+        }
+
+        function displayThietBi() {
+            const tbody = document.getElementById('table_thietbi_body'); if(!tbody) return;
+            tbody.innerHTML = "";
+            const kw = document.getElementById('search_thietbi') ? document.getElementById('search_thietbi').value.toLowerCase().trim() : "";
+
+            if (!DB_THIET_BI) DB_THIET_BI = [];
+
+            let filtered = DB_THIET_BI.filter(x => {
+                if (!kw) return true; 
+                return (x.device_name && x.device_name.toLowerCase().includes(kw)) || (x.device_code && x.device_code.toLowerCase().includes(kw)) || (x.user_name && x.user_name.toLowerCase().includes(kw));
+            });
+
+            if(filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center text-slate-800 py-12 font-bold">Chưa tìm thấy thiết bị cấp phát nào phù hợp.</td></tr>`; return;
+            }
+
+            // Chỉ lấy số lượng thiết bị nằm trong giới hạn để hiển thị (chống crash)
+            let paginated = filtered.slice(0, CURRENT_DEVICE_LIMIT);
+            
+            paginated.forEach(x => {
+                let currentStatus = x.status || "Đang sử dụng";
+                let statusClass = (currentStatus === "Đang sử dụng") ? "status-using" : "status-broken";
+                let tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-100 transition-colors";
+                tr.innerHTML = `
+                    <td class="text-center align-middle py-4"><div class="qr-canvas inline-block" id="qr_${x.device_code}"></div></td>
+                    <td><code class="font-bold text-red-800 font-mono tracking-wider" style="font-size:1rem !important;">${x.device_code}</code></td>
+                    <td><b class="text-slate-900 font-bold" style="font-size:1.1rem !important;">${x.device_name}</b></td>
+                    <td><i class="fa-solid fa-user text-slate-600 mr-2"></i><b class="font-bold">${x.user_name || 'Hệ Thống Kho'}</b></td>
+                    <td class="text-center font-bold"><span class="bg-emerald-100 text-emerald-950 border-2 border-emerald-400 px-3 py-1 rounded-md">ĐV ${x.ma_don_vi||'--'}</span></td>
+                    <td class="text-center"><span class="badge ${statusClass} px-3 py-1.5 rounded-lg font-bold">${currentStatus}</span></td>
+                    <td class="text-center">
+                        <button class="text-emerald-900 hover:text-emerald-700 font-bold px-3 py-2 rounded-lg hover:bg-slate-100 mr-2 border-2 border-slate-300" onclick="editDevice('${x.id}')"><i class="fa-solid fa-pen"></i> Sửa</button>
+                        <button class="text-emerald-600 hover:text-emerald-800 font-bold mr-4 text-sm" onclick="printAssetLabel('${x.id}')"><i class="fa-solid fa-print"></i> In Tem</button>
+                        <button class="text-red-700 hover:text-red-900 font-bold px-3 py-2 rounded-lg hover:bg-slate-100 border-2 border-slate-300" onclick="confirmDeleteDevice('${x.id}')"><i class="fa-solid fa-trash"></i> Xóa</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+
+                // TINH GIẢN NỘI DUNG MÃ QR ĐỂ TẠO MA TRẬN QR THƯA (Sắc nét cực kỳ dễ quét trên điện thoại di động và Zalo)
+                let rawTagString = 
+                    `VINAPACO ASSET\n` +
+                    `Mã TS: ${x.device_code}\n` +
+                    `Thiết bị: ${x.device_name}\n` +
+                    `Người giữ: ${x.user_name || 'KHO'}\n` +
+                    `Bộ phận: ĐV-${x.ma_don_vi || '10'}\n` +
+                    `Trạng thái: ${currentStatus}`;
+
+                setTimeout(() => {
+                    const qrContainer = document.getElementById(`qr_${x.device_code}`);
+                    generateQRCode(qrContainer, rawTagString, x.id);
+                }, 50);
+            });
+        }
+
+        function printAssetLabel(id) {
+            const item = DB_THIET_BI.find(x => String(x.id) === String(id)); if(!item) return;
+            
+            document.getElementById('print_lbl_name').innerText = item.device_name;
+            document.getElementById('print_lbl_code').innerText = item.device_code;
+            document.getElementById('print_lbl_user').innerText = item.user_name || "Hệ Thống Kho";
+            document.getElementById('print_lbl_dept').innerText = item.ma_don_vi || "--";
