@@ -252,7 +252,7 @@
                         <th class="p-4 text-center">Ngày Sinh</th>
                         <th class="p-4 text-center">Tuổi</th>
                         <th class="p-4 text-center">ATV</th>
-                        <th class="p-4 text-center">NNDH</th>
+                        <th class="p-4 text-center">NNĐH</th>
                         <th class="p-4 text-center">Ngày Về Hưu</th>
                         <th class="p-4 text-center">Mã Đơn Vị</th>
                         <th class="p-4">Chức Danh Công Việc</th>
@@ -424,7 +424,7 @@
                     </div>
 
                     <div class="form-group">
-                        <label class="block font-bold text-xs text-slate-500 mb-2">Thuếu suất VAT</label>
+                        <label class="block font-bold text-xs text-slate-500 mb-2">Thuế suất VAT</label>
                         <select id="rep_tax_rate" onchange="toggleCustomTaxField()" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition h-11">
                             <option value="0">0% (Không thuế)</option>
                             <option value="5">5%</option>
@@ -1692,11 +1692,14 @@ ${rawTagString}
 
             body.innerHTML = "";
             let docContent = "";
-            const isImg = file.base64.startsWith("data:image");
+            
+            // Nhận diện định dạng tệp tin cực kỳ thông minh kết hợp cả mime-type và đuôi mở rộng
+            const isPdf = (file.base64.startsWith("data:application/pdf")) || (file.name && file.name.toLowerCase().endsWith('.pdf'));
+            const isImg = (file.base64.startsWith("data:image/")) || (file.name && (file.name.toLowerCase().endsWith('.png') || file.name.toLowerCase().endsWith('.jpg') || file.name.toLowerCase().endsWith('.jpeg') || file.name.toLowerCase().endsWith('.gif')));
 
             if (isImg) {
                 docContent = `<img src="${file.base64}" class="max-w-full h-auto max-h-[380px] object-contain rounded-lg mx-auto shadow-sm border">`;
-            } else if (file.base64.startsWith("data:application/pdf")) {
+            } else if (isPdf) {
                 // Khắc phục triệt độ lỗi không xem được file PDF dung lượng lớn (>5MB) 
                 // Sử dụng URL.createObjectURL dạng Blob đối tượng ảo thay vì nạp trực tiếp chuỗi Base64 siêu dài vào src
                 try {
@@ -1940,16 +1943,47 @@ ${rawTagString}
 
                 if (editId) {
                     if (String(editId).startsWith('local_')) {
-                        let { error } = await client.from('nhat_ky_sua_chua').insert([supabasePayload]);
+                        let { data, error } = await client.from('nhat_ky_sua_chua').insert([supabasePayload]).select();
                         if (error) throw error;
+                        // Đồng bộ lại ID thực tế của Supabase trả về lên local array và IndexedDB
+                        if (data && data.length > 0) {
+                            const index = DB_NHAT_KY.findIndex(x => String(x.id) === String(editId));
+                            if (index !== -1) {
+                                DB_NHAT_KY[index] = data[0];
+                                if (cloudSerializedAttachments) {
+                                    await saveAttachmentToIDB(data[0].id, cloudSerializedAttachments);
+                                    await deleteAttachmentFromIDB(editId);
+                                }
+                            }
+                        }
                     } else {
-                        let { error } = await client.from('nhat_ky_sua_chua').update(supabasePayload).eq('id', queryId);
+                        let { data, error } = await client.from('nhat_ky_sua_chua').update(supabasePayload).eq('id', queryId).select();
                         if (error) throw error;
+                        if (data && data.length > 0) {
+                            const index = DB_NHAT_KY.findIndex(x => String(x.id) === String(editId));
+                            if (index !== -1) {
+                                DB_NHAT_KY[index] = data[0];
+                                if (cloudSerializedAttachments) {
+                                    await saveAttachmentToIDB(data[0].id, cloudSerializedAttachments);
+                                }
+                            }
+                        }
                     }
                     showToast("Đã cập nhật quyết toán thành công!");
                 } else {
-                    let { error } = await client.from('nhat_ky_sua_chua').insert([supabasePayload]);
+                    let { data, error } = await client.from('nhat_ky_sua_chua').insert([supabasePayload]).select();
                     if (error) throw error;
+                    // Đồng bộ lại ID thực tế của Supabase trả về lên local array và IndexedDB
+                    if (data && data.length > 0) {
+                        const index = DB_NHAT_KY.findIndex(x => String(x.id) === String(finalId));
+                        if (index !== -1) {
+                            DB_NHAT_KY[index] = data[0];
+                            if (cloudSerializedAttachments) {
+                                await saveAttachmentToIDB(data[0].id, cloudSerializedAttachments);
+                                await deleteAttachmentFromIDB(finalId);
+                            }
+                        }
+                    }
                     showToast("Hạch toán hồ sơ thành công!");
                 }
             } catch (err) {
@@ -2227,11 +2261,14 @@ ${rawTagString}
             // Dựng album ảnh hóa đơn chứng từ chuyên nghiệp kèm liên kết tải xuống tiện lợi
             fileList.forEach(file => {
                 let docContent = "";
-                const isImg = file.base64 && file.base64.startsWith("data:image");
+                
+                // Nhận diện định dạng tệp tin cực kỳ thông minh kết hợp cả mime-type và đuôi mở rộng
+                const isPdf = (file.base64 && file.base64.startsWith("data:application/pdf")) || (file.name && file.name.toLowerCase().endsWith('.pdf'));
+                const isImg = (file.base64 && file.base64.startsWith("data:image/")) || (file.name && (file.name.toLowerCase().endsWith('.png') || file.name.toLowerCase().endsWith('.jpg') || file.name.toLowerCase().endsWith('.jpeg') || file.name.toLowerCase().endsWith('.gif')));
 
                 if (isImg) {
                     docContent = `<img src="${file.base64}" class="max-w-full h-auto max-h-[350px] object-contain rounded-lg mx-auto shadow-sm border">`;
-                } else if (file.base64 && file.base64.startsWith("data:application/pdf")) {
+                } else if (isPdf) {
                     // Khắc phục triệt độ lỗi không xem được file PDF dung lượng lớn (>5MB) 
                     // Sử dụng URL.createObjectURL dạng Blob đối tượng ảo thay vì nạp trực tiếp chuỗi Base64 siêu dài vào src
                     try {
@@ -2250,7 +2287,7 @@ ${rawTagString}
                         docContent = `<iframe src="${blobURL}" class="w-full h-[350px] rounded-lg border-2 border-slate-200" frameBorder="0"></iframe>`;
                     } catch(err) {
                         console.error("Lỗi dựng blob URL PDF: ", err);
-                        docContent = `<iframe src="${file.base64}" class="w-full h-[350px] rounded-lg border-2 border-slate-200" frameBorder="0"></iframe>`;
+                        docContent = `<iframe src="${file.base64}" class="w-full h-[380px] rounded-lg border-2 border-slate-200" frameBorder="0"></iframe>`;
                     }
                 } else {
                     docContent = `
