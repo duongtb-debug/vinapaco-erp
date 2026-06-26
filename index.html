@@ -93,7 +93,8 @@
         .file-chips-container { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
         .chip { background: #e2e8f0; color: #1e293b; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
         .chip .remove-btn { color: #ef4444; cursor: pointer; font-weight: bold; }
-        .file-link { color: #2563eb; text-decoration: underline; cursor: pointer; }
+        .file-link { color: #2563eb; text-decoration: underline; cursor: pointer; font-weight: 600; }
+        .file-link:hover { color: #1d4ed8; }
 
         .preview-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center; }
         .preview-content { background: white; width: 65%; height: 85%; border-radius: 16px; padding: 30px; display: flex; flex-direction: column; }
@@ -243,8 +244,9 @@
         </div>
 
         <div class="panel">
-            <div class="panel-title">Lập Hồ Sơ Kế Toán & Upload Chứng Từ Đa Phương Tiện</div>
+            <div class="panel-title" id="form-thanhtoan-title">Lập Hồ Sơ Kế Toán & Upload Chứng Từ Đa Phương Tiện</div>
             <div class="manual-form">
+                <input type="hidden" id="tt_edit_index" value="-1">
                 <div class="form-group" style="grid-column: span 2;"><label>Tên Hồ Sơ / Dự Án Chi</label><input type="text" id="tt_title" placeholder="Thanh toán tiền vật tư..."></div>
                 <div class="form-group"><label>Tiền Trước Thuế (VNĐ)</label><input type="number" id="tt_amount" oninput="calculateLiveTax()" placeholder="0"></div>
                 <div class="form-group"><label>Thuế Suất Tùy Chọn (%)</label><input type="number" id="tt_tax_rate" value="10" oninput="calculateLiveTax()"></div>
@@ -263,7 +265,9 @@
                     <div class="file-chips-container" id="attachedFilesList"></div>
                 </div>
 
-                <div class="form-group" style="justify-content: flex-end; grid-column: span 3;"><button class="btn btn-purple" onclick="addManualThanhtoan()">💰 Phê Duyệt & Lưu Chứng Từ</button></div>
+                <div class="form-group" style="justify-content: flex-end; grid-column: span 3;" id="tt_action_container">
+                    <button class="btn btn-purple" onclick="addManualThanhtoan()">💰 Phê Duyệt & Lưu Chứng Từ</button>
+                </div>
             </div>
         </div>
 
@@ -271,7 +275,7 @@
             <div class="panel-title">Sổ Cái ERP - Quản Lý Minh Chứng Kế Toán</div>
             <div class="table-responsive">
                 <table id="thanhtoanTable">
-                    <thead><tr><th>Tên Dự Án</th><th>Tiền Gốc</th><th>Thuế</th><th>Tiền VAT</th><th>Tổng Tiền</th><th>Trạng Thái</th><th>Chứng Từ</th><th>Thao Tác</th></tr></thead>
+                    <thead><tr><th>Tên Dự Án / Chứng Từ</th><th>Tiền Gốc</th><th>Thuế</th><th>Tiền VAT</th><th>Tổng Tiền</th><th>Trạng Thái</th><th>Chứng Từ (Click để xem trước)</th><th>Thao Tác Cập Nhật</th></tr></thead>
                     <tbody></tbody>
                 </table>
             </div>
@@ -767,23 +771,75 @@
         let amount = parseFloat(document.getElementById('tt_amount').value) || 0;
         let taxRate = parseFloat(document.getElementById('tt_tax_rate').value) || 0;
         let status = document.getElementById('tt_status').value;
-        if(!title || amount <= 0) { alert("Vui lòng điền thông tin số tiền!"); return; }
+        let editIndex = parseInt(document.getElementById('tt_edit_index').value);
+        if(!title || amount <= 0) { alert("Vui lòng điền thông tin và số tiền hợp lệ!"); return; }
 
         let vat = amount * (taxRate / 100);
-        dataThanhtoan.push({
-            id: "KT-" + Date.now().toString().substring(8), title, amount, taxRate, vat, total: (amount + vat), status, attachments: [...currentUploadedFiles]
-        });
+        let recordData = {
+            id: editIndex > -1 ? dataThanhtoan[editIndex].id : "KT-" + Date.now().toString().substring(8), 
+            title, amount, taxRate, vat, total: (amount + vat), status, attachments: [...currentUploadedFiles]
+        };
+
+        if(editIndex > -1) {
+            dataThanhtoan[editIndex] = recordData;
+        } else {
+            dataThanhtoan.push(recordData);
+        }
+        
         localStorage.setItem('erp_thanhtoan_db', JSON.stringify(dataThanhtoan));
+        resetThanhtoanForm();
         renderThanhtoanTable();
-        document.getElementById('tt_title').value = ""; document.getElementById('tt_amount').value = "";
-        currentUploadedFiles = []; renderFileChips();
+    }
+
+    function editThanhtoan(index) {
+        let item = dataThanhtoan[index];
+        document.getElementById('tt_edit_index').value = index;
+        document.getElementById('tt_title').value = item.title;
+        document.getElementById('tt_amount').value = item.amount;
+        document.getElementById('tt_tax_rate').value = item.taxRate;
+        document.getElementById('tt_status').value = item.status;
+        currentUploadedFiles = item.attachments ? [...item.attachments] : [];
+        
+        calculateLiveTax();
+        renderFileChips();
+
+        document.getElementById('form-thanhtoan-title').innerText = "✏️ Chỉnh Sửa Chứng Từ Kế Toán";
+        document.getElementById('tt_action_container').innerHTML = `
+            <button class="btn btn-warning" onclick="addManualThanhtoan()">💾 Cập Nhật Chứng Từ</button>
+            <button class="btn btn-danger" onclick="resetThanhtoanForm()">Hủy Bỏ</button>
+        `;
+        window.scrollTo({ top: document.getElementById('form-thanhtoan-title').offsetTop - 20, behavior: 'smooth' });
+    }
+
+    function deleteThanhtoan(index) {
+        if(confirm("Bạn có chắc chắn muốn xóa vĩnh viễn hồ sơ chứng từ kế toán này không?")) {
+            dataThanhtoan.splice(index, 1);
+            localStorage.setItem('erp_thanhtoan_db', JSON.stringify(dataThanhtoan));
+            renderThanhtoanTable();
+        }
+    }
+
+    function resetThanhtoanForm() {
+        document.getElementById('tt_edit_index').value = "-1";
+        document.getElementById('tt_title').value = "";
+        document.getElementById('tt_amount').value = "";
+        document.getElementById('tt_tax_rate').value = "10";
+        document.getElementById('tt_status').value = "Đã thanh toán";
+        currentUploadedFiles = [];
+        calculateLiveTax();
+        renderFileChips();
+        document.getElementById('form-thanhtoan-title').innerText = "Lập Hồ Sơ Kế Toán & Upload Chứng Từ Đa Phương Tiện";
+        document.getElementById('tt_action_container').innerHTML = `<button class="btn btn-purple" onclick="addManualThanhtoan()">💰 Phê Duyệt & Lưu Chứng Từ</button>`;
     }
 
     function renderThanhtoanTable() {
         const tbody = document.querySelector('#thanhtoanTable tbody'); if(!tbody) return;
         tbody.innerHTML = '';
         dataThanhtoan.forEach((item, idx) => {
-            let filesHtml = item.attachments?.map(f => `<div style='font-size:11px;'>📎 <span class='file-link'>${f.name}</span></div>`).join('') || '-';
+            let filesHtml = item.attachments?.map(f => `<div style='margin:4px 0;'><span class='file-link' onclick='openInvoicePreview(${idx})'>📎 ${f.name}</span></div>`).join('') || '-';
+            if(!item.attachments || item.attachments.length === 0) {
+                filesHtml = `<span class='file-link' style='color:#94a3b8; font-style:italic;' onclick='openInvoicePreview(${idx})'>📄 Xem mẫu chứng từ trống</span>`;
+            }
             tbody.innerHTML += `<tr>
                 <td><b>${item.title}</b><br><small>${item.id}</small></td>
                 <td>${item.amount.toLocaleString()}</td>
@@ -792,7 +848,12 @@
                 <td style='font-weight:bold; color:#1e3a8a;'>${item.total.toLocaleString()} VNĐ</td>
                 <td><span class='badge ${item.status==='Đã thanh toán'?'badge-success':'badge-danger'}'>${item.status}</span></td>
                 <td>${filesHtml}</td>
-                <td><button class='btn btn-success btn-sm' onclick='openInvoicePreview(${idx})'>🖨️ Xem & In</button></td>
+                <td>
+                    <div class="btn-flex-group">
+                        <button class='btn btn-warning btn-sm' onclick='editThanhtoan(${idx})'>✏️ Sửa</button>
+                        <button class='btn btn-danger btn-sm' onclick='deleteThanhtoan(${idx})'>🗑️ Xóa</button>
+                    </div>
+                </td>
             </tr>`;
         });
         calculateAccountingKPIs();
@@ -827,17 +888,32 @@
 
     function openInvoicePreview(index) {
         let item = dataThanhtoan[index];
-        let fileListText = item.attachments?.map(f => `<li>${f.name}</li>`).join('') || '<li>Không đính kèm minh chứng</li>';
+        let fileListText = item.attachments?.map(f => `<li>${f.name}</li>`).join('') || '<li>Không đính kèm minh chứng bổ sung</li>';
         document.getElementById('printReportArea').innerHTML = `
-            <div style="font-family:'Times New Roman', serif; padding:20px;">
-                <h2 style="text-align:center;">HỒ SƠ ĐỀ NGHỊ QUYẾT TOÁN CHI PHÍ</h2>
-                <p style="text-align:center; font-size:12px;">Mã ERP: ${item.id}</p>
-                <p><b>Tên Hồ Sơ Mục Chi:</b> ${item.title}</p>
-                <p><b>Số Tiền Trước Thuế:</b> ${item.amount.toLocaleString()} VNĐ</p>
-                <p><b>Thuế VAT:</b> ${item.vat.toLocaleString()} VNĐ (${item.taxRate}%)</p>
-                <p><b>TỔNG CỘNG ĐỀ NGHỊ CHI TRẢ:</b> ${item.total.toLocaleString()} VNĐ</p>
-                <p><b>Trạng Thái:</b> ${item.status}</p>
-                <p><b>Danh sách tệp đính kèm:</b></p><ul>${fileListText}</ul>
+            <div style="font-family:'Times New Roman', serif; padding:20px; line-height: 1.6;">
+                <h2 style="text-align:center; margin-bottom: 5px;">HỒ SƠ ĐỀ NGHỊ QUYẾT TOÁN CHI PHÍ</h2>
+                <p style="text-align:center; font-size:13px; margin-top:0;">Mã ERP Hệ Thống: <b>${item.id}</b></p>
+                <hr style="border: 1px solid #000; margin-bottom: 20px;">
+                <p style="font-size: 15px;"><b>Tên Hồ Sơ Mục Chi:</b> ${item.title}</p>
+                <p style="font-size: 15px;"><b>Số Tiền Trước Thuế:</b> ${item.amount.toLocaleString()} VNĐ</p>
+                <p style="font-size: 15px;"><b>Thuế Suất Áp Dụng:</b> ${item.taxRate}%</p>
+                <p style="font-size: 15px;"><b>Tiền Thuế VAT Giá Trị Gia Tăng:</b> ${item.vat.toLocaleString()} VNĐ</p>
+                <p style="font-size: 16px; color:#b91c1c;"><b>TỔNG CỘNG ĐỀ NGHỊ CHI TRẢ (SAU THUẾ):</b> <u>${item.total.toLocaleString()} VNĐ</u></p>
+                <p style="font-size: 15px;"><b>Trạng Thái Giải Ngân Hiện Tại:</b> <b>${item.status}</b></p>
+                <br>
+                <p style="font-size: 14px; font-style: italic;"><b>Danh sách tệp minh chứng đi kèm hồ sơ này:</b></p>
+                <ul style="font-size: 14px; padding-left: 20px;">${fileListText}</ul>
+                <br><br>
+                <div style="display: flex; justify-content: space-between; margin-top: 40px; text-align: center;">
+                    <div>
+                        <p><b>Người Lập Biểu</b></p>
+                        <p style="margin-top: 60px; font-style: italic; color: #64748b;">(Ký và ghi rõ họ tên)</p>
+                    </div>
+                    <div>
+                        <p><b>Kế Toán Trưởng Phê Duyệt</b></p>
+                        <p style="margin-top: 60px; font-style: italic; color: #64748b;">(Ký và đóng dấu)</p>
+                    </div>
+                </div>
             </div>`;
         document.getElementById('previewModal').style.display = 'flex';
     }
