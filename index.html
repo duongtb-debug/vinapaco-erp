@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hệ Thống ERP Toàn Diện - Quản Trị Nhân Sự & Tài Chính Doanh Nghiệp</title>
+    <title>Hệ Thống ERP Toàn Diện - Quản Trị Nhân Sự & Điều Hành Tài Chính</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -298,7 +298,7 @@
         if(tabId === 'tab-nhansu') { setTimeout(renderNSCharts, 150); }
     }
 
-    /* --- PHÂN HỆ 1: NHẬN SỰ (NHẬP THỦ CÔNG & EXCEL IMPORT) --- */
+    /* --- PHÂN HỆ 1: NHẬN SỰ (NHẬP THỦ CÔNG & KHẢ NĂNG QUÉT EXCEL THÔNG MINH) --- */
     function addManualNhansu() {
         let name = document.getElementById('ns_name').value.trim();
         let cccd = document.getElementById('ns_cccd').value.trim();
@@ -328,13 +328,13 @@
         localStorage.setItem('erp_precise_db', JSON.stringify(dataNhansu));
         renderNhansu();
 
-        // Clear Form inputs
         document.getElementById('ns_name').value = "";
         document.getElementById('ns_cccd').value = "";
         document.getElementById('ns_atv').value = "";
         document.getElementById('ns_nndh').value = "";
     }
 
+    // HÀM TIẾN TIẾN: TỰ ĐỘNG QUÉT DÒNG TIÊU ĐỀ KHÔNG SỢ FILE EXCEL LỆCH DÒNG
     function processExcelNhansu(input) {
         const file = input.files[0]; if (!file) return;
         const reader = new FileReader();
@@ -342,18 +342,80 @@
             try {
                 const workbook = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
                 const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1, defval: "" });
+                
+                if (sheetData.length === 0) {
+                    alert("Tệp Excel trống không có dữ liệu!");
+                    return;
+                }
+
+                // Đi tìm dòng tiêu đề thực sự chứa dữ liệu
+                let headerIdx = -1;
+                let colIdxs = { name: -1, cccd: -1, atv: -1, nndh: -1, retire: -1, unit: -1, birth: -1, female: -1 };
+
+                for (let i = 0; i < Math.min(sheetData.length, 15); i++) {
+                    let rowStr = sheetData[i].map(c => String(c).toLowerCase()).join('||');
+                    if (rowStr.includes("họ và tên") || rowStr.includes("cccd") || rowStr.includes("số cccd")) {
+                        headerIdx = i;
+                        // Xác định vị trí từng cột
+                        sheetData[i].forEach((cell, idx) => {
+                            let text = String(cell).toLowerCase().trim();
+                            if (text.includes("họ và tên")) colIdxs.name = idx;
+                            else if (text.includes("cccd") || text.includes("chứng minh")) colIdxs.cccd = idx;
+                            else if (text.includes("an toàn viên") || text.includes("atv")) colIdxs.atv = idx;
+                            else if (text.includes("nndh") || text.includes("độc hại")) colIdxs.nndh = idx;
+                            else if (text.includes("về hưu") || text.includes("hưu trí")) colIdxs.retire = idx;
+                            else if (text.includes("đơn vị")) colIdxs.unit = idx;
+                            else if (text.includes("năm sinh") || text.includes("ngày sinh")) colIdxs.birth = idx;
+                            else if (text.includes("nữ")) colIdxs.female = idx;
+                        });
+                        break;
+                    }
+                }
+
+                // Nếu không quét được tiêu đề tự động, dùng cấu hình mặc định cơ bản
+                if (headerIdx === -1) {
+                    headerIdx = 1; 
+                    colIdxs = { name: 1, cccd: 4, atv: 6, nndh: 7, retire: 8, unit: 9, birth: 11, female: 12 };
+                }
+
                 dataNhansu = [];
-                for (let i = 2; i < sheetData.length; i++) {
-                    let row = sheetData[i]; if (!row[1]) continue;
-                    let by = parseInt(String(row[11]).substring(0,4)) || 1980;
+                for (let i = headerIdx + 1; i < sheetData.length; i++) {
+                    let row = sheetData[i];
+                    let nameVal = colIdxs.name !== -1 ? row[colIdxs.name] : row[1];
+                    if (!nameVal || String(nameVal).trim() === "" || String(nameVal).includes("Stt")) continue;
+
+                    let cccdVal = colIdxs.cccd !== -1 ? row[colIdxs.cccd] : row[4];
+                    let atvVal = colIdxs.atv !== -1 ? row[colIdxs.atv] : row[6];
+                    let nndhVal = colIdxs.nndh !== -1 ? row[colIdxs.nndh] : row[7];
+                    let retireVal = colIdxs.retire !== -1 ? row[colIdxs.retire] : row[8];
+                    let unitVal = colIdxs.unit !== -1 ? row[colIdxs.unit] : row[9];
+                    let birthVal = colIdxs.birth !== -1 ? row[colIdxs.birth] : row[11];
+                    let femaleVal = colIdxs.female !== -1 ? row[colIdxs.female] : row[12];
+
+                    let by = parseInt(String(birthVal).substring(0,4)) || 1980;
+                    let isFemale = String(femaleVal).trim().toUpperCase() === "X" || String(femaleVal).trim() === "1" || String(femaleVal).trim() === "Nữ";
+
                     dataNhansu.push({
-                        stt: dataNhansu.length + 1, fullName: row[1], cccd: row[4], atv: row[6], nndh: row[7],
-                        retireTime: row[8] || "-", unitId: String(row[9]).trim().toUpperCase() || "DV", birthOrigin: row[11], gender: row[12] == "X" ? "Nữ" : "Nam", currentAge: (2026 - by)
+                        stt: dataNhansu.length + 1,
+                        fullName: String(nameVal).trim(),
+                        cccd: String(cccdVal).trim(),
+                        atv: String(atvVal).trim(),
+                        nndh: String(nndhVal).trim(),
+                        retireTime: retireVal || "-",
+                        unitId: String(unitVal).trim().toUpperCase() || "DV",
+                        birthOrigin: birthVal,
+                        gender: isFemale ? "Nữ" : "Nam",
+                        currentAge: (2026 - by)
                     });
                 }
+
                 localStorage.setItem('erp_precise_db', JSON.stringify(dataNhansu));
-                renderNhansu(); alert("Đã đồng bộ thành công dữ liệu nhân sự!");
-            } catch(err) { alert("Lỗi phân tích tệp."); }
+                renderNhansu(); 
+                alert("Đồng bộ thành công! Hệ thống đã tải được " + dataNhansu.length + " nhân sự.");
+            } catch(err) { 
+                console.error(err);
+                alert("Lỗi xử lý file: " + err.message); 
+            }
         };
         reader.readAsArrayBuffer(file);
     }
@@ -397,7 +459,6 @@
         buildFilterDropdowns(); executeAdvancedFilter(); calculateNSKPIs(); renderNSCharts();
     }
 
-    /* --- BỔ SUNG TỶ LỆ % LAO ĐỘNG NAM VÀ LAO ĐỘNG NỮ TRỰC QUAN --- */
     function calculateNSKPIs() {
         let total = dataNhansu.length; 
         if(total === 0) {
@@ -441,7 +502,7 @@
         });
     }
 
-    /* --- PHÂN HỆ 2: CẤP PHÁT THIẾT BỊ --- */
+    /* --- PHẦN LIÊN KẾT CẤP PHÁT & SỬA CHỮA --- */
     function showUserDropdown() {
         document.getElementById('cp_user_dropdown').style.display = 'block'; filterUserDropdown();
     }
@@ -500,7 +561,7 @@
         document.getElementById('tt_amount').value = item.cost; calculateLiveTax(); switchTab('tab-thanhtoan');
     }
 
-    /* --- PHÂN HỆ 4: HỒ SƠ THANH TOÁN (FILE VÀ FOLDER) --- */
+    /* --- PHÂN HỆ 4: HỒ SƠ THANH TOÁN --- */
     function handleFileSelection(input) {
         const files = input.files;
         for(let i=0; i<files.length; i++) {
