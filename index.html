@@ -1307,4 +1307,1178 @@
                     </td>
                     <td class="p-3"><code class="font-bold text-slate-800 text-sm font-mono">${x.device_code}</code></td>
                     <td class="p-3 font-semibold text-sm">${x.device_name}</td>
-                    <td class="p-3 text-sm"><i class="fa-solid fa-user text-slate-400 text-xs mr-1"></i> ${x.user_
+                    <td class="p-3 text-sm"><i class="fa-solid fa-user text-slate-400 text-xs mr-1"></i> ${x.user_name || 'Hệ Thống Kho'}</td>
+                    <td class="p-3 text-center"><span class="badge bg-slate-100 text-slate-700 px-3 py-1 rounded font-bold text-xs">ĐV ${x.ma_don_vi||''}</span></td>
+                    <td class="p-3 text-center"><span class="badge ${statusClass} px-2.5 py-1 rounded font-semibold text-xs">${currentStatus}</span></td>
+                    <td class="p-3 text-center font-bold">
+                        <button class="text-blue-600 hover:text-blue-800 font-bold mr-4 text-sm" onclick="editDevice('${x.id}')"><i class="fa-solid fa-pen"></i> Sửa</button>
+                        <button class="text-emerald-600 hover:text-emerald-800 font-bold mr-4 text-sm" onclick="printSingleLabel('${x.id}')"><i class="fa-solid fa-print"></i> In Tem</button>
+                        <button class="text-rose-600 hover:text-rose-800 font-bold text-sm" onclick="deleteDevice('${x.id}')"><i class="fa-solid fa-trash"></i> Xóa</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Xem QR chi tiết chuẩn quốc tế có dấu tiếng Việt trực quan khi kích vào dòng
+        // Tối ưu hóa kích cỡ tế bào QR to hơn (4.5) để người dùng có thể quét trực tiếp nhanh chóng ngay trên màn hình máy tính
+        function viewDetailedQR(code, name, donvi, user) {
+            const rawTagString = buildQRTextCard(code, name, donvi, user);
+            
+            let qrHMTL = generateQRCodeHTML(rawTagString, 4.5);
+
+            const contentHtml = `
+                <div class="flex flex-col items-center gap-4 text-center">
+                    <div class="p-2.5 bg-white rounded-xl border shadow-sm max-w-[180px]">
+                        ${qrHMTL}
+                    </div>
+                    <div class="text-left w-full bg-slate-50 p-3.5 rounded-lg border font-mono text-xs text-slate-700 whitespace-pre-wrap leading-relaxed">
+${rawTagString}
+                    </div>
+                    <p class="text-xs text-slate-500">Bạn có thể dùng điện thoại quét trực tiếp mã QR trên hoặc nhấn "Xác nhận" để mở giao diện in ấn nhãn dán.</p>
+                </div>
+            `;
+
+            showConfirmDialog(`Thông tin mã QR: ${code}`, contentHtml, () => {
+                let idItem = DB_THIET_BI.find(x => x.device_code === code)?.id;
+                if(idItem) printSingleLabel(idItem);
+            });
+        }
+
+        // TỰ ĐỘNG GỢI Ý NHÂN SỰ KHI FOCUS/CLICK THEO ĐƠN VỊ ĐÃ CHỌN
+        function smartSuggest(input) {
+            const val = input.value.toLowerCase().trim(); 
+            const box = document.getElementById('dev_suggest'); 
+            const selectedDV = document.getElementById('dev_filter_donvi').value;
+            
+            if(!box) return; 
+            box.innerHTML = ""; 
+
+            // Lọc danh sách nhân viên theo đơn vị đã chọn (nếu có)
+            let matches = DB_NHAN_SU.filter(x => {
+                let matchName = !val || (x.ho_ten && x.ho_ten.toLowerCase().includes(val));
+                let matchDV = !selectedDV || String(x.ma_don_vi).trim() === String(selectedDV).trim();
+                return matchName && matchDV;
+            }).slice(0, 10);
+
+            if(matches.length === 0) { box.classList.add('hidden'); return; }
+            box.classList.remove('hidden');
+
+            matches.forEach(m => {
+                let div = document.createElement('div'); 
+                div.className = "suggest-item p-3 cursor-pointer hover:bg-slate-100 text-sm border-b border-slate-100 flex justify-between";
+                div.innerHTML = `<span><b>${m.ho_ten}</b> - ĐV: ${m.ma_don_vi}</span> <small class="text-slate-400 font-mono">${m.so_cccd || ''}</small>`;
+                div.onclick = () => { 
+                    input.value = m.ho_ten; 
+                    document.getElementById('dev_user_id').value = m.id; 
+                    box.classList.add('hidden'); 
+                };
+                box.appendChild(div);
+            });
+        }
+
+        function resetSelectedUser() { 
+            if(document.getElementById('dev_user_search')) document.getElementById('dev_user_search').value = ""; 
+            if(document.getElementById('dev_user_id')) document.getElementById('dev_user_id').value = ""; 
+        }
+
+        // Ghi nhận thiết bị (Tích hợp Dual-Engine: Local Cache + Cloud Sync)
+        async function saveDeviceConfig() {
+            const devName = document.getElementById('dev_name').value.trim(); 
+            let devCode = document.getElementById('dev_code').value.trim();
+            const userId = document.getElementById('dev_user_id').value; 
+            const userName = document.getElementById('dev_user_search').value.trim();
+            const donVi = document.getElementById('dev_filter_donvi').value; 
+            const status = document.getElementById('dev_status_select').value;
+            const editId = document.getElementById('editing_device_id').value;
+
+            if(!devName) { showToast("Vui lòng nhập tên thiết bị tài sản!", "warning"); return; }
+            if(!devCode) { devCode = "EQ" + Math.floor(100000 + Math.random() * 900000); }
+
+            let rowData = { 
+                device_name: devName, 
+                device_code: devCode, 
+                user_id: userId ? String(userId) : null, 
+                user_name: userName, 
+                ma_don_vi: donVi || "10", 
+                status: status 
+            };
+
+            // Lớp 1: Ghi và vẽ lên giao diện lập tức không trễ
+            if (editId) {
+                const index = DB_THIET_BI.findIndex(x => String(x.id) === String(editId));
+                if (index !== -1) {
+                    DB_THIET_BI[index] = { ...DB_THIET_BI[index], ...rowData };
+                }
+            } else {
+                const tempId = "local_dev_" + Date.now();
+                DB_THIET_BI.unshift({ id: tempId, ...rowData });
+            }
+            localStorage.setItem('local_db_thiet_bi_v2', JSON.stringify(DB_THIET_BI));
+            displayThietBi(); // Dựng bảng ngay lập tức!
+
+            // Lớp 2: Gửi đồng bộ mây ngầm
+            try {
+                if (editId) {
+                    await client.from('thiet_bi').update(rowData).eq('id', editId);
+                    showToast("Đã sửa đổi thông tin thiết bị!");
+                } else {
+                    await client.from('thiet_bi').insert([rowData]);
+                    showToast("Cấp phát thiết bị thành công!");
+                }
+            } catch (e) {
+                console.error("Lỗi khi ghi nhận thiết bị:", e);
+                showToast("Dữ liệu đã được lưu trữ an toàn tại trình duyệt cục bộ!", "warning");
+            }
+
+            resetDeviceForm();
+            await fetchAndReloadThietBi();
+        }
+
+        function editDevice(id) {
+            let item = DB_THIET_BI.find(x => String(x.id) === String(id)); if(!item) return;
+            if(document.getElementById('form_device_title')) document.getElementById('form_device_title').innerHTML = `<i class="fa-solid fa-pen"></i> Sửa đổi Thông tin Thiết Bị`;
+            document.getElementById('editing_device_id').value = item.id; 
+            document.getElementById('dev_name').value = item.device_name;
+            document.getElementById('dev_code').value = item.device_code; 
+            document.getElementById('dev_user_search').value = item.user_name || "";
+            document.getElementById('dev_user_id').value = item.user_id || ""; 
+            document.getElementById('dev_filter_donvi').value = item.ma_don_vi || "";
+            document.getElementById('dev_status_select').value = item.status || "Đang sử dụng";
+            document.getElementById('form_device_title').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function resetDeviceForm() {
+            document.getElementById('editing_device_id').value = ""; 
+            document.getElementById('dev_name').value = ""; 
+            document.getElementById('dev_code').value = ""; 
+            resetSelectedUser();
+            if(document.getElementById('form_device_title')) document.getElementById('form_device_title').innerHTML = `<i class="fa-solid fa-square-plus"></i> Biểu mẫu Cấp phát thiết bị mới`;
+        }
+
+        async function deleteDevice(id) {
+            showConfirmDialog("Xóa thiết bị", "Bạn có thực sự muốn xóa thiết bị này khỏi hệ thống?", async () => {
+                // Lớp 1: Xóa nhanh trên UI
+                DB_THIET_BI = DB_THIET_BI.filter(x => String(x.id) !== String(id));
+                localStorage.setItem('local_db_thiet_bi_v2', JSON.stringify(DB_THIET_BI));
+                displayThietBi();
+
+                // Lớp 2: Đồng bộ xóa đám mây ngầm
+                try {
+                    await client.from('thiet_bi').delete().eq('id', id); 
+                    showToast("Đã xóa thiết bị thành công!", "success");
+                } catch (e) {
+                    console.error(e);
+                    showToast("Đã xóa tạm thời tại thiết bị này!", "warning");
+                }
+                await fetchAndReloadThietBi();
+            });
+        }
+
+        // PHẦN IN TEM NHÃN DÁN sticker CÂN ĐỐI 50X30MM (In Tem)
+        function printSingleLabel(id) {
+            let item = DB_THIET_BI.find(x => String(x.id) === String(id)); if(!item) return;
+            const printGrid = document.getElementById('printGrid');
+            printGrid.innerHTML = "";
+
+            // Định dạng chuỗi QR quốc tế tiếng Việt có dấu chuẩn hóa, cực kỳ nhạy khi quét bằng Camera thường hoặc Zalo
+            let rawTagString = buildQRTextCard(item.device_code, item.device_name, item.ma_don_vi || '', item.user_name || 'KHO');
+
+            let qrHMTL = generateQRCodeHTML(rawTagString, 3.5); // tăng kích cỡ tế bào QR lên mức 3.5 giúp sắc nét dễ quét
+
+            let div = document.createElement('div');
+            div.className = "sticker-card bg-white p-5 rounded-lg flex items-center justify-between gap-4 shadow-sm";
+            div.innerHTML = `
+                <div class="flex-1 min-w-0 text-left">
+                    <div class="text-slate-400 font-bold text-[9px] uppercase tracking-wider">VINAPACO ASSET</div>
+                    <h4 class="text-sm font-bold text-slate-900 mt-1 uppercase truncate">${item.device_name}</h4>
+                    <p class="text-xs text-emerald-600 font-semibold mt-0.5">Đơn vị: ${item.ma_don_vi || 'N/A'}</p>
+                    <div class="mt-3 text-slate-600 text-xs space-y-0.5 leading-normal">
+                        <div>Mã TS: <strong class="font-mono text-slate-800">${item.device_code}</strong></div>
+                        <div class="truncate">Người giữ: ${item.user_name || 'KHO'}</div>
+                    </div>
+                </div>
+                <div class="flex-shrink-0 bg-white p-1 border rounded flex items-center justify-center" style="width: 100px; height: 100px;" id="print_qr_area">
+                    ${qrHMTL}
+                </div>
+            `;
+            printGrid.appendChild(div);
+
+            setTimeout(() => {
+                window.print();
+            }, 150);
+        }
+
+        // =================================================================================================
+        // LOGIC TAB 3: NHẬT KÝ SỬA CHỮA & CHỨNG TỪ – HẠCH TOÁN AN TOÀN
+        // =================================================================================================
+        // Hàm hiển thị danh sách thiết bị gợi ý khi click hoặc gõ vào ô tìm kiếm ở Tab Sửa chữa
+        function suggestRepairDevice(input) {
+            const val = input.value.toLowerCase().trim(); 
+            const box = document.getElementById('rep_device_suggest');
+            if(!box) return; 
+            box.innerHTML = "";
+            
+            // Nếu ô tìm kiếm trống, lấy 15 thiết bị đầu tiên để hiển thị ngay cho người dùng chọn
+            let matches = [];
+            if (!val) {
+                matches = DB_THIET_BI.slice(0, 15);
+            } else {
+                matches = DB_THIET_BI.filter(x => 
+                    (x.device_name && x.device_name.toLowerCase().includes(val)) || 
+                    (x.device_code && x.device_code.toLowerCase().includes(val))
+                ).slice(0, 15);
+            }
+
+            if(matches.length === 0) {
+                box.innerHTML = `<div class="p-3 text-slate-400 text-sm text-center">Chưa có thiết bị nào phù hợp</div>`;
+                box.classList.remove('hidden');
+                return;
+            }
+            
+            box.classList.remove('hidden');
+            matches.forEach(m => {
+                let div = document.createElement('div');
+                div.className = "suggest-item p-3 cursor-pointer hover:bg-slate-100 text-sm border-b border-slate-100 flex justify-between items-center";
+                div.innerHTML = `
+                    <div>
+                        <div class="font-bold text-slate-800">${m.device_name}</div>
+                        <div class="text-xs text-slate-400 font-mono">Seri: ${m.device_code} | Người giữ: ${m.user_name || 'KHO'}</div>
+                    </div>
+                    <span class="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-bold">${m.ma_don_vi || '--'}</span>
+                `;
+                div.onclick = () => {
+                    input.value = `${m.device_name} (${m.device_code})`;
+                    document.getElementById('rep_device_code').value = m.device_code;
+                    document.getElementById('rep_device_name').value = m.device_name;
+                    box.classList.add('hidden');
+                };
+                box.appendChild(div);
+            });
+        }
+
+        // Đọc danh sách nhiều file hóa đơn đính kèm và tạo vùng xem trước (Preview Panel)
+        function handleDocumentUpload(input) {
+            const files = input.files;
+            if (!files || files.length === 0) return;
+
+            const previewContainer = document.getElementById('preview_files_container');
+            const previewGrid = document.getElementById('preview_files_grid');
+            const previewCount = document.getElementById('preview_files_count');
+            const uploadStatusText = document.getElementById('upload_status_text');
+
+            if (!previewContainer || !previewGrid) return;
+
+            if (uploadStatusText) {
+                uploadStatusText.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Đang nạp tài liệu...`;
+            }
+
+            // Đọc tuần tự các file bằng Promise.all để chuyển đổi sang định dạng Base64
+            const readPromises = Array.from(files).map(file => {
+                return new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        resolve({
+                            name: file.name,
+                            type: file.type,
+                            size: (file.size / 1024).toFixed(1) + " KB",
+                            base64: e.target.result
+                        });
+                    };
+                    reader.readAsDataURL(file);
+                });
+            });
+
+            Promise.all(readPromises).then(processedFiles => {
+                // Gộp thêm vào danh sách tài liệu hiện có
+                selectedRepairFiles = [...selectedRepairFiles, ...processedFiles];
+                renderSelectedFilesPreview();
+                if (uploadStatusText) {
+                    uploadStatusText.innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i> Chọn tài liệu (Nhiều tệp)...`;
+                }
+                showToast(`Đã tải lên thành công ${processedFiles.length} tệp chứng từ!`, "success");
+            });
+        }
+
+        // Vẽ danh sách tệp đính kèm xem trước tinh tế có hình ảnh thu nhỏ
+        function renderSelectedFilesPreview() {
+            const container = document.getElementById('preview_files_grid');
+            const panel = document.getElementById('preview_files_container');
+            const countLabel = document.getElementById('preview_files_count');
+
+            if (!container || !panel) return;
+            container.innerHTML = "";
+
+            if (selectedRepairFiles.length === 0) {
+                panel.classList.add('hidden');
+                return;
+            }
+
+            panel.classList.remove('hidden');
+            if (countLabel) countLabel.innerText = selectedRepairFiles.length;
+
+            selectedRepairFiles.forEach((file, idx) => {
+                let thumbnailHtml = "";
+                if (file.base64 && file.base64.startsWith("data:image")) {
+                    thumbnailHtml = `<img src="${file.base64}" class="w-full h-20 object-cover rounded-md border border-slate-200">`;
+                } else {
+                    thumbnailHtml = `
+                        <div class="w-full h-20 bg-blue-50 text-blue-700 rounded-md border border-slate-200 flex flex-col items-center justify-center text-[10px] font-bold uppercase p-1">
+                            <i class="fa-solid fa-file-invoice-dollar text-xl mb-1 text-blue-500"></i>
+                            <span class="truncate max-w-full">${file.name.split('.').pop()}</span>
+                        </div>
+                    `;
+                }
+
+                const card = document.createElement('div');
+                card.className = "relative group bg-white border border-slate-200 p-2 rounded-xl flex flex-col justify-between shadow-xs cursor-pointer";
+                // Ràng buộc sự kiện click vào để xem trước nội dung tài liệu đính kèm trước khi nhấn lưu
+                card.onclick = (e) => {
+                    if (e.target.closest('button')) return; // Bỏ qua nếu nhấn nút Xóa tệp
+                    previewSelectedFileBeforeSave(idx);
+                };
+                card.innerHTML = `
+                    <div class="relative">
+                        ${thumbnailHtml}
+                        <button onclick="removeSelectedFile(${idx})" class="absolute -top-1.5 -right-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-full w-5 h-5 flex items-center justify-center text-[9px] shadow-sm transition">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                    <div class="mt-1.5">
+                        <div class="text-[10px] font-bold text-slate-800 truncate" title="${file.name}">${file.name}</div>
+                        <div class="text-[9px] text-slate-400 font-medium">${file.size}</div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // HÀM MỞ PREVIEW FILE ĐANG TRONG HÀNG CHỜ CHƯA LƯU
+        function previewSelectedFileBeforeSave(idx) {
+            const file = selectedRepairFiles[idx];
+            if (!file || !file.base64) return;
+
+            const modal = document.getElementById('docViewerModal');
+            const body = document.getElementById('docViewerBody');
+            if(!modal || !body) return;
+
+            body.innerHTML = "";
+            let docContent = "";
+            const isImg = file.base64.startsWith("data:image");
+
+            if (isImg) {
+                docContent = `<img src="${file.base64}" class="max-w-full h-auto max-h-[380px] object-contain rounded-lg mx-auto shadow-sm border">`;
+            } else if (file.base64.startsWith("data:application/pdf")) {
+                // Khắc phục triệt để lỗi không xem được file PDF dung lượng lớn (>5MB) 
+                // Sử dụng URL.createObjectURL dạng Blob đối tượng ảo thay vì nạp trực tiếp chuỗi Base64 siêu dài vào src
+                try {
+                    const byteCharacters = atob(file.base64.split(',')[1]);
+                    const byteNumbers = new Array(byteCharacters.length);
+                    for (let i = 0; i < byteCharacters.length; i++) {
+                        byteNumbers[i] = byteCharacters.charCodeAt(i);
+                    }
+                    const byteArray = new Uint8Array(byteNumbers);
+                    const blob = new Blob([byteArray], {type: 'application/pdf'});
+                    const blobURL = URL.createObjectURL(blob);
+                    docContent = `<iframe src="${blobURL}" class="w-full h-[380px] rounded-lg border-2 border-slate-200" frameBorder="0"></iframe>`;
+                } catch(err) {
+                    console.error("Lỗi dựng blob URL PDF: ", err);
+                    docContent = `<iframe src="${file.base64}" class="w-full h-[380px] rounded-lg border-2 border-slate-200" frameBorder="0"></iframe>`;
+                }
+            } else {
+                docContent = `
+                    <div class="p-6 text-center border-2 border-dashed border-slate-300 rounded-xl bg-white w-full">
+                        <i class="fa-solid fa-file-invoice-dollar text-4xl text-blue-500 mb-2"></i>
+                        <div class="text-xs font-bold text-slate-700 truncate max-w-[200px] mx-auto">${file.name}</div>
+                    </div>
+                `;
+            }
+
+            const card = document.createElement('div');
+            card.className = "bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between gap-3 col-span-2";
+            card.innerHTML = `
+                <div class="flex-grow flex items-center justify-center bg-slate-50 p-2 rounded-lg">
+                    ${docContent}
+                </div>
+                <div class="flex items-center justify-between border-t border-slate-100 pt-3">
+                    <div class="min-w-0 flex-1 pr-2">
+                        <div class="text-xs font-bold text-slate-800 truncate" title="${file.name}">${file.name}</div>
+                        <div class="text-[10px] text-slate-400 font-medium mt-0.5">${file.size || 'N/A'}</div>
+                    </div>
+                    <a href="${file.base64}" download="${file.name}" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold px-3 py-2 rounded-lg border border-emerald-200 flex items-center gap-1.5 shrink-0 transition-colors">
+                        <i class="fa-solid fa-download"></i> Tải về
+                    </a>
+                </div>
+            `;
+            body.appendChild(card);
+
+            modal.classList.remove('hidden');
+        }
+
+        function removeSelectedFile(index) {
+            selectedRepairFiles.splice(index, 1);
+            renderSelectedFilesPreview();
+            showToast("Đã gỡ tệp khỏi hàng chờ đính kèm!", "warning");
+        }
+
+        function clearUploadedFile() {
+            selectedRepairFiles = [];
+            renderSelectedFilesPreview();
+            const fileInput = document.getElementById('rep_doc_file');
+            if(fileInput) fileInput.value = "";
+        }
+
+        function toggleCustomTaxField() {
+            const selectRate = document.getElementById('rep_tax_rate').value;
+            document.getElementById('custom_tax_group').style.display = (selectRate === 'custom') ? 'block' : 'none';
+            calculateFlexibleTax();
+        }
+
+        function calculateFlexibleTax() {
+            const costBefore = parseFloat(document.getElementById('rep_cost_before').value) || 0;
+            const selectRate = document.getElementById('rep_tax_rate').value;
+            let taxPercent = 0;
+            if(selectRate === 'custom') taxPercent = parseFloat(document.getElementById('rep_tax_custom_val').value) || 0;
+            else taxPercent = parseFloat(selectRate) || 0;
+            
+            let taxMoney = Math.round(costBefore * (taxPercent / 100));
+            let totalCost = costBefore + taxMoney;
+
+            if(document.getElementById('lbl_tax_money')) document.getElementById('lbl_tax_money').innerText = taxMoney.toLocaleString('vi-VN') + " VNĐ";
+            if(document.getElementById('lbl_total_cost')) document.getElementById('lbl_total_cost').innerText = totalCost.toLocaleString('vi-VN') + " VNĐ";
+        }
+
+        // Tạo hàm đồng bộ hóa localStorage sạch sẽ không bị tràn QuotaLimit (5MB)
+        function saveNhatKyToLocalStorage() {
+            try {
+                // Tạo một bản sao sạch đã lược bỏ Base64 của ảnh/PDF đính kèm để lưu vào localStorage
+                const strippedCopy = DB_NHAT_KY.map(item => {
+                    let strippedAttachment = item.attachment || item.attachment_base64 || null;
+                    if (strippedAttachment) {
+                        try {
+                            const parsed = JSON.parse(strippedAttachment);
+                            if (Array.isArray(parsed)) {
+                                const clean = parsed.map(f => ({
+                                    name: f.name,
+                                    type: f.type,
+                                    size: f.size,
+                                    base64: "[Tài liệu lưu trên Đám Mây]"
+                                }));
+                                strippedAttachment = JSON.stringify(clean);
+                            }
+                        } catch(e) {}
+                    }
+                    return {
+                        ...item,
+                        attachment: strippedAttachment,
+                        attachment_base64: strippedAttachment
+                    };
+                });
+                localStorage.setItem('local_db_nhat_ky_v2', JSON.stringify(strippedCopy));
+            } catch (err) {
+                console.warn("Lỗi đồng bộ ngoại tuyến lưu trữ:", err);
+            }
+        }
+
+        async function saveRepairLog() {
+            const editId = document.getElementById('editing_repair_id').value;
+            let devCode = document.getElementById('rep_device_code').value;
+            let devName = document.getElementById('rep_device_name').value;
+            const deviceSearchVal = document.getElementById('rep_device_search').value.trim();
+            const title = document.getElementById('rep_title').value.trim();
+            const beneficiary = document.getElementById('rep_beneficiary').value.trim();
+            const bankAccount = document.getElementById('rep_bank_account').value.trim();
+            const bankName = document.getElementById('rep_bank_name').value.trim();
+            const content = document.getElementById('rep_content').value.trim();
+            const costBefore = parseFloat(document.getElementById('rep_cost_before').value) || 0;
+            const selectRate = document.getElementById('rep_tax_rate').value;
+            const payStatus = document.getElementById('rep_payment_status').value;
+            const repDate = document.getElementById('rep_date').value;
+
+            // Nếu người dùng gõ tay mà không chọn gợi ý dropdown, tự động bắt cặp hoặc sinh mã tạm
+            if (!devCode && deviceSearchVal) {
+                const matchedDev = DB_THIET_BI.find(d => 
+                    deviceSearchVal.toLowerCase().includes(String(d.device_code).toLowerCase()) ||
+                    deviceSearchVal.toLowerCase().includes(String(d.device_name).toLowerCase())
+                );
+                if (matchedDev) {
+                    devCode = matchedDev.device_code;
+                    devName = matchedDev.device_name;
+                    document.getElementById('rep_device_code').value = devCode;
+                    document.getElementById('rep_device_name').value = devName;
+                } else {
+                    devCode = "EQ-TEMP-" + Math.floor(100000 + Math.random() * 900000);
+                    devName = deviceSearchVal;
+                    document.getElementById('rep_device_code').value = devCode;
+                    document.getElementById('rep_device_name').value = devName;
+                }
+            }
+
+            if(!devCode || !title || !beneficiary) { showToast("Vui lòng nhập đầy đủ thông tin bắt buộc (*)", "warning"); return; }
+
+            let taxPercent = (selectRate === 'custom') ? (parseFloat(document.getElementById('rep_tax_custom_val').value) || 0) : parseFloat(selectRate);
+            let taxMoney = Math.round(costBefore * (taxPercent / 100));
+            let totalCost = costBefore + taxMoney;
+
+            // Nén toàn bộ mảng dữ liệu nhiều tệp Base64 thành chuỗi JSON nén an toàn
+            const cloudSerializedAttachments = selectedRepairFiles.length > 0 ? JSON.stringify(selectedRepairFiles) : null;
+
+            // Xây dựng logData động chứa đầy đủ tất cả các trường cục bộ
+            let logData = {
+                device_code: devCode, 
+                device_name: devName, 
+                noi_dung: content,
+                chi_phi_truoc_thue: costBefore, 
+                thue_suat: taxPercent,
+                tien_thue: taxMoney, 
+                tong_chi_phi: totalCost,
+                payment_status: payStatus, 
+                status: payStatus,
+                ngay_thuc_hien: repDate || new Date().toISOString().split('T')[0],
+                
+                // Cả hai chuẩn luôn luôn được lưu đầy đủ ở phía Client/Local Storage để tránh lỗi lưu đè khi sửa thông tin
+                title: title,
+                ten_ho_so: title,
+                beneficiary: beneficiary,
+                don_vi_thu_huong: beneficiary,
+                bank_account: bankAccount,
+                so_tai_khoan: bankAccount,
+                bank_name: bankName,
+                ten_ngan_hang: bankName,
+                attachment: cloudSerializedAttachments, // LƯU FULL TRÊN BỘ NHỚ RAM ĐỂ XEM TRỰC TIẾP KHÔNG BỊ BÁO NGOẠI TUYẾN
+                attachment_base64: cloudSerializedAttachments
+            };
+
+            // Lớp 1: Ghi và vẽ lên giao diện lập tức không trễ (Local-First Design)
+            let finalId = editId;
+            if (editId) {
+                const index = DB_NHAT_KY.findIndex(x => String(x.id) === String(editId));
+                if (index !== -1) {
+                    // Trộn dữ liệu cũ và mới bảo toàn các trường tệp cũ nếu không chỉnh sửa
+                    const oldAttachment = DB_NHAT_KY[index].attachment || DB_NHAT_KY[index].attachment_base64;
+                    if (!cloudSerializedAttachments && oldAttachment) {
+                        logData.attachment = oldAttachment;
+                        logData.attachment_base64 = oldAttachment;
+                    }
+                    DB_NHAT_KY[index] = { ...DB_NHAT_KY[index], ...logData, id: editId };
+                }
+            } else {
+                finalId = "local_rep_" + Date.now();
+                DB_NHAT_KY.unshift({ id: finalId, ...logData, id: finalId });
+            }
+            
+            // Sao lưu vào IndexedDB để phòng hờ trường hợp Ngoại tuyến không bị mất tệp
+            if (logData.attachment) {
+                await saveAttachmentToIDB(finalId, logData.attachment);
+            }
+
+            // Lưu ngoại tuyến đã stripped Base64 chống tràn Quota
+            saveNhatKyToLocalStorage();
+            
+            calculateRepairDashboard();
+            displayRepairLogs();
+
+            // Lớp 2: Gửi đồng bộ mây ngầm với cấu hình trường động khớp chuẩn schema của riêng bạn
+            try {
+                let supabasePayload = {
+                    device_code: devCode,
+                    device_name: devName,
+                    noi_dung: content,
+                    chi_phi_truoc_thue: costBefore,
+                    thue_suat: taxPercent,
+                    tien_thue: taxMoney,
+                    tong_chi_phi: totalCost,
+                    payment_status: payStatus,
+                    status: payStatus,
+                    ngay_thuc_hien: logData.ngay_thuc_hien
+                };
+
+                if (SCHEMA_REPAIR.has_title) supabasePayload['title'] = title;
+                if (SCHEMA_REPAIR.has_ten_ho_so) supabasePayload['ten_ho_so'] = title;
+                if (SCHEMA_REPAIR.has_beneficiary) supabasePayload['beneficiary'] = beneficiary;
+                if (SCHEMA_REPAIR.has_don_vi_thu_huong) supabasePayload['don_vi_thu_huong'] = beneficiary;
+                if (SCHEMA_REPAIR.has_bank_account) supabasePayload['bank_account'] = bankAccount;
+                if (SCHEMA_REPAIR.has_so_tai_khoan) supabasePayload['so_tai_khoan'] = bankAccount;
+                if (SCHEMA_REPAIR.has_bank_name) supabasePayload['bank_name'] = bankName;
+                if (SCHEMA_REPAIR.has_ten_ngan_hang) supabasePayload['ten_ngan_hang'] = bankName;
+                if (SCHEMA_REPAIR.has_attachment) supabasePayload['attachment'] = cloudSerializedAttachments;
+                if (SCHEMA_REPAIR.has_attachment_base64) supabasePayload['attachment_base64'] = cloudSerializedAttachments;
+
+                if (editId) {
+                    if (String(editId).startsWith('local_')) {
+                        let { error } = await client.from('nhat_ky_sua_chua').insert([supabasePayload]);
+                        if (error) throw error;
+                    } else {
+                        let { error } = await client.from('nhat_ky_sua_chua').update(supabasePayload).eq('id', editId);
+                        if (error) throw error;
+                    }
+                    showToast("Đã cập nhật quyết toán thành công!");
+                } else {
+                    let { error } = await client.from('nhat_ky_sua_chua').insert([supabasePayload]);
+                    if (error) throw error;
+                    showToast("Hạch toán hồ sơ thành công!");
+                }
+            } catch (err) {
+                console.warn("Lưu đám mây gặp sự cố, dữ liệu đã lưu trữ an toàn tại máy cục bộ.", err);
+                showToast("Đã lưu tạm dữ liệu ngoại tuyến thành công!", "warning");
+            }
+            resetRepairForm();
+            await fetchRepairLogs();
+        }
+
+        function editRepairLog(id) {
+            let item = DB_NHAT_KY.find(x => String(x.id) === String(id));
+            if(!item) return;
+            
+            document.getElementById('form_repair_title').innerHTML = `<i class="fa-solid fa-pen"></i> Chỉnh sửa Phiếu quyết toán bảo dưỡng / sửa chữa`;
+            document.getElementById('editing_repair_id').value = item.id;
+            
+            document.getElementById('rep_device_code').value = item.device_code || '';
+            document.getElementById('rep_device_name').value = item.device_name || '';
+            document.getElementById('rep_device_search').value = item.device_name ? `${item.device_name} (${item.device_code})` : (item.device_code || '');
+            
+            document.getElementById('rep_title').value = item.title || item.ten_ho_so || '';
+            document.getElementById('rep_beneficiary').value = item.beneficiary || item.don_vi_thu_huong || '';
+            document.getElementById('rep_bank_account').value = item.bank_account || item.so_tai_khoan || '';
+            document.getElementById('rep_bank_name').value = item.bank_name || item.ten_ngan_hang || '';
+            document.getElementById('rep_content').value = item.noi_dung || '';
+            document.getElementById('rep_cost_before').value = item.chi_phi_truoc_thue || 0;
+            
+            // Set Tax Rate
+            const taxRate = item.thue_suat !== undefined ? item.thue_suat : 10;
+            const selectRate = document.getElementById('rep_tax_rate');
+            if (['0', '5', '8', '10'].includes(String(taxRate))) {
+                selectRate.value = String(taxRate);
+                document.getElementById('custom_tax_group').style.display = 'none';
+            } else {
+                selectRate.value = 'custom';
+                document.getElementById('rep_tax_custom_val').value = taxRate;
+                document.getElementById('custom_tax_group').style.display = 'block';
+            }
+            
+            document.getElementById('rep_payment_status').value = item.payment_status || item.status || 'Chưa thanh toán';
+            document.getElementById('rep_date').value = item.ngay_thuc_hien || '';
+            
+            // Attachments - Bảo tồn danh sách file chứng từ cũ
+            selectedRepairFiles = [];
+            const x_attachment = item.attachment || item.attachment_base64;
+            if (x_attachment) {
+                try {
+                    const parsed = JSON.parse(x_attachment);
+                    if (Array.isArray(parsed)) {
+                        selectedRepairFiles = parsed;
+                    } else {
+                        selectedRepairFiles = [{ name: item.attachment_name || "chung-tu.png", base64: x_attachment, size: "N/A" }];
+                    }
+                } catch (e) {
+                    selectedRepairFiles = [{ name: item.attachment_name || "chung-tu.png", base64: x_attachment, size: "N/A" }];
+                }
+            }
+            renderSelectedFilesPreview();
+            calculateFlexibleTax();
+            
+            document.getElementById('form_repair_title').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function deleteRepairLog(id) {
+            showConfirmDialog("Xóa quyết toán sửa chữa", "Bạn có thực sự muốn xóa hồ sơ quyết toán này khỏi hệ thống?", async () => {
+                // Lớp 1: Xóa nhanh trên UI
+                DB_NHAT_KY = DB_NHAT_KY.filter(x => String(x.id) !== String(id));
+                try {
+                    localStorage.setItem('local_db_nhat_ky_v2', JSON.stringify(DB_NHAT_KY));
+                } catch (err) {}
+                // Xóa khỏi IndexedDB
+                await deleteAttachmentFromIDB(id);
+                calculateRepairDashboard();
+                displayRepairLogs();
+
+                // Lớp 2: Đồng bộ xóa đám mây ngầm
+                try {
+                    if (!String(id).startsWith('local_')) {
+                        await client.from('nhat_ky_sua_chua').delete().eq('id', id); 
+                    }
+                    showToast("Đã xóa quyết toán thành công!", "success");
+                } catch (e) {
+                    console.error(e);
+                    showToast("Đã xóa tạm thời tại thiết bị này!", "warning");
+                }
+                await fetchRepairLogs();
+            });
+        }
+
+        function resetRepairForm() {
+            document.getElementById('editing_repair_id').value = "";
+            document.getElementById('form_repair_title').innerHTML = `<i class="fa-solid fa-receipt"></i> Lập Phiếu quyết toán bảo dưỡng / sửa chữa`;
+            
+            document.getElementById('rep_device_search').value = ""; 
+            document.getElementById('rep_device_code').value = "";
+            document.getElementById('rep_device_name').value = "";
+            document.getElementById('rep_title').value = ""; 
+            document.getElementById('rep_beneficiary').value = ""; 
+            document.getElementById('rep_bank_account').value = ""; 
+            document.getElementById('rep_bank_name').value = ""; 
+            document.getElementById('rep_content').value = ""; 
+            document.getElementById('rep_cost_before').value = "0";
+            const docFile = document.getElementById('rep_doc_file');
+            if(docFile) docFile.value = "";
+            clearUploadedFile();
+            calculateFlexibleTax();
+        }
+
+        function displayRepairLogs() {
+            const tbody = document.getElementById('table_suachua_body'); if(!tbody) return;
+            tbody.innerHTML = "";
+            const kw = document.getElementById('search_suachua_input')?.value.toLowerCase().trim() || "";
+
+            if (!DB_NHAT_KY) DB_NHAT_KY = [];
+
+            let filtered = DB_NHAT_KY.filter(x => {
+                const x_title = x.title || x.ten_ho_so || '';
+                const x_beneficiary = x.beneficiary || x.don_vi_thu_huong || '';
+                if(!kw) return true;
+                return (x.device_code && x.device_code.toLowerCase().includes(kw)) || (x.noi_dung && x.noi_dung.toLowerCase().includes(kw)) || (x.device_name && x.device_name.toLowerCase().includes(kw)) || (x_title && x_title.toLowerCase().includes(kw)) || (x_beneficiary && x_beneficiary.toLowerCase().includes(kw));
+            });
+
+            if(filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="11" class="text-center p-8 text-slate-400 text-sm">Không thấy nhật ký sửa chữa phù hợp.</td></tr>`; return;
+            }
+
+            filtered.forEach(x => {
+                let pStatus = String(x.payment_status || x.status || "Chưa thanh toán").trim();
+                let badgeClass = "bg-rose-50 text-rose-700 border border-rose-200";
+                if(pStatus === "Đã thanh toán") badgeClass = "bg-emerald-50 text-emerald-700 border border-emerald-200";
+                if(pStatus === "Chờ duyệt") badgeClass = "bg-amber-50 text-amber-700 border border-amber-200";
+
+                const x_title = x.title || x.ten_ho_so || 'Hồ sơ quyết toán';
+                const x_beneficiary = x.beneficiary || x.don_vi_thu_huong || 'Nhà cung cấp';
+                const x_bank_account = x.bank_account || x.so_tai_khoan || '';
+                const x_bank_name = x.bank_name || x.ten_ngan_hang || '';
+                const x_attachment = x.attachment || x.attachment_base64 || '';
+
+                // Phân tích xem trường đính kèm có phải là mảng nhiều file JSON không
+                let docLink = "";
+                if(x_attachment) {
+                    try {
+                        const parsedFiles = JSON.parse(x_attachment);
+                        if (Array.isArray(parsedFiles)) {
+                            docLink = `<button onclick="viewDocAttachment('${x.id}')" class="bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800 text-xs font-bold px-2.5 py-1.5 rounded-lg border border-blue-200 flex items-center gap-1 mx-auto justify-center"><i class="fa-solid fa-folder-open"></i> Xem (${parsedFiles.length} file)</button>`;
+                        } else {
+                            docLink = `<button onclick="viewDocAttachment('${x.id}')" class="text-blue-600 hover:text-blue-800 text-sm font-bold flex items-center gap-1.5 mx-auto justify-center"><i class="fa-solid fa-file-invoice"></i> Xem</button>`;
+                        }
+                    } catch (e) {
+                        docLink = `<button onclick="viewDocAttachment('${x.id}')" class="text-blue-600 hover:text-blue-800 text-sm font-bold flex items-center gap-1.5 mx-auto justify-center"><i class="fa-solid fa-file-invoice"></i> Xem</button>`;
+                    }
+                } else {
+                    docLink = `<span class="text-slate-300">--</span>`;
+                }
+
+                let bankBlock = "";
+                if (x_bank_account) {
+                    bankBlock = `<div class="text-xs text-slate-400 mt-1"><i class="fa-solid fa-credit-card text-[10px]"></i> ${x_bank_account} (${x_bank_name})</div>`;
+                }
+
+                let tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition-colors";
+                tr.innerHTML = `
+                    <td class="p-3.5"><code>${x.device_code}</code></td>
+                    <td class="p-3.5 font-semibold text-sm">${x.device_name || '--'}</td>
+                    <td class="p-3.5 max-w-sm">
+                        <div class="font-bold text-slate-800 text-sm">${x_title}</div>
+                        <div class="text-xs text-slate-400 mt-0.5 truncate">${x.noi_dung || ''}</div>
+                    </td>
+                    <td class="p-3.5 text-sm">${(x.chi_phi_truoc_thue || 0).toLocaleString('vi-VN')} đ</td>
+                    <td class="p-3.5 text-center"><span class="badge bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded text-xs">${x.thue_suat}%</span></td>
+                    <td class="p-3.5 font-bold text-emerald-600 text-sm">${(x.tong_chi_phi || 0).toLocaleString('vi-VN')} đ</td>
+                    <td class="p-3.5">
+                        <div class="font-semibold text-slate-800 text-sm">${x_beneficiary}</div>
+                        ${bankBlock}
+                    </td>
+                    <td class="p-3.5 text-center"><span class="badge ${badgeClass} px-2.5 py-1 rounded font-semibold text-xs">${pStatus}</span></td>
+                    <td class="p-3.5 text-center">${docLink}</td>
+                    <td class="p-3.5 text-center text-slate-500 text-xs">${x.ngay_thuc_hien || ''}</td>
+                    <td class="p-3.5 text-center font-bold">
+                        <button class="text-blue-600 hover:text-blue-800 font-bold mr-3 text-sm" onclick="editRepairLog('${x.id}')"><i class="fa-solid fa-pen"></i> Sửa</button>
+                        <button class="text-rose-600 hover:text-rose-800 font-bold text-sm" onclick="deleteRepairLog('${x.id}')"><i class="fa-solid fa-trash"></i> Xóa</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Hỗ trợ xem mảng nhiều hóa đơn chứng từ trong tệp nén JSON
+        async function viewDocAttachment(id) {
+            let item = DB_NHAT_KY.find(x => String(x.id) === String(id));
+            if(!item) return;
+
+            let x_attachment = item.attachment || item.attachment_base64;
+            const x_attachment_name = item.attachment_name || "chung-tu.png";
+            if(!x_attachment) return;
+
+            const modal = document.getElementById('docViewerModal');
+            const body = document.getElementById('docViewerBody');
+            if(!modal || !body) return;
+
+            // 1. CƠ CHẾ BẢO VỆ OFFLINE HOÀN HẢO - TRUY XUẤT INDEXEDDB TRƯỚC:
+            // Nếu phát hiện chuỗi đính kèm đã bị stripped Base64 (Placeholder "[Tài liệu lưu trên Đám Mây]"),
+            // Hệ thống sẽ truy vấn trực tiếp từ IndexedDB cục bộ (Đã lưu trữ an toàn khi người dùng tạo/sửa phiếu).
+            if (x_attachment && x_attachment.includes("[Tài liệu lưu trên Đám Mây]")) {
+                let idbAttachment = await getAttachmentFromIDB(id);
+                if (idbAttachment) {
+                    x_attachment = idbAttachment;
+                    // Cập nhật ngược lại bộ nhớ RAM tạm thời để truy cập cực nhanh cho các lần nhấp chuột sau
+                    item.attachment = x_attachment;
+                    item.attachment_base64 = x_attachment;
+                }
+            }
+
+            // 2. CƠ CHẾ DỰ PHÒNG ONLINE - TRUY XUẤT CLOUD NẾU INDEXEDDB BỊ TRỐNG:
+            // Nếu IndexedDB không có (Ví dụ đổi thiết bị) và thiết bị đang online, tải trực tuyến từ Supabase Cloud.
+            if (x_attachment && x_attachment.includes("[Tài liệu lưu trên Đám Mây]") && client && !String(id).startsWith("local_")) {
+                showToast("Đang tải tệp đính kèm đầy đủ từ đám mây...", "warning");
+                try {
+                    const { data, error } = await client.from('nhat_ky_sua_chua').select('attachment, attachment_base64').eq('id', id).single();
+                    if (!error && data) {
+                        x_attachment = data.attachment || data.attachment_base64;
+                        // Ghi nhớ ngược lại RAM tạm thời
+                        item.attachment = x_attachment;
+                        item.attachment_base64 = x_attachment;
+                        // Ghi nhớ ngược lại IndexedDB để lần sau ngoại tuyến mở siêu tốc
+                        await saveAttachmentToIDB(id, x_attachment);
+                    }
+                } catch (err) {
+                    console.error("Không thể tải tệp trực tuyến: ", err);
+                }
+            }
+
+            // 3. Nếu cả 2 lớp đều không lấy được Base64 đầy đủ
+            if(!x_attachment || x_attachment.includes("[Tài liệu lưu trên Đám Mây]")) {
+                showToast("Không thể mở chứng từ ở chế độ Ngoại tuyến. Vui lòng kết nối mạng để đồng bộ từ Cloud!", "error");
+                return;
+            }
+
+            body.innerHTML = "";
+            let fileList = [];
+
+            try {
+                // Thử giải nén chuỗi JSON chứa danh sách file
+                const parsed = JSON.parse(x_attachment);
+                if (Array.isArray(parsed)) {
+                    fileList = parsed;
+                } else {
+                    fileList = [{ name: item.attachment_name || "chung-tu.png", base64: x_attachment, size: "N/A" }];
+                }
+            } catch (e) {
+                fileList = [{ name: item.attachment_name || "chung-tu.png", base64: x_attachment, size: "N/A" }];
+            }
+
+            // Dựng album ảnh hóa đơn chứng từ chuyên nghiệp kèm liên kết tải xuống tiện lợi
+            fileList.forEach(file => {
+                let docContent = "";
+                const isImg = file.base64 && file.base64.startsWith("data:image");
+
+                if (isImg) {
+                    docContent = `<img src="${file.base64}" class="max-w-full h-auto max-h-[350px] object-contain rounded-lg mx-auto shadow-sm border">`;
+                } else if (file.base64 && file.base64.startsWith("data:application/pdf")) {
+                    // Khắc phục triệt để lỗi không xem được file PDF dung lượng lớn (>5MB) 
+                    // Sử dụng URL.createObjectURL dạng Blob đối tượng ảo thay vì nạp trực tiếp chuỗi Base64 siêu dài vào src
+                    try {
+                        const byteCharacters = atob(file.base64.split(',')[1]);
+                        const byteNumbers = new Array(byteCharacters.length);
+                        for (let i = 0; i < byteCharacters.length; i++) {
+                            byteNumbers[i] = byteCharacters.charCodeAt(i);
+                        }
+                        const byteArray = new Uint8Array(byteNumbers);
+                        const blob = new Blob([byteArray], {type: 'application/pdf'});
+                        const blobURL = URL.createObjectURL(blob);
+                        docContent = `<iframe src="${blobURL}" class="w-full h-[350px] rounded-lg border-2 border-slate-200" frameBorder="0"></iframe>`;
+                    } catch(err) {
+                        console.error("Lỗi dựng blob URL PDF: ", err);
+                        docContent = `<iframe src="${file.base64}" class="w-full h-[350px] rounded-lg border-2 border-slate-200" frameBorder="0"></iframe>`;
+                    }
+                } else {
+                    docContent = `
+                        <div class="p-6 text-center border-2 border-dashed border-slate-300 rounded-xl bg-white w-full">
+                            <i class="fa-solid fa-file-invoice-dollar text-4xl text-blue-500 mb-2"></i>
+                            <div class="text-xs font-bold text-slate-700 truncate max-w-[200px] mx-auto">${file.name}</div>
+                        </div>
+                    `;
+                }
+
+                const card = document.createElement('div');
+                card.className = "bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between gap-3";
+                card.innerHTML = `
+                    <div class="flex-grow flex items-center justify-center bg-slate-50 p-2 rounded-lg">
+                        ${docContent}
+                    </div>
+                    <div class="flex items-center justify-between border-t border-slate-100 pt-3">
+                        <div class="min-w-0 flex-1 pr-2">
+                            <div class="text-xs font-bold text-slate-800 truncate" title="${file.name}">${file.name}</div>
+                            <div class="text-[10px] text-slate-400 font-medium mt-0.5">${file.size || 'N/A'}</div>
+                        </div>
+                        <a href="${file.base64 || '#'}" download="${file.name}" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold px-3 py-2 rounded-lg border border-emerald-200 flex items-center gap-1.5 shrink-0 transition-colors">
+                            <i class="fa-solid fa-download"></i> Tải về
+                        </a>
+                    </div>
+                `;
+                body.appendChild(card);
+            });
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeDocViewer() {
+            document.getElementById('docViewerModal').classList.add('hidden');
+        }
+
+        // --- HÀM XỬ LÝ CHUẨN HÓA TIẾNG VIỆT KHÔNG DẤU ---
+        function removeVietnameseTones(str) {
+            if (!str) return "";
+            let normalized = str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            normalized = normalized.replace(/đ/g, "d").replace(/Đ/g, "D");
+            normalized = normalized.replace(/[àáạảãâầấậẩẫăằắặẳẵ]/g, "a");
+            normalized = normalized.replace(/[èéẹẻẽêềếệểễ]/g, "e");
+            normalized = normalized.replace(/[ìíịỉĩ]/g, "i");
+            normalized = normalized.replace(/[òóọỏõôồốộổỗơờớợởỡ]/g, "o");
+            normalized = normalized.replace(/[ùúụủũưừứựửữ]/g, "u");
+            normalized = normalized.replace(/[ỳýỵỷỹ]/g, "y");
+            return normalized;
+        }
+
+        function safeConvertToISODate(rawVal) {
+            if (!rawVal) return null; 
+            let str = String(rawVal).trim();
+            
+            if (!isNaN(str) && str.length >= 4 && !str.includes("/") && !str.includes("-")) {
+                let valFloat = parseFloat(str);
+                if (valFloat > 10000) {
+                    let d = new Date((valFloat - 25569) * 86400 * 1000);
+                    if (!isNaN(d.getTime())) {
+                        let month = String(d.getMonth() + 1).padStart(2, '0');
+                        let day = String(d.getDate()).padStart(2, '0');
+                        return `${d.getFullYear()}-${month}-${day}`;
+                    }
+                }
+            }
+            if (str.includes("/")) {
+                let parts = str.split("/");
+                if (parts.length === 3) {
+                    let day = parts[0].trim().padStart(2, '0');
+                    let month = parts[1].trim().padStart(2, '0');
+                    let year = parts[2].trim();
+                    if (year.length === 4) return `${year}-${month}-${day}`;
+                }
+            }
+            if (str.includes("-") && str.split("-")[0].length !== 4) {
+                let parts = str.split("-");
+                if (parts.length === 3) {
+                    return `${parts[2].trim()}-${parts[1].trim().padStart(2, '0')}-${parts[0].trim().padStart(2, '0')}`;
+                }
+            }
+            if (str.includes("-") && str.split("-")[0].length === 4) {
+                return str;
+            }
+            return null;
+        }
+
+        async function importExcelNhanSu(input) {
+            const file = input.files[0]; if(!file) return;
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    const hasAnToanVien = await checkColumnExists('nhan_su', 'an_toan_vien');
+                    const hasAtv = await checkColumnExists('nhan_su', 'atv');
+                    const hasNgheDocHai = await checkColumnExists('nhan_su', 'nghe_doc_hai');
+                    const hasNndh = await checkColumnExists('nhan_su', 'nndh');
+
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array', cellDates: false, raw: true });
+                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                    
+                    const range = XLSX.utils.decode_range(sheet['!ref']);
+                    let headerRowIndex = 0;
+                    let foundHeader = false;
+                    
+                    for (let r = range.s.r; r <= range.e.r; r++) {
+                        let rowHasName = false;
+                        for (let c = range.s.c; c <= range.e.c; c++) {
+                            let cell = sheet[XLSX.utils.encode_cell({r: r, c: c})];
+                            if (cell && cell.v) {
+                                let valClean = removeVietnameseTones(String(cell.v)).replace(/\s+/g, '').toLowerCase();
+                                if (valClean.includes("hovaten") || valClean.includes("hoten")) {
+                                    rowHasName = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (rowHasName) {
+                            headerRowIndex = r;
+                            foundHeader = true;
+                            break;
+                        }
+                    }
+
+                    const json = XLSX.utils.sheet_to_json(sheet, { 
+                        range: headerRowIndex,
+                        defval: "", 
+                        raw: true 
+                    });
+                    
+                    if(json.length === 0) { showToast("File trống hoặc không có dòng tiêu đề chính xác!", "danger"); return; }
+
+                    let excelHeaders = Object.keys(json[0]);
+
+                    let getRawValFromExcel = (rowObject, keywords) => {
+                        let foundKey = Object.keys(rowObject).find(keyName => {
+                            let cleanKey = removeVietnameseTones(keyName).replace(/\s+/g, '').toLowerCase();
+                            return keywords.some(kw => cleanKey.includes(kw));
+                        });
+                        return foundKey ? String(rowObject[foundKey]).trim() : "";
+                    };
+
+                    let checkColumnExist = (keywords) => {
+                        return excelHeaders.some(keyName => {
+                            let cleanKey = removeVietnameseTones(keyName).replace(/\s+/g, '').toLowerCase();
+                            return keywords.some(kw => cleanKey.includes(kw));
+                        });
+                    };
+
+                    if(!checkColumnExist(["hovaten", "hoten", "ten"])) {
+                        showToast("Không tìm thấy cột 'Họ và tên' trong file nạp!", "danger");
+                        return;
+                    }
+
+                    let listRows = [];
+                    let localMapping = {};
+
+                    json.forEach((row, i) => {
+                        let hoTen = getRawValFromExcel(row, ["hovaten", "hoten", "ten"]);
+                        if(!hoTen || hoTen.toLowerCase() === "họ và tên" || hoTen.includes("------")) return;
+
+                        let nuKey = getRawValFromExcel(row, ["nu", "nux", "gioitinh"]);
+                        let gt = "Nam";
+                        if (nuKey.toLowerCase() === "x" || nuKey === "1" || nuKey.toLowerCase() === "nữ" || nuKey.toLowerCase() === "nu") {
+                            gt = "Nữ";
+                        }
+                        
+                        let birthStr = safeConvertToISODate(getRawValFromExcel(row, ["namsinh", "ngaysinh", "ngaythangnamsinh", "sinh"]));
+                        let retStr = safeConvertToISODate(getRawValFromExcel(row, ["namvehuu", "ngayvehuu", "vehuu", "ngay_ve_huu"]));
+                        
+                        if(!retStr && birthStr) {
+                            let p = birthStr.split("-");
+                            let y = parseInt(p[0]);
+                            let rY = (gt === "Nữ") ? (y + 60) : (y + 62);
+                            retStr = `${rY}-${p[1]}-${p[2]}`;
+                        }
+
+                        let cccdVal = getRawValFromExcel(row, ["socccd", "cccd", "cancuoc", "cmnd"]);
+                        let bhxhVal = getRawValFromExcel(row, ["sosobhxh", "bhxh", "sobhxh"]);
+                        let maDonVi = getRawValFromExcel(row, ["madonvi", "donvi", "bophan", "madv", "ma_dv"]);
+                        let chucDanh = getRawValFromExcel(row, ["chucdanh", "congviec", "chucdanhcongviec", "chucvu"]);
+                        
+                        let atvVal = getRawValFromExcel(row, ["antoanvien", "atv", "antoan", "vsv", "atvvsv", "dsatv"]);
+                        let nndhVal = getRawValFromExcel(row, ["nndh", "nghedochai", "doc_hai", "dochai", "nghe_doc_hai", "congviecdochai"]);
+
+                        if (atvVal || nndhVal) {
+                            let key = String(hoTen).trim() + "_" + String(cccdVal).trim();
+                            localMapping[key] = { atv: atvVal, nndh: nndhVal };
+                        }
+
+                        let record = {
+                            stt_excel: getRawValFromExcel(row, ["stt", "sttgoc"]) || String(i + 1), 
+                            ho_ten: hoTen,
+                            so_so_bhxh: bhxhVal, 
+                            so_cccd: cccdVal,
+                            gioi_tinh: gt, 
+                            nam_sinh: birthStr, 
+                            nam_ve_huu: retStr,
+                            ma_don_vi: maDonVi || "Chưa rõ", 
+                            chuc_danh_cong_viec: chucDanh
+                        };
+
+                        if (hasAnToanVien) record['an_toan_vien'] = atvVal;
+                        else if (hasAtv) record['atv'] = atvVal;
+
+                        if (hasNgheDocHai) record['nghe_doc_hai'] = nndhVal;
+                        else if (hasNndh) record['nndh'] = nndhVal;
+
+                        listRows.push(record);
+                    });
+
+                    if (listRows.length === 0) { showToast("Không có dòng dữ liệu hợp lệ!", "danger"); return; }
+
+                    localStorage.setItem('local_atv_nndh', JSON.stringify(localMapping));
+
+                    // Lưu lập tức bộ nhớ đệm
+                    DB_NHAN_SU = listRows;
+                    localStorage.setItem('local_db_nhan_su_v2', JSON.stringify(DB_NHAN_SU));
+                    triggerFilterReset();
+
+                    await client.from('nhan_su').delete().neq('id', 0);
+                    let { error } = await client.from('nhan_su').insert(listRows);
+                    if(error) { showToast("Lỗi đẩy dữ liệu: " + error.message, "danger"); return; }
+                    
+                    showToast("Bắn thành công " + listRows.length + " nhân sự lên đám mây!"); 
+                    await fetchAllData();
+                } catch(err) { showToast("Sự cố phân giải tệp: " + err.message, "danger"); }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        async function clearDataCloud(tableName) {
+            showConfirmDialog("Xóa toàn bộ dữ liệu", "Hành động này sẽ xóa vĩnh viễn toàn bộ dữ liệu đám mây của bạn. Bạn chắc chắn chứ?", async () => {
+                let pass = prompt("Mã bảo mật hệ thống:"); if(pass !== "admin123") { showToast("Mật khẩu không hợp lệ!", "danger"); return; }
+                await client.from(tableName).delete().neq('id', 0); 
+                localStorage.removeItem('local_atv_nndh');
+                localStorage.removeItem('local_db_nhan_su_v2');
+                localStorage.removeItem('local_db_thiet_bi_v2');
+                localStorage.removeItem('local_db_nhat_ky_v2');
+                showToast("Hệ thống đám mây đã được dọn sạch!", "success");
+                loadCachedOrLocalData();
+            });
+        }
+
+        // =================================================================================================
+        // HỆ THỐNG CUSTOM DIALOG & NOTIFICATIONS (THAY THẾ TOÀN DIỆN CHO ALERT CỦA TRÌNH DUYỆT)
+        // =================================================================================================
+        function showToast(message, type = "success") {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toastMessage');
+            const toastIcon = document.getElementById('toastIcon');
+
+            toastMsg.innerText = message;
+            if(type === "success") {
+                toastIcon.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400 text-sm"></i>`;
+            } else if (type === "warning") {
+                toastIcon.innerHTML = `<i class="fa-solid fa-circle-exclamation text-amber-400 text-sm"></i>`;
+            } else {
+                toastIcon.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-rose-500 text-sm"></i>`;
+            }
+
+            toast.classList.remove('opacity-0', 'translate-y-20');
+            toast.classList.add('opacity-100', 'translate-y-0');
+
+            setTimeout(() => {
+                toast.classList.remove('opacity-100', 'translate-y-0');
+                toast.classList.add('opacity-0', 'translate-y-20');
+            }, 3000);
+        }
+
+        function showConfirmDialog(title, text, onConfirm) {
+            const modal = document.getElementById('confirmModal');
+            document.getElementById('confirmTitle').innerText = title;
+            document.getElementById('confirmText').innerHTML = text; // Thay thế innerText thành innerHTML để hỗ trợ hiển thị ảnh QR lớn trực quan
+
+            modal.classList.remove('hidden');
+
+            document.getElementById('confirmYesBtn').onclick = () => {
+                onConfirm();
+                modal.classList.add('hidden');
+            };
+
+            document.getElementById('confirmNoBtn').onclick = () => {
+                modal.classList.add('hidden');
+            };
+        }
+    </script>
+</body>
+</html>
