@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hệ Thống ERP - Quản Trị Nhân Sự & Phân Tích Cơ Sở Dữ Liệu</title>
+    <title>Hệ Thống ERP - Quản Trị Nhân Sự & Phân Tích Cơ Sở Dữ Liệu Chuẩn Hóa</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -61,7 +61,6 @@
         tr:nth-child(even) { background-color: #f8fafc; }
         tr:hover { background-color: #f1f7ff !important; }
 
-        /* Trực quan hóa các Badge trạng thái */
         .badge { display: inline-block; padding: 5px 10px; font-size: 11px; font-weight: 700; border-radius: 6px; text-align: center; }
         .badge-info { background-color: #dbeafe; color: #1e40af; }
         .badge-success { background-color: #d1fae5; color: #065f46; }
@@ -89,10 +88,10 @@
     <header>
         <div>
             <h1>Hệ Thống Phân Tích Nhân Sự & Quản Trị ERP Toàn Diện</h1>
-            <p>Giải pháp tối ưu hóa dữ liệu: Đọc chính xác tuyệt đối theo vị trí Index của File</p>
+            <p>Giải pháp chuẩn hóa: Định dạng đầy đủ Ngày/Tháng/Năm - Trích xuất 4 số cuối năm sinh</p>
         </div>
         <div style="font-size: 12px; background: rgba(255,255,255,0.15); padding: 8px 16px; border-radius: 8px; font-weight: bold;">
-            Trạng thái: Định dạng chuẩn xác 100%
+            Trạng thái: Đã sửa lỗi Ngày tháng & Đổi tên cột "Năm"
         </div>
     </header>
 
@@ -170,17 +169,16 @@
                             <th>Số CCCD</th>
                             <th>An Toàn Viên (Số Gốc)</th>
                             <th>NNĐH</th>
-                            <th>Năm Về Hưu</th>
+                            <th>Năm Về Hưu (Đầy đủ)</th>
                             <th>Mã Đơn Vị</th>
-                            <th>Năm Biến Động</th>
-                            <th>Năm Sinh</th>
-                            <th>Giới Tính</th>
+                            <th>Năm</th> <th>Năm Sinh (Đầy đủ)</th>
+                            <th>4 Số Cuối Năm Sinh</th> <th>Giới Tính</th>
                             <th>Chức Danh Công Việc</th>
                             <th>Tuổi</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr><td colspan="14" style="text-align:center; padding:20px; color:#64748b;">Chưa có dữ liệu. Vui lòng tải file Excel lên hệ thống.</td></tr>
+                        <tr><td colspan="15" style="text-align:center; padding:20px; color:#64748b;">Chưa có dữ liệu. Vui lòng tải file Excel lên hệ thống.</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -284,11 +282,26 @@
         if(tabId === 'tab-nhansu') { setTimeout(renderNSCharts, 200); }
     }
 
+    // THUẬT TOÁN ĐỌC VÀ CHUYỂN ĐỔI NGÀY THÁNG CHUẨN: CHỐNG LỖI HIỂN THỊ DẠNG SỐ SERIAL (46266...)
     function formatToVietnameseDate(val) {
-        if (!val) return "-";
+        if (!val || String(val).trim() === "") return "-";
         let sVal = String(val).trim();
+        
+        // Nếu Excel trả về dạng số Serial Date (ví dụ: 46266, 25569...)
+        let numericDate = parseFloat(sVal);
+        if (!isNaN(numericDate) && numericDate > 1000 && numericDate < 100000) {
+            let d = new Date(Math.floor(numericDate - (numericDate > 60 ? 25569 : 25568)) * 86400 * 1000);
+            if (!isNaN(d.getTime())) {
+                let day = d.getUTCDate().toString().padStart(2, '0');
+                let month = (d.getUTCMonth() + 1).toString().padStart(2, '0');
+                return `${day}/${month}/${d.getUTCFullYear()}`;
+            }
+        }
+        
+        // Nếu là định dạng dạng chuỗi YYYY-MM-DD
         if (sVal.includes("-")) {
-            let p = sVal.split("-"); if (p[0].length === 4) return `${p[2]}/${p[1]}/${p[0]}`;
+            let p = sVal.split("-"); 
+            if (p[0].length === 4) return `${p[2]}/${p[1]}/${p[0]}`;
         }
         return sVal;
     }
@@ -296,35 +309,40 @@
     function extractYear(val) {
         if (!val) return 0;
         let sVal = String(val).trim();
+        
+        let numericDate = parseFloat(sVal);
+        if (!isNaN(numericDate) && numericDate > 1000 && numericDate < 100000) {
+            let d = new Date(Math.floor(numericDate - (numericDate > 60 ? 25569 : 25568)) * 86400 * 1000);
+            return !isNaN(d.getTime()) ? d.getUTCFullYear() : 0;
+        }
+
         let match = sVal.match(/\d{4}/);
         return match ? parseInt(match[0]) : 0;
     }
 
-    // ================= GIẢI PHÁP TỐI ƯU: ĐỌC THEO INDEX MẢNG 2 CHIỀU ĐỂ TRANH LỆCH CỘT =================
+    // ================= ĐỌC CHÍNH XÁC THEO INDEX MẢNG 2 CHIỀU CỦA FILE GỐC =================
     function processExcelNhansu(input) {
         const file = input.files[0]; if (!file) return;
         const reader = new FileReader();
         reader.onload = function(e) {
             try {
                 const workbook = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
-                // Đọc dạng mảng hai chiều (Array of Arrays) để cố định vị trí cột
                 const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1, defval: "" });
                 
                 dataNhansu = [];
                 let startRow = 0;
                 
-                // Thuật toán tự tìm hàng chứa tiêu đề gốc (chứa "họ và tên" hoặc "cccd")
                 for (let i = 0; i < sheetData.length; i++) {
                     let rowStr = sheetData[i].join("").toLowerCase();
                     if (rowStr.includes("họvàtên") || rowStr.includes("sốcccd") || rowStr.includes("bhxh")) {
-                        startRow = i + 1; // Dữ liệu thật bắt đầu từ hàng tiếp theo
+                        startRow = i + 1;
                         break;
                     }
                 }
 
                 for (let i = startRow; i < sheetData.length; i++) {
                     let row = sheetData[i];
-                    if (!row || row.length < 2 || !row[1]) continue; // Bỏ qua hàng trống không có tên
+                    if (!row || row.length < 2 || !row[1]) continue;
 
                     let stt = String(row[0] || "").trim();
                     let fullName = String(row[1] || "").trim();
@@ -332,23 +350,28 @@
                     let bhxh = String(row[3] || "").trim();
                     let cccd = String(row[4] || "").trim();
                     
-                    // Chỉ định chính xác Index 6 là cột An toàn viên trong file gốc của bạn
                     let atv = String(row[6] || "").trim(); 
-                    
                     let nndh = String(row[7] || "").trim();
+                    
+                    // Thực hiện định dạng đầy đủ Ngày/Tháng/Năm, chống hiện số 46266...
                     let retireTime = formatToVietnameseDate(String(row[8] || "").trim());
                     let unitId = String(row[9] || "").trim();
                     let fluctuationYear = String(row[10] || "").trim();
                     let birthOrigin = formatToVietnameseDate(String(row[11] || "").trim());
+                    
                     let femaleIndicator = String(row[12] || "").trim().toUpperCase();
                     let jobTitle = String(row[13] || "").trim();
 
                     let isFemale = (femaleIndicator === "X" || femaleIndicator === "1");
-                    let bY = extractYear(birthOrigin);
+                    
+                    // Lấy chính xác 4 số cuối của năm sinh
+                    let bY = extractYear(String(row[11] || "").trim());
+                    let fourDigitBirthYear = bY ? String(bY) : "-";
 
                     dataNhansu.push({
                         stt: stt || (dataNhansu.length + 1),
                         fullName, firstName, bhxh, cccd, atv, nndh, retireTime, unitId, fluctuationYear, birthOrigin,
+                        birthYearOnly: fourDigitBirthYear, // Lưu trữ 4 số cuối của năm sinh
                         gender: isFemale ? "Nữ" : "Nam",
                         jobTitle,
                         currentAge: bY ? (2026 - bY) : 0
@@ -358,7 +381,7 @@
                 localStorage.setItem('erp_precise_db', JSON.stringify(dataNhansu));
                 buildFilterDropdowns();
                 renderNhansu();
-                alert(`Tối ưu hóa thành công! Đã nạp chính xác ${dataNhansu.length} trường dữ liệu.`);
+                alert(`Đã chuẩn hóa thành công dữ liệu ngày tháng của ${dataNhansu.length} nhân sự!`);
             } catch(err) { alert("Lỗi phân tích file dữ liệu: " + err.message); }
         };
         reader.readAsArrayBuffer(file);
@@ -371,7 +394,6 @@
         uniqueUnits.forEach(u => { if(u) uSelect.innerHTML += `<option value="${u}">${u}</option>`; });
     }
 
-    // ================= BỘ LỌC ĐA TIÊU CHÍ ĐỘC LẬP =================
     function executeAdvancedFilter() {
         let keyword = document.getElementById('filterSearch').value.toLowerCase().trim();
         let gender = document.getElementById('filterGender').value;
@@ -395,14 +417,12 @@
     function populateTable(displayList) {
         const tbody = document.querySelector('#corporateTable tbody'); tbody.innerHTML = '';
         if(displayList.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="14" style="text-align:center; padding:20px; color:#ef4444; font-weight:bold;">Không tìm thấy dữ liệu nhân sự phù hợp!</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="15" style="text-align:center; padding:20px; color:#ef4444; font-weight:bold;">Không tìm thấy dữ liệu nhân sự phù hợp!</td></tr>';
             return;
         }
         displayList.forEach(emp => {
             let row = tbody.insertRow();
             let nndhBadge = emp.nndh && emp.nndh !== "0" ? `<span class="badge badge-danger">🔥 Mức ${emp.nndh}</span>` : `-`;
-            
-            // TRỰC QUAN HÓA CỘT AN TOÀN VIÊN - HIỂN THỊ NGUYÊN BẢN SỐ GỐC TRÊN BADGE MÀU VÀNG
             let atvBadge = emp.atv && emp.atv !== "0" ? `<span class="badge badge-warning">🔢 Số: ${emp.atv}</span>` : `-`;
 
             row.innerHTML = `
@@ -413,11 +433,8 @@
                 <td>${emp.cccd}</td>
                 <td style="text-align:center;">${atvBadge}</td>
                 <td>${nndhBadge}</td>
-                <td><b>${emp.retireTime}</b></td>
-                <td><span class="badge badge-dark">${emp.unitId}</span></td>
-                <td>${emp.fluctuationYear}</td>
-                <td>${emp.birthOrigin}</td>
-                <td>${emp.gender === "Nữ" ? '🔮 Nữ' : '💼 Nam'}</td>
+                <td><b>${emp.retireTime}</b></td> <td><span class="badge badge-dark">${emp.unitId}</span></td>
+                <td><b>${emp.fluctuationYear}</b></td> <td>${emp.birthOrigin}</td> <td style="text-align:center; font-weight:bold; color:#0369a1;">${emp.birthYearOnly}</td> <td>${emp.gender === "Nữ" ? '🔮 Nữ' : '💼 Nam'}</td>
                 <td style="white-space:normal; font-size:12px; max-width:250px;">${emp.jobTitle}</td>
                 <td><span class="badge badge-info">${emp.currentAge} t</span></td>
             `;
@@ -471,7 +488,6 @@
         });
     }
 
-    // ================= CÁC PHÂN HỆ PHỤ TRỢ KHÁC MỞ RỘNG ĐỘC LẬP =================
     function processExcelGeneric(input, type) {
         const file = input.files[0]; if (!file) return;
         const reader = new FileReader();
@@ -513,10 +529,10 @@
                         <th style="padding:6px; border:1px solid black;">Họ và Tên</th>
                         <th style="padding:6px; border:1px solid black;">Số CCCD</th>
                         <th style="padding:6px; border:1px solid black;">Mã Đơn Vị</th>
-                        <th style="padding:6px; border:1px solid black;">Giới Tính</th>
-                        <th style="padding:6px; border:1px solid black;">Tuổi Hiện Tại</th>
+                        <th style="padding:6px; border:1px solid black;">Năm Sinh Full</th>
+                        <th style="padding:6px; border:1px solid black;">Năm Sinh (4 Số)</th>
+                        <th style="padding:6px; border:1px solid black;">Năm Về Hưu Full</th>
                         <th style="padding:6px; border:1px solid black;">An Toàn Viên (Mã Số)</th>
-                        <th style="padding:6px; border:1px solid black;">Chức Danh Công Việc</th>
                     </tr>
                 </thead>
                 <tbody>`;
@@ -531,10 +547,10 @@
                     <td style="padding:5px; font-weight:bold; border:1px solid black;">${e.fullName}</td>
                     <td style="text-align:center; padding:5px; border:1px solid black;">${e.cccd}</td>
                     <td style="text-align:center; padding:5px; border:1px solid black;">${e.unitId}</td>
-                    <td style="text-align:center; padding:5px; border:1px solid black;">${e.gender}</td>
-                    <td style="text-align:center; padding:5px; border:1px solid black;">${e.currentAge} tuổi</td>
+                    <td style="text-align:center; padding:5px; border:1px solid black;">${e.birthOrigin}</td>
+                    <td style="text-align:center; padding:5px; font-weight:bold; border:1px solid black;">${e.birthYearOnly}</td>
+                    <td style="text-align:center; padding:5px; border:1px solid black;">${e.retireTime}</td>
                     <td style="text-align:center; padding:5px; font-weight:bold; color:#b45309; border:1px solid black; background:#fef3c7;">${e.atv ? e.atv : '-'}</td>
-                    <td style="padding:5px; font-size:10px; border:1px solid black;">${e.jobTitle || '-'}</td>
                 </tr>`;
             });
         }
