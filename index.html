@@ -249,12 +249,12 @@
                 <div class="stat-card bg-emerald-50 p-5 rounded-xl border-2 border-emerald-800 shadow-md text-center">
                     <div class="text-emerald-800 text-3xl mb-1"><i class="fa-solid fa-mars"></i></div>
                     <h3 class="text-emerald-900 font-bold uppercase" style="font-size: 0.95rem !important;">Lao động Nam</h3>
-                    <div class="text-3xl font-black text-emerald-950 mt-1" id="hr_stat_male">0 người</div>
+                    <div class="text-3xl font-black text-emerald-950 mt-1" id="hr_stat_male">0%</div>
                 </div>
                 <div class="stat-card bg-emerald-50 p-5 rounded-xl border-2 border-emerald-800 shadow-md text-center">
                     <div class="text-rose-700 text-3xl mb-1"><i class="fa-solid fa-venus"></i></div>
                     <h3 class="text-emerald-900 font-bold uppercase" style="font-size: 0.95rem !important;">Lao động Nữ</h3>
-                    <div class="text-3xl font-black text-rose-900 mt-1" id="hr_stat_female">0 người</div>
+                    <div class="text-3xl font-black text-rose-900 mt-1" id="hr_stat_female">0%</div>
                 </div>
                 <div class="stat-card bg-emerald-50 p-5 rounded-xl border-2 border-emerald-800 shadow-md text-center">
                     <div class="text-blue-800 text-3xl mb-1"><i class="fa-solid fa-shield-halved"></i></div>
@@ -277,7 +277,7 @@
                     </div>
                 </div>
                 <div class="chart-box bg-white p-5 rounded-xl border-2 border-emerald-800 shadow-sm">
-                    <h4 class="mb-4 text-emerald-900 font-bold border-l-4 border-amber-500 pl-3">Tỷ lệ cơ cấu giới tính</h4>
+                    <h4 class="mb-4 text-emerald-900 font-bold border-l-4 border-amber-500 pl-3">Cơ cấu giới tính</h4>
                     <div class="chart-container h-60 relative flex justify-center">
                         <canvas id="genderChart"></canvas>
                     </div>
@@ -1189,6 +1189,7 @@
         }
 
         // HÀM MỞ MODAL NHẬP MẬT KHẨU AN TOÀN ĐỂ XÓA MÂY
+        // HÀM MỞ MODAL NHẬP MẬT KHẨU AN TOÀN ĐỂ XÓA MÂY
         function triggerClearCloudWithPassword() {
             document.getElementById('modal-pass-field').value = ""; // reset password field
             document.getElementById('password-modal-bg').classList.remove('hidden');
@@ -1369,8 +1370,16 @@
                 }
             });
 
-            if(document.getElementById('hr_stat_male')) document.getElementById('hr_stat_male').innerText = m + " người"; 
-            if(document.getElementById('hr_stat_female')) document.getElementById('hr_stat_female').innerText = f + " người";
+            let total = m + f;
+            let mPercent = total > 0 ? ((m / total) * 100).toFixed(1) : 0;
+            let fPercent = total > 0 ? ((f / total) * 100).toFixed(1) : 0;
+
+            if(document.getElementById('hr_stat_male')) {
+                document.getElementById('hr_stat_male').innerHTML = `${mPercent}% <span class="text-sm font-normal text-slate-500">(${m} người)</span>`; 
+            }
+            if(document.getElementById('hr_stat_female')) {
+                document.getElementById('hr_stat_female').innerHTML = `${fPercent}% <span class="text-sm font-normal text-slate-500">(${f} người)</span>`;
+            }
             if(document.getElementById('hr_stat_atv')) document.getElementById('hr_stat_atv').innerText = atv + " người"; 
             if(document.getElementById('hr_stat_nndh')) document.getElementById('hr_stat_nndh').innerText = nndh + " người";
         }
@@ -1570,10 +1579,14 @@
 
                 if (genderChartInst) genderChartInst.destroy();
                 const ctxGender = document.getElementById('genderChart').getContext('2d');
+                let totalGender = genderCounts["Nam"] + genderCounts["Nữ"];
+                let mChartPercent = totalGender > 0 ? ((genderCounts["Nam"] / totalGender) * 100).toFixed(1) : 0;
+                let fChartPercent = totalGender > 0 ? ((genderCounts["Nữ"] / totalGender) * 100).toFixed(1) : 0;
+
                 genderChartInst = new Chart(ctxGender, {
                     type: 'doughnut',
                     data: {
-                        labels: ['Nam', 'Nữ'],
+                        labels: [`Nam (${mChartPercent}%)`, `Nữ (${fChartPercent}%)`],
                         datasets: [{
                             data: [genderCounts["Nam"], genderCounts["Nữ"]],
                             backgroundColor: ['rgba(30, 58, 138, 0.9)', 'rgba(220, 38, 38, 0.9)'],
@@ -1584,7 +1597,19 @@
                         responsive: true,
                         maintainAspectRatio: false,
                         cutout: '60%',
-                        plugins: { legend: { position: 'bottom' } }
+                        plugins: { 
+                            legend: { position: 'bottom' },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.label.split(' ')[0] || '';
+                                        let value = context.raw || 0;
+                                        let percent = totalGender > 0 ? ((value / totalGender) * 100).toFixed(1) : 0;
+                                        return `${label}: ${percent}% (${value} người)`;
+                                    }
+                                }
+                            }
+                        }
                     }
                 });
 
@@ -1683,7 +1708,8 @@
                 console.error("Lỗi vẽ biểu đồ Tab 3: ", err);
             }
         }
-
+    </script>
+    <script>
         // CƠ CHẾ SINH QR CODE ĐỒNG BỘ ĐÁM MÂY KẾT HỢP FALLBACK NGOẠI TUYẾN
         function generateQRCode(container, text, id) {
             if (!container) return;
@@ -2084,4 +2110,498 @@
 
             if (client) {
                 if (editId && !String(editId).startsWith('local_')) {
-                    let { error } = await client.from('nhat_ky_sua_chua').update(logData).eq('id', queryId
+                    let { error } = await client.from('nhat_ky_sua_chua').update(logData).eq('id', queryId);
+                    if(error) { showNotification("Gặp sự cố lưu hạch toán đám mây: " + error.message, "error"); return; }
+                } else {
+                    let { error } = await client.from('nhat_ky_sua_chua').insert([logData]);
+                    if(error) { showNotification("Gặp sự cố lưu hạch toán đám mây: " + error.message, "error"); return; }
+                }
+            }
+
+            showNotification("Đã hạch toán và lưu trữ hồ sơ bảo trì thành công!", "success");
+            resetRepairForm();
+            await fetchRepairLogs();
+        }
+
+        function editRepairLog(id) {
+            let item = DB_NHAT_KY.find(x => String(x.id) === String(id));
+            if(!item) return;
+
+            document.getElementById('form_repair_title').innerHTML = `<i class="fa-solid fa-pen"></i> Chỉnh sửa Phiếu quyết toán bảo dưỡng / sửa chữa`;
+            document.getElementById('editing_repair_id').value = item.id;
+            document.getElementById('rep_title').value = item.ten_ho_so || item.title || '';
+            document.getElementById('rep_beneficiary').value = item.don_vi_thu_huong || item.beneficiary || '';
+            document.getElementById('rep_bank_account').value = item.so_tai_khoan || item.bank_account || '';
+            document.getElementById('rep_bank_name').value = item.ten_ngan_hang || item.bank_name || '';
+            document.getElementById('rep_device_code').value = item.device_code || '';
+            document.getElementById('rep_device_name').value = item.device_name || '';
+            document.getElementById('rep_device_search').value = item.device_name ? `${item.device_name} (${item.device_code})` : (item.device_code || '');
+            document.getElementById('rep_content').value = item.noi_dung || '';
+            document.getElementById('rep_cost_before').value = item.chi_phi_truoc_thue || 0;
+            document.getElementById('rep_payment_status').value = item.payment_status || item.status || 'Chưa thanh toán';
+            document.getElementById('rep_date').value = item.ngay_thuc_hien || '';
+
+            if (item.thue_suat !== undefined) {
+                const rateStr = String(item.thue_suat);
+                const selectRate = document.getElementById('rep_tax_rate');
+                if (['0', '5', '8', '10'].includes(rateStr)) {
+                    selectRate.value = rateStr;
+                    document.getElementById('custom_tax_group').style.display = 'none';
+                } else {
+                    selectRate.value = 'custom';
+                    document.getElementById('rep_tax_custom_val').value = item.thue_suat;
+                    document.getElementById('custom_tax_group').style.display = 'block';
+                }
+            }
+
+            if (item.attachment_base64) {
+                uploadedDocumentBase64 = item.attachment_base64;
+                uploadedDocumentName = item.attachment_name || "chung-tu.pdf";
+                const previewBlock = document.getElementById('file_uploaded_preview');
+                const pName = document.getElementById('uploaded_file_name');
+                if (previewBlock && pName) {
+                    pName.innerText = uploadedDocumentName;
+                    previewBlock.classList.remove('hidden');
+                }
+            } else {
+                clearUploadedFile();
+            }
+
+            calculateFlexibleTax();
+            document.getElementById('form_repair_title').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function displayRepairLogs() {
+            const tbody = document.getElementById('table_suachua_body'); if(!tbody) return;
+            tbody.innerHTML = "";
+            const kw = document.getElementById('search_suachua_input')?.value.toLowerCase().trim() || "";
+
+            if (!DB_NHAT_KY) DB_NHAT_KY = [];
+
+            let filtered = DB_NHAT_KY.filter(x => {
+                if(!kw) return true;
+                const x_title = x.ten_ho_so || x.title || '';
+                const x_beneficiary = x.don_vi_thu_huong || x.beneficiary || '';
+                return (x.device_code && x.device_code.toLowerCase().includes(kw)) || 
+                       (x.noi_dung && x.noi_dung.toLowerCase().includes(kw)) || 
+                       (x.device_name && x.device_name.toLowerCase().includes(kw)) ||
+                       (x_title && x_title.toLowerCase().includes(kw)) ||
+                       (x_beneficiary && x_beneficiary.toLowerCase().includes(kw));
+            });
+
+            if(filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="11" class="text-center text-slate-800 py-12 font-bold">Chưa tìm thấy hồ sơ hạch toán bảo trì nào.</td></tr>`; return;
+            }
+
+            filtered.forEach(x => {
+                let pStatus = String(x.payment_status || x.status || "Chưa thanh toán").trim();
+                let badgeClass = "bg-rose-100 text-red-950 border-2 border-red-700";
+                if(pStatus === "Đã thanh toán") badgeClass = "bg-emerald-100 text-emerald-950 border-2 border-emerald-700";
+                if(pStatus === "Chờ duyệt") badgeClass = "bg-amber-100 text-amber-950 border-2 border-amber-700";
+
+                let attachmentBtn = `<span class="text-slate-500 font-bold italic">Không có</span>`;
+                if (x.attachment_base64) {
+                    attachmentBtn = `<button class="text-emerald-900 hover:text-emerald-700 font-black px-3 py-1 bg-emerald-100 hover:bg-emerald-200 border-2 border-emerald-400 rounded-md shadow-sm flex items-center gap-1 text-sm justify-center mx-auto animate-pulse" onclick="previewDocument('${x.id}')">
+                        <i class="fa-solid fa-file-invoice"></i> Xem/Tải
+                    </button>`;
+                }
+
+                const x_title = x.ten_ho_so || x.title || '--';
+                const x_beneficiary = x.don_vi_thu_huong || x.beneficiary || '--';
+                const x_account = x.so_tai_khoan || x.bank_account || '';
+                const x_bank = x.ten_ngan_hang || x.bank_name || '';
+
+                let tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-100 transition-colors";
+                tr.innerHTML = `
+                    <td><code class="font-bold tracking-wider font-mono text-emerald-850" style="font-size:1rem !important;">${x.device_code}</code></td>
+                    <td><b class="text-slate-900 font-bold" style="font-size:1.1rem !important;">${x.device_name || '--'}</b></td>
+                    <td><span class="font-black text-slate-950" style="font-size:1.1rem !important;">${x_title}</span></td>
+                    <td class="text-center">
+                        <span class="badge bg-emerald-100 text-emerald-950 border-2 border-emerald-400 font-bold px-3 py-1 rounded-md text-sm block mb-1">${x_beneficiary}</span>
+                        ${x_account ? `<div class="text-xs font-bold text-slate-900 mt-1"><i class="fa-solid fa-credit-card text-slate-500 mr-0.5"></i>TK: ${x_account}</div>` : ''}
+                        ${x_bank ? `<div class="text-[10px] text-slate-700 font-bold uppercase tracking-wide leading-none mt-0.5">${x_bank}</div>` : ''}
+                    </td>
+                    <td class="text-slate-800 font-bold" style="font-size:1.05rem !important;">${x.noi_dung}</td>
+                    <td class="font-bold">${(x.chi_phi_truoc_thue || 0).toLocaleString('vi-VN')} đ</td>
+                    <td><span class="badge bg-blue-100 text-blue-900 border-2 border-blue-300 font-bold px-2 py-0.5 text-sm rounded">${x.thue_suat}%</span></td>
+                    <td class="font-black text-emerald-900" style="font-size:1.1rem !important;">${(x.tong_chi_phi || 0).toLocaleString('vi-VN')} đ</td>
+                    <td class="text-center"><span class="badge ${badgeClass} font-bold px-3 py-1.5 rounded-lg text-sm">${pStatus}</span></td>
+                    <td class="text-center">${attachmentBtn}</td>
+                    <td><small class="font-bold text-slate-600">${x.ngay_thuc_hien || ''}</small></td>
+                    <td class="text-center">
+                        <button class="text-emerald-900 hover:text-emerald-700 font-bold px-3 py-2 rounded-lg hover:bg-slate-100 mr-2 border-2 border-slate-300" onclick="editRepairLog('${x.id}')"><i class="fa-solid fa-pen"></i> Sửa</button>
+                        <button class="text-red-700 hover:text-red-900 font-bold px-3 py-2 rounded-lg hover:bg-slate-100 border-2 border-slate-300" onclick="deleteRepairLog('${x.id}')"><i class="fa-solid fa-trash"></i> Xóa</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function previewDocument(id) {
+            const item = DB_NHAT_KY.find(x => String(x.id) === String(id));
+            if (!item || (!item.attachment_base64 && !item.attachment)) return;
+
+            let fileData = item.attachment_base64 || item.attachment;
+            
+            // CƠ CHẾ AN TOÀN TRUY XUẤT ĐÁM MÂY CHỐNG MẤT TỆP:
+            if (fileData && fileData.includes("[Tài liệu lưu trên Đám Mây]") && client) {
+                showToast("Đang tải tệp đính kèm đầy đủ từ đám mây...", "warning");
+                try {
+                    const { data, error } = await client.from('nhat_ky_sua_chua').select('attachment_base64').eq('id', id).single();
+                    if (!error && data) {
+                        fileData = data.attachment_base64;
+                        item.attachment_base64 = fileData;
+                    }
+                } catch (err) {
+                    console.error("Không thể tải tệp trực tuyến: ", err);
+                }
+            }
+
+            const previewBody = document.getElementById('document-preview-body');
+            const downloadBtn = document.getElementById('btn_preview_download');
+            
+            if (!previewBody || !downloadBtn) return;
+
+            previewBody.innerHTML = "";
+            downloadBtn.href = "#";
+            
+            // Chuyển đổi an toàn sang Blob URL để hiển thị tài liệu PDF dung lượng lớn mượt mà
+            let blobURL = fileData;
+            const isPdf = fileData.startsWith("data:application/pdf") || (item.attachment_name && item.attachment_name.toLowerCase().endsWith('.pdf'));
+            const isImg = fileData.startsWith("data:image/") || (item.attachment_name && (item.attachment_name.toLowerCase().endsWith('.png') || item.attachment_name.toLowerCase().endsWith('.jpg') || item.attachment_name.toLowerCase().endsWith('.jpeg')));
+
+            if (isPdf) {
+                blobURL = base64ToBlobUrl(fileData, 'application/pdf');
+            } else if (isImg) {
+                const mimeType = fileData.includes(';') ? fileData.split(';')[0].split(':')[1] : 'image/png';
+                blobURL = base64ToBlobUrl(fileData, mimeType);
+            }
+
+            downloadBtn.href = blobURL;
+            downloadBtn.download = item.attachment_name || "chung-tu-khoasor.png";
+
+            if (isImg) {
+                const img = document.createElement('img');
+                img.src = blobURL;
+                img.className = "max-h-[400px] rounded-lg shadow-md border-2 border-slate-300 object-contain bg-white p-2";
+                previewBody.appendChild(img);
+            } else if (isPdf) {
+                const iframe = document.createElement('iframe');
+                iframe.src = blobURL;
+                iframe.className = "w-full h-[350px] rounded-lg border-2 border-slate-200";
+                iframe.frameBorder = "0";
+                previewBody.appendChild(iframe);
+            } else {
+                previewBody.innerHTML = `
+                    <div class="text-center p-8">
+                        <i class="fa-solid fa-file-shield text-5xl text-blue-900 mb-4"></i>
+                        <h4 class="text-lg font-bold text-slate-900">${item.attachment_name || 'Tài liệu nghiệm thu'}</h4>
+                        <p class="text-slate-800 mt-2 text-sm">Hệ thống đã lưu tệp chứng từ định dạng văn bản gốc. Vui lòng nhấn nút tải tệp bên dưới để mở trực tiếp trên máy tính.</p>
+                    </div>
+                `;
+            }
+
+            document.getElementById('document-preview-modal').classList.remove('hidden');
+        }
+
+        function closeDocumentPreview() {
+            document.getElementById('document-preview-modal').classList.add('hidden');
+        }
+
+        function removeVietnameseTones(str) {
+            if (!str) return "";
+            let normalized = str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            normalized = normalized.replace(/đ/g, "d").replace(/Đ/g, "D");
+            normalized = normalized.replace(/[àáạảãâầấậẩẫăằắặẳẵ]/g, "a");
+            normalized = normalized.replace(/[èéẹẻẽêềếệểễ]/g, "e");
+            normalized = normalized.replace(/[ìíịỉĩ]/g, "i");
+            normalized = normalized.replace(/[òóọỏõôồốộổỗơờớợởỡ]/g, "o");
+            normalized = normalized.replace(/[ùúụủũưừứựửữ]/g, "u");
+            normalized = normalized.replace(/[ỳýỵỷỹ]/g, "y");
+            return normalized;
+        }
+
+        function safeConvertToISODate(rawVal) {
+            if (!rawVal) return null; 
+            let str = String(rawVal).trim();
+            
+            if (!isNaN(str) && str.length >= 4 && !str.includes("/") && !str.includes("-")) {
+                let valFloat = parseFloat(str);
+                if (valFloat > 10000) {
+                    let d = new Date((valFloat - 25569) * 86400 * 1000);
+                    if (!isNaN(d.getTime())) {
+                        let month = String(d.getMonth() + 1).padStart(2, '0');
+                        let day = String(d.getDate()).padStart(2, '0');
+                        return `${d.getFullYear()}-${month}-${day}`;
+                    }
+                }
+            }
+            if (str.includes("/")) {
+                let parts = str.split("/");
+                if (parts.length === 3) {
+                    let day = parts[0].trim().padStart(2, '0');
+                    let month = parts[1].trim().padStart(2, '0');
+                    let year = parts[2].trim();
+                    if (year.length === 4) return `${year}-${month}-${day}`;
+                }
+            }
+            if (str.includes("-") && str.split("-")[0].length !== 4) {
+                let parts = str.split("-");
+                if (parts.length === 3) {
+                    return `${parts[2].trim()}-${parts[1].trim().padStart(2, '0')}-${parts[0].trim().padStart(2, '0')}`;
+                }
+            }
+            if (str.includes("-") && str.split("-")[0].length === 4) {
+                return str;
+            }
+            return null;
+        }
+
+        async function importExcelNhanSu(input) {
+            if (typeof XLSX === 'undefined') {
+                showNotification("Chưa khởi tạo thư viện xử lý tệp Excel gốc.", "error");
+                return;
+            }
+
+            const file = input.files[0]; if(!file) return;
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    const hasAnToanVien = await checkColumnExists('nhan_su', 'an_toan_vien');
+                    const hasAtv = await checkColumnExists('nhan_su', 'atv');
+                    const hasNgheDocHai = await checkColumnExists('nhan_su', 'nghe_doc_hai');
+                    const hasNndh = await checkColumnExists('nhan_su', 'nndh');
+
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array', cellDates: false, raw: true });
+                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                    
+                    const range = XLSX.utils.decode_range(sheet['!ref']);
+                    let headerRowIndex = 0;
+                    let foundHeader = false;
+                    
+                    for (let r = range.s.r; r <= range.e.r; r++) {
+                        let rowHasName = false;
+                        for (let c = range.s.c; c <= range.e.c; c++) {
+                            let cell = sheet[XLSX.utils.encode_cell({r: r, c: c})];
+                            if (cell && cell.v) {
+                                let valClean = removeVietnameseTones(String(cell.v)).replace(/\s+/g, '').toLowerCase();
+                                if (valClean.includes("hovaten") || valClean.includes("hoten")) {
+                                    rowHasName = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (rowHasName) {
+                            headerRowIndex = r;
+                            foundHeader = true;
+                            break;
+                        }
+                    }
+
+                    const json = XLSX.utils.sheet_to_json(sheet, { 
+                        range: headerRowIndex,
+                        defval: "", 
+                        raw: true 
+                    });
+                    
+                    if(json.length === 0) { showNotification("File trống hoặc hàng định vị bị sai lệch tiêu chuẩn!", "error"); return; }
+
+                    let excelHeaders = Object.keys(json[0]);
+
+                    let getRawValFromExcel = (rowObject, keywords) => {
+                        let foundKey = Object.keys(rowObject).find(keyName => {
+                            let cleanKey = removeVietnameseTones(keyName).replace(/\s+/g, '').toLowerCase();
+                            return keywords.some(kw => cleanKey.includes(kw));
+                        });
+                        return foundKey ? String(rowObject[foundKey]).trim() : "";
+                    };
+
+                    let checkColumnExist = (keywords) => {
+                        return excelHeaders.some(keyName => {
+                            let cleanKey = removeVietnameseTones(keyName).replace(/\s+/g, '').toLowerCase();
+                            return keywords.some(kw => cleanKey.includes(kw));
+                        });
+                    };
+
+                    if(!checkColumnExist(["hovaten", "hoten", "ten"])) {
+                        showNotification("Thiếu cột 'Họ và tên' hoặc tiêu đề không rõ ràng trong file nạp!", "error");
+                        return;
+                    }
+
+                    let listRows = [];
+                    let localMapping = {};
+
+                    json.forEach((row, i) => {
+                        let hoTen = getRawValFromExcel(row, ["hovaten", "hoten", "ten"]);
+                        if(!hoTen || hoTen.toLowerCase() === "họ và tên" || hoTen.includes("------")) return;
+
+                        let nuKey = getRawValFromExcel(row, ["nu", "nux", "gioitinh"]);
+                        let gt = "Nam";
+                        if (nuKey.toLowerCase() === "x" || nuKey === "1" || nuKey.toLowerCase() === "nữ" || nuKey.toLowerCase() === "nu") {
+                            gt = "Nữ";
+                        }
+                        
+                        let birthStr = safeConvertToISODate(getRawValFromExcel(row, ["namsinh", "ngaysinh", "ngaythangnamsinh", "sinh"]));
+                        let retStr = safeConvertToISODate(getRawValFromExcel(row, ["namvehuu", "ngayvehuu", "vehuu", "ngay_ve_huu"]));
+                        
+                        if(!retStr && birthStr) {
+                            let p = birthStr.split("-");
+                            let y = parseInt(p[0]);
+                            let rY = (gt === "Nữ") ? (y + 60) : (y + 62);
+                            retStr = `${rY}-${p[1]}-${p[2]}`;
+                        }
+
+                        let cccdVal = getRawValFromExcel(row, ["socccd", "cccd", "cancuoc", "cmnd"]);
+                        let bhxhVal = getRawValFromExcel(row, ["sosobhxh", "bhxh", "sobhxh"]);
+                        let maDonVi = getRawValFromExcel(row, ["madonvi", "donvi", "bophan", "madv", "ma_dv"]);
+                        
+                        // Chuẩn hóa mã đơn vị: Viết hoa và loại bỏ khoảng cách thừa để gom nhóm chuẩn xác
+                        if (maDonVi) {
+                            maDonVi = maDonVi.trim().toUpperCase();
+                        } else {
+                            maDonVi = "10"; // Phòng ban mặc định
+                        }
+
+                        let chucDanh = getRawValFromExcel(row, ["chucdanh", "congviec", "chucdanhcongviec", "chucvu"]);
+                        
+                        let atvVal = getRawValFromExcel(row, ["antoanvien", "atv", "antoan", "vsv", "atvvsv", "dsatv"]);
+                        let nndhVal = getRawValFromExcel(row, ["nndh", "nghedochai", "doc_hai", "dochai", "nghe_doc_hai", "congviecdochai"]);
+
+                        if (atvVal || nndhVal) {
+                            let key = String(hoTen).trim() + "_" + String(cccdVal).trim();
+                            localMapping[key] = { atv: atvVal, nndh: nndhVal };
+                        }
+
+                        let record = {
+                            stt_excel: getRawValFromExcel(row, ["stt", "sttgoc"]) || String(i + 1), 
+                            ho_ten: hoTen,
+                            so_so_bhxh: bhxhVal, 
+                            so_cccd: cccdVal,
+                            gioi_tinh: gt, 
+                            nam_sinh: birthStr, 
+                            nam_ve_huu: retStr,
+                            ma_don_vi: maDonVi, 
+                            chuc_danh_cong_viec: chucDanh
+                        };
+
+                        if (hasAnToanVien) record['an_toan_vien'] = atvVal;
+                        else if (hasAtv) record['atv'] = atvVal;
+
+                        if (hasNgheDocHai) record['nghe_doc_hai'] = nndhVal;
+                        else if (hasNndh) record['nndh'] = nndhVal;
+
+                        listRows.push(record);
+                    });
+
+                    if (listRows.length === 0) { showNotification("Không trích xuất được dòng nhân sự hợp lệ nào!", "error"); return; }
+
+                    localStorage.setItem('local_atv_nndh', JSON.stringify(localMapping));
+
+                    // Lưu trữ lai: Đưa lên đám mây + đồng bộ cục bộ để đảm bảo 100% hiển thị
+                    if (client) {
+                        // Xóa dữ liệu cũ
+                        await client.from('nhan_su').delete().neq('id', 0);
+                        // Đẩy dữ liệu mới
+                        let { error } = await client.from('nhan_su').insert(listRows);
+                        if(error) { 
+                            showNotification("Đẩy lên mây bị chậm, hệ thống tự động ghi nhớ ngoại tuyến!", "warning"); 
+                        }
+                    }
+                    
+                    // Ghi nhớ cục bộ
+                    localStorage.setItem('local_db_nhan_su', JSON.stringify(listRows));
+                    showNotification(`Nạp và đồng bộ hóa thành công ${listRows.length} nhân viên vào hệ thống!`, "success"); 
+                    await fetchAllData();
+                } catch(err) { showNotification("Lỗi cấu trúc tệp Excel: " + err.message, "error"); }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        async function deleteRepairLog(id) {
+            showCustomConfirm("Xóa quyết toán sửa chữa", "Hành động này sẽ loại bỏ hồ sơ quyết toán này khỏi hệ thống?", "danger", async () => {
+                if(client) {
+                    await client.from('nhat_ky_sua_chua').delete().eq('id', id); 
+                }
+                await deleteAttachmentFromIDB(id);
+                showNotification("Đã xóa quyết toán bảo trì thành công!", "success");
+                await fetchRepairLogs();
+            });
+        }
+
+        async function saveRepairLog() {
+            const editId = document.getElementById('editing_repair_id').value;
+            const title = document.getElementById('rep_title').value.trim();
+            const beneficiary = document.getElementById('rep_beneficiary').value.trim();
+            const accountNum = document.getElementById('rep_bank_account').value.trim();
+            const bankName = document.getElementById('rep_bank_name').value.trim();
+            const devCode = document.getElementById('rep_device_code').value;
+            const devName = document.getElementById('rep_device_name').value;
+            const content = document.getElementById('rep_content').value.trim();
+            const costBefore = parseFloat(document.getElementById('rep_cost_before').value) || 0;
+            const selectRate = document.getElementById('rep_tax_rate').value;
+            const payStatus = document.getElementById('rep_payment_status').value;
+            const repDate = document.getElementById('rep_date').value;
+
+            if(!title) { showNotification("Vui lòng điền tên hồ sơ quyết toán bảo trì!", "error"); return; }
+            if(!beneficiary) { showNotification("Vui lòng điền đơn vị thụ hưởng!", "error"); return; }
+            if(!devCode || !content) { showNotification("Vui lòng chọn thiết bị và nhập hạng mục sửa chữa cụ thể!", "error"); return; }
+
+            let taxPercent = (selectRate === 'custom') ? (parseFloat(document.getElementById('rep_tax_custom_val').value) || 0) : parseFloat(selectRate);
+            let taxMoney = Math.round(costBefore * (taxPercent / 100));
+            let totalCost = costBefore + taxMoney;
+
+            let logData = {
+                device_code: devCode, 
+                device_name: devName, 
+                noi_dung: content,
+                chi_phi_truoc_thue: costBefore, 
+                thue_suat: taxPercent,
+                tien_thue: taxMoney, 
+                tong_chi_phi: totalCost,
+                ngay_thuc_hien: repDate || new Date().toISOString().split('T')[0]
+            };
+
+            if (SCHEMA_REPAIR.has_title) logData['title'] = title;
+            if (SCHEMA_REPAIR.has_ten_ho_so) logData['ten_ho_so'] = title;
+            if (SCHEMA_REPAIR.has_beneficiary) logData['beneficiary'] = beneficiary;
+            if (SCHEMA_REPAIR.has_don_vi_thu_huong) logData['don_vi_thu_huong'] = beneficiary;
+            if (SCHEMA_REPAIR.has_bank_account) logData['bank_account'] = accountNum;
+            if (SCHEMA_REPAIR.has_so_tai_khoan) logData['so_tai_khoan'] = accountNum;
+            if (SCHEMA_REPAIR.has_bank_name) logData['bank_name'] = bankName;
+            if (SCHEMA_REPAIR.has_ten_ngan_hang) logData['ten_ngan_hang'] = bankName;
+            
+            if (SCHEMA_REPAIR.has_attachment) logData['attachment'] = uploadedDocumentBase64 || null;
+            if (SCHEMA_REPAIR.has_attachment_base64) logData['attachment_base64'] = uploadedDocumentBase64 || null;
+            if (SCHEMA_REPAIR.has_attachment_name) logData['attachment_name'] = uploadedDocumentName || null;
+            
+            if (SCHEMA_REPAIR.has_payment_status) logData['payment_status'] = payStatus;
+            if (SCHEMA_REPAIR.has_status) logData['status'] = payStatus;
+
+            const finalId = editId || "local_rep_" + Date.now();
+            const queryId = isNaN(editId) ? editId : parseInt(editId);
+
+            // Ghi nhận IndexedDB cục bộ trước cho tệp đính kèm lớn phòng khi ngoại tuyến
+            const attachmentData = logData.attachment || logData.attachment_base64;
+            if (attachmentData) {
+                await saveAttachmentToIDB(finalId, attachmentData);
+            }
+
+            if (client) {
+                if (editId && !String(editId).startsWith('local_')) {
+                    let { error } = await client.from('nhat_ky_sua_chua').update(logData).eq('id', queryId);
+                    if(error) { showNotification("Gặp sự cố lưu hạch toán đám mây: " + error.message, "error"); return; }
+                } else {
+                    let { error } = await client.from('nhat_ky_sua_chua').insert([logData]);
+                    if(error) { showNotification("Gặp sự cố lưu hạch toán đám mây: " + error.message, "error"); return; }
+                }
+            }
+
+            showNotification("Đã hạch toán và lưu trữ hồ sơ bảo trì thành công!", "success");
+            resetRepairForm();
+            await fetchRepairLogs();
+        }
+    </script>
+</body>
+</html>
