@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hệ Thống ERP Toàn Diện - Quản Trị Nhân Sự & Điều Hành Tài Chính</title>
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js?v=1.0.2"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js?v=1.0.2"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js?v=1.0.2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js?v=1.0.3"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js?v=1.0.3"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js?v=1.0.3"></script>
     
     <style>
         *, *::before, *::after { box-sizing: border-box; }
@@ -100,6 +100,8 @@
         .preview-body { flex: 1; overflow-y: auto; border: 1px solid #cbd5e1; padding: 30px; background: white; color: #000; }
         .preview-footer { display: flex; justify-content: flex-end; gap: 15px; margin-top: 15px; }
 
+        .btn-flex-group { display: flex; gap: 6px; flex-direction: column; }
+
         @media print {
             body * { visibility: hidden; }
             #printReportArea, #printReportArea * { visibility: visible; }
@@ -185,8 +187,9 @@
         <div id="capphatStatusPanel" class="status-box"></div>
         
         <div class="panel">
-            <div class="panel-title">Nghiệp Vụ Cấp Phát Thiết Bị Theo Mã Đơn Vị</div>
+            <div class="panel-title" id="form-capphat-title">Nghiệp Vụ Cấp Phát Thiết Bị Theo Mã Đơn Vị</div>
             <div class="manual-form">
+                <input type="hidden" id="cp_edit_index" value="-1">
                 <div class="form-group"><label>Tên Thiết Bị</label><input type="text" id="cp_name" placeholder="Nhập tên thiết bị (Ví dụ: Máy tính xách tay...)" oninput="autoGenerateCode(this.value)"></div>
                 <div class="form-group"><label>Mã Thiết Bị (Tự Động Sinh)</label><input type="text" id="cp_id" placeholder="Mã tự động sinh..."></div>
                 <div class="form-group"><label>Lọc Theo Đơn Vị</label><select id="cp_unit_filter" onchange="filterUserDropdown()"></select></div>
@@ -196,7 +199,9 @@
                     <div id="cp_user_dropdown" class="search-results-dropdown"></div>
                 </div>
                 <div class="form-group"><label>Mã Đơn Vị Người Nhận</label><input type="text" id="cp_unit_id" readonly style="background:#e2e8f0; font-weight:bold;"></div>
-                <div class="form-group" style="justify-content: flex-end;"><button class="btn btn-primary" onclick="addManualCapphat()">📦 Tạo Cấp Phát & Sinh QR</button></div>
+                <div class="form-group" style="justify-content: flex-end;" id="cp_action_container">
+                    <button class="btn btn-primary" onclick="addManualCapphat()">📦 Tạo Cấp Phát & Sinh QR</button>
+                </div>
             </div>
             
             <div class="table-responsive">
@@ -504,8 +509,8 @@
         }
     }
 
-    // [Bổ sung hàm auto-gen bảo vệ]
     function autoGenerateCode(nameValue) {
+        if (parseInt(document.getElementById('cp_edit_index').value) > -1) return; // Đang sửa thì giữ nguyên mã
         if (!nameValue.trim()) { document.getElementById('cp_id').value = ''; return; }
         let unsigned = nameValue.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D");
         let initials = unsigned.split(/\s+/).map(word => word.charAt(0)).join('').toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -608,17 +613,61 @@
         let name = document.getElementById('cp_name').value.trim();
         let user = document.getElementById('cp_user').value.trim();
         let unitId = document.getElementById('cp_unit_id').value.trim();
+        let editIndex = parseInt(document.getElementById('cp_edit_index').value);
         
         if(!id || !name) {
-            showStatus("❌ Lỗi: Vui lòng nhập tên thiết bị để tự sinh mã!", "error", "capphatStatusPanel");
+            showStatus("❌ Lỗi: Vui lòng nhập thông tin tên thiết bị!", "error", "capphatStatusPanel");
             return;
         }
-        dataCapphat.push({ id, name, user: user || "Chưa bàn giao", unitId: unitId || "N/A" });
+
+        if(editIndex > -1) {
+            // Chế độ Cập nhật
+            dataCapphat[editIndex] = { id, name, user: user || "Chưa bàn giao", unitId: unitId || "N/A" };
+            showStatus("🎉 Cập nhật thông tin cấp phát và làm mới mã QR thành công!", "success", "capphatStatusPanel");
+        } else {
+            // Chế độ Thêm mới
+            dataCapphat.push({ id, name, user: user || "Chưa bàn giao", unitId: unitId || "N/A" });
+            showStatus("🎉 Tạo cấp phát thành công và hệ thống đã sinh mã QR!", "success", "capphatStatusPanel");
+        }
+
         localStorage.setItem('erp_capphat_db', JSON.stringify(dataCapphat));
+        resetCapphatForm();
         renderCapphatTable();
-        showStatus("🎉 Tạo cấp phát thành công và hệ thống đã sinh mã QR!", "success", "capphatStatusPanel");
-        document.getElementById('cp_id').value = ''; document.getElementById('cp_name').value = '';
-        document.getElementById('cp_user').value = ''; document.getElementById('cp_unit_id').value = '';
+    }
+
+    function editCapphat(index) {
+        let item = dataCapphat[index];
+        document.getElementById('cp_edit_index').value = index;
+        document.getElementById('cp_id').value = item.id;
+        document.getElementById('cp_name').value = item.name;
+        document.getElementById('cp_user').value = item.user;
+        document.getElementById('cp_unit_id').value = item.unitId;
+
+        document.getElementById('form-capphat-title').innerText = "✏️ Chỉnh Sửa Thông Tin Cấp Phát Thiết Bị";
+        document.getElementById('cp_action_container').innerHTML = `
+            <button class="btn btn-warning" onclick="addManualCapphat()">💾 Lưu Cập Nhật</button>
+            <button class="btn btn-danger" onclick="resetCapphatForm()">Hủy</button>
+        `;
+        window.scrollTo({ top: document.getElementById('form-capphat-title').offsetTop - 20, behavior: 'smooth' });
+    }
+
+    function deleteCapphat(index) {
+        if(confirm("Bạn có chắc chắn muốn xóa lượt cấp phát thiết bị này cùng mã QR kèm theo không?")) {
+            dataCapphat.splice(index, 1);
+            localStorage.setItem('erp_capphat_db', JSON.stringify(dataCapphat));
+            renderCapphatTable();
+            showStatus("🗑️ Đã xóa bản ghi cấp phát thiết bị khỏi hệ thống.", "success", "capphatStatusPanel");
+        }
+    }
+
+    function resetCapphatForm() {
+        document.getElementById('cp_edit_index').value = "-1";
+        document.getElementById('cp_id').value = '';
+        document.getElementById('cp_name').value = '';
+        document.getElementById('cp_user').value = '';
+        document.getElementById('cp_unit_id').value = '';
+        document.getElementById('form-capphat-title').innerText = "Nghiệp Vụ Cấp Phát Thiết Bị Theo Mã Đơn Vị";
+        document.getElementById('cp_action_container').innerHTML = `<button class="btn btn-primary" onclick="addManualCapphat()">📦 Tạo Cấp Phát & Sinh QR</button>`;
     }
 
     function renderCapphatTable() {
@@ -632,7 +681,13 @@
                 <td>${item.user}</td>
                 <td><span class="badge badge-info">${item.unitId}</span></td>
                 <td><div class="qr-cell-container"><div id="${rowId}" class="qr-canvas-holder"></div></div></td>
-                <td><button class="btn btn-warning btn-sm" onclick="linkToSuachua('${index}')">🛠️ Báo Sửa Chữa</button></td>
+                <td>
+                    <div class="btn-flex-group">
+                        <button class="btn btn-warning btn-sm" onclick="linkToSuachua('${index}')">🛠️ Báo Sửa</button>
+                        <button class="btn btn-primary btn-sm" onclick="editCapphat('${index}')">✏️ Sửa thông tin</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteCapphat('${index}')">🗑️ Xóa bỏ</button>
+                    </div>
+                </td>
             </tr>`;
         });
         tbody.innerHTML = tableRowsHtml;
