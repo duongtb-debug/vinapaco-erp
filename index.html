@@ -258,7 +258,7 @@
 <div id="previewModal" class="preview-modal">
     <div class="preview-content">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:2px solid #e2e8f0; padding-bottom:10px;">
-            <h2 style="margin:0; font-size:16px; color:#1e3a8a;">XEM TRƯỚC CHỨNG TỪ TRƯỚC KHI IN VÀ XUẤT HỒ SƠ</h2>
+            <h2 style="margin:0; font-size:16px; color:#1e3a8a;">XEM TRƯỚC CHỨNG TỪ TRƯỚC KHI In VÀ XUẤT HỒ SƠ</h2>
             <button onclick="closePreviewModal()" style="background:#ef4444; color:white; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-weight:bold;">Đóng</button>
         </div>
         <div class="preview-body"><div id="printReportArea"></div></div>
@@ -298,7 +298,6 @@
         if(tabId === 'tab-nhansu') { setTimeout(renderNSCharts, 150); }
     }
 
-    /* --- PHÂN HỆ 1: NHẬN SỰ (NHẬP THỦ CÔNG & KHẢ NĂNG QUÉT EXCEL THÔNG MINH) --- */
     function addManualNhansu() {
         let name = document.getElementById('ns_name').value.trim();
         let cccd = document.getElementById('ns_cccd').value.trim();
@@ -309,34 +308,23 @@
         let nndh = document.getElementById('ns_nndh').value.trim();
 
         if(!name || !cccd) { alert("Vui lòng điền Họ tên và Số CCCD!"); return; }
-        
         let by = parseInt(birth.substring(0,4)) || 1990;
 
         dataNhansu.push({
-            stt: dataNhansu.length + 1,
-            fullName: name,
-            cccd: cccd,
-            unitId: unit || "DV-01",
-            gender: gender,
-            atv: atv || "",
-            nndh: nndh || "",
-            birthOrigin: birth,
-            retireTime: "-",
-            currentAge: (2026 - by)
+            stt: dataNhansu.length + 1, fullName: name, cccd: cccd, unitId: unit || "DV-01", gender: gender,
+            atv: atv || "", nndh: nndh || "", birthOrigin: birth, retireTime: "-", currentAge: (2026 - by)
         });
 
         localStorage.setItem('erp_precise_db', JSON.stringify(dataNhansu));
         renderNhansu();
-
-        document.getElementById('ns_name').value = "";
-        document.getElementById('ns_cccd').value = "";
-        document.getElementById('ns_atv').value = "";
-        document.getElementById('ns_nndh').value = "";
+        alert("Đã thêm thành công nhân viên " + name + " vào danh sách thủ công!");
     }
 
-    // HÀM TIẾN TIẾN: TỰ ĐỘNG QUÉT DÒNG TIÊU ĐỀ KHÔNG SỢ FILE EXCEL LỆCH DÒNG
+    // HÀM ĐỌC EXCEL THÔNG MINH - ĐÃ XỬ LÝ KHỬ DÒNG TRỐNG VÀ XUỐNG DÒNG (\n) TRONG FILE CỦA BẠN
     function processExcelNhansu(input) {
         const file = input.files[0]; if (!file) return;
+        alert("Bắt đầu đọc tệp: " + file.name + "\nVui lòng chờ trong giây lát...");
+
         const reader = new FileReader();
         reader.onload = function(e) {
             try {
@@ -344,45 +332,46 @@
                 const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1, defval: "" });
                 
                 if (sheetData.length === 0) {
-                    alert("Tệp Excel trống không có dữ liệu!");
+                    alert("Lỗi: Tệp Excel này trống rỗng!");
                     return;
                 }
 
-                // Đi tìm dòng tiêu đề thực sự chứa dữ liệu
                 let headerIdx = -1;
                 let colIdxs = { name: -1, cccd: -1, atv: -1, nndh: -1, retire: -1, unit: -1, birth: -1, female: -1 };
 
-                for (let i = 0; i < Math.min(sheetData.length, 15); i++) {
-                    let rowStr = sheetData[i].map(c => String(c).toLowerCase()).join('||');
-                    if (rowStr.includes("họ và tên") || rowStr.includes("cccd") || rowStr.includes("số cccd")) {
+                // Quét qua 20 dòng đầu tiên để tìm dòng tiêu đề chính xác (bỏ qua dòng trống số 1)
+                for (let i = 0; i < Math.min(sheetData.length, 20); i++) {
+                    let rowStr = sheetData[i].map(c => String(c).toLowerCase().replace(/\s+/g, '')).join('||');
+                    if (rowStr.includes("họvàtên") || rowStr.includes("cccd") || rowStr.includes("nữ(")) {
                         headerIdx = i;
-                        // Xác định vị trí từng cột
                         sheetData[i].forEach((cell, idx) => {
-                            let text = String(cell).toLowerCase().trim();
-                            if (text.includes("họ và tên")) colIdxs.name = idx;
-                            else if (text.includes("cccd") || text.includes("chứng minh")) colIdxs.cccd = idx;
-                            else if (text.includes("an toàn viên") || text.includes("atv")) colIdxs.atv = idx;
-                            else if (text.includes("nndh") || text.includes("độc hại")) colIdxs.nndh = idx;
-                            else if (text.includes("về hưu") || text.includes("hưu trí")) colIdxs.retire = idx;
-                            else if (text.includes("đơn vị")) colIdxs.unit = idx;
-                            else if (text.includes("năm sinh") || text.includes("ngày sinh")) colIdxs.birth = idx;
+                            let text = String(cell).toLowerCase().replace(/\s+/g, ''); // Xóa khoảng trắng và dấu xuống dòng (\n)
+                            if (text.includes("họvàtên")) colIdxs.name = idx;
+                            else if (text.includes("cccd") || text.includes("chứngminh")) colIdxs.cccd = idx;
+                            else if (text.includes("antoànviên") || text.includes("atv")) colIdxs.atv = idx;
+                            else if (text.includes("nndh") || text.includes("độchại")) colIdxs.nndh = idx;
+                            else if (text.includes("vềhưu") || text.includes("hưutrí")) colIdxs.retire = idx;
+                            else if (text.includes("đơnvị")) colIdxs.unit = idx;
+                            else if (text.includes("nămsinh")) colIdxs.birth = idx;
                             else if (text.includes("nữ")) colIdxs.female = idx;
                         });
                         break;
                     }
                 }
 
-                // Nếu không quét được tiêu đề tự động, dùng cấu hình mặc định cơ bản
                 if (headerIdx === -1) {
+                    alert("Cảnh báo: Không tìm thấy dòng tiêu đề chuẩn (Họ và tên, CCCD). Hệ thống tự động áp dụng cấu hình dự phòng.");
                     headerIdx = 1; 
                     colIdxs = { name: 1, cccd: 4, atv: 6, nndh: 7, retire: 8, unit: 9, birth: 11, female: 12 };
                 }
 
-                dataNhansu = [];
+                let tempNhansu = [];
                 for (let i = headerIdx + 1; i < sheetData.length; i++) {
                     let row = sheetData[i];
                     let nameVal = colIdxs.name !== -1 ? row[colIdxs.name] : row[1];
-                    if (!nameVal || String(nameVal).trim() === "" || String(nameVal).includes("Stt")) continue;
+                    
+                    // Nếu dòng không có tên hoặc trùng chữ tiêu đề thì bỏ qua
+                    if (!nameVal || String(nameVal).trim() === "" || String(nameVal).includes("Họ và tên")) continue;
 
                     let cccdVal = colIdxs.cccd !== -1 ? row[colIdxs.cccd] : row[4];
                     let atvVal = colIdxs.atv !== -1 ? row[colIdxs.atv] : row[6];
@@ -393,44 +382,50 @@
                     let femaleVal = colIdxs.female !== -1 ? row[colIdxs.female] : row[12];
 
                     let by = parseInt(String(birthVal).substring(0,4)) || 1980;
-                    let isFemale = String(femaleVal).trim().toUpperCase() === "X" || String(femaleVal).trim() === "1" || String(femaleVal).trim() === "Nữ";
+                    let isFemale = String(femaleVal).trim().toUpperCase() === "X" || String(femaleVal).trim() === "1" || String(femaleVal).trim() === "NỮ";
 
-                    dataNhansu.push({
-                        stt: dataNhansu.length + 1,
+                    tempNhansu.push({
+                        stt: tempNhansu.length + 1,
                         fullName: String(nameVal).trim(),
                         cccd: String(cccdVal).trim(),
                         atv: String(atvVal).trim(),
                         nndh: String(nndhVal).trim(),
-                        retireTime: retireVal || "-",
-                        unitId: String(unitVal).trim().toUpperCase() || "DV",
-                        birthOrigin: birthVal,
+                        retireTime: String(retireVal).trim() || "-",
+                        unitId: String(unitVal).trim().toUpperCase() || "DV-01",
+                        birthOrigin: String(birthVal).trim(),
                         gender: isFemale ? "Nữ" : "Nam",
                         currentAge: (2026 - by)
                     });
                 }
 
+                if(tempNhansu.length === 0) {
+                    alert("Không bóc tách được dòng dữ liệu nào! Hãy kiểm tra lại định dạng file.");
+                    return;
+                }
+
+                dataNhansu = tempNhansu;
                 localStorage.setItem('erp_precise_db', JSON.stringify(dataNhansu));
                 renderNhansu(); 
-                alert("Đồng bộ thành công! Hệ thống đã tải được " + dataNhansu.length + " nhân sự.");
+                alert("🎉 ĐỒNG BỘ THÀNH CÔNG!\nHệ thống đã xử lý và tải lên danh sách gồm " + dataNhansu.length + " nhân sự.");
             } catch(err) { 
                 console.error(err);
-                alert("Lỗi xử lý file: " + err.message); 
+                alert("❌ Lỗi nghiêm trọng khi đọc file: " + err.message); 
             }
         };
         reader.readAsArrayBuffer(file);
     }
 
-    function clearDatabase(key) { if(confirm("Xóa toàn bộ dữ liệu nhân sự?")) { localStorage.removeItem(key); dataNhansu=[]; renderNhansu(); } }
+    function clearDatabase(key) { if(confirm("Xóa toàn bộ dữ liệu nhân sự?")) { localStorage.removeItem(key); dataNhansu=[]; renderNhansu(); alert("Đã xóa sạch bộ nhớ!"); } }
 
     function buildFilterDropdowns() {
         const uSelect = document.getElementById('filterUnit'); if(!uSelect) return;
         uSelect.innerHTML = '<option value="ALL">Tất cả</option>';
         let uniqueUnits = [...new Set(dataNhansu.map(e => e.unitId))].sort();
-        uniqueUnits.forEach(u => { if(u) uSelect.innerHTML += `<option value="${u}">${u}</option>'; });
+        uniqueUnits.forEach(u => { if(u) uSelect.innerHTML += `<option value="${u}">${u}</option>`; });
         
         const cpFilter = document.getElementById('cp_unit_filter'); if(cpFilter) {
             cpFilter.innerHTML = '<option value="ALL">-- Tất cả Đơn vị --</option>';
-            uniqueUnits.forEach(u => { if(u) cpFilter.innerHTML += `<option value="${u}">${u}</option>'; });
+            uniqueUnits.forEach(u => { if(u) cpFilter.innerHTML += `<option value="${u}">${u}</option>`; });
         }
     }
 
@@ -542,7 +537,6 @@
         switchTab('tab-suachua');
     }
 
-    /* --- PHÂN HỆ 3: NHẬT KÝ SỬA CHỮA --- */
     function addManualSuachua() {
         let id = document.getElementById('sc_id').value.trim(); let name = document.getElementById('sc_name').value.trim();
         let content = document.getElementById('sc_content').value.trim(); let cost = parseFloat(document.getElementById('sc_cost').value) || 0;
