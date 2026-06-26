@@ -3,275 +3,118 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hệ Thống Quản Lý Tổng Hợp - ERP Lite</title>
+    <title>Hệ Thống ERP Enterprise - Quản Lý Tổng Hợp</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
-        *, *::before, *::after {
-            box-sizing: border-box;
-        }
-        
-        @page {
-            size: A4 landscape;
-            margin: 10mm;
-            background-color: #f8fafc;
-        }
-
+        *, *::before, *::after { box-sizing: border-box; }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f8fafc;
-            color: #1e293b;
-            line-height: 1.5;
+            margin: 0; padding: 0;
+            background-color: #f1f5f9; color: #1e293b;
         }
-
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-
-        /* Header Styling */
+        .container { max-width: 1500px; margin: 0 auto; padding: 25px; }
+        
+        /* Header & Navigation */
         header {
-            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
-            color: white;
-            padding: 24px;
-            border-radius: 12px;
-            margin-bottom: 25px;
+            background: linear-gradient(135deg, #0f172a 0%, #2563eb 100%);
+            color: white; padding: 24px; border-radius: 12px; margin-bottom: 25px;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
-
-        header h1 {
-            margin: 0;
-            font-size: 24px;
-            font-weight: 700;
-            letter-spacing: -0.5px;
-        }
-
-        header p {
-            margin: 5px 0 0 0;
-            font-size: 14px;
-            opacity: 0.9;
-        }
-
-        /* Navigation Tabs */
+        header h1 { margin: 0; font-size: 26px; font-weight: 700; }
+        header p { margin: 6px 0 0 0; font-size: 14px; opacity: 0.85; }
+        
         .tabs {
-            display: table;
-            width: 100%;
-            background: #fff;
-            padding: 8px;
-            border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-            margin-bottom: 25px;
-            border: 1px solid #e2e8f0;
+            display: flex; background: #fff; padding: 6px; border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 25px; border: 1px solid #e2e8f0;
         }
-
         .tab-btn {
-            display: table-cell;
-            text-align: center;
-            padding: 12px 24px;
-            cursor: pointer;
-            font-weight: 600;
-            color: #64748b;
-            border-radius: 6px;
-            transition: all 0.2s ease;
+            flex: 1; text-align: center; padding: 14px; cursor: pointer;
+            font-weight: 600; color: #64748b; border-radius: 6px; transition: all 0.2s;
         }
+        .tab-btn.active { background-color: #2563eb; color: white; }
+        .tab-btn:hover:not(.active) { background-color: #f8fafc; color: #1e293b; }
 
-        .tab-btn.active {
-            background-color: #3b82f6;
-            color: white;
+        /* Dashboard Cards */
+        .dashboard-grid {
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 25px;
         }
-
-        .tab-btn:hover:not(.active) {
-            background-color: #f1f5f9;
-            color: #1e293b;
+        .card {
+            background: white; padding: 20px; border-radius: 10px;
+            border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.02);
         }
+        .card h4 { margin: 0; color: #64748b; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .card .value { font-size: 22px; font-weight: 700; margin-top: 8px; color: #0f172a; }
 
-        /* Content Sections */
-        .tab-content {
-            display: none;
+        /* Layout Grid */
+        .grid-layout { display: grid; grid-template-columns: 35% 65%; gap: 25px; }
+        .grid-full { grid-template-columns: 100%; }
+        .panel { background: white; padding: 24px; border-radius: 12px; border: 1px solid #e2e8f0; height: fit-content; }
+        .panel-title { margin-top: 0; margin-bottom: 20px; color: #1e3a8a; font-size: 18px; font-weight: 700; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px; }
+
+        /* Forms & Search Suggestion */
+        .form-group { margin-bottom: 16px; position: relative; }
+        .form-group label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 13px; color: #475569; }
+        .form-control { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; color: #334155; }
+        .form-control:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15); }
+        
+        /* Autocomplete Suggestions box */
+        .suggestions-box {
+            position: absolute; width: 100%; background: white; border: 1px solid #cbd5e1;
+            border-top: none; border-radius: 0 0 6px 6px; max-height: 150px; overflow-y: auto;
+            z-index: 1000; display: none; box-shadow: 0 4px 6px rgba(0,0,0,0.05);
         }
+        .suggestion-item { padding: 10px; cursor: pointer; font-size: 13px; }
+        .suggestion-item:hover { background-color: #f1f5f9; }
 
-        .tab-content.active {
-            display: block;
-        }
+        /* Row Layout for Tax Fields */
+        .tax-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
-        /* Grid Layouts for Dashboards */
-        .grid-2 {
-            display: table;
-            width: 100%;
-            table-layout: fixed;
-            border-spacing: 20px 0;
-            margin: 0 -20px;
-        }
-
-        .col {
-            display: table-cell;
-            vertical-align: top;
-            background: white;
-            padding: 24px;
-            border-radius: 12px;
-            border: 1px solid #e2e8f0;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.02);
-        }
-
-        /* Forms styling */
-        .form-group {
-            margin-bottom: 16px;
-        }
-
-        .form-group label {
-            display: block;
-            font-weight: 600;
-            margin-bottom: 6px;
-            font-size: 13px;
-            color: #475569;
-        }
-
-        .form-control {
-            width: 100%;
-            padding: 10px 12px;
-            border: 1px solid #cbd5e1;
-            border-radius: 6px;
-            font-size: 14px;
-            color: #334155;
-            transition: border-color 0.2s;
-        }
-
-        .form-control:focus {
-            outline: none;
-            border-color: #3b82f6;
-        }
-
-        /* Buttons */
-        .btn {
-            display: inline-block;
-            padding: 10px 20px;
-            font-size: 14px;
-            font-weight: 600;
-            border-radius: 6px;
-            cursor: pointer;
-            border: none;
-            text-align: center;
-            transition: background 0.2s;
-        }
-
-        .btn-primary { background-color: #3b82f6; color: white; }
-        .btn-primary:hover { background-color: #2563eb; }
+        /* Buttons & Tables */
+        .btn { display: inline-block; padding: 10px 20px; font-size: 14px; font-weight: 600; border-radius: 6px; cursor: pointer; border: none; text-align: center; }
+        .btn-primary { background-color: #2563eb; color: white; }
+        .btn-primary:hover { background-color: #1d4ed8; }
         .btn-success { background-color: #10b981; color: white; }
         .btn-success:hover { background-color: #059669; }
-        .btn-secondary { background-color: #64748b; color: white; }
-        .btn-secondary:hover { background-color: #475569; }
+        .btn-outline { background-color: transparent; border: 1px solid #cbd5e1; color: #475569; }
+        .btn-outline:hover { background: #f8fafc; }
 
-        /* Tables */
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 15px;
-            font-size: 14px;
-        }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th, td { padding: 12px 14px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+        th { background-color: #f8fafc; color: #475569; font-weight: 600; }
+        tr:hover { background-color: #f8fafc; }
 
-        th, td {
-            padding: 12px 14px;
-            text-align: left;
-            border-bottom: 1px solid #e2e8f0;
-        }
-
-        th {
-            background-color: #f8fafc;
-            color: #475569;
-            font-weight: 600;
-        }
-
-        tr:hover {
-            background-color: #f1f5f9;
-        }
-
-        /* QR Code Scanner and Badge Visuals */
-        .qr-placeholder {
-            width: 130px;
-            height: 130px;
-            background: #e2e8f0;
-            border: 2px dashed #94a3b8;
-            margin: 10px auto;
-            position: relative;
-        }
-
-        .qr-placeholder::before {
-            content: "QR CODE";
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 11px;
-            color: #64748b;
-            font-weight: bold;
-            letter-spacing: 1px;
-        }
-
-        /* Upload Area */
-        .upload-zone {
-            border: 2px dashed #cbd5e1;
-            padding: 30px;
-            text-align: center;
-            background: #f8fafc;
-            border-radius: 8px;
-            cursor: pointer;
-            margin-bottom: 15px;
-        }
-
-        .upload-zone:hover {
-            border-color: #3b82f6;
-            background: #f0fdf4;
-        }
-
-        /* Preview Modal / Container */
-        .preview-container {
-            margin-top: 20px;
-            padding: 15px;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            background: #fff;
-        }
-
-        .file-item {
-            padding: 10px;
-            border-bottom: 1px solid #f1f5f9;
-            font-size: 13px;
-        }
-
-        /* Badges */
-        .badge {
-            display: inline-block;
-            padding: 2px 8px;
-            font-size: 12px;
-            font-weight: 600;
-            border-radius: 12px;
-        }
+        /* QR & Upload Styles */
+        .qr-placeholder { width: 140px; height: 140px; background: #e2e8f0; border: 2px dashed #94a3b8; margin: 10px auto; position: relative; }
+        .qr-placeholder.active { background: #0f172a; border: none; }
+        .upload-zone { border: 2px dashed #cbd5e1; padding: 25px; text-align: center; background: #f8fafc; border-radius: 8px; cursor: pointer; margin-bottom: 15px; }
+        .upload-zone:hover { border-color: #2563eb; background: #eff6ff; }
+        .preview-container { margin-top: 15px; padding: 15px; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; }
+        .file-item { padding: 8px; border-bottom: 1px solid #f1f5f9; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
+        .badge { display: inline-block; padding: 2px 8px; font-size: 11px; font-weight: 600; border-radius: 12px; }
         .badge-info { background-color: #dbeafe; color: #1e40af; }
         .badge-success { background-color: #d1fae5; color: #065f46; }
-
+        .badge-warn { background-color: #ffedd5; color: #c2410c; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <header>
-        <h1>Hệ Thống Quản Lý Tổng Hợp Doanh Nghiệp</h1>
-        <p>Nhân sự • Thiết bị & Cấp phát định danh QR • Hồ sơ thanh toán trực quan không giới hạn dung lượng</p>
+        <h1>Hệ Thống Quản Trị ERP Enterprise v2.0</h1>
+        <p>Tích hợp Đọc file Excel • Tự động gợi ý Nhân sự thông minh • Đồng bộ Định danh QR & Quản lý Thuế suất hồ sơ</p>
     </header>
 
-    <!-- Navigation Tabs Layout -->
     <div class="tabs">
-        <div class="tab-btn active" onclick="switchTab('hr')">👥 Quản Lý Nhân Sự</div>
-        <div class="tab-btn" onclick="switchTab('equipment')">💻 Quản Lý Thiết Bị & Cấp Phát QR</div>
-        <div class="tab-btn" onclick="switchTab('payment')">🧾 Hồ Sơ Thanh Toán & Minh Chứng</div>
+        <div class="tab-btn active" onclick="switchTab('hr')">👥 Quản Lý Nhân Sự (Import Excel)</div>
+        <div class="tab-btn" onclick="switchTab('equipment')">💻 Cấp Phát Thiết Bị & QR Code</div>
+        <div class="tab-btn" onclick="switchTab('payment')">🧾 Hồ Sơ Thanh Toán & Thuế Tự Động</div>
     </div>
 
-    <!-- TAB 1: NHÂN SỰ -->
-    <div id="hr" class="tab-content active">
-        <div class="grid-2">
-            <div class="col" style="width: 35%;">
-                <h3 style="margin-top:0; color:#1e3a8a;">Thêm Nhân Viên Mới</h3>
-                <form id="hrForm" onsubmit="addEmployee(event)">
+    <div id="hr" class="tab-content" style="display: block;">
+        <div class="grid-layout">
+            <div class="panel">
+                <div class="panel-title">Thêm Nhân Sự</div>
+                <form id="hrForm" onsubmit="addEmployeeManual(event)">
                     <div class="form-group">
                         <label>Mã Nhân Viên</label>
                         <input type="text" id="empId" class="form-control" placeholder="Ví dụ: NV001" required>
@@ -282,161 +125,185 @@
                     </div>
                     <div class="form-group">
                         <label>Phòng Ban</label>
-                        <select id="empDept" class="form-control">
-                            <option value="Hành chính - Nhân sự">Hành chính - Nhân sự</option>
-                            <option value="Kỹ thuật - Công nghệ">Kỹ thuật - Công nghệ</option>
-                            <option value="Kinh doanh - Marketing">Kinh doanh - Marketing</option>
-                            <option value="Kế toán - Tài chính">Kế toán - Tài chính</option>
-                        </select>
+                        <input type="text" id="empDept" class="form-control" placeholder="Kỹ thuật, Kế toán..." required>
                     </div>
                     <div class="form-group">
                         <label>Chức Vụ</label>
-                        <input type="text" id="empRole" class="form-control" placeholder="Ví dụ: Chuyên viên" required>
+                        <input type="text" id="empRole" class="form-control" placeholder="Chuyên viên, Trưởng phòng..." required>
                     </div>
-                    <button type="submit" class="btn btn-primary" style="width: 100%;">Lưu Nhân Viên</button>
+                    <button type="submit" class="btn btn-primary" style="width: 100%;">Thêm Thủ Công</button>
                 </form>
+
+                <div style="margin-top: 25px; padding-top: 20px; border-top: 2px dashed #e2e8f0;">
+                    <label style="display:block; font-weight:600; margin-bottom:10px; font-size:13px; color:#475569;">NHẬP HÀNG LOẠT TỪ EXCEL</label>
+                    <input type="file" id="excelFile" accept=".xlsx, .xls" style="display: none;" onchange="importExcel(this)">
+                    <button type="button" class="btn btn-success" style="width: 100%;" onclick="document.getElementById('excelFile').click()">📁 Chọn File Excel Đột Phá</button>
+                    <small style="display:block; margin-top:8px; color:#64748b; font-size:11px; line-height:1.4;">* File Excel cần chứa các cột tiêu đề chuẩn xác: <b>Mã Nhân Viên</b>, <b>Họ và Tên</b>, <b>Phòng Ban</b>, <b>Chức Vụ</b>.</small>
+                </div>
             </div>
             
-            <div class="col" style="width: 65%;">
-                <h3 style="margin-top:0; color:#1e3a8a;">Danh Sách Nhân Sự</h3>
-                <table id="empTable">
-                    <thead>
-                        <tr>
-                            <th>Mã NV</th>
-                            <th>Họ Tên</th>
-                            <th>Phòng Ban</th>
-                            <th>Chức Vụ</th>
-                            <th>Trạng Thái</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><b>NV001</b></td>
-                            <td>Trần Chí Bảo</td>
-                            <td>Kỹ thuật - Công nghệ</td>
-                            <td>Kỹ sư phần mềm</td>
-                            <td><span class="badge badge-success">Đang làm việc</span></td>
-                        </tr>
-                        <tr>
-                            <td><b>NV002</b></td>
-                            <td>Lê Thị Mai</td>
-                            <td>Kế toán - Tài chính</td>
-                            <td>Kế toán trưởng</td>
-                            <td><span class="badge badge-success">Đang làm việc</span></td>
-                        </tr>
-                    </tbody>
-                </table>
+            <div class="panel">
+                <div class="panel-title">Danh Sách Cơ Sở Dữ Liệu Nhân Sự</div>
+                <div style="max-height: 500px; overflow-y: auto;">
+                    <table id="empTable">
+                        <thead>
+                            <tr>
+                                <th>Mã NV</th>
+                                <th>Họ Tên</th>
+                                <th>Phòng Ban</th>
+                                <th>Chức Vụ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- TAB 2: THIẾT BỊ & QR -->
-    <div id="equipment" class="tab-content">
-        <div class="grid-2">
-            <div class="col" style="width: 35%;">
-                <h3 style="margin-top:0; color:#1e3a8a;">Cấp Phát Thiết Bị</h3>
+    <div id="equipment" class="tab-content" style="display: none;">
+        <div class="grid-layout">
+            <div class="panel">
+                <div class="panel-title">Tạo Cấp Phát Tài Sản</div>
                 <form id="eqForm" onsubmit="addEquipment(event)">
                     <div class="form-group">
                         <label>Mã Thiết Bị</label>
-                        <input type="text" id="eqId" class="form-control" placeholder="Ví dụ: LAP-098" required>
+                        <input type="text" id="eqId" class="form-control" placeholder="Ví dụ: LAP-001" required>
                     </div>
                     <div class="form-group">
                         <label>Tên Thiết Bị</label>
-                        <input type="text" id="eqName" class="form-control" placeholder="MacBook Pro M3 16-inch" required>
+                        <input type="text" id="eqName" class="form-control" placeholder="Mô tả thiết bị..." required>
                     </div>
                     <div class="form-group">
-                        <label>Nhân Viên Nhận</label>
-                        <input type="text" id="eqUser" class="form-control" placeholder="Họ tên hoặc Mã NV" required>
+                        <label>Nhân Viên Nhận (Tìm kiếm thông minh)</label>
+                        <input type="text" id="eqUser" class="form-control" placeholder="Nhập tên hoặc mã để tìm..." onkeyup="searchEmployeeSuggestions(this, 'eqSuggestBox')" autocomplete="off" required>
+                        <div id="eqSuggestBox" class="suggestions-box"></div>
                     </div>
-                    <button type="submit" class="btn btn-success" style="width: 100%;">Tạo Cấp Phát & QR Code</button>
+                    <button type="submit" class="btn btn-success" style="width: 100%;">Xác Nhận & Xuất QR</button>
                 </form>
 
-                <div style="margin-top: 25px; text-align: center; padding: 15px; background: #f1f5f9; border-radius: 8px;">
-                    <h4 style="margin: 0 0 10px 0;">QR Code Thông Tin Định Danh</h4>
-                    <div class="qr-placeholder" id="qrContainer"></div>
-                    <p style="font-size: 12px; color: #475569; margin: 8px 0 0 0;" id="qrMeta">Quét mã QR để truy xuất nhanh thông tin bàn giao thực tế.</p>
+                <div style="margin-top: 20px; text-align: center; padding: 15px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                    <h5 style="margin: 0 0 10px 0; color:#475569;">MÃ QR ĐỊNH DANH THỰC TẾ</h5>
+                    <div class="qr-placeholder" id="qrContainer">
+                        <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:11px; color:#64748b; font-weight:bold;">CHƯA CÓ DỮ LIỆU</div>
+                    </div>
+                    <p style="font-size: 11px; color: #64748b; margin-top: 10px;" id="qrMeta">Chọn thiết bị để kết xuất mã cấu trúc dữ liệu QR trực quan.</p>
                 </div>
             </div>
 
-            <div class="col" style="width: 65%;">
-                <h3 style="margin-top:0; color:#1e3a8a;">Nhật Ký Cấp Phát Thiết Bị</h3>
+            <div class="panel">
+                <div class="panel-title">Nhật Ký Cấp Phát Thiết Bị</div>
                 <table id="eqTable">
                     <thead>
                         <tr>
                             <th>Mã Thiết Bị</th>
                             <th>Tên Thiết Bị</th>
-                            <th>Người Sử Dụng</th>
-                            <th>Ngày Cấp Phát</th>
+                            <th>Nhân Viên Tiếp Nhận</th>
                             <th>Hành Động</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr>
-                            <td><b>LAP-098</b></td>
-                            <td>MacBook Pro M3 16-inch</td>
-                            <td>Trần Chí Bảo (NV001)</td>
-                            <td>26/06/2026</td>
-                            <td><button class="btn btn-secondary" style="padding: 4px 10px; font-size:12px;" onclick="viewQR('LAP-098', 'MacBook Pro M3 16-inch', 'Trần Chí Bảo')">Xem QR</button></td>
-                        </tr>
-                    </tbody>
+                        </tbody>
                 </table>
             </div>
         </div>
     </div>
 
-    <!-- TAB 3: HỒ SƠ THANH TOÁN & PREVIEW CHỨNG TỪ -->
-    <div id="payment" class="tab-content">
-        <div class="grid-2">
-            <div class="col" style="width: 40%;">
-                <h3 style="margin-top:0; color:#1e3a8a;">Tạo Đề Nghị Thanh Toán</h3>
-                <div class="form-group">
-                    <label>Tên Hồ Sơ / Dự Án</label>
-                    <input type="text" id="payTitle" class="form-control" placeholder="Thanh toán chi phí Cloud bộ phận Tech Tháng 6">
-                </div>
-                <div class="form-group">
-                    <label>Số Tiền (VND)</label>
-                    <input type="number" id="payAmount" class="form-control" placeholder="15000000">
-                </div>
+    <div id="payment" class="tab-content" style="display: none;">
+        <div class="dashboard-grid">
+            <div class="card" style="border-left: 4px solid #3b82f6;">
+                <h4>Tổng số tiền trước thuế</h4>
+                <div class="value" id="dashBeforeTax">0 đ</div>
+            </div>
+            <div class="card" style="border-left: 4px solid #ef4444;">
+                <h4>Tổng tiền thuế (VAT)</h4>
+                <div class="value" id="dashTaxAmount">0 đ</div>
+            </div>
+            <div class="card" style="border-left: 4px solid #10b981;">
+                <h4>Tổng số tiền sau thuế</h4>
+                <div class="value" id="dashAfterTax">0 đ</div>
+            </div>
+            <div class="card" style="border-left: 4px solid #f59e0b;">
+                <h4>Tổng số hồ sơ</h4>
+                <div class="value" id="dashTotalCount">0</div>
+            </div>
+        </div>
 
-                <!-- Unlimited Upload Mimic Area -->
+        <div class="grid-layout">
+            <div class="panel">
+                <div class="panel-title">Đề Nghị Thanh Toán & Phân Tích Thuế</div>
                 <div class="form-group">
-                    <label>Chứng Từ Đi Kèm (Không giới hạn dung lượng - Cho phép đa dạng định dạng)</label>
-                    <div class="upload-zone" onclick="document.getElementById('fileInput').click()">
-                        <p style="margin: 0; font-size: 14px; font-weight: 600; color: #2563eb;">Kéo thả hoặc Click để tải lên chứng từ</p>
-                        <p style="margin: 5px 0 0 0; font-size: 11px; color: #64748b;">Hỗ trợ: PDF, JPG, PNG, Excel, Word, ZIP...</p>
-                        <input type="file" id="fileInput" style="display:none;" multiple onchange="handleFiles(this.files)">
+                    <label>Tên Đề Nghị / Nội Dung Chi</label>
+                    <input type="text" id="payTitle" class="form-control" placeholder="Ví dụ: Chi phí Server, Mua thiết bị văn phòng...">
+                </div>
+                <div class="form-group">
+                    <label>Người Đề Nghị (Tìm kiếm thông minh)</label>
+                    <input type="text" id="payUser" class="form-control" placeholder="Nhập tên nhân viên đề nghị..." onkeyup="searchEmployeeSuggestions(this, 'paySuggestBox')" autocomplete="off">
+                    <div id="paySuggestBox" class="suggestions-box"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Số Tiền Trước Thuế (VND)</label>
+                    <input type="number" id="payAmountBefore" class="form-control" placeholder="Nhập số tiền..." oninput="calculateTax()">
+                </div>
+                
+                <div class="tax-row">
+                    <div class="form-group">
+                        <label>Thuế Suất</label>
+                        <select id="payTaxRate" class="form-control" onchange="calculateTax()">
+                            <option value="0">0 %</option>
+                            <option value="5">5 %</option>
+                            <option value="8">8 %</option>
+                            <option value="10" selected>10 %</option>
+                            <option value="15">15 %</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Tiền Thuế Tính Toán</label>
+                        <input type="text" id="payTaxValue" class="form-control" style="background:#f8fafc; font-weight:bold; color:#ef4444;" readonly value="0">
                     </div>
                 </div>
 
-                <button class="btn btn-primary" style="width: 100%;" onclick="savePayment()">Lưu Hồ Sơ Thanh Toán</button>
-            </div>
-
-            <div class="col" style="width: 60%;">
-                <h3 style="margin-top:0; color:#1e3a8a;">Tệp Đang Được Chọn Xem Trước (Trước khi tải về)</h3>
-                <div id="filePreviewArea" class="preview-container">
-                    <p style="color: #64748b; font-style: italic; font-size: 13px;" id="noFileText">Chưa có chứng từ nào được tải lên để hiển thị xem trước.</p>
-                    <ul id="fileList" style="list-style: none; padding: 0; margin: 0;"></ul>
+                <div class="form-group">
+                    <label>Tổng Số Tiền Sau Thuế (Thực Chi)</label>
+                    <input type="text" id="payAmountAfter" class="form-control" style="background:#f0fdf4; font-weight:bold; color:#166534;" readonly value="0">
                 </div>
 
-                <div style="margin-top: 25px;">
-                    <h3 style="color:#1e3a8a; margin-bottom: 10px;">Danh Sách Đề Nghị Thanh Toán Hiện Hành</h3>
+                <div class="form-group">
+                    <label>Chứng Từ Đính Kèm (Dung lượng không giới hạn)</label>
+                    <div class="upload-zone" onclick="document.getElementById('docFileInput').click()">
+                        <p style="margin: 0; font-size: 13px; font-weight: 600; color: #2563eb;">Kéo thả hoặc nhấn để chọn file minh chứng</p>
+                        <input type="file" id="docFileInput" style="display:none;" multiple onchange="handleDocumentFiles(this.files)">
+                    </div>
+                </div>
+
+                <button class="btn btn-primary" style="width: 100%;" onclick="savePaymentInvoice()">Lưu & Cập Nhật Hệ Thống</button>
+            </div>
+
+            <div class="panel">
+                <div class="panel-title">Tệp Chứng Từ Xem Trước Trực Quan & Danh Sách Hồ Sơ</div>
+                
+                <div class="preview-container" style="margin-bottom:25px;">
+                    <h5 style="margin:0 0 10px 0; color:#475569;">Trình Xem Trước Tệp Tin Định Dạng Linh Hoạt</h5>
+                    <div id="noFileText" style="font-size:12px; color:#94a3b8; font-style:italic;">Chưa có tệp minh chứng được chọn xem trước.</div>
+                    <div id="filePreviewList"></div>
+                </div>
+
+                <div style="overflow-x: auto;">
                     <table id="payTable">
                         <thead>
                             <tr>
-                                <th>Tên Hồ Sơ</th>
-                                <th>Số Tiền</th>
-                                <th>Số Lượng Chứng Từ</th>
-                                <th>Trạng Thái</th>
+                                <th>Nội Dung</th>
+                                <th>Người Đề Nghị</th>
+                                <th>Trước Thuế</th>
+                                <th>Thuế (VAT)</th>
+                                <th>Sau Thuế</th>
+                                <th>Minh Chứng</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr>
-                                <td><b>Chi phí Cloud Tháng 6</b></td>
-                                <td>15,000,000 đ</td>
-                                <td><span class="badge badge-info">3 tệp đính kèm</span></td>
-                                <td><span class="badge badge-success">Đã Duyệt</span></td>
-                            </tr>
-                        </tbody>
+                            </tbody>
                     </table>
                 </div>
             </div>
@@ -445,133 +312,254 @@
 </div>
 
 <script>
-    // Tab switching engine
+    // Toàn bộ dữ liệu bộ nhớ đệm (Mô phỏng Database)
+    let employees = [
+        { id: "NV001", name: "Nguyễn Văn Thắng", dept: "Công Nghệ Thông Tin", role: "Kỹ sư Hệ Thống" },
+        { id: "NV002", name: "Phạm Minh Hoàng", dept: "Kế Toán Tài Chính", role: "Kế toán tổng hợp" },
+        { id: "NV003", name: "Trần Thị Mai", dept: "Hành Chính Nhân Sự", role: "Chuyên viên tuyển dụng" }
+    ];
+    let payments = [];
+    let tempUploadedFiles = [];
+
+    window.onload = function() {
+        renderEmployeeTable();
+    };
+
     function switchTab(tabId) {
-        const contents = document.querySelectorAll('.tab-content');
-        const buttons = document.querySelectorAll('.tab-btn');
-        
-        contents.forEach(content => content.classList.remove('active'));
-        buttons.forEach(btn => btn.classList.remove('active'));
-        
-        document.getElementById(tabId).classList.add('active');
-        // Find clicked button based on text match or layout sequence
+        document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        document.getElementById(tabId).style.display = 'block';
         event.currentTarget.classList.add('active');
     }
 
-    // HR Actions
-    function addEmployee(e) {
+    // --- XỬ LÝ PHẦN NHÂN SỰ ---
+    function renderEmployeeTable() {
+        const tbody = document.getElementById('empTable').getElementsByTagName('tbody')[0];
+        tbody.innerHTML = '';
+        employees.forEach(emp => {
+            const row = tbody.insertRow();
+            row.innerHTML = `<td><b>${emp.id}</b></td><td>${emp.name}</td><td>${emp.dept}</td><td>${emp.role}</td>`;
+        });
+    }
+
+    function addEmployeeManual(e) {
         e.preventDefault();
-        const id = document.getElementById('empId').value;
-        const name = document.getElementById('empName').value;
-        const dept = document.getElementById('empDept').value;
-        const role = document.getElementById('empRole').value;
+        const id = document.getElementById('empId').value.trim();
+        const name = document.getElementById('empName').value.trim();
+        const dept = document.getElementById('empDept').value.trim();
+        const role = document.getElementById('empRole').value.trim();
 
-        const table = document.getElementById('empTable').getElementsByTagName('tbody')[0];
-        const newRow = table.insertRow();
-        newRow.innerHTML = `<td><b>${id}</b></td><td>${name}</td><td>${dept}</td><td>${role}</td><td><span class="badge badge-success">Đang làm việc</span></td>`;
-        
-        document.getElementById('hrForm').reset();
-    }
-
-    // Equipment Actions
-    function addEquipment(e) {
-        e.preventDefault();
-        const id = document.getElementById('eqId').value;
-        const name = document.getElementById('eqName').value;
-        const user = document.getElementById('eqUser').value;
-
-        const table = document.getElementById('eqTable').getElementsByTagName('tbody')[0];
-        const newRow = table.insertRow();
-        newRow.innerHTML = `<td><b>${id}</b></td><td>${name}</td><td>${user}</td><td>26/06/2026</td><td><button class="btn btn-secondary" style="padding: 4px 10px; font-size:12px;" onclick="viewQR('${id}', '${name}', '${user}')">Xem QR</button></td>`;
-        
-        viewQR(id, name, user);
-        document.getElementById('eqForm').reset();
-    }
-
-    function viewQR(id, name, user) {
-        const qrContainer = document.getElementById('qrContainer');
-        const qrMeta = document.getElementById('qrMeta');
-        
-        // Dynamically simulate QR content update inside layout placeholder using standard CSS pattern
-        qrContainer.style.background = "#1e293b";
-        qrContainer.innerHTML = `<div style="color:white; font-size:10px; padding:15px; word-break:break-all; text-align:center; height:100%;">[Mã QR Định Danh]<br><b>ID:</b> ${id}<br><b>Sử dụng:</b> ${user}</div>`;
-        qrMeta.innerHTML = `Mã định danh cho <b>${name}</b> đã kích hoạt.`;
-    }
-
-    // Modern file management preview logic (handles various mockup file formats securely)
-    let uploadedFiles = [];
-    function handleFiles(files) {
-        document.getElementById('noFileText').style.display = 'none';
-        const fileList = document.getElementById('fileList');
-        
-        for (let i = 0; i < files.length; i++) {
-            const file = files[i];
-            uploadedFiles.push(file);
-            
-            const li = document.createElement('li');
-            li.className = 'file-item';
-            
-            // Generate visual safe badge for type
-            let fileTypeBadge = '<span class="badge badge-info">FILE</span>';
-            if(file.name.endsWith('.pdf')) fileTypeBadge = '<span class="badge" style="background:#fee2e2; color:#991b1b;">PDF</span>';
-            if(file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) fileTypeBadge = '<span class="badge" style="background:#dcfce7; color:#166534;">EXCEL</span>';
-            if(file.name.match(/\.(jpg|jpeg|png|gif)$/i)) fileTypeBadge = '<span class="badge" style="background:#fef9c3; color:#854d0e;">IMAGE</span>';
-            
-            li.innerHTML = `
-                <div style="display:table; width:100%;">
-                    <div style="display:table-cell; vertical-align:middle;">
-                        ${fileTypeBadge} <b>${file.name}</b> (${(file.size / (1024*1024)).toFixed(2)} MB)
-                    </div>
-                    <div style="display:table-cell; text-align:right; vertical-align:middle;">
-                        <button class="btn btn-secondary" style="padding:2px 8px; font-size:11px; margin-right:5px;" onclick="previewFile('${file.name}')">Xem trước</button>
-                        <a href="#" style="font-size:12px; color:#2563eb; text-decoration:none;">Tải về</a>
-                    </div>
-                </div>
-                <div id="preview-box-${file.name.replace(/[^a-zA-Z0-9]/g, '')}" style="display:none; margin-top:10px; padding:10px; background:#f1f5f9; border-radius:4px; font-style:italic; font-size:12px; color:#475569;">
-                    [Trình xem trước thông minh] Đang mô phỏng hiển thị nội dung trực tiếp cho tệp tin này mà không cần tải về máy...
-                </div>
-            `;
-            fileList.appendChild(li);
-        }
-    }
-
-    function previewFile(fileName) {
-        const safeId = "preview-box-" + fileName.replace(/[^a-zA-Z0-9]/g, '');
-        const box = document.getElementById(safeId);
-        if(box.style.display === 'none') {
-            box.style.display = 'block';
-        } else {
-            box.style.display = 'none';
-        }
-    }
-
-    function savePayment() {
-        const title = document.getElementById('payTitle').value;
-        const amount = document.getElementById('payAmount').value;
-        
-        if(!title || !amount) {
-            alert('Vui lòng điền đầy đủ thông tin hồ sơ thanh toán.');
+        if (employees.some(emp => emp.id === id)) {
+            alert("Mã nhân viên này đã tồn tại!");
             return;
         }
 
-        const table = document.getElementById('payTable').getElementsByTagName('tbody')[0];
-        const newRow = table.insertRow();
-        
-        // Format to currency representation
-        const formattedAmount = new Intl.NumberFormat('vi-VN').format(amount) + " đ";
-        const countFiles = uploadedFiles.length > 0 ? `${uploadedFiles.length} tệp đính kèm` : "Không có chứng từ";
+        employees.push({ id, name, dept, role });
+        renderEmployeeTable();
+        document.getElementById('hrForm').reset();
+    }
 
-        newRow.innerHTML = `<td><b>${title}</b></td><td>${formattedAmount}</td><td><span class="badge badge-info">${countFiles}</span></td><td><span class="badge" style="background:#fef3c7; color:#d97706;">Chờ duyệt</span></td>`;
+    // ĐỌC VÀ IMPORT EXCEL HÀNG LOẠT
+    function importExcel(input) {
+        const file = input.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            
+            // Chuyển đổi thành mảng JSON dữ liệu
+            const jsonData = XLSX.utils.sheet_to_json(worksheet);
+            
+            let count = 0;
+            jsonData.forEach(row => {
+                // Nhận diện chuẩn xác các trường thông tin dựa vào tiêu đề cột
+                const id = row["Mã Nhân Viên"] || row["MaNV"] || row["Mã NV"];
+                const name = row["Họ và Tên"] || row["HoTen"] || row["Họ Tên"];
+                const dept = row["Phòng Ban"] || row["PhongBan"] || "";
+                const role = row["Chức Vụ"] || row["ChucVu"] || "";
+
+                if (id && name && !employees.some(emp => emp.id == id)) {
+                    employees.push({ id: String(id), name: String(name), dept: String(dept), role: String(role) });
+                    count++;
+                }
+            });
+
+            renderEmployeeTable();
+            alert(`Đã nhập thành công ${count} nhân sự từ file Excel!`);
+            input.value = ''; // Reset input file
+        };
+        reader.readAsArrayBuffer(file);
+    }
+
+    // --- TÌM KIẾM NHÂN SỰ TỰ ĐỘNG GỢI Ý (AUTOCOMPLETE) ---
+    function searchEmployeeSuggestions(inputEl, boxId) {
+        const keyword = inputEl.value.toLowerCase().trim();
+        const box = document.getElementById(boxId);
         
-        // Reset inputs
+        if (!keyword) {
+            box.style.display = 'none';
+            return;
+        }
+
+        const filtered = employees.filter(emp => 
+            emp.name.toLowerCase().includes(keyword) || emp.id.toLowerCase().includes(keyword)
+        );
+
+        if (filtered.length === 0) {
+            box.style.display = 'none';
+            return;
+        }
+
+        box.innerHTML = '';
+        box.style.display = 'block';
+        
+        filtered.forEach(emp => {
+            const item = document.createElement('div');
+            item.className = 'suggestion-item';
+            item.innerHTML = `<b>${emp.id}</b> - ${emp.name} (${emp.dept})`;
+            item.onclick = function() {
+                inputEl.value = `${emp.name} (${emp.id})`;
+                box.style.display = 'none';
+            };
+            box.appendChild(item);
+        });
+    }
+
+    // Đóng hộp gợi ý khi click ra ngoài ngoài màn hình
+    document.addEventListener('click', function(e) {
+        if (!e.target.classList.contains('form-control')) {
+            document.querySelectorAll('.suggestions-box').forEach(box => box.style.display = 'none');
+        }
+    });
+
+    // --- XỬ LÝ PHẦN THIẾT BỊ & QR ---
+    function addEquipment(e) {
+        e.preventDefault();
+        const eqId = document.getElementById('eqId').value.trim();
+        const eqName = document.getElementById('eqName').value.trim();
+        const eqUser = document.getElementById('eqUser').value.trim();
+
+        const table = document.getElementById('eqTable').getElementsByTagName('tbody')[0];
+        const row = table.insertRow();
+        row.innerHTML = `<td><b>${eqId}</b></td><td>${eqName}</td><td>${eqUser}</td>
+            <td><button type="button" class="btn btn-outline" style="padding:4px 10px; font-size:12px;" onclick="generateQRVisual('${eqId}','${eqName}','${eqUser}')">Xem QR</button></td>`;
+        
+        generateQRVisual(eqId, eqName, eqUser);
+        document.getElementById('eqForm').reset();
+    }
+
+    function generateQRVisual(id, name, user) {
+        const container = document.getElementById('qrContainer');
+        container.innerHTML = `<div style="color:white; font-size:10px; padding:15px; text-align:center; word-break:break-all;">
+            <span style="color:#10b981; font-weight:bold;">[MÃ QR CODE]</span><br>
+            <b>Mã TB:</b> ${id}<br>
+            <b>Thiết bị:</b> ${name}<br>
+            <b>Bàn giao:</b> ${user}
+        </div>`;
+        container.style.background = "#0f172a";
+        document.getElementById('qrMeta').innerHTML = `Đang kết xuất mã QR định danh cho tài sản: <b>${id}</b>`;
+    }
+
+    // --- XỬ LÝ TÍNH THUẾ & THANH TOÁN ---
+    function calculateTax() {
+        const amountBefore = parseFloat(document.getElementById('payAmountBefore').value) || 0;
+        const taxRate = parseFloat(document.getElementById('payTaxRate').value) || 0;
+        
+        const taxValue = Math.round(amountBefore * (taxRate / 100));
+        const amountAfter = amountBefore + taxValue;
+
+        document.getElementById('payTaxValue').value = new Intl.NumberFormat('vi-VN').format(taxValue) + " đ";
+        document.getElementById('payAmountAfter').value = new Intl.NumberFormat('vi-VN').format(amountAfter) + " đ";
+    }
+
+    function handleDocumentFiles(files) {
+        document.getElementById('noFileText').style.display = 'none';
+        const previewList = document.getElementById('filePreviewList');
+        
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            tempUploadedFiles.push(file);
+
+            let typeBadge = '<span class="badge badge-info">FILE</span>';
+            if(file.name.match(/\.(xlsx|xls)$/i)) typeBadge = '<span class="badge" style="background:#dcfce7; color:#166534;">EXCEL</span>';
+            if(file.name.match(/\.(pdf)$/i)) typeBadge = '<span class="badge" style="background:#fee2e2; color:#991b1b;">PDF</span>';
+            if(file.name.match(/\.(jpg|jpeg|png)$/i)) typeBadge = '<span class="badge" style="background:#fef9c3; color:#854d0e;">IMAGE</span>';
+
+            const div = document.createElement('div');
+            div.className = 'file-item';
+            div.innerHTML = `
+                <div>${typeBadge} <b>${file.name}</b> (${(file.size / (1024*1024)).toFixed(2)} MB)</div>
+                <div>
+                    <button class="btn btn-outline" style="padding:2px 8px; font-size:11px;" onclick="alert('Đang hiển thị chế độ xem trước trực quan luồng tệp tin: ' + '${file.name}')">Xem trước</button>
+                </div>
+            `;
+            previewList.appendChild(div);
+        }
+    }
+
+    function savePaymentInvoice() {
+        const title = document.getElementById('payTitle').value.trim();
+        const user = document.getElementById('payUser').value.trim();
+        const amountBefore = parseFloat(document.getElementById('payAmountBefore').value) || 0;
+        const taxRate = parseFloat(document.getElementById('payTaxRate').value) || 0;
+
+        if(!title || !user || amountBefore <= 0) {
+            alert("Vui lòng nhập đầy đủ nội dung, người đề nghị và số tiền hợp lệ.");
+            return;
+        }
+
+        const taxValue = Math.round(amountBefore * (taxRate / 100));
+        const amountAfter = amountBefore + taxValue;
+        const filesCount = tempUploadedFiles.length;
+
+        payments.push({ title, user, amountBefore, taxValue, amountAfter, filesCount });
+        
+        // Cập nhật bảng
+        const tbody = document.getElementById('payTable').getElementsByTagName('tbody')[0];
+        const row = tbody.insertRow();
+        row.innerHTML = `
+            <td><b>${title}</b></td>
+            <td>${user}</td>
+            <td>${new Intl.NumberFormat('vi-VN').format(amountBefore)} đ</td>
+            <td>${new Intl.NumberFormat('vi-VN').format(taxValue)} đ <small>(${taxRate}%)</small></td>
+            <td style="color:#166534; font-weight:bold;">${new Intl.NumberFormat('vi-VN').format(amountAfter)} đ</td>
+            <td><span class="badge ${filesCount > 0 ? 'badge-success':'badge-warn'}">${filesCount} file chứng từ</span></td>
+        `;
+
+        // Tính lại tổng Dashboard Tài chính
+        updateDashboardFinance();
+
+        // Reset Form thanh toán
         document.getElementById('payTitle').value = '';
-        document.getElementById('payAmount').value = '';
-        document.getElementById('fileList').innerHTML = '';
+        document.getElementById('payUser').value = '';
+        document.getElementById('payAmountBefore').value = '';
+        document.getElementById('payTaxValue').value = '0';
+        document.getElementById('payAmountAfter').value = '0';
+        document.getElementById('filePreviewList').innerHTML = '';
         document.getElementById('noFileText').style.display = 'block';
-        uploadedFiles = [];
-        alert('Hồ sơ đã được lưu thành công trên hệ thống lưu trữ không giới hạn dung lượng.');
+        tempUploadedFiles = [];
+    }
+
+    function updateDashboardFinance() {
+        let totalBefore = 0;
+        let totalTax = 0;
+        let totalAfter = 0;
+
+        payments.forEach(p => {
+            totalBefore += p.amountBefore;
+            totalTax += p.taxValue;
+            totalAfter += p.amountAfter;
+        });
+
+        document.getElementById('dashBeforeTax').innerHTML = new Intl.NumberFormat('vi-VN').format(totalBefore) + " đ";
+        document.getElementById('dashTaxAmount').innerHTML = new Intl.NumberFormat('vi-VN').format(totalTax) + " đ";
+        document.getElementById('dashAfterTax').innerHTML = new Intl.NumberFormat('vi-VN').format(totalAfter) + " đ";
+        document.getElementById('dashTotalCount').innerHTML = payments.length;
     }
 </script>
-
 </body>
 </html>
