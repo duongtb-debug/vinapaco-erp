@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hệ Thống ERP Toàn Diện - Tích Hợp Luồng Thiết Bị & Thuế Linh Hoạt</title>
+    <title>Hệ Thống ERP Toàn Diện - Đồng Bộ Thiết Bị & Nhân Sự Theo Đơn Vị</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -44,12 +44,18 @@
         .panel { background: white; padding: 22px; border-radius: 16px; border: 1px solid #e2e8f0; margin-bottom: 25px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
         .panel-title { margin-top: 0; margin-bottom: 18px; color: #1e3a8a; font-size: 16px; font-weight: 700; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px; }
 
-        /* Khung nhập liệu thủ công chuyên nghiệp */
-        .manual-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; background: #f8fafc; border: 1px dashed #cbd5e1; padding: 18px; border-radius: 12px; margin-bottom: 20px; }
-        .form-group { display: flex; flex-direction: column; gap: 6px; }
+        /* Khung nhập liệu thủ công */
+        .manual-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; background: #f8fafc; border: 1px dashed #cbd5e1; padding: 18px; border-radius: 12px; margin-bottom: 20px; position: relative; }
+        .form-group { display: flex; flex-direction: column; gap: 6px; position: relative; }
         .form-group label { font-size: 12px; font-weight: 700; color: #475569; }
         .form-group input, .form-group select { padding: 9px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; outline: none; background: white; }
         .form-group input:focus, .form-group select:focus { border-color: #1e3a8a; box-shadow: 0 0 0 2px rgba(30,58,138,0.1); }
+
+        /* Ô gợi ý tìm kiếm nhân sự thông minh */
+        .search-results-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #cbd5e1; border-radius: 8px; max-height: 200px; overflow-y: auto; z-index: 100; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); display: none; }
+        .search-item { padding: 8px 12px; font-size: 13px; cursor: pointer; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; }
+        .search-item:hover { background: #eff6ff; color: #1e3a8a; font-weight: 600; }
+        .search-item .item-unit { font-weight: bold; color: #475569; background: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-size: 11px; }
 
         .filter-dashboard { background: #f8fafc; border: 2px solid #e2e8f0; padding: 20px; border-radius: 12px; margin-bottom: 20px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; }
         .filter-group { display: flex; flex-direction: column; gap: 6px; }
@@ -79,15 +85,13 @@
         .badge-danger { background-color: #fee2e2; color: #991b1b; }
         .badge-dark { background-color: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; }
 
-        /* Modal hiển thị mã QR */
+        /* Modal QR Code */
         .qr-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 10000; justify-content: center; align-items: center; }
         .qr-box { background: white; padding: 30px; border-radius: 16px; text-align: center; max-width: 340px; width: 100%; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); border-top: 6px solid #2563eb; }
         #qrCanvas { margin: 20px auto; display: flex; justify-content: center; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0; }
 
         .preview-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center; }
         .preview-content { background: white; width: 85%; height: 90%; border-radius: 16px; padding: 30px; display: flex; flex-direction: column; }
-        .preview-body { flex: 1; overflow-y: auto; border: 1px solid #cbd5e1; padding: 25px; background: #fafafa; }
-        .preview-footer { display: flex; justify-content: flex-end; gap: 15px; margin-top: 15px; }
     </style>
 </head>
 <body>
@@ -95,19 +99,19 @@
 <div class="container">
     <header>
         <div>
-            <h1>Hệ Thống ERP Toàn Diện - Đồng Bộ Dữ Liệu & Quản Trị Tài Chính</h1>
-            <p>Giải pháp nghiệp vụ liên kết tự động: Cấp Phát Thiết Bị ➔ Nhật Ký Sửa Chữa ➔ Chứng Từ Thanh Toán</p>
+            <h1>Hệ Thống ERP Toàn Diện - Đồng Bộ Thiết Bị & Quản Trị Đơn Vị</h1>
+            <p>Liên kết thông minh: Nhân Sự (Mã Đơn Vị) ➔ Cấp Phát (QR Code) ➔ Sửa Chữa ➔ Kế Toán Thuế Linh Hoạt</p>
         </div>
         <div style="font-size: 12px; background: rgba(255,255,255,0.15); padding: 8px 16px; border-radius: 8px; font-weight: bold;">
-            Quét mã QR bằng Điện thoại, Zalo, Camera thiết bị
+            Mã QR tương thích: Điện thoại, Zalo, Thiết bị quét mã
         </div>
     </header>
 
     <div class="nav-tabs">
-        <button class="tab-btn active" onclick="switchTab('tab-nhansu')">👥 1. Quản Lý Nhân Sự</button>
-        <button class="tab-btn" onclick="switchTab('tab-capphat')">📦 2. Cấp Phát Thiết Bị (Mã QR)</button>
-        <button class="tab-btn" onclick="switchTab('tab-suachua')">🛠️ 3. Nhật Ký Sửa Chữa (Liên Kết)</button>
-        <button class="tab-btn" onclick="switchTab('tab-thanhtoan')">💰 4. Hồ Sơ Thanh Toán (Thuế Linh Hoạt)</button>
+        <button class="tab-btn active" onclick="switchTab('tab-nhansu')">👥 1. Cơ Sở Dữ Liệu Nhân Sự</button>
+        <button class="tab-btn" onclick="switchTab('tab-capphat')">📦 2. Cấp Phát Thiết Bị (Chọn Theo Đơn Vị)</button>
+        <button class="tab-btn" onclick="switchTab('tab-suachua')">🛠️ 3. Nhật Ký Sửa Chữa</button>
+        <button class="tab-btn" onclick="switchTab('tab-thanhtoan')">💰 4. Chứng Từ Thanh Toán (Thuế Tùy Biến)</button>
     </div>
 
     <div id="tab-nhansu" class="tab-content active">
@@ -125,28 +129,27 @@
         </div>
 
         <div class="panel">
-            <div class="panel-title">Tải Dữ Liệu Hoặc Nhập Tay Thủ Công</div>
+            <div class="panel-title">Tải Dữ Liệu Nhân Sự Hoặc Nhập Thủ Công</div>
             <div class="action-buttons">
                 <button class="btn btn-primary" onclick="document.getElementById('excelFile').click()">📁 Tải Excel Nhân Sự</button>
-                <button class="btn btn-success" onclick="openPreviewModal()">🖨️ Xem & In Báo Cáo A4</button>
-                <button class="btn btn-danger" onclick="clearDatabase('erp_precise_db', 'nhansu')">🗑️ Xóa Sạch Dữ Liệu</button>
+                <button class="btn btn-danger" onclick="clearDatabase('erp_precise_db', 'nhansu')">🗑️ Xóa Dữ Liệu</button>
                 <input type="file" id="excelFile" accept=".xlsx, .xls, .csv" style="display: none;" onchange="processExcelNhansu(this)">
             </div>
             
             <div class="manual-form">
                 <div class="form-group"><label>Họ và Tên</label><input type="text" id="ns_name" placeholder="Nguyễn Văn A"></div>
-                <div class="form-group"><label>Số CCCD</label><input type="text" id="ns_cccd" placeholder="0251690..."></div>
+                <div class="form-group"><label>Số CCCD</label><input type="text" id="ns_cccd" placeholder="025169..."></div>
                 <div class="form-group"><label>Mã Đơn Vị</label><input type="text" id="ns_unit" placeholder="DV-01"></div>
                 <div class="form-group"><label>Năm Sinh Full</label><input type="text" id="ns_birth" placeholder="1985-05-20"></div>
                 <div class="form-group"><label>Giới Tính</label><select id="ns_gender"><option value="Nam">Nam</option><option value="Nữ">Nữ</option></select></div>
-                <div class="form-group" style="justify-content: flex-end; min-width: 120px;"><button class="btn btn-success" style="width:100%; justify-content:center;" onclick="addManualNhansu()">➕ Thêm Tay</button></div>
+                <div class="form-group" style="justify-content: flex-end;"><button class="btn btn-success" onclick="addManualNhansu()">➕ Thêm Nhân Sự</button></div>
             </div>
         </div>
 
         <div class="panel">
-            <div class="panel-title">Bộ Lọc Nhân Sự Tiên Tiến</div>
+            <div class="panel-title">Danh Sách Nhân Sự Hiện Tại</div>
             <div class="filter-dashboard">
-                <div class="filter-group"><label>Tìm nhanh</label><input type="text" id="filterSearch" onkeyup="executeAdvancedFilter()"></div>
+                <div class="filter-group"><label>Tìm nhanh (Tên/CCCD)</label><input type="text" id="filterSearch" onkeyup="executeAdvancedFilter()"></div>
                 <div class="filter-group"><label>Giới Tính</label><select id="filterGender" onchange="executeAdvancedFilter()"><option value="ALL">Tất cả</option><option value="Nam">Nam</option><option value="Nữ">Nữ</option></select></div>
                 <div class="filter-group"><label>Mã Đơn Vị</label><select id="filterUnit" onchange="executeAdvancedFilter()"><option value="ALL">Tất cả</option></select></div>
                 <div class="filter-group"><label>An Toàn Viên</label><select id="filterAtv" onchange="executeAdvancedFilter()"><option value="ALL">Tất cả</option><option value="YES">Có</option><option value="NO">Không</option></select></div>
@@ -165,22 +168,35 @@
 
     <div id="tab-capphat" class="tab-content">
         <div class="panel">
-            <div class="panel-title">Nghiệp Vụ Cấp Phát Thiết Bị & Quản Lý Mã QR</div>
+            <div class="panel-title">Nghiệp Vụ Cấp Phát Thiết Bị Theo Mã Đơn Vị</div>
             
             <div class="manual-form">
-                <div class="form-group"><label>Mã Thiết Bị</label><input type="text" id="cp_id" placeholder="TB-2026-01"></div>
-                <div class="form-group"><label>Tên Thiết Bị</label><input type="text" id="cp_name" placeholder="Máy Ly Tâm / Máy Tính Văn Phòng"></div>
-                <div class="form-group"><label>Người Nhận Thiết Bị</label><input type="text" id="cp_user" placeholder="Trần Văn B"></div>
+                <div class="form-group"><label>Mã Thiết Bị</label><input type="text" id="cp_id" placeholder="TB-001"></div>
+                <div class="form-group"><label>Tên Thiết Bị</label><input type="text" id="cp_name" placeholder="Máy tính xách tay Dell"></div>
+                
+                <div class="form-group">
+                    <label>Lọc Theo Mã Đơn Vị (Tùy chọn)</label>
+                    <select id="cp_unit_filter" onchange="filterUserDropdown()"></select>
+                </div>
+
+                <div class="form-group">
+                    <label>Người Nhận Thiết Bị</label>
+                    <input type="text" id="cp_user" placeholder="Click vào ô hoặc gõ tìm kiếm..." onfocus="showUserDropdown()" onkeyup="filterUserDropdown()">
+                    <input type="hidden" id="cp_user_cccd">
+                    <div id="cp_user_dropdown" class="search-results-dropdown"></div>
+                </div>
+                
+                <div class="form-group"><label>Mã Đơn Vị Nhân Bản (Tự Động)</label><input type="text" id="cp_unit_id" readonly style="background:#e2e8f0; font-weight: bold;" placeholder="Tự đồng bộ"></div>
                 <div class="form-group"><label>Ngày Cấp Phát</label><input type="date" id="cp_date"></div>
-                <div class="form-group" style="justify-content: flex-end;"><button class="btn btn-primary" onclick="addManualCapphat()">📦 Tạo Cấp Phát & QR</button></div>
+                <div class="form-group" style="justify-content: flex-end;"><button class="btn btn-primary" onclick="addManualCapphat()">📦 Xác Nhận & Sinh QR</button></div>
             </div>
         </div>
 
         <div class="panel">
-            <div class="panel-title">Danh Sách Thiết Bị Đang Vận Hành Trong ERP</div>
+            <div class="panel-title">Danh Sách Thiết Bị Đang Được Cấp Phát & Theo Dõi</div>
             <div class="table-responsive">
                 <table id="capphatTable">
-                    <thead><tr><th>Mã Thiết Bị</th><th>Tên Thiết Bị</th><th>Người Nhận Vận Hành</th><th>Ngày Bàn Giao</th><th>Mã Định Danh QR</th><th>Hành Động Quy Trình</th></tr></thead>
+                    <thead><tr><th>Mã Thiết Bị</th><th>Tên Thiết Bị</th><th>Người Nhận Vận Hành</th><th>Mã Đơn Vị</th><th>Ngày Bàn Giao</th><th>Mã QR</th><th>Luồng Vận Hành ERP</th></tr></thead>
                     <tbody></tbody>
                 </table>
             </div>
@@ -189,21 +205,20 @@
 
     <div id="tab-suachua" class="tab-content">
         <div class="panel">
-            <div class="panel-title">Nhật Nhật Trình Bảo Trì / Sửa Chữa Thiết Bị</div>
-            
+            <div class="panel-title">Nhật Trình Ghi Nhận Bảo Trì / Sửa Chữa</div>
             <div class="manual-form">
-                <div class="form-group"><label>Mã Thiết Bị</label><input type="text" id="sc_id" placeholder="TB-2026-01"></div>
-                <div class="form-group"><label>Tên Thiết Bị Báo Hỏng</label><input type="text" id="sc_name" placeholder="Tên thiết bị tự động đồng bộ"></div>
-                <div class="form-group"><label>Nội Dung Sửa Chữa / Thay Thế</label><input type="text" id="sc_content" placeholder="Thay thế linh kiện, bảo dưỡng định kỳ"></div>
-                <div class="form-group"><label>Chi Phí Thực Tế (VNĐ)</label><input type="number" id="sc_cost" placeholder="2500000"></div>
-                <div class="form-group" style="justify-content: flex-end;"><button class="btn btn-warning" onclick="addManualSuachua()">🛠️ Ghi Nhận Sửa Chữa</button></div>
+                <div class="form-group"><label>Mã Thiết Bị</label><input type="text" id="sc_id" placeholder="TB-001"></div>
+                <div class="form-group"><label>Tên Thiết Bị Bảo Trì</label><input type="text" id="sc_name" placeholder="Tên thiết bị tự liên kết"></div>
+                <div class="form-group"><label>Nội Dung Sửa Chữa</label><input type="text" id="sc_content" placeholder="Bảo dưỡng bộ phận, thay linh kiện"></div>
+                <div class="form-group"><label>Chi Phí Thực Tế (VNĐ)</label><input type="number" id="sc_cost" placeholder="1500000"></div>
+                <div class="form-group" style="justify-content: flex-end;"><button class="btn btn-warning" onclick="addManualSuachua()">🛠️ Lưu Nhật Ký</button></div>
             </div>
         </div>
         <div class="panel">
-            <div class="panel-title">Nhật Trình Sửa Chữa & Bảo Dưỡng Cơ Sở Vật Chất</div>
+            <div class="panel-title">Lịch Sử Khắc Phục Sự Cố Kỹ Thuật</div>
             <div class="table-responsive">
                 <table id="suachuaTable">
-                    <thead><tr><th>Mã Thiết Bị</th><th>Tên Thiết Bị</th><th>Nội Dung Chi Tiết</th><th>Chi Phí Sửa Chữa</th><th>Luồng Tài Chính</th></tr></thead>
+                    <thead><tr><th>Mã Thiết Bị</th><th>Tên Thiết Bị</th><th>Nội Dung Chi Tiết</th><th>Chi Phí (VNĐ)</th><th>Luồng Tài Chính</th></tr></thead>
                     <tbody></tbody>
                 </table>
             </div>
@@ -212,22 +227,21 @@
 
     <div id="tab-thanhtoan" class="tab-content">
         <div class="panel">
-            <div class="panel-title">Quản Lý Chứng Từ Kế Toán & Cấu Hình Thuế Linh Hoạt</div>
-            
+            <div class="panel-title">Bộ Phận Kế Toán - Cấu Hình Thuế Suất Linh Hoạt</div>
             <div class="manual-form">
-                <div class="form-group" style="grid-column: span 2;"><label>Tên Hồ Sơ / Dự Án Thanh Toán</label><input type="text" id="tt_title" placeholder="Thanh toán chi phí bảo dưỡng thiết bị..."></div>
-                <div class="form-group"><label>Tiền Trước Thuế (VNĐ)</label><input type="number" id="tt_amount" oninput="calculateLiveTax()" placeholder="2500000"></div>
-                <div class="form-group"><label>Thuế Suất Tùy Chọn (%)</label><input type="number" id="tt_tax_rate" value="10" oninput="calculateLiveTax()" placeholder="Ví dụ: 0, 5, 8, 10..."></div>
-                <div class="form-group"><label>Tiền Thuế VAT (Tự Tính)</label><input type="text" id="tt_vat_live" readonly style="background:#e2e8f0;" value="0"></div>
-                <div class="form-group"><label>Tổng Thanh Toán Sau Thuế</label><input type="text" id="tt_total_live" readonly style="background:#e2e8f0; font-weight:bold; color:#10b981;" value="0"></div>
+                <div class="form-group" style="grid-column: span 2;"><label>Tên Chứng Từ / Dự Án Chi</label><input type="text" id="tt_title" placeholder="Thanh toán chi phí..."></div>
+                <div class="form-group"><label>Tiền Trước Thuế (VNĐ)</label><input type="number" id="tt_amount" oninput="calculateLiveTax()" placeholder="1500000"></div>
+                <div class="form-group"><label>Thuế Suất Tùy Chọn (%)</label><input type="number" id="tt_tax_rate" value="10" oninput="calculateLiveTax()" placeholder="0, 5, 8, 10..."></div>
+                <div class="form-group"><label>Tiền Thuế VAT</label><input type="text" id="tt_vat_live" readonly style="background:#e2e8f0;" value="0"></div>
+                <div class="form-group"><label>Tổng Tiền Sau Thuế</label><input type="text" id="tt_total_live" readonly style="background:#e2e8f0; font-weight:bold; color:#10b981;" value="0"></div>
                 <div class="form-group" style="justify-content: flex-end;"><button class="btn btn-purple" onclick="addManualThanhtoan()">💰 Duyệt Chi Chứng Từ</button></div>
             </div>
         </div>
         <div class="panel">
-            <div class="panel-title">Sổ Cái Theo Dõi Hồ Sơ Giải Ngân Tài Chính</div>
+            <div class="panel-title">Nhật Ký Giải Ngân & Sổ Cái ERP</div>
             <div class="table-responsive">
                 <table id="thanhtoanTable">
-                    <thead><tr><th>Tên Hồ Sơ / Dự Án Chi</th><th>Tiền Trước Thuế</th><th>Thuế Suất Cấu Hình</th><th>Tiền Thuế Giá Trị Gia Tăng</th><th>Tổng Tiền Sau Thuế</th><th>Trạng Thái ERP</th></tr></thead>
+                    <thead><tr><th>Tên Hồ Sơ / Dự Án Chi</th><th>Tiền Trước Thuế</th><th>Thuế Suất</th><th>Tiền Thuế VAT</th><th>Tổng Tiền Sau Thuế</th><th>Trạng Thái</th></tr></thead>
                     <tbody></tbody>
                 </table>
             </div>
@@ -237,28 +251,25 @@
 
 <div id="qrModal" class="qr-modal" onclick="closeQrModal()">
     <div class="qr-box" onclick="event.stopPropagation()">
-        <h3 style="margin:0 0 5px 0; color:#1e3a8a;">MÃ QR THIẾT BỊ SỐ HÓA</h3>
+        <h3 style="margin:0 0 5px 0; color:#1e3a8a;">MÃ QR THIẾT BỊ ERP</h3>
         <p style="font-size:12px; color:#64748b; margin:0 15px;" id="qrMeta"></p>
         <div id="qrCanvas"></div>
-        <p style="font-size:11px; color:#94a3b8; margin-bottom:15px;">Dùng Camera Điện Thoại hoặc Zalo để quét truy xuất thông tin nhanh</p>
+        <p style="font-size:11px; color:#94a3b8; margin-bottom:15px;">Tương thích tốt với Camera Điện Thoại và ứng dụng Zalo</p>
         <button class="btn btn-danger btn-sm" onclick="closeQrModal()" style="width:100%; justify-content:center;">Đóng Cửa Sổ</button>
-    </div>
-</div>
-
-<div id="previewModal" class="preview-modal">
-    <div class="preview-content">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:2px solid #e2e8f0; padding-bottom:10px;">
-            <h2 style="margin:0; font-size:18px; color:#1e3a8a;">Xem Trước Bản In Báo Cáo ERP</h2>
-            <button onclick="closePreviewModal()" style="background:#ef4444; color:white; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-weight:bold;">Đóng</button>
-        </div>
-        <div class="preview-body"><div id="printReportArea"></div></div>
-        <div class="preview-footer"><button class="btn btn-success" onclick="window.print()">🖨️ Thực Hiện In / Xuất PDF</button></div>
     </div>
 </div>
 
 <script>
     let dataNhansu = [], dataCapphat = [], dataSuachua = [], dataThanhtoan = [];
     let cU = null, cF = null, qrObj = null;
+
+    // Đóng danh sách gợi ý khi bấm ra ngoài
+    document.addEventListener('click', function(e) {
+        if (e.target.id !== 'cp_user') {
+            let drop = document.getElementById('cp_user_dropdown');
+            if(drop) drop.style.display = 'none';
+        }
+    });
 
     window.addEventListener('DOMContentLoaded', () => {
         dataNhansu = JSON.parse(localStorage.getItem('erp_precise_db')) || [];
@@ -270,6 +281,7 @@
         renderCapphatTable();
         renderSuachuaTable();
         renderThanhtoanTable();
+        buildCapphatUnitFilter();
     });
 
     function switchTab(tabId) {
@@ -284,7 +296,7 @@
     function addManualNhansu() {
         let name = document.getElementById('ns_name').value.trim();
         let cccd = document.getElementById('ns_cccd').value.trim();
-        let unit = document.getElementById('ns_unit').value.trim() || "DV-01";
+        let unit = document.getElementById('ns_unit').value.trim().toUpperCase() || "DV-01";
         let birth = document.getElementById('ns_birth').value.trim() || "1990-01-01";
         let gender = document.getElementById('ns_gender').value;
 
@@ -297,6 +309,7 @@
         });
         localStorage.setItem('erp_precise_db', JSON.stringify(dataNhansu));
         renderNhansu();
+        buildCapphatUnitFilter();
         document.getElementById('ns_name').value = ""; document.getElementById('ns_cccd').value = "";
     }
 
@@ -360,44 +373,90 @@
         });
     }
 
-    /* --- PHÂN HỆ 2: CẤP PHÁT THIẾT BỊ & SINH MÃ QR --- */
+    /* --- PHÂN HỆ 2: CẤP PHÁT THIẾT BỊ (ĐỒNG BỘ MÃ ĐƠN VỊ & GỢI Ý TÌM KIẾM) --- */
+    function buildCapphatUnitFilter() {
+        const uSelect = document.getElementById('cp_unit_filter'); if(!uSelect) return;
+        uSelect.innerHTML = '<option value="ALL">-- Tất cả Đơn vị --</option>';
+        let uniqueUnits = [...new Set(dataNhansu.map(e => e.unitId))].sort();
+        uniqueUnits.forEach(u => { if(u) uSelect.innerHTML += `<option value="${u}">${u}</option>`; });
+    }
+
+    function showUserDropdown() {
+        document.getElementById('cp_user_dropdown').style.display = 'block';
+        filterUserDropdown();
+    }
+
+    function filterUserDropdown() {
+        let filterUnit = document.getElementById('cp_unit_filter').value;
+        let keyword = document.getElementById('cp_user').value.toLowerCase().trim();
+        let dropdown = document.getElementById('cp_user_dropdown');
+        
+        let filtered = dataNhansu.filter(emp => {
+            let matchUnit = (filterUnit === "ALL") || (emp.unitId === filterUnit);
+            let matchKeyword = !keyword || emp.fullName.toLowerCase().includes(keyword) || emp.cccd.includes(keyword);
+            return matchUnit && matchKeyword;
+        });
+
+        dropdown.innerHTML = '';
+        if(filtered.length === 0) {
+            dropdown.innerHTML = '<div style="padding:8px; color:#94a3b8; font-size:12px;">Không tìm thấy nhân sự phù hợp</div>';
+            return;
+        }
+
+        filtered.forEach(emp => {
+            let div = document.createElement('div');
+            div.className = 'search-item';
+            div.innerHTML = `<span><b>${emp.fullName}</b> (CCCD: ${emp.cccd.substring(0,6)}...)</span> <span class="item-unit">${emp.unitId}</span>`;
+            div.onclick = function() {
+                document.getElementById('cp_user').value = emp.fullName;
+                document.getElementById('cp_user_cccd').value = emp.cccd;
+                document.getElementById('cp_unit_id').value = emp.unitId; // Gán mã đơn vị tự động sang
+                dropdown.style.display = 'none';
+            };
+            dropdown.appendChild(div);
+        });
+    }
+
     function addManualCapphat() {
         let id = document.getElementById('cp_id').value.trim();
         let name = document.getElementById('cp_name').value.trim();
         let user = document.getElementById('cp_user').value.trim();
+        let unitId = document.getElementById('cp_unit_id').value.trim();
         let date = document.getElementById('cp_date').value;
 
-        if(!id || !name || !user) { alert("Vui lòng nhập đầy đủ thông tin thiết bị bàn giao!"); return; }
+        if(!id || !name || !user) { alert("Vui lòng điền đủ Mã, Tên thiết bị và chọn Người nhận!"); return; }
 
-        dataCapphat.push({ id, name, user, date });
+        dataCapphat.push({ id, name, user, unitId, date });
         localStorage.setItem('erp_capphat_db', JSON.stringify(dataCapphat));
         renderCapphatTable();
 
-        document.getElementById('cp_id').value=""; document.getElementById('cp_name').value=""; document.getElementById('cp_user').value="";
+        document.getElementById('cp_id').value=""; document.getElementById('cp_name').value=""; 
+        document.getElementById('cp_user').value=""; document.getElementById('cp_unit_id').value="";
     }
 
     function renderCapphatTable() {
         const tbody = document.querySelector('#capphatTable tbody'); tbody.innerHTML = '';
-        if(dataCapphat.length === 0) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#64748b;">Chưa ghi nhận dữ liệu cấp phát.</td></tr>'; return; }
+        if(dataCapphat.length === 0) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#64748b;">Chưa có thiết bị nào được cấp phát.</td></tr>'; return; }
         
         dataCapphat.forEach((item, index) => {
             let row = tbody.insertRow();
-            // Thiết lập nội dung QR chuẩn hóa, hiển thị cực đẹp khi quét bằng Zalo / Camera điện thoại
-            let qrString = `HỆ THỐNG ERP TOÀN DIỆN\n-----------------\nMã Thiết Bị: ${item.id}\nTên Thiết Bị: ${item.name}\nNgười Sử Dụng: ${item.user}\nNgày Cấp: ${item.date || 'Chưa cập nhật'}`;
+            // Thiết lập chuỗi dữ liệu chứa cả Mã đơn vị để quét QR ra đầy đủ thông tin chuyên nghiệp
+            let qrString = `HỆ THỐNG ERP TOÀN DIỆN\n-----------------\nMã Thiết Bị: ${item.id}\nTên Thiết Bị: ${item.name}\nNgười Nhận: ${item.user}\nMã Đơn Vị: ${item.unitId || 'N/A'}\nNgày Cấp: ${item.date || '-'}`;
             
             row.innerHTML = `
                 <td><span class="badge badge-dark">${item.id}</span></td>
                 <td><b>${item.name}</b></td>
                 <td>${item.user}</td>
+                <td><span class="badge badge-info">${item.unitId || '-'}</span></td>
                 <td>${item.date || '-'}</td>
-                <td><button class="btn btn-primary btn-sm" onclick="showQrCode(\`${qrString}\`, '${item.id}')">📱 Quét / Xem QR</button></td>
-                <td><button class="btn btn-warning btn-sm" onclick="linkToSuachua('${index}')">🛠️ Báo Hỏng & Sửa Chữa ➔</button></td>
+                <td><button class="btn btn-primary btn-sm" onclick="showQrCode(\`${qrString}\`, '${item.id}')">📱 Quét QR</button></td>
+                <td><button class="btn btn-warning btn-sm" onclick="linkToSuachua('${index}')">🛠️ Báo Sửa ➔</button></td>
             `;
         });
     }
 
     function showQrCode(text, id) {
-        document.getElementById('qrMeta').innerText = "Mã Định Danh ERP: " + id;
+        document.getElementById('qrMeta').innerText = "Mã Định Danh Thiết Bị: " + id;
         document.getElementById('qrCanvas').innerHTML = "";
         qrObj = new QRCode(document.getElementById('qrCanvas'), {
             text: text, width: 200, height: 200, colorDark : "#0f172a", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.M
@@ -406,12 +465,12 @@
     }
     function closeQrModal() { document.getElementById('qrModal').style.display = 'none'; }
 
-    /* LIÊN KẾT LUỒNG ERP 1: CẤP PHÁT THIẾT BỊ ➔ NHẬT KÝ SỬA CHỮA */
+    /* LINK LUỒNG ERP 1: CẤP PHÁT ➔ SỬA CHỮA */
     function linkToSuachua(index) {
         let item = dataCapphat[index];
         document.getElementById('sc_id').value = item.id;
         document.getElementById('sc_name').value = item.name;
-        document.getElementById('sc_content').value = `Bảo dưỡng thiết bị cho cán bộ ${item.user}`;
+        document.getElementById('sc_content').value = `Bảo dưỡng thiết bị thuộc đơn vị [${item.unitId}] bàn giao bởi ${item.user}`;
         switchTab('tab-suachua');
         window.scrollTo({ top: 150, behavior: 'smooth' });
     }
@@ -448,18 +507,18 @@
         });
     }
 
-    /* LIÊN KẾT LUỒNG ERP 2: NHẬT KÝ SỬA CHỮA ➔ HỒ SƠ THANH TOÁN */
+    /* LINK LUỒNG ERP 2: SỬA CHỮA ➔ THANH TOÁN */
     function linkToThanhtoan(index) {
         let item = dataSuachua[index];
         document.getElementById('tt_title').value = `Thanh toán chi phí bảo trì [${item.content}] - Mã thiết bị: ${item.id}`;
         document.getElementById('tt_amount').value = item.cost;
-        document.getElementById('tt_tax_rate').value = 10; // Mặc định gợi ý 10%
+        document.getElementById('tt_tax_rate').value = 10;
         calculateLiveTax();
         switchTab('tab-thanhtoan');
         window.scrollTo({ top: 150, behavior: 'smooth' });
     }
 
-    /* --- PHÂN HỆ 4: HỒ SƠ THANH TOÁN (CÔNG CỤ TÍNH THUẾ LINH HOẠT) --- */
+    /* --- PHÂN HỆ 4: HỒ SƠ THANH TOÁN (THUẾ SUẤT TÙY BIẾN) --- */
     function calculateLiveTax() {
         let amount = parseFloat(document.getElementById('tt_amount').value) || 0;
         let taxRate = parseFloat(document.getElementById('tt_tax_rate').value) || 0;
@@ -476,7 +535,7 @@
         let amount = parseFloat(document.getElementById('tt_amount').value) || 0;
         let taxRate = parseFloat(document.getElementById('tt_tax_rate').value) || 0;
 
-        if(!title || amount <= 0) { alert("Vui lòng nhập tên dự án giải ngân và số tiền hợp lệ!"); return; }
+        if(!title || amount <= 0) { alert("Vui lòng nhập tên hồ sơ giải ngân và số tiền hợp lệ!"); return; }
 
         let vat = amount * (taxRate / 100);
         let total = amount + vat;
@@ -491,7 +550,7 @@
 
     function renderThanhtoanTable() {
         const tbody = document.querySelector('#thanhtoanTable tbody'); tbody.innerHTML = '';
-        if(dataThanhtoan.length === 0) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#64748b;">Chưa có chứng từ kế toán được tạo.</td></tr>'; return; }
+        if(dataThanhtoan.length === 0) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#64748b;">Chưa có hồ sơ thanh toán nào.</td></tr>'; return; }
         
         dataThanhtoan.forEach(item => {
             let row = tbody.insertRow();
@@ -501,12 +560,12 @@
                 <td><span class="badge badge-info">${item.taxRate}%</span></td>
                 <td style="color:#ef4444;">${item.vat.toLocaleString('vi-VN')}</td>
                 <td style="font-weight:bold; color:#10b981;">${item.total.toLocaleString('vi-VN')} VNĐ</td>
-                <td><span class="badge badge-success">✓ Kế toán đã duyệt chi</span></td>
+                <td><span class="badge badge-success">✓ Đã duyệt chi</span></td>
             `;
         });
     }
 
-    /* --- TIỆN ÍCH HỆ THỐNG --- */
+    /* --- TIỆN ÍCH CHUNG --- */
     function processExcelNhansu(input) {
         const file = input.files[0]; if (!file) return;
         const reader = new FileReader();
@@ -519,25 +578,17 @@
                     let row = sheetData[i]; if (!row[1]) continue;
                     dataNhansu.push({
                         stt: dataNhansu.length + 1, fullName: row[1], cccd: row[4], atv: row[6], nndh: row[7],
-                        retireTime: row[8] || "-", unitId: row[9] || "DV", birthOrigin: row[11], gender: row[12]=="X"?"Nữ":"Nam", currentAge: 38
+                        retireTime: row[8] || "-", unitId: String(row[9]).trim().toUpperCase() || "DV", birthOrigin: row[11], gender: row[12]=="X"?"Nữ":"Nam", currentAge: 38
                     });
                 }
                 localStorage.setItem('erp_precise_db', JSON.stringify(dataNhansu));
-                renderNhansu(); alert("Tải dữ liệu Excel thành công!");
-            } catch(err) { alert("Lỗi phân tích tệp."); }
+                renderNhansu(); buildCapphatUnitFilter(); alert("Đã cập nhật dữ liệu nhân sự thành công!");
+            } catch(err) { alert("Lỗi phân tích file."); }
         };
         reader.readAsArrayBuffer(file);
     }
 
-    function openPreviewModal() {
-        const area = document.getElementById('printReportArea');
-        let html = `<h2 style="text-align:center;">BÁO CÁO TỔNG HỢP ERP</h2><table border="1" style="width:100%; border-collapse:collapse;"><thead><tr><th>Stt</th><th>Họ tên</th><th>CCCD</th><th>Đơn vị</th></tr></thead><tbody>`;
-        dataNhansu.forEach(e => { html += `<tr><td>${e.stt}</td><td>${e.fullName}</td><td>${e.cccd}</td><td>${e.unitId}</td></tr>`; });
-        html += `</tbody></table>`; area.innerHTML = html;
-        document.getElementById('previewModal').style.display = 'flex';
-    }
-    function closePreviewModal() { document.getElementById('previewModal').style.display = 'none'; }
-    function clearDatabase(key, type) { if(confirm("Bạn có chắc muốn xóa toàn bộ dữ liệu?")) { localStorage.removeItem(key); if(type==='nhansu'){dataNhansu=[]; renderNhansu();} } }
+    function clearDatabase(key, type) { if(confirm("Xóa toàn bộ dữ liệu?")) { localStorage.removeItem(key); if(type==='nhansu'){dataNhansu=[]; renderNhansu(); buildCapphatUnitFilter();} } }
 </script>
 </body>
 </html>
