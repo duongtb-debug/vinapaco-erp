@@ -34,10 +34,11 @@
         .metric-card h4 { margin: 0; color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
         .metric-card .value { font-size: 18px; font-weight: 800; margin-top: 8px; color: #0f172a; line-height: 1.4; }
 
-        .charts-section { display: grid; grid-template-columns: 32% 34% 34%; gap: 20px; margin-bottom: 25px; }
+        /* CHỈNH SỬA: Cấu trúc Grid 2 cột đều nhau (50% - 50%) cho Biểu đồ Đơn vị và Biểu đồ Hưu trí */
+        .charts-section { display: grid; grid-template-columns: 50% 50%; gap: 20px; margin-bottom: 25px; }
         .chart-panel { background: white; padding: 22px; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
         .chart-panel h3 { margin: 0 0 15px 0; font-size: 14px; color: #1e3a8a; text-transform: uppercase; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px; }
-        .chart-container { position: relative; height: 210px; width: 100%; }
+        .chart-container { position: relative; height: 230px; width: 100%; }
 
         .panel { background: white; padding: 22px; border-radius: 16px; border: 1px solid #e2e8f0; margin-bottom: 25px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
         .panel-title { margin-top: 0; margin-bottom: 18px; color: #1e3a8a; font-size: 17px; font-weight: 700; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px; }
@@ -90,7 +91,7 @@
             <p>Giải pháp tối ưu: Chuẩn hóa hiển thị Năm - Tự động tính toán Tỷ lệ % cơ cấu trực quan</p>
         </div>
         <div style="font-size: 12px; background: rgba(255,255,255,0.15); padding: 8px 16px; border-radius: 8px; font-weight: bold;">
-            Trạng thái: Đã sửa lỗi Năm biến động & Ẩn cột trùng lặp
+            Trạng thái: Đã cập nhật 2 biểu đồ (Đơn vị & Dự báo Hưu trí) cân đối
         </div>
     </header>
 
@@ -111,7 +112,6 @@
         </div>
 
         <div class="charts-section">
-            <div class="chart-panel"><h3>Tỷ Lệ Giới Tính (%)</h3><div class="chart-container"><canvas id="genderChart"></canvas></div></div>
             <div class="chart-panel"><h3>Nhân Sự Tại Từng Mã Đơn Vị</h3><div class="chart-container"><canvas id="unitChart"></canvas></div></div>
             <div class="chart-panel"><h3>Dự Báo Biến Động Hưu Trí</h3><div class="chart-container"><canvas id="forecastChart"></canvas></div></div>
         </div>
@@ -170,7 +170,8 @@
                             <th>NNĐH</th>
                             <th>Năm Về Hưu (Đầy đủ)</th>
                             <th>Mã Đơn Vị</th>
-                            <th>Năm</th> <th>Năm Sinh (Đầy đủ)</th>
+                            <th>Năm</th> 
+                            <th>Năm Sinh (Đầy đủ)</th>
                             <th>Giới Tính</th>
                             <th>Chức Danh Công Việc</th>
                             <th>Tuổi</th>
@@ -255,7 +256,7 @@
 
 <script>
     let dataNhansu = [], dataCapphat = [], dataSuachua = [], dataThanhtoan = [];
-    let cG = null, cU = null, cF = null;
+    let cU = null, cF = null;
 
     window.addEventListener('DOMContentLoaded', () => {
         dataNhansu = JSON.parse(localStorage.getItem('erp_precise_db')) || [];
@@ -277,7 +278,6 @@
         if(tabId === 'tab-nhansu') { setTimeout(renderNSCharts, 200); }
     }
 
-    // GIẢI MÃ LIÊN KHÓA: ĐỔI SỐ SERIAL DATE SANG ĐỊNH DẠNG DD/MM/YYYY
     function formatToVietnameseDate(val) {
         if (!val || String(val).trim() === "") return "-";
         let sVal = String(val).trim();
@@ -299,7 +299,6 @@
         return sVal;
     }
 
-    // CHUẨN HÓA RIÊNG CHO CỘT NĂM: CHUYỂN ĐỔI SỐ SERIAL THÀNH NĂM 4 CHỮ SỐ (VD: 2025)
     function formatToFourDigitYear(val) {
         if (!val || String(val).trim() === "") return "-";
         let sVal = String(val).trim();
@@ -359,10 +358,7 @@
                     let nndh = String(row[7] || "").trim();
                     let retireTime = formatToVietnameseDate(String(row[8] || "").trim());
                     let unitId = String(row[9] || "").trim();
-                    
-                    // CHUẨN HÓA CỘT NĂM: Ép định dạng trả về năm 4 số, xử lý triệt để lỗi số 25425
                     let fluctuationYear = formatToFourDigitYear(String(row[10] || "").trim());
-                    
                     let birthOrigin = formatToVietnameseDate(String(row[11] || "").trim());
                     let femaleIndicator = String(row[12] || "").trim().toUpperCase();
                     let jobTitle = String(row[13] || "").trim();
@@ -382,7 +378,7 @@
                 localStorage.setItem('erp_precise_db', JSON.stringify(dataNhansu));
                 buildFilterDropdowns();
                 renderNhansu();
-                alert(`Đã chuẩn hóa thành công dữ liệu ngày tháng & cột Năm của ${dataNhansu.length} nhân sự!`);
+                alert(`Đã nạp thành công dữ liệu của ${dataNhansu.length} nhân sự!`);
             } catch(err) { alert("Lỗi phân tích dữ liệu: " + err.message); }
         };
         reader.readAsArrayBuffer(file);
@@ -436,7 +432,8 @@
                 <td>${nndhBadge}</td>
                 <td><b>${emp.retireTime}</b></td>
                 <td><span class="badge badge-dark">${emp.unitId}</span></td>
-                <td><b style="color:#0369a1;">${emp.fluctuationYear}</b></td> <td>${emp.birthOrigin}</td>
+                <td><b style="color:#0369a1;">${emp.fluctuationYear}</b></td>
+                <td>${emp.birthOrigin}</td>
                 <td>${emp.gender === "Nữ" ? '🔮 Nữ' : '💼 Nam'}</td>
                 <td style="white-space:normal; font-size:12px; max-width:250px;">${emp.jobTitle}</td>
                 <td><span class="badge badge-info">${emp.currentAge} t</span></td>
@@ -453,7 +450,6 @@
         renderNSCharts();
     }
 
-    // TÍNH TOÁN VÀ THỐNG KÊ TỶ LỆ PHẦN TRĂM CHUYÊN SÂU TRỰC QUAN
     function calculateNSKPIs() {
         let total = dataNhansu.length; if(total === 0) return;
         
@@ -477,16 +473,11 @@
         document.getElementById('avgAge').innerText = avgAge + " tuổi";
     }
 
+    // THAY ĐỔI: Chỉ khởi tạo, quản lý 2 biểu đồ Đơn vị và Hưu trí trải rộng cân đối không gian
     function renderNSCharts() {
         if(dataNhansu.length === 0) return;
-        let female = dataNhansu.filter(e => e.gender === "Nữ").length; let male = dataNhansu.length - female;
-        if(cG) cG.destroy();
-        cG = new Chart(document.getElementById('genderChart'), {
-            type: 'pie',
-            data: { labels: ['Nam', 'Nữ'], datasets: [{ data: [male, female], backgroundColor: ['#1e3a8a', '#ec4899'] }] },
-            options: { responsive: true, maintainAspectRatio: false }
-        });
-
+        
+        // 1. Khởi tạo biểu đồ đơn vị (Cột bên trái mới)
         let units = {}; dataNhansu.forEach(e => units[e.unitId] = (units[e.unitId]||0)+1);
         if(cU) cU.destroy();
         cU = new Chart(document.getElementById('unitChart'), {
@@ -495,12 +486,13 @@
             options: { responsive: true, maintainAspectRatio: false }
         });
 
+        // 2. Khởi tạo lại biểu đồ hưu trí (Đường bên phải mới)
         let fore = {}; dataNhansu.forEach(e => { if(e.retireTime !== "-") { let y = extractYear(e.retireTime); if(y>2000) fore[y] = (fore[y]||0)+1; } });
         let yrs = Object.keys(fore).sort((a,b)=>a-b);
         if(cF) cF.destroy();
         cF = new Chart(document.getElementById('forecastChart'), {
             type: 'line',
-            data: { labels: yrs, datasets: [{ label: 'Nghỉ hưu', data: yrs.map(y=>fore[y]), borderColor: '#ef4444', fill: true, backgroundColor:'rgba(239,68,68,0.05)' }] },
+            data: { labels: yrs, datasets: [{ label: 'Số lượng nhân sự nghỉ hưu', data: yrs.map(y=>fore[y]), borderColor: '#ef4444', fill: true, backgroundColor:'rgba(239,68,68,0.05)' }] },
             options: { responsive: true, maintainAspectRatio: false }
         });
     }
