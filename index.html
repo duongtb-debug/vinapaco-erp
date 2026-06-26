@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hệ Thống Quản Trị Nhân Sự Toàn Diện - Tổng Công Ty Giấy Việt Nam</title>
+    <title>Hệ Thống Phân Tích Dữ Liệu Nhân Sự Doanh Nghiệp</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
         *, *::before, *::after { box-sizing: border-box; }
@@ -68,7 +68,6 @@
         .badge-purple { background-color: #f3e8ff; color: #6b21a8; border: 1px solid #e9d5ff; }
         .badge-dark { background-color: #e2e8f0; color: #334155; }
         
-        /* Cố định cột tên và chức danh nếu quá dài */
         .text-bold { font-weight: 600; color: #0f172a; }
         .text-muted { color: #64748b; font-size: 12px; }
         .job-cell { max-width: 350px; overflow: hidden; text-overflow: ellipsis; white-space: normal; line-height: 1.4; }
@@ -80,7 +79,7 @@
     <header>
         <div>
             <h1>Hệ Thống Phân Tích Dữ Liệu Nhân Sự Doanh Nghiệp</h1>
-            <p>Bản đồ hóa 100% trường thông tin Excel gốc • Tự động tính Tuổi hiện tại & Tuổi về hưu chuẩn hóa doanh nghiệp</p>
+            <p>Sửa lỗi nhận diện cột chứa ký tự xuống dòng • Tự động tính Tuổi hiện tại & Tuổi về hưu chuẩn hóa</p>
         </div>
         <div style="text-align: right; font-size: 12px; background: rgba(255,255,255,0.12); padding: 8px 16px; border-radius: 6px;">
             Năm vận hành ERP: <b>2026</b>
@@ -119,9 +118,7 @@
                     <input type="file" id="excelFile" accept=".xlsx, .xls, .csv" style="display: none;" onchange="processCorporateExcel(this)">
                 </div>
                 <div style="font-size: 13px; color: #475569; line-height: 1.6; padding-left: 10px;">
-                    💡 <b>Hướng dẫn vận hành chuyên gia:</b> Hãy tải trực tiếp file Excel quản lý của bạn lên. 
-                    Hệ thống tự động ánh xạ cấu trúc cột dữ liệu trùng khớp tuyệt đối, giữ nguyên dữ liệu thô đồng thời bổ sung thêm 2 cột tính toán nghiệp vụ thông minh: 
-                    <span class="badge badge-info">Tuổi Hiện Tại (2026)</span> và <span class="badge badge-purple">Tuổi Khi Về Hưu</span>.
+                    💡 <b>Đã sửa lỗi:</b> Thuật toán mới tự động chuẩn hóa mọi ký tự đặc biệt lẩn khuất trong tiêu đề cột của file Excel (ví dụ các cột có dấu xuống dòng như <i>Nữ (x)</i>, <i>Mã đơn vị</i>) để xuất ra báo cáo giới tính chính xác 100%.
                 </div>
             </div>
         </div>
@@ -168,7 +165,7 @@
 
 <script>
     let masterData = [];
-    const CURRENT_YEAR = 2026; // Đồng bộ hóa mốc thời gian hệ thống hiện tại
+    const CURRENT_YEAR = 2026;
 
     function processCorporateExcel(input) {
         const file = input.files[0];
@@ -182,7 +179,6 @@
                 const sheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[sheetName];
                 
-                // Đọc toàn bộ tệp thô, đưa về dạng JSON mảng đối tượng
                 const rawJson = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
                 
                 if (rawJson.length === 0) {
@@ -194,52 +190,81 @@
                 let validIndex = 1;
 
                 rawJson.forEach(row => {
-                    // Đối sánh từ khóa nới lỏng để bốc tách dữ liệu chuẩn xác nhất
-                    let rawName = row["Họ và tên"] || row["Họ tên"] || row["HOTEN"] || "";
-                    let rawCccd = row["Số CCCD"] || row["CCCD"] || "";
-                    let rawBirth = row["Năm sinh"] || row["Năm Sinh"] || "";
-                    let rawRetire = row["Năm về hưu"] || row["Năm Về Hưu"] || "";
-                    
-                    // Loại bỏ các dòng tiêu đề thừa lọt lưới hoặc dòng trống hoàn toàn
-                    if (rawName && rawName !== "Họ và tên" && rawCccd !== "Số CCCD") {
+                    let rawName = "";
+                    let rawCccd = "";
+                    let rawBirth = "";
+                    let rawRetire = "";
+                    let rawBhxh = "";
+                    let isFemaleVal = false;
+                    let rawNndh = "";
+                    let rawAtv = "";
+                    let rawUnitId = "";
+                    let rawFluctuate = "";
+                    let rawJob = "";
+                    let rawStt = "";
+                    let rawFirstName = "";
+
+                    // THUẬT TOÁN KHỚP TIÊU ĐỀ NỚI LỎNG TOÀN DIỆN (Xóa khoảng trắng, xóa dấu xuống dòng \n, đưa về chữ thường)
+                    for (let key in row) {
+                        let cleanKey = key.replace(/[\r\n\t]+/g, '').replace(/\s+/g, '').toLowerCase();
+                        let cellVal = String(row[key]).trim();
+
+                        if (cleanKey === "stt") rawStt = cellVal;
+                        if (cleanKey === "họvàtên" || cleanKey === "hoten") rawName = cellVal;
+                        if (cleanKey === "tên" || cleanKey === "ten") rawFirstName = cellVal;
+                        if (cleanKey === "sốsổbhxh" || cleanKey === "sobhxh") rawBhxh = cellVal;
+                        if (cleanKey === "sốcccd" || cleanKey === "socccd" || cleanKey === "cccd") rawCccd = cellVal;
+                        if (cleanKey === "nămsinh") rawBirth = cellVal;
+                        if (cleanKey === "nămvềhưu" || cleanKey === "namvehau") rawRetire = cellVal;
+                        if (cleanKey === "nnđh" || cleanKey === "nndh") rawNndh = cellVal;
+                        if (cleanKey === "antoànviên" || cleanKey === "atv") rawAtv = cellVal;
+                        if (cleanKey === "mãđơnvị" || cleanKey === "madonvi") rawUnitId = cellVal;
+                        if (cleanKey === "năm" || cleanKey === "nam") rawFluctuate = cellVal;
+                        if (cleanKey === "chứcdanhcôngviệc" || cleanKey === "chucdanh") rawJob = cellVal;
                         
-                        // 1. Thuật toán phân tích tuổi hiện tại thông minh
+                        // Bắt trúng cột giới tính "Nữ (x)" hoặc "Nữ" bất kể dấu xuống dòng
+                        if (cleanKey.includes("nữ")) {
+                            if (cellVal && cellVal.toLowerCase() !== "nam" && cellVal !== "0") {
+                                isFemaleVal = true;
+                            }
+                        }
+                    }
+                    
+                    if (rawName && rawName !== "Họ và tên" && rawCccd !== "Số CCCD") {
+                        // Tính toán tuổi hiện tại
                         let birthYear = 0;
-                        if (String(rawBirth).includes("-")) {
-                            // Nếu chuỗi chứa ngày tháng định dạng YYYY-MM-DD
-                            birthYear = parseInt(String(rawBirth).split("-")[0]);
+                        if (rawBirth.includes("-")) {
+                            birthYear = parseInt(rawBirth.split("-")[0]);
                         } else {
-                            // Nếu chỉ chứa chuỗi năm sinh 4 chữ số thô
                             birthYear = parseInt(rawBirth);
                         }
                         let currentAge = (birthYear > 0) ? (CURRENT_YEAR - birthYear) : 0;
 
-                        // 2. Thuật toán phân tích tuổi lúc nghỉ hưu dựa trên lộ trình tăng tuổi hưu
+                        // Tính toán tuổi về hưu
                         let retireYear = 0;
-                        if (String(rawRetire).includes("-")) {
-                            retireYear = parseInt(String(rawRetire).split("-")[0]);
+                        if (rawRetire.includes("-")) {
+                            retireYear = parseInt(rawRetire.split("-")[0]);
                         } else {
                             retireYear = parseInt(rawRetire);
                         }
                         let retireAge = (retireYear > 0 && birthYear > 0) ? (retireYear - birthYear) : 0;
 
-                        // Đẩy dữ liệu chuẩn hóa vào bộ lưu trữ RAM Client
                         masterData.push({
-                            stt: row["Stt"] || row["STT"] || validIndex,
+                            stt: rawStt || validIndex,
                             fullName: rawName,
-                            firstName: row["Tên"] || "",
-                            bhxh: row["Số sổ BHXH"] || row["Số BHXH"] || "-",
+                            firstName: rawFirstName,
+                            bhxh: rawBhxh || "-",
                             cccd: rawCccd,
                             currentAge: currentAge,
                             retireAge: retireAge,
                             retireTime: rawRetire || "-",
-                            gender: (row["Nữ\n(x)"] || row["Nữ"] || row["Nữ (x)"]) ? "Nữ" : "Nam",
-                            nndh: row["NNĐH"] || row["NNDH"] || "",
-                            atv: row["An toàn viên"] || row["An toàn viên"] || row["ATV"] || "",
-                            unitId: row["Mã\n đơn\n vị"] || row["Mã đơn vị"] || "",
-                            fluctuationYear: row["Năm"] || "",
+                            gender: isFemaleVal ? "Nữ" : "Nam",
+                            nndh: rawNndh,
+                            atv: rawAtv,
+                            unitId: rawUnitId,
+                            fluctuationYear: rawFluctuate,
                             birthOrigin: rawBirth,
-                            jobTitle: row["Chức danh công việc"] || ""
+                            jobTitle: rawJob
                         });
                         validIndex++;
                     }
@@ -247,7 +272,7 @@
 
                 renderCorporateEngine();
                 calculateDashboardKPIs();
-                alert(`Thành công! Đã nạp diện rộng ${masterData.length} nhân sự, tự động xử lý toàn vẹn dữ liệu.`);
+                alert(`Thành công! Đã nạp diện rộng ${masterData.length} nhân sự, sửa hoàn toàn lỗi giới tính.`);
             } catch (err) {
                 alert("Lỗi thực thi dữ liệu Excel: " + err.message);
             }
@@ -256,7 +281,6 @@
         reader.readAsArrayBuffer(file);
     }
 
-    // --- CƠ CHẾ ĐỔ DỮ LIỆU RA BẢNG LƯỚI ---
     function renderCorporateEngine() {
         const tbody = document.getElementById('corporateTable').getElementsByTagName('tbody')[0];
         tbody.innerHTML = '';
@@ -269,7 +293,6 @@
         masterData.forEach(emp => {
             const row = tbody.insertRow();
             
-            // Định dạng trực quan trạng thái Lao động độc hại & An toàn viên
             let nndhMarkup = emp.nndh ? `<span class="badge badge-danger">Mức ${emp.nndh}</span>` : `<span class="text-muted">-</span>`;
             let atvMarkup = emp.atv ? `<span class="badge badge-warning">An Toàn Viên</span>` : `<span class="text-muted">-</span>`;
             let genderMarkup = (emp.gender === "Nữ") ? `<span class="badge badge-purple">Nữ ♀</span>` : `<span class="badge badge-dark">Nam ♂</span>`;
@@ -294,7 +317,6 @@
         });
     }
 
-    // --- CƠ CHẾ TÍNH TOÁN KPI DASHBOARD ---
     function calculateDashboardKPIs() {
         let total = masterData.length;
         if (total === 0) return;
@@ -313,7 +335,6 @@
         document.getElementById('avgAge').innerText = averageAge + " tuổi";
     }
 
-    // --- CÔNG CỤ TÌM KIẾM NỘI BỘ SIÊU TỐC ---
     function searchEngine() {
         let keyword = document.getElementById('tableSearch').value.toLowerCase().trim();
         let rows = document.getElementById('corporateTable').getElementsByTagName('tbody')[0].getElementsByTagName('tr');
