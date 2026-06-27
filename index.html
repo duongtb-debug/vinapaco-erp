@@ -143,11 +143,11 @@
                 <div class="form-group"><label>Họ và Tên</label><input type="text" id="ns_name" placeholder="Nguyễn Văn A"></div>
                 <div class="form-group"><label>Số Sổ BHXH</label><input type="text" id="ns_bhxh" placeholder="791..."></div>
                 <div class="form-group"><label>Số CCCD</label><input type="text" id="ns_cccd" placeholder="025..."></div>
-                <div class="form-group"><label>An Tâm Viên / An Toàn Viên</label><input type="text" id="ns_atv" placeholder="Ghi số hoặc bỏ trống"></div>
-                <div class="form-group"><label>Nghề Độc Hại (NNĐH)</label><input type="text" id="ns_nndh" placeholder="Ghi số hoặc bỏ trống"></div>
+                <div class="form-group"><label>An Toàn Viên</label><input type="text" id="ns_atv" placeholder="Ghi số hoặc bỏ trống"></div>
+                <div class="form-group"><label>NNĐH</label><input type="text" id="ns_nndh" placeholder="Ghi số hoặc bỏ trống"></div>
                 <div class="form-group"><label>Năm Về Hưu</label><input type="text" id="ns_retire" placeholder="YYYY hoặc ngày cụ thể"></div>
                 <div class="form-group"><label>Mã Đơn Vị</label><input type="text" id="ns_unit" value="DV-01"></div>
-                <div class="form-group"><label>Ngày Tháng Năm Sinh</label><input type="text" id="ns_birth" placeholder="DD/MM/YYYY hoặc YYYY"></div>
+                <div class="form-group"><label>Năm Sinh (Ngày tháng năm sinh)</label><input type="text" id="ns_birth" placeholder="DD/MM/YYYY hoặc YYYY"></div>
                 <div class="form-group"><label>Giới Tính</label><select id="ns_gender"><option value="Nam">Nam</option><option value="Nữ">Nữ</option></select></div>
                 <div class="form-group"><label>Chức Danh Công Việc</label><input type="text" id="ns_job_title" placeholder="Kỹ sư, Trưởng phòng..."></div>
                 <div class="form-group" style="justify-content: flex-end; display:flex; gap:8px; grid-column: span 2;">
@@ -304,7 +304,7 @@
 
 <script>
     let dataNhansu = [], dataCapphat = [], dataSuachua = [], dataThanhtoan = [];
-    let dynamicColumns = []; // Lưu trữ tên các cột tự phát sinh từ file Excel về sau
+    let dynamicColumns = []; 
     let currentUploadedFiles = [];
     let chartPieObj = null, chartBarObj = null, cU = null, cF = null;
 
@@ -380,7 +380,7 @@
             stt: dataNhansu.length + 1, year: year, fullName: name, lastName: extractLastName(name),
             cccd: cccd || "-", bhxh: bhxh || "-", jobTitle: jobTitle || "-", atv: atv || "", nndh: nndh || "", 
             unitId: unit || "DV-01", birthOrigin: birth || "1990", gender: gender, retireTime: retire, currentAge: (2026 - by),
-            extraFields: {} // Không có trường động khi thêm tay
+            extraFields: {}
         };
 
         dataNhansu.push(newEmp);
@@ -391,7 +391,7 @@
 
     function processExcelNhansu(input) {
         const file = input.files[0]; if (!file) return;
-        showStatus("⏳ Hệ thống đang quét tiêu đề cột động và nạp dữ liệu Excel. Vui lòng đợi...", "loading");
+        showStatus("⏳ Hệ thống đang phân tích chính xác các trường dữ liệu cố định...", "loading");
 
         const reader = new FileReader();
         reader.onload = function(e) {
@@ -408,7 +408,7 @@
 
                 let headerIdx = -1;
                 let rawHeaders = [];
-                let colIdxs = { year: -1, name: -1, cccd: -1, bhxh: -1, atv: -1, nndh: -1, retire: -1, unit: -1, birth: -1, female: -1, jobTitle: -1 };
+                let colIdxs = { year: -1, name: -1, bhxh: -1, cccd: -1, atv: -1, nndh: -1, retire: -1, unit: -1, birth: -1, female: -1, jobTitle: -1 };
 
                 for (let i = 0; i < Math.min(sheetData.length, 15); i++) {
                     let cells = sheetData[i];
@@ -424,17 +424,17 @@
                         rawHeaders = cells.map(c => String(c).trim());
                         cells.forEach((cell, idx) => {
                             let text = String(cell).toLowerCase().replace(/[\s\n\r]/g, '');
-                            if (text === "năm") colIdxs.year = idx;
-                            else if (text.includes("họvàtên")) colIdxs.name = idx;
+                            if (text === "năm" || text === "nam") colIdxs.year = idx;
+                            else if (text.includes("họvàtên") || text === "họtên") colIdxs.name = idx;
                             else if (text.includes("cccd") || text.includes("chứngminh") || text.includes("sốcccd")) colIdxs.cccd = idx;
                             else if (text.includes("bhxh") || text.includes("bảohiểm") || text.includes("sổbhxh")) colIdxs.bhxh = idx;
-                            else if (text.includes("chứcdanh") || text.includes("côngviệc") || text.includes("nghềnghiệp")) colIdxs.jobTitle = idx;
-                            else if (text.includes("antoànviên") || text.includes("atv") || text.includes("antâmviên")) colIdxs.atv = idx;
-                            else if (text.includes("nndh") || text.includes("độchại")) colIdxs.nndh = idx;
+                            else if (text.includes("chứcdanh") || text.includes("côngviệc") || text.includes("chứcvụ")) colIdxs.jobTitle = idx;
+                            else if (text.includes("antoànviên") || text === "atv" || text.includes("antâmviên")) colIdxs.atv = idx;
+                            else if (text.includes("nndh") || text.includes("độchại") || text.includes("nghềđộchại")) colIdxs.nndh = idx;
                             else if (text.includes("vềhưu") || text.includes("hưutrí") || text.includes("nămvềhưu")) colIdxs.retire = idx;
                             else if (text.includes("đơnvị") || text.includes("mãđơnvị")) colIdxs.unit = idx;
                             else if (text.includes("nămsinh") || text.includes("ngàysinh")) colIdxs.birth = idx;
-                            else if (text.includes("nữ") || text.includes("giớitính")) colIdxs.female = idx;
+                            else if (text.includes("nữ") || text.includes("giớitính") || text === "nam/nữ") colIdxs.female = idx;
                         });
                         break;
                     }
@@ -446,13 +446,21 @@
                     colIdxs = { year: 0, name: 1, bhxh: 2, cccd: 3, atv: 4, nndh: 5, retire: 6, unit: 7, birth: 8, female: 9, jobTitle: 10 };
                 }
 
-                // Tìm kiếm xem có cột nào nằm ngoài các cột chuẩn không để tự động mở rộng
+                // CHẶN NGHIÊM NGẶT: Lọc các cột động thực sự, loại trừ hoàn toàn các từ khóa cột chuẩn
                 let standardIndices = Object.values(colIdxs).filter(idx => idx !== -1);
                 let newDynamicCols = [];
                 rawHeaders.forEach((hName, idx) => {
                     if (hName && !standardIndices.includes(idx)) {
-                        let lowerH = hName.toLowerCase();
-                        if(!lowerH.includes("stt") && !lowerH.includes("tên")) {
+                        let lowerH = hName.toLowerCase().replace(/[\s\n\r]/g, '');
+                        // Kiểm tra không trùng với các từ khóa lõi của cột chuẩn
+                        let isStandardKeyword = lowerH.includes("stt") || lowerH.includes("tên") || 
+                                                lowerH.includes("bhxh") || lowerH.includes("cccd") || 
+                                                lowerH.includes("antoàn") || lowerH.includes("atv") || 
+                                                lowerH.includes("nndh") || lowerH.includes("độchại") || 
+                                                lowerH.includes("vềhưu") || lowerH.includes("đơnvị") || 
+                                                lowerH.includes("năm") || lowerH.includes("giớitính") || 
+                                                lowerH.includes("chứcdanh");
+                        if (!isStandardKeyword) {
                             newDynamicCols.push(hName);
                         }
                     }
@@ -461,7 +469,7 @@
                 localStorage.setItem('erp_dynamic_cols', JSON.stringify(dynamicColumns));
 
                 function getCleanText(cellVal) {
-                    if (cellVal === undefined || cellVal === null) return "-";
+                    if (cellVal === undefined || cellVal === null) return "";
                     return String(cellVal).trim();
                 }
 
@@ -491,16 +499,14 @@
                     let fText = String(femaleVal).trim().toUpperCase();
                     if(fText === "X" || fText === "1" || fText === "NỮ" || fText === "NU") {
                         genderStr = "Nữ";
-                    } else if (fText === "NAM") {
-                        genderStr = "Nam";
                     }
 
-                    // Thu thập dữ liệu cho các cột động tự mở rộng về sau
+                    // Chỉ nạp các trường thực sự nằm ngoài cấu trúc chuẩn vào extraFields
                     let extraData = {};
                     dynamicColumns.forEach(colName => {
                         let cIdx = rawHeaders.indexOf(colName);
                         if(cIdx !== -1) {
-                            extraData[colName] = getCleanText(row[cIdx]);
+                            extraData[colName] = getCleanText(row[cIdx]) || "-";
                         }
                     });
 
@@ -527,10 +533,10 @@
                 localStorage.setItem('erp_precise_db', JSON.stringify(dataNhansu));
                 
                 renderNhansu(); 
-                showStatus("🎉 ĐỒNG BỘ THÀNH CÔNG! Đã nạp " + dataNhansu.length + " hồ sơ. Phát hiện thêm " + dynamicColumns.length + " cột trường mở rộng động.", "success");
+                showStatus("🎉 Nạp dữ liệu hoàn tất! An toàn viên & NNĐH đã được giữ cố định tại các ô chuẩn.", "success");
             } catch(err) { 
                 console.error(err);
-                showStatus("❌ Lỗi cấu trúc hoặc tệp Excel lỗi: " + err.message, "error");
+                showStatus("❌ Lỗi xử lý: " + err.message, "error");
             }
         };
         reader.readAsArrayBuffer(file);
@@ -571,7 +577,6 @@
 
     function renderTableHeaderWithDynamic() {
         const headerRow = document.getElementById('corporateTableHeader');
-        // Reset về cấu trúc tiêu chuẩn yêu cầu
         headerRow.innerHTML = `
             <th>Stt</th>
             <th>Họ và Tên</th>
@@ -587,7 +592,6 @@
             <th>Giới Tính</th>
             <th>Chức Danh Công Việc</th>
         `;
-        // Tự động append thêm các cột động mở rộng phát sinh từ file Excel về sau
         dynamicColumns.forEach(colName => {
             headerRow.innerHTML += `<th style="background-color: #0369a1;">${colName} (Mở rộng)</th>`;
         });
@@ -613,7 +617,6 @@
         const tbody = document.querySelector('#corporateTable tbody'); tbody.innerHTML = '';
         filtered.forEach((emp, index) => {
             let extraTdHtml = "";
-            // Đảm bảo dữ liệu trường tự mở rộng không làm vỡ cấu trúc hàng
             dynamicColumns.forEach(colName => {
                 let val = (emp.extraFields && emp.extraFields[colName]) ? emp.extraFields[colName] : "-";
                 extraTdHtml += `<td style="background: #f8fafc; font-weight: 500;">${val}</td>`;
@@ -625,8 +628,8 @@
                 <td style="color:#2563eb; font-weight:700;">${emp.lastName}</td>
                 <td>${emp.bhxh}</td>
                 <td>${emp.cccd}</td>
-                <td>${emp.atv || '-'}</td>
-                <td>${emp.nndh || '-'}</td>
+                <td style="font-weight:600; color:#0369a1;">${emp.atv || '-'}</td>
+                <td style="font-weight:600; color:#b45309;">${emp.nndh || '-'}</td>
                 <td style="color:#b91c1c; font-weight:bold;">${emp.retireTime}</td>
                 <td><span class="badge badge-dark">${emp.unitId}</span></td>
                 <td>${emp.year}</td>
@@ -719,10 +722,10 @@
 
         if(editIndex > -1) {
             dataCapphat[editIndex] = { id, name, user: user || "Chưa bàn giao", unitId: unitId || "N/A" };
-            showStatus("🎉 Cập nhật thông tin cấp phát và làm mới mã QR thành công!", "success", "capphatStatusPanel");
+            showStatus("🎉 Cập nhật thông tin cấp phát thành công!", "success", "capphatStatusPanel");
         } else {
             dataCapphat.push({ id, name, user: user || "Chưa bàn giao", unitId: unitId || "N/A" });
-            showStatus("🎉 Tạo cấp phát thành công và hệ thống đã sinh mã QR nét cao!", "success", "capphatStatusPanel");
+            showStatus("🎉 Tạo cấp phát thiết bị thành công!", "success", "capphatStatusPanel");
         }
 
         localStorage.setItem('erp_capphat_db', JSON.stringify(dataCapphat));
@@ -769,9 +772,7 @@
         const tbody = document.querySelector('#capphatTable tbody'); if(!tbody) return;
         tbody.innerHTML = "";
         dataCapphat.forEach((item, index) => {
-            // Chuỗi mã hóa dữ liệu tinh gọn theo chuẩn ERP để quét đạt hiệu suất tối đa
             let qrPayload = encodeURIComponent(`Mã TB: ${item.id} | Tên: ${item.name} | Người nhận: ${item.user} | Đơn vị: ${item.unitId}`);
-            // Sử dụng Google Chart QR API với kích thước chuẩn 150x150, mức chống nhiễu cao H giúp hiển thị siêu nét và không bị trống
             let qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${qrPayload}&ecc=H&margin=0`;
 
             tbody.innerHTML += `<tr>
