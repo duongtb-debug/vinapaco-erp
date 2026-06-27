@@ -82,7 +82,7 @@
 
     <div class="nav-tabs">
         <button class="tab-btn active" id="btn-tab-nhansu" onclick="switchTab('tab-nhansu')">👥 1. Quản Lý Nhân Sự</button>
-        <button class="tab-btn" id="btn-tab-capphat" onclick="switchTab('tab-capphat')">📦 2. Cấp Phát Bảo Hộ</button>
+        <button class="tab-btn" id="btn-tab-capphat" onclick="switchTab('tab-capphat')">📦 2. Cấp Phát Trang Thiết Bị / Bảo Hộ</button>
         <button class="tab-btn" id="btn-tab-suachua" onclick="switchTab('tab-suachua')">🛠️ 3. Nhật Trình Sửa Chữa</button>
     </div>
 
@@ -151,16 +151,45 @@
 
     <div id="tab-capphat" class="tab-content">
         <div class="panel">
-            <div class="panel-title">Ghi Nhận Cấp Phát Thiết Bị Bảo Hộ</div>
+            <div class="panel-title">Ghi Nhận Cấp Phát Trang Thiết Bị / Bảo Hộ</div>
             <div class="manual-form">
-                <div class="form-group"><label>Tên Thiết Bị</label><input type="text" id="cp_name" value="Quần áo bảo hộ lao động"></div>
-                <div class="form-group"><label>Mã Thiết Bị</label><input type="text" id="cp_id" value="TB-BHLD-01"></div>
-                <div class="form-group"><label>Người Nhận thiết bị</label><input type="text" id="cp_user" placeholder="Nhập tên nhân viên..."></div>
-                <div class="form-group" style="justify-content: flex-end; grid-column: span 3;"><button class="btn btn-primary" onclick="addManualCapphat()">📦 Tạo Cấp Phát</button></div>
+                <div class="form-group">
+                    <label>Tên Trang Thiết Bị / Bảo Hộ</label>
+                    <input type="text" id="cp_name" value="Quần áo bảo hộ lao động">
+                </div>
+                <div class="form-group">
+                    <label>Mã Thiết Bị / Bảo Hộ (Tự động sinh)</label>
+                    <input type="text" id="cp_id" readonly style="background-color: #f1f5f9; font-weight: 700; color: #1e3a8a;">
+                </div>
+                <div class="form-group">
+                    <label>Bộ phận / Nhà máy / Xí nghiệp / Đơn vị</label>
+                    <select id="cp_unit_filter" onchange="updateUserDropdownByUnit()">
+                        <option value="ALL">-- Tất cả đơn vị / phòng ban --</option>
+                    </select>
+                </div>
+                <div class="form-group" style="grid-column: span 3;">
+                    <label>Người Nhận (Được liên kết trực tiếp từ danh sách nhân sự)</label>
+                    <select id="cp_user_select" style="font-weight: 600; color: #0f172a;">
+                        <option value="">-- Chọn nhân viên nhận thiết bị --</option>
+                    </select>
+                </div>
+                <div class="form-group" style="justify-content: flex-end; grid-column: span 3; margin-top: 5px;">
+                    <button class="btn btn-primary" onclick="addManualCapphat()">📦 Xác Nhận Cấp Phát</button>
+                </div>
             </div>
+
+            <div class="panel-title" style="font-size: 14px; margin-top: 25px;">Nhật Ký Cấp Phát Đang Lưu Trữ</div>
             <div class="table-responsive">
                 <table id="capphatTable">
-                    <thead><tr><th>Mã TB</th><th>Tên Thiết Bị</th><th>Người Nhận</th><th>Hành Động</th></tr></thead>
+                    <thead>
+                        <tr>
+                            <th>Mã Thiết Bị / Bảo Hộ</th>
+                            <th>Tên Trang Thiết Bị</th>
+                            <th>Đơn Vị</th>
+                            <th>Người Nhận (Họ và tên - CCCD)</th>
+                            <th>Hành Động</th>
+                        </tr>
+                    </thead>
                     <tbody></tbody>
                 </table>
             </div>
@@ -201,7 +230,14 @@
         renderNhansu();
         renderCapphatTable();
         renderSuachuaTable();
+        generateAutoIdForEquipment();
     });
+
+    // Tự động sinh mã thiết bị ngẫu nhiên duy nhất
+    function generateAutoIdForEquipment() {
+        const randomNum = Math.floor(100000 + Math.random() * 900000);
+        document.getElementById('cp_id').value = `TB-${randomNum}`;
+    }
 
     function formatExcelDate(cellVal, onlyYear = false) {
         if (cellVal === undefined || cellVal === null || String(cellVal).trim() === "") return "-";
@@ -299,14 +335,12 @@
 
                 if (headerIdx === -1) { showStatus("❌ Không tìm thấy dòng tiêu đề hợp lệ.", "error"); return; }
 
-                // Chuẩn hóa tiêu đề bằng cách khử toàn bộ khoảng trắng, dấu xuống dòng và chuẩn hóa Unicode dạng NFC
                 let cleanHeaders = sheetData[headerIdx].map(c => String(c).trim().toLowerCase().normalize("NFC").replace(/[\s\n\r]/g, ''));
                 
                 let idxFullName = cleanHeaders.findIndex(h => h.includes("họvàtên") || h.includes("hovaten"));
                 let idxBhxh = cleanHeaders.findIndex(h => h.includes("sốsổbhxh") || h.includes("sosobhxh") || h == "bhxh");
                 let idxCccd = cleanHeaders.findIndex(h => h.includes("sốcccd") || h.includes("socccd") || h == "cccd");
                 
-                // GIẢI PHÁP ĐỘC QUYỀN REGEX: Quét trúng cột An toàn viên và Mã đơn vị bất kể có bao nhiêu dấu cách ở giữa
                 let idxAtv = cleanHeaders.findIndex(h => /antoànviên|antoanvien|toanvien|atv/.test(h));
                 let idxNndh = cleanHeaders.findIndex(h => /nnđh|nndh|độchại|dochai/.test(h));
                 let idxRetireOld = cleanHeaders.findIndex(h => /nămvềhưu|namvehuu|vehuu/.test(h));
@@ -384,11 +418,40 @@
         }
     }
 
+    // Xây dựng bộ thả xuống lọc mã đơn vị cho cả phần Nhân sự và Cấp phát thiết bị
     function buildUnitDropdown() {
-        const uSelect = document.getElementById('filterUnit'); if(!uSelect) return;
-        uSelect.innerHTML = '<option value="ALL">Tất cả mã đơn vị</option>';
+        const uSelect = document.getElementById('filterUnit');
+        const cpUnitSelect = document.getElementById('cp_unit_filter');
+        
+        if(uSelect) uSelect.innerHTML = '<option value="ALL">Tất cả mã đơn vị</option>';
+        if(cpUnitSelect) cpUnitSelect.innerHTML = '<option value="ALL">-- Toàn bộ Đơn vị / Phòng ban / Nhà máy / Xí nghiệp --</option>';
+        
         let uniqueUnits = [...new Set(dataNhansu.map(e => e.rightStt).filter(u => u && u !== "-"))].sort();
-        uniqueUnits.forEach(u => { uSelect.innerHTML += `<option value="${u}">${u}</option>`; });
+        uniqueUnits.forEach(u => { 
+            if(uSelect) uSelect.innerHTML += `<option value="${u}">${u}</option>`; 
+            if(cpUnitSelect) cpUnitSelect.innerHTML += `<option value="${u}">Đơn vị / Khối: ${u}</option>`;
+        });
+        
+        // Cập nhật lại dropdown người nhận tương ứng
+        updateUserDropdownByUnit();
+    }
+
+    // Hàm cập nhật danh sách nhân viên tương ứng với Đơn vị được chọn trong phần Cấp Phát
+    function updateUserDropdownByUnit() {
+        const selectedUnit = document.getElementById('cp_unit_filter').value;
+        const userSelect = document.getElementById('cp_user_select');
+        if(!userSelect) return;
+
+        userSelect.innerHTML = '<option value="">-- Chọn nhân viên nhận thiết bị --</option>';
+        
+        let filteredEmps = dataNhansu;
+        if(selectedUnit !== "ALL") {
+            filteredEmps = dataNhansu.filter(e => e.rightStt === selectedUnit);
+        }
+
+        filteredEmps.forEach(emp => {
+            userSelect.innerHTML += `<option value="${emp.fullName} (${emp.rightStt})" data-unit="${emp.rightStt}">${emp.fullName} (CCCD: ${emp.cccd} - Mã ĐV: ${emp.rightStt})</option>`;
+        });
     }
 
     function resetPageAndFilter() {
@@ -456,7 +519,7 @@
         executeAdvancedFilter();
     }
 
-    UX: function renderNhansu() {
+    function renderNhansu() {
         buildUnitDropdown();
         executeAdvancedFilter(); 
         calculateNSKPIs(); 
@@ -490,22 +553,38 @@
         document.getElementById('btn-' + tabId).classList.add('active');
     }
 
-    // PHÂN HỆ CẤP PHÁT BẢO HỘ
+    // PHÂN HỆ CẤP PHÁT TRANG THIẾB BỊ / BẢO HỘ (ĐÃ CẬP NHẬT)
     function addManualCapphat() {
         let name = document.getElementById('cp_name').value;
         let id = document.getElementById('cp_id').value;
-        let user = document.getElementById('cp_user').value;
-        if(!user) { alert('Vui lòng điền tên người nhận!'); return; }
-        dataCapphat.push({ id, name, user });
+        let userSelect = document.getElementById('cp_user_select');
+        let user = userSelect.value;
+        
+        if(!user) { alert('Vui lòng chọn nhân sự nhận trang thiết bị!'); return; }
+        
+        // Lấy thông tin mã đơn vị của nhân sự được chọn
+        let selectedOption = userSelect.options[userSelect.selectedIndex];
+        let unitCode = selectedOption.getAttribute('data-unit') || "-";
+
+        dataCapphat.push({ id, name, user, unitCode });
         localStorage.setItem('erp_capphat_db', JSON.stringify(dataCapphat));
-        document.getElementById('cp_user').value = '';
+        
+        // Reset form và tạo mã thiết bị ngẫu nhiên mới
+        generateAutoIdForEquipment();
         renderCapphatTable();
     }
+    
     function renderCapphatTable() {
         let tbody = document.querySelector('#capphatTable tbody'); if(!tbody) return;
         tbody.innerHTML = '';
         dataCapphat.forEach((item, index) => {
-            tbody.innerHTML += `<tr><td>${item.id}</td><td>${item.name}</td><td>${item.user}</td><td><button class="btn btn-sm btn-danger" onclick="deleteCapphat(${index})">Xóa</button></td></tr>`;
+            tbody.innerHTML += `<tr>
+                <td style="font-weight:700; color:#1e3a8a;">${item.id}</td>
+                <td>${item.name}</td>
+                <td style="font-weight:600; color:#0284c7;">${item.unitCode || '-'}</td>
+                <td><b>${item.user}</b></td>
+                <td><button class="btn btn-sm btn-danger" onclick="deleteCapphat(${index})">Xóa</button></td>
+            </tr>`;
         });
     }
     function deleteCapphat(idx) { dataCapphat.splice(idx,1); localStorage.setItem('erp_capphat_db', JSON.stringify(dataCapphat)); renderCapphatTable(); }
