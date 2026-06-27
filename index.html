@@ -4,9 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hệ Thống ERP Toàn Diện - Quản Trị Nhân Sự & Điều Hành Tài Chính</title>
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js?v=1.0.6"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js?v=1.0.6"></script>
-    
     <style>
         *, *::before, *::after { box-sizing: border-box; }
         body {
@@ -145,7 +142,7 @@
                 <div class="form-group"><label>Số CCCD</label><input type="text" id="ns_cccd" placeholder="025..."></div>
                 <div class="form-group"><label>An Toàn Viên</label><input type="text" id="ns_atv" placeholder="Ghi số hoặc bỏ trống"></div>
                 <div class="form-group"><label>NNĐH</label><input type="text" id="ns_nndh" placeholder="Ghi số hoặc bỏ trống"></div>
-                <div class="form-group"><label>Năm Về Hưu</label><input type="text" id="ns_retire" placeholder="YYYY hoặc ngày cụ thể"></div>
+                <div class="form-group"><label>Năm Về Hưu</label><input type="text" id="ns_retire" placeholder="DD/MM/YYYY hoặc YYYY"></div>
                 <div class="form-group"><label>Mã Đơn Vị</label><input type="text" id="ns_unit" value="DV-01"></div>
                 <div class="form-group"><label>Năm Sinh (Ngày tháng năm sinh)</label><input type="text" id="ns_birth" placeholder="DD/MM/YYYY hoặc YYYY"></div>
                 <div class="form-group"><label>Giới Tính</label><select id="ns_gender"><option value="Nam">Nam</option><option value="Nữ">Nữ</option></select></div>
@@ -187,7 +184,7 @@
                             <th>Năm Sinh</th>
                             <th>Giới Tính</th>
                             <th>Chức Danh Công Việc</th>
-                            </tr>
+                        </tr>
                     </thead>
                     <tbody></tbody>
                 </table>
@@ -302,6 +299,9 @@
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js?v=1.0.6" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js?v=1.0.6" defer></script>
+
 <script>
     let dataNhansu = [], dataCapphat = [], dataSuachua = [], dataThanhtoan = [];
     let dynamicColumns = []; 
@@ -327,27 +327,43 @@
         renderThanhtoanTable();
     });
 
-    function showStatus(text, type, targetPanelId = 'uploadStatusPanel') {
-        const p = document.getElementById(targetPanelId);
-        if(!p) return;
-        p.className = "status-box " + (type === 'loading' ? 'status-loading' : type === 'success' ? 'status-success' : 'status-error');
-        p.innerText = text;
-        p.style.display = "block";
+    // Hàm chuyển đổi Excel Serial Date (Ví dụ: 46266 -> "DD/MM/YYYY")
+    function parseExcelDate(cellVal) {
+        if (cellVal === undefined || cellVal === null || cellVal === "") return "-";
+        
+        // Nếu là số thuần túy (Excel date serial number) và có độ dài hợp lý
+        if (!isNaN(cellVal) && parseFloat(cellVal) > 20000 && parseFloat(cellVal) < 60000) {
+            try {
+                const serial = parseFloat(cellVal);
+                // Biến đổi số ngày sang mốc thời gian JS thực tế
+                const utc_days  = Math.floor(serial - 25569);
+                const utc_value = utc_days * 86400;                                        
+                const date_info = new Date(utc_value * 1000);
+                
+                // Trả về định dạng DD/MM/YYYY chuẩn xác
+                const day = String(date_info.getDate()).padStart(2, '0');
+                const month = String(date_info.getMonth() + 1).padStart(2, '0');
+                const year = date_info.getFullYear();
+                return `${day}/${month}/${year}`;
+            } catch (err) {
+                return String(cellVal).trim();
+            }
+        }
+        
+        // Nếu là định dạng String có sẵn dấu gạch chéo/ngang, làm sạch dữ liệu chuỗi
+        let text = String(cellVal).trim();
+        return text || "-";
     }
 
-    function switchTab(tabId) {
-        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-        
-        document.getElementById(tabId).classList.add('active');
-        document.getElementById('btn-' + tabId).classList.add('active');
-        
-        if(tabId === 'tab-thanhtoan') { setTimeout(renderAccountingCharts, 50); }
-        if(tabId === 'tab-nhansu') { setTimeout(renderNSCharts, 50); }
-        if(tabId === 'tab-capphat') { setTimeout(renderCapphatTable, 50); }
+    // Trích xuất lấy năm thô (4 chữ số) cho cột Năm chuẩn
+    function parseCleanYear(cellVal) {
+        let cleanStr = parseExcelDate(cellVal);
+        if (cleanStr === "-") return "2026";
+        let match = cleanStr.match(/\d{4}/);
+        return match ? match[0] : "2026";
     }
 
-    function parseBirthYear(dateStr) {
+    function parseBirthYearForAge(dateStr) {
         if (!dateStr || dateStr === "-") return 1990;
         let match = dateStr.match(/\d{4}/);
         if (match) return parseInt(match[0]);
@@ -374,7 +390,7 @@
         let jobTitle = document.getElementById('ns_job_title').value.trim();
 
         if(!name) { alert("Vui lòng điền Họ tên nhân sự!"); return; }
-        let by = parseBirthYear(birth);
+        let by = parseBirthYearForAge(birth);
 
         let newEmp = {
             stt: dataNhansu.length + 1, year: year, fullName: name, lastName: extractLastName(name),
@@ -391,7 +407,7 @@
 
     function processExcelNhansu(input) {
         const file = input.files[0]; if (!file) return;
-        showStatus("⏳ Hệ thống đang phân tích chính xác các trường dữ liệu cố định...", "loading");
+        showStatus("⏳ Hệ thống đang phân tích cấu trúc cột và sửa định dạng ngày tháng...", "loading");
 
         const reader = new FileReader();
         reader.onload = function(e) {
@@ -446,13 +462,11 @@
                     colIdxs = { year: 0, name: 1, bhxh: 2, cccd: 3, atv: 4, nndh: 5, retire: 6, unit: 7, birth: 8, female: 9, jobTitle: 10 };
                 }
 
-                // CHẶN NGHIÊM NGẶT: Lọc các cột động thực sự, loại trừ hoàn toàn các từ khóa cột chuẩn
                 let standardIndices = Object.values(colIdxs).filter(idx => idx !== -1);
                 let newDynamicCols = [];
                 rawHeaders.forEach((hName, idx) => {
                     if (hName && !standardIndices.includes(idx)) {
                         let lowerH = hName.toLowerCase().replace(/[\s\n\r]/g, '');
-                        // Kiểm tra không trùng với các từ khóa lõi của cột chuẩn
                         let isStandardKeyword = lowerH.includes("stt") || lowerH.includes("tên") || 
                                                 lowerH.includes("bhxh") || lowerH.includes("cccd") || 
                                                 lowerH.includes("antoàn") || lowerH.includes("atv") || 
@@ -481,7 +495,7 @@
                     let nameVal = colIdxs.name !== -1 ? row[colIdxs.name] : "";
                     if (!nameVal || String(nameVal).trim() === "" || String(nameVal).includes("Họ và tên") || String(nameVal).includes("Stt")) continue;
 
-                    let yearVal = colIdxs.year !== -1 ? getCleanText(row[colIdxs.year]) : "2026";
+                    let yearRaw = colIdxs.year !== -1 ? row[colIdxs.year] : "2026";
                     let cccdVal = colIdxs.cccd !== -1 ? getCleanText(row[colIdxs.cccd]) : "-";
                     let bhxhVal = colIdxs.bhxh !== -1 ? getCleanText(row[colIdxs.bhxh]) : "-";
                     let jobTitleVal = colIdxs.jobTitle !== -1 ? getCleanText(row[colIdxs.jobTitle]) : "-";
@@ -490,23 +504,24 @@
                     let unitVal = colIdxs.unit !== -1 ? getCleanText(row[colIdxs.unit]).toUpperCase() : "DV-01";
                     let femaleVal = colIdxs.female !== -1 ? row[colIdxs.female] : "";
 
-                    let cleanBirthStr = colIdxs.birth !== -1 ? getCleanText(row[colIdxs.birth]) : "-";
-                    let cleanRetireStr = colIdxs.retire !== -1 ? getCleanText(row[colIdxs.retire]) : "-";
+                    // ÁP DỤNG BỘ CHUYỂN ĐỔI NGÀY THÁNG CHUYÊN SÂU KHÔNG CÒN LỖI 46266
+                    let cleanBirthStr = colIdxs.birth !== -1 ? parseExcelDate(row[colIdxs.birth]) : "-";
+                    let cleanRetireStr = colIdxs.retire !== -1 ? parseExcelDate(row[colIdxs.retire]) : "-";
+                    let yearVal = parseCleanYear(yearRaw);
 
-                    let by = parseBirthYear(cleanBirthStr);
+                    let by = parseBirthYearForAge(cleanBirthStr);
                     
                     let genderStr = "Nam";
                     let fText = String(femaleVal).trim().toUpperCase();
-                    if(fText === "X" || fText === "1" || fText === "NỮ" || fText === "NU") {
+                    if(fText === "X" || fText === "1" || fText === "NỮ" || fText === "NU" || fText === "GIỚI TÍNH") {
                         genderStr = "Nữ";
                     }
 
-                    // Chỉ nạp các trường thực sự nằm ngoài cấu trúc chuẩn vào extraFields
                     let extraData = {};
                     dynamicColumns.forEach(colName => {
                         let cIdx = rawHeaders.indexOf(colName);
                         if(cIdx !== -1) {
-                            extraData[colName] = getCleanText(row[cIdx]) || "-";
+                            extraData[colName] = parseExcelDate(row[cIdx]) || "-";
                         }
                     });
 
@@ -533,7 +548,7 @@
                 localStorage.setItem('erp_precise_db', JSON.stringify(dataNhansu));
                 
                 renderNhansu(); 
-                showStatus("🎉 Nạp dữ liệu hoàn tất! An toàn viên & NNĐH đã được giữ cố định tại các ô chuẩn.", "success");
+                showStatus("🎉 Đồng bộ thành công! Toàn bộ định dạng ngày tháng lỗi đã được sửa về DD/MM/YYYY.", "success");
             } catch(err) { 
                 console.error(err);
                 showStatus("❌ Lỗi xử lý: " + err.message, "error");
@@ -642,7 +657,29 @@
     }
 
     function renderNhansu() {
-        buildFilterDropdowns(); executeAdvancedFilter(); calculateNSKPIs(); renderNSCharts();
+        buildFilterDropdowns(); executeAdvancedFilter(); calculateNSKPIs(); 
+        if (typeof Chart !== 'undefined') { renderNSCharts(); }
+    }
+
+    function showStatus(text, type, targetPanelId = 'uploadStatusPanel') {
+        const p = document.getElementById(targetPanelId);
+        if(!p) return;
+        p.className = "status-box " + (type === 'loading' ? 'status-loading' : type === 'success' ? 'status-success' : 'status-error');
+        p.innerText = text;
+        p.style.display = "block";
+    }
+
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+        
+        document.getElementById(tabId).classList.add('active');
+        document.getElementById('btn-' + tabId).classList.add('active');
+        
+        if (typeof Chart === 'undefined') return;
+        if(tabId === 'tab-thanhtoan') { setTimeout(renderAccountingCharts, 50); }
+        if(tabId === 'tab-nhansu') { setTimeout(renderNSCharts, 50); }
+        if(tabId === 'tab-capphat') { setTimeout(renderCapphatTable, 50); }
     }
 
     function calculateNSKPIs() {
@@ -670,7 +707,7 @@
     }
 
     function renderNSCharts() {
-        if(dataNhansu.length === 0) return;
+        if(dataNhansu.length === 0 || typeof Chart === 'undefined') return;
         let units = {}; dataNhansu.forEach(e => units[e.unitId] = (units[e.unitId]||0)+1);
         if (cU) { cU.destroy(); cU = null; }
         cU = new Chart(document.getElementById('unitChart'), {
@@ -983,11 +1020,11 @@
         document.getElementById('tt_sum_unpaid').innerText = unpaid.toLocaleString() + " VNĐ";
         document.getElementById('tt_sum_vat').innerText = dataThanhtoan.reduce((sum, e) => sum + e.vat, 0).toLocaleString() + " VNĐ";
         document.getElementById('tt_sum_total').innerText = dataThanhtoan.reduce((sum, e) => sum + e.total, 0).toLocaleString() + " VNĐ";
-        renderAccountingCharts(paid, unpaid);
+        if (typeof Chart !== 'undefined') { renderAccountingCharts(paid, unpaid); }
     }
 
     function renderAccountingCharts(paid=0, unpaid=0) {
-        if(dataThanhtoan.length === 0) return;
+        if(dataThanhtoan.length === 0 || typeof Chart === 'undefined') return;
         if(chartPieObj) { chartPieObj.destroy(); chartPieObj = null; }
         chartPieObj = new Chart(document.getElementById('accountingPieChart'), {
             type: 'doughnut',
