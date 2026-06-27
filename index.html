@@ -3,345 +3,436 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vinapaco ERP - Quản Lý Nhân Sự (Excel Sync)</title>
+    <title>Vinapaco ERP - Hồ Sơ Nhân Sự & Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
     <style>
-        body { background-color: #f4f6f9; }
-        .card { background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); padding: 16px; }
+        /* Ép toàn bộ hệ thống sử dụng font chữ Times New Roman sắc nét, trang trọng */
+        body, table, button, input, select {
+            font-family: "Times New Roman", Times, serif !important;
+        }
+        body { background-color: #f8fafc; }
+        
+        /* Cấu hình độ rộng hiển thị đẹp mắt, rõ nét cho từng cột */
+        table { border-collapse: collapse; width: 100%; }
+        th, td { 
+            white-space: nowrap; 
+            padding: 10px 12px; 
+            border: 1px solid #cbd5e1; 
+            text-align: center;
+            font-size: 14px;
+        }
+        th { background-color: #0f172a; color: #f8fafc; font-weight: bold; }
+        .text-left-align { text-align: left !important; }
+        
+        /* Giới hạn độ rộng hợp lý cho cột chức danh công việc để không bị quá rộng */
+        .col-chuc-danh {
+            max-width: 260px !important;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* Thanh cuộn cao cấp */
+        .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: #f1f5f9; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
     </style>
 </head>
 <body class="p-6">
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        <div class="card">
-            <h3 class="font-bold text-blue-900 mb-4">👥 Cơ Cấu Giới Tính & Độ Tuổi</h3>
-            <div class="flex gap-4 mb-4">
-                <div class="flex-1 bg-blue-50 p-3 rounded text-center border border-blue-100">
-                    <p class="text-xs text-blue-600 font-semibold">Nam</p>
-                    <p class="text-2xl font-bold text-blue-800" id="stat-nam">0</p>
-                    <p class="text-xs text-gray-500" id="pct-nam">0%</p>
+    <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-blue-950 text-white rounded-xl p-6 shadow-md mb-6">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div class="flex items-center gap-4">
+                <div class="bg-gradient-to-br from-blue-500 to-indigo-600 p-3.5 rounded-xl shadow-inner border border-blue-400/30 flex items-center justify-center">
+                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                    </svg>
                 </div>
-                <div class="flex-1 bg-pink-50 p-3 rounded text-center border border-pink-100">
-                    <p class="text-xs text-pink-600 font-semibold">Nữ</p>
-                    <p class="text-2xl font-bold text-pink-800" id="stat-nu">0</p>
-                    <p class="text-xs text-gray-500" id="pct-nu">0%</p>
-                </div>
-            </div>
-            <div class="bg-gray-50 p-3 rounded text-center border border-dashed border-gray-300">
-                <p class="text-xs text-gray-500 font-semibold">TUỔI TRUNG BÌNH TOÀN CTY</p>
-                <p class="text-2xl font-bold text-blue-600" id="stat-tuoi-tb">0.0</p>
-                <p class="text-xs text-gray-400">Tuổi</p>
-            </div>
-        </div>
-
-        <div class="card">
-            <h3 class="font-bold text-blue-900 mb-4">⏳ Dự Báo Nghỉ Hưu Xu Hướng (5 Năm Tới)</h3>
-            <div class="space-y-3">
-                <div class="flex justify-between items-center p-2 border-l-4 border-blue-500 bg-gray-50 rounded-r">
-                    <span class="text-sm text-gray-600">Theo Năm Hưu Gốc (Luật cũ):</span>
-                    <span class="font-bold text-gray-800"><span id="stat-huu-cu">0</span> lao động</span>
-                </div>
-                <div class="flex justify-between items-center p-2 border-l-4 border-purple-500 bg-gray-50 rounded-r">
-                    <span class="text-sm text-gray-600">Theo Lộ Trình Luật Mới:</span>
-                    <span class="font-bold text-gray-800"><span id="stat-huu-moi">0</span> lao động</span>
+                <div>
+                    <h1 class="text-2xl font-bold tracking-tight uppercase">Tổng Công Ty Giấy Việt Nam</h1>
+                    <div class="text-blue-400 font-bold text-sm tracking-wide mt-0.5 flex items-center gap-1">
+                        <span>✨</span> HỆ THỐNG QUẢN LÝ HỒ SƠ NHÂN SỰ QUỐC GIA
+                    </div>
                 </div>
             </div>
-        </div>
-
-        <div class="card">
-            <h3 class="font-bold text-blue-900 mb-2">📊 Tỷ Lệ Phân Bổ Lao Động Theo Đơn Vị</h3>
-            <div id="don-vi-list" class="space-y-2 max-h-[160px] overflow-y-auto pr-1">
-                <p class="text-sm text-gray-400 italic">Đang tải phân bổ...</p>
-            </div>
-        </div>
-    </div>
-
-    <div class="card mb-6">
-        <h3 class="font-bold text-blue-900 mb-3">🛠️ Tác Vụ Cơ Sở Dữ Liệu Nhân Sự</h3>
-        <div class="flex flex-wrap items-center gap-4">
-            <label class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded flex items-center gap-2 cursor-pointer transition shadow-sm">
-                📂 Nạp Excel Nhân Sự
-                <input type="file" id="excel-file-input" accept=".xlsx, .xls" class="hidden" onchange="xuLyNapExcel(event)">
-            </label>
             
-            <button onclick="xoaDuLieu()" class="bg-red-600 hover:bg-red-700 text-white font-medium px-4 py-2 rounded flex items-center gap-2 cursor-pointer transition shadow-sm">
-                🗑️ Xóa CSDL
-            </button>
-
-            <span id="import-status" class="text-sm font-medium text-gray-500"></span>
+            <div class="flex items-center gap-3">
+                <label class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-5 py-2.5 rounded-lg flex items-center gap-2 cursor-pointer transition shadow active:scale-95 text-base">
+                    📂 Nạp File Excel Gốc
+                    <input type="file" id="excel-file-input" accept=".xlsx, .xls, .csv" class="hidden" onchange="xuLyFileExcel(event)">
+                </label>
+                <button onclick="xoaSachDuLieu()" class="bg-slate-700 hover:bg-rose-600 text-slate-200 hover:text-white font-bold px-5 py-2.5 rounded-lg cursor-pointer transition shadow text-base">
+                    🗑️ Làm Sạch
+                </button>
+            </div>
+        </div>
+        <div id="status-alert" class="mt-4 p-3 rounded-lg text-sm bg-slate-800 text-slate-300 border border-slate-700 font-medium">
+            Trạng thái: Hệ thống sẵn sàng. Vui lòng nạp file Excel nhân sự gốc để kích hoạt Dashboard và Bộ lọc.
         </div>
     </div>
 
-    <div class="card mb-6">
-        <h3 class="font-bold text-blue-900 mb-4">🔍 Bộ Lọc Phân Nhóm Đơn Vị Tuyệt Đối</h3>
-        <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+    <div id="dashboard-section" class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6 hidden">
+        <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-between">
+            <span class="text-slate-500 font-bold text-sm uppercase">Tổng số lao động</span>
+            <span id="dash-total" class="text-3xl font-extrabold text-slate-900 mt-2">0</span>
+        </div>
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center justify-center h-[140px]">
+            <canvas id="chart-gioitinh"></canvas>
+        </div>
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center justify-center h-[140px]">
+            <canvas id="chart-dochai"></canvas>
+        </div>
+        <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-between">
+            <span class="text-slate-500 font-bold text-sm uppercase">Độ tuổi trung bình</span>
+            <span id="dash-tuoi-tb" class="text-3xl font-extrabold text-emerald-600 mt-2">0</span>
+        </div>
+    </div>
+
+    <div id="filter-section" class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 mb-6 hidden">
+        <h3 class="text-slate-900 font-bold text-base mb-3 flex items-center gap-2">🔍 Bộ Lọc Dữ Liệu Thông Minh</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-                <label class="block text-xs font-semibold text-gray-600 mb-1">Mã Đơn Vị (Khớp chính xác)</label>
-                <input type="text" id="filter-ma-dv" placeholder="Ví dụ: 14.2" class="w-full border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-blue-500">
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Tìm theo họ tên / Chức danh</label>
+                <input type="text" id="filter-search" oninput="applyFilters()" placeholder="Nhập tên nhân viên cần tìm..." class="w-full border border-slate-300 rounded-lg p-2 text-sm focus:outline-none focus:border-blue-500">
             </div>
             <div>
-                <label class="block text-xs font-semibold text-gray-600 mb-1">Tìm theo Tên/CCCD/BHXH</label>
-                <input type="text" id="filter-search" placeholder="Nhập từ khóa..." class="w-full border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-blue-500">
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Lọc theo Đơn vị (Mã đơn vị)</label>
+                <select id="filter-donvi" onchange="applyFilters()" class="w-full border border-slate-300 rounded-lg p-2 text-sm focus:outline-none focus:border-blue-500">
+                    <option value="">-- Tất cả các đơn vị --</option>
+                </select>
             </div>
             <div>
-                <label class="block text-xs font-semibold text-gray-600 mb-1">Giới tính</label>
-                <select id="filter-gioi-tinh" class="w-full border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-blue-500">
-                    <option value="">Tất cả</option>
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Lọc theo Giới tính</label>
+                <select id="filter-gioitinh" onchange="applyFilters()" class="w-full border border-slate-300 rounded-lg p-2 text-sm focus:outline-none focus:border-blue-500">
+                    <option value="">-- Tất cả giới tính --</option>
                     <option value="Nam">Nam</option>
                     <option value="Nữ">Nữ</option>
                 </select>
             </div>
-            <div>
-                <label class="block text-xs font-semibold text-gray-600 mb-1">Nghề Độc Hại (NNĐH)</label>
-                <select id="filter-doc-hai" class="w-full border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-blue-500">
-                    <option value="">Tất cả</option>
-                    <option value="Có">Có</option>
-                    <option value="Không">Không</option>
-                </select>
-            </div>
-        </div>
-        <div class="mt-4 flex justify-end">
-            <button onclick="taiDuLieu()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-5 py-1.5 rounded text-sm cursor-pointer transition">
-                Áp dụng bộ lọc
-            </button>
         </div>
     </div>
 
-    <div class="card overflow-x-auto">
-        <table class="w-full text-left text-sm border-collapse">
-            <thead>
-                <tr class="bg-blue-900 text-white text-xs uppercase">
-                    <th class="p-3 border border-blue-800 text-center">Stt</th>
-                    <th class="p-3 border border-blue-800 text-center">Hành Động</th>
-                    <th class="p-3 border border-blue-800">Mã Đơn Vị</th>
-                    <th class="p-3 border border-blue-800">Họ và tên</th>
-                    <th class="p-3 border border-blue-800">Số sổ BHXH</th>
-                    <th class="p-3 border border-blue-800">Số CCCD</th>
-                    <th class="p-3 border border-blue-800 text-center">Năm sinh</th>
-                    <th class="p-3 border border-blue-800 text-center">Tuổi</th>
-                    <th class="p-3 border border-blue-800 text-center">Giới tính</th>
-                    <th class="p-3 border border-blue-800 text-center">Năm hưu gốc</th>
-                    <th class="p-3 border border-blue-800 text-center">Năm hưu luật mới</th>
-                    <th class="p-3 border border-blue-800">Chức danh công việc</th>
-                </tr>
-            </thead>
-            <tbody id="data-table-body" class="divide-y divide-gray-200 bg-white">
-                <tr>
-                    <td colspan="12" class="p-4 text-center text-gray-400">Đang tải dữ liệu từ CSDL...</td>
-                </tr>
-            </tbody>
-        </table>
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="bg-slate-50 border-b border-slate-200 px-6 py-4 flex items-center justify-between">
+            <h2 class="text-lg font-bold text-slate-800">📋 Hồ sơ nhân sự</h2>
+            <span id="rows-indicator" class="bg-blue-100 text-blue-800 text-sm font-bold px-3 py-1 rounded-full hidden">0 bản ghi thỏa mãn</span>
+        </div>
+
+        <div class="p-4 overflow-x-auto max-h-[550px] overflow-y-auto custom-scroll">
+            <table class="w-full">
+                <thead>
+                    <tr id="dynamic-th-row">
+                        <th>Chưa có dữ liệu</th>
+                    </tr>
+                </thead>
+                <tbody id="dynamic-tbody" class="bg-white divide-y divide-slate-200">
+                    <tr>
+                        <td class="p-12 text-slate-400 italic text-base">Hệ thống đang chờ file. Vui lòng bấm "Nạp File Excel Gốc" để bung dữ liệu hồ sơ...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
     </div>
 
     <script>
-        // 1. Kết nối cơ sở dữ liệu Supabase của bạn
-        const SUPABASE_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co";
-        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ";
-        
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        const TABLE_NAME = "nhan_su"; // Tên bảng lưu trên Supabase
+        const NAM_HIEN_TAI = 2026;
+        let TOAN_BO_DATA = []; 
+        let TIEU_DE_GOC = [];
+        let chartGT = null;
+        let chartDH = null;
 
-        window.addEventListener('DOMContentLoaded', taiDuLieu);
-
-        // 2. Tải & Tìm kiếm lọc dữ liệu thời gian thực
-        async function taiDuLieu() {
-            try {
-                let query = supabase.from(TABLE_NAME).select('*').order('id', { ascending: true });
-
-                const maDV = document.getElementById('filter-ma-dv').value.trim();
-                const search = document.getElementById('filter-search').value.trim();
-                const gioiTinh = document.getElementById('filter-gioi-tinh').value;
-                const docHai = document.getElementById('filter-doc-hai').value;
-
-                if (maDV) query = query.eq('ma_don_vi', maDV);
-                if (gioiTinh) query = query.eq('gioi_tinh', gioiTinh);
-                if (docHai) query = query.eq('nghe_doc_hai', docHai);
-                if (search) {
-                    query = query.or(`ho_ten.ilike.%${search}%,cccd.ilike.%${search}%,so_bhxh.ilike.%${search}%`);
-                }
-
-                const { data, error } = await query;
-                if (error) throw error;
-
-                renderThongKe(data);
-                renderBangDuLieu(data);
-
-            } catch (err) {
-                console.error("Lỗi:", err);
-                document.getElementById('data-table-body').innerHTML = `<tr><td colspan="12" class="p-4 text-center text-red-500 font-semibold">Không kết nối được tới bảng '${TABLE_NAME}'. Vui lòng kiểm tra lại cấu hình.</td></tr>`;
+        // Chuẩn hóa ép định dạng ngày tháng Việt Nam chuẩn sắc nét (DD/MM/YYYY)
+        function formatNgayVietNam(val) {
+            if (!val) return "";
+            if (val instanceof Date) {
+                if (isNaN(val.getTime())) return "";
+                let d = String(val.getDate()).padStart(2, '0');
+                let m = String(val.getMonth() + 1).padStart(2, '0');
+                let y = val.getFullYear();
+                return `${d}/${m}/${y}`;
             }
+            let str = String(val).trim();
+            if (str.includes("GMT") || (isNaN(str) && Date.parse(str))) {
+                let dObj = new Date(str);
+                if (!isNaN(dObj.getTime())) {
+                    let d = String(dObj.getDate()).padStart(2, '0');
+                    let m = String(dObj.getMonth() + 1).padStart(2, '0');
+                    let y = dObj.getFullYear();
+                    return `${d}/${m}/${y}`;
+                }
+            }
+            if (str.includes("-") && str.length >= 10) {
+                let parts = str.split(" ")[0].split("-");
+                if (parts[0].length === 4) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+            }
+            return str;
         }
 
-        // 3. Đọc Excel, Chuẩn hóa trường thông tin, Đẩy tự động hàng loạt lên Database
-        function xuLyNapExcel(event) {
+        function layNamSo(val) {
+            if (!val) return null;
+            if (val instanceof Date) return val.getFullYear();
+            let ngayStr = formatNgayVietNam(val);
+            if (ngayStr.includes("/")) return parseInt(ngayStr.split("/")[2]) || null;
+            let y = parseInt(String(val).substring(0, 4));
+            return isNaN(y) ? null : y;
+        }
+
+        // THUẬT TOÁN HƯU TRÍ TOÀN DIỆN LINH HOẠT CHUẨN XÁC QUA CÁC THỜI KỲ (Nghị định 135/2020)
+        function tinhNamHuuToanDien(namSinh, gioiTinh, coDocHai) {
+            if (!namSinh) return "";
+            
+            // Tuổi gốc nghỉ hưu mốc cơ sở cũ (Trước 2021)
+            let tuoiGoc = (gioiTinh === "Nữ") ? 55 : 60;
+            if (coDocHai) tuoiGoc -= 5; 
+
+            let namHuuLuatCu = namSinh + tuoiGoc;
+            
+            // THẾ HỆ 1: Nghỉ hưu trước năm 2021 -> Giữ nguyên theo quy định cũ luật trước
+            if (namHuuLuatCu < 2021) {
+                return `${namHuuLuatCu} (Luật cũ)`;
+            }
+
+            // THẾ HỆ 2: Nghỉ hưu từ năm 2021 trở đi -> Tính tăng tuổi linh hoạt theo lộ trình mới
+            let soNamKeTu2021 = namHuuLuatCu - 2021;
+            let namHuuThucTe = namHuuLuatCu;
+
+            if (gioiTinh === "Nữ") {
+                let soThangTang = (soNamKeTu2021 + 1) * 4;
+                namHuuThucTe = namHuuLuatCu + Math.floor(soThangTang / 12);
+                let tranTuoi = coDocHai ? 55 : 60;
+                if (namHuuThucTe - namSinh > tranTuoi) namHuuThucTe = namSinh + tranTuoi;
+            } else {
+                let soThangTang = (soNamKeTu2021 + 1) * 3;
+                namHuuThucTe = namHuuLuatCu + Math.floor(soThangTang / 12);
+                let tranTuoi = coDocHai ? 57 : 62;
+                if (namHuuThucTe - namSinh > tranTuoi) namHuuThucTe = namSinh + tranTuoi;
+            }
+            return namHuuThucTe;
+        }
+
+        function xuLyFileExcel(event) {
             const file = event.target.files[0];
             if (!file) return;
 
-            const statusNode = document.getElementById('import-status');
-            statusNode.className = "text-sm font-medium text-amber-600 animate-pulse";
-            statusNode.innerText = "⏳ Đang phân tích file Excel...";
+            document.getElementById('status-alert').innerHTML = "⏳ Đang ánh xạ dữ liệu, chuẩn hóa liên thông Dashboard hưu trí...";
 
             const reader = new FileReader();
-            reader.onload = async function (e) {
+            reader.onload = function (e) {
                 try {
                     const dataBytes = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(dataBytes, { type: 'array' });
-                    
-                    // Lấy Sheet đầu tiên trong file Excel
-                    const sheetName = workbook.SheetNames[0];
-                    const worksheet = workbook.Sheets[sheetName];
-                    
-                    // Chuyển dữ liệu Excel thành mảng JSON
-                    const rawJson = XLSX.utils.sheet_to_json(worksheet);
-                    
-                    if (rawJson.length === 0) {
-                        alert("File Excel trống hoặc không đúng cấu trúc!");
-                        statusNode.innerText = "";
+                    const workbook = XLSX.read(dataBytes, { type: 'array', cellDates: true });
+                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+
+                    if (!rawRows || rawRows.length === 0) {
+                        alert("File Excel rỗng!");
                         return;
                     }
 
-                    statusNode.innerText = `⏳ Đang chuẩn hóa và nạp ${rawJson.length} nhân sự...`;
-
-                    // Ánh xạ (Mapping) tiêu đề cột Excel khớp với CSDL
-                    const dataUpSupabase = rawJson.map(row => ({
-                        // Tên cột trên Excel (Viết đúng như file của bạn) -> Tên cột CSDL
-                        ma_don_vi: String(row["Mã Đơn Vị"] || row["ma_don_vi"] || "").trim(),
-                        ho_ten: String(row["Họ và tên"] || row["ho_ten"] || "").trim(),
-                        so_bhxh: String(row["Số sổ BHXH"] || row["so_bhxh"] || "").trim(),
-                        cccd: String(row["Số CCCD"] || row["cccd"] || "").trim(),
-                        nam_sinh: String(row["Năm sinh"] || row["nam_sinh"] || "").trim(),
-                        tuoi: parseInt(row["Tuổi"] || row["tuoi"]) || null,
-                        gioi_tinh: String(row["Giới tính"] || row["gioi_tinh"] || "").trim(),
-                        nam_huu_goc: parseInt(row["Năm hưu gốc"] || row["nam_huu_goc"]) || null,
-                        nam_huu_luat_moi: parseInt(row["Năm hưu luật mới"] || row["nam_huu_luat_moi"]) || null,
-                        chuc_danh: String(row["Chức danh công việc"] || row["chuc_danh"] || "").trim(),
-                        nghe_doc_hai: String(row["Nghề Độc Hại"] || row["nghe_doc_hai"] || "Không").trim()
-                    }));
-
-                    // Đẩy dữ liệu hàng loạt (Bulk Insert) lên Supabase
-                    const { error } = await supabase.from(TABLE_NAME).insert(dataUpSupabase);
-                    if (error) throw error;
-
-                    statusNode.className = "text-sm font-medium text-green-600";
-                    statusNode.innerText = `✅ Đã nạp thành công ${rawJson.length} lao động!`;
+                    TIEU_DE_GOC = [...rawRows[0]];
                     
-                    // Reset input file để có thể chọn tiếp lần sau
-                    document.getElementById('excel-file-input').value = "";
-                    
-                    // Tải lại bảng dữ liệu mới nhất
-                    taiDuLieu();
+                    // Tìm vị trí các cột quan trọng
+                    const idxNamSinh = TIEU_DE_GOC.findIndex(h => String(h||"").toLowerCase().replace(/[\s_]/g, "").includes("namsinh"));
+                    const idxHuuGoc = TIEU_DE_GOC.findIndex(h => String(h||"").toLowerCase().replace(/[\s_]/g, "").includes("namvehuu"));
+                    const idxNuX = TIEU_DE_GOC.findIndex(h => String(h||"").toLowerCase().replace(/[\s_]/g, "").includes("nux"));
+                    const idxNndh = TIEU_DE_GOC.findIndex(h => String(h||"").toLowerCase().replace(/[\s_]/g, "").includes("nndh"));
+                    const idxMaDonVi = TIEU_DE_GOC.findIndex(h => String(h||"").toLowerCase().replace(/[\s_]/g, "").includes("madonvi"));
+
+                    // XÂY DỰNG LẠI TIÊU ĐỀ THIẾT KẾ ĐẸP: CHÈN CỐ ĐỊNH 2 CỘT MỞ RỘNG VÀO CẠNH CỘT GỐC
+                    let headersHienThi = [];
+                    for (let j = 0; j < TIEU_DE_GOC.length; j++) {
+                        headersHienThi.push(TIEU_DE_GOC[j]);
+                        if (j === idxNamSinh && idxNamSinh !== -1) headersHienThi.push("Tuổi hiện tại");
+                        if (j === idxHuuGoc && idxHuuGoc !== -1) headersHienThi.push("Năm hưu dự kiến (Luật mới)");
+                    }
+
+                    document.getElementById('dynamic-th-row').innerHTML = headersHienThi.map(h => {
+                        if (h === "Tuổi hiện tại") return `<th class="bg-emerald-900 text-emerald-300 font-bold border border-slate-700">Tuổi hiện tại</th>`;
+                        if (h === "Năm hưu dự kiến (Luật mới)") return `<th class="bg-purple-900 text-purple-300 font-bold border border-slate-700">Hưu dự kiến (Luật mới)</th>`;
+                        return `<th class="border border-slate-800">${h}</th>`;
+                    }).join('');
+
+                    // PARSE TOÀN BỘ DỮ LIỆU THÀNH MẢNG ĐỂ DỄ BỘ LỌC ĐA NĂNG
+                    TOAN_BO_DATA = [];
+                    let setDonVi = new Set();
+
+                    for (let i = 1; i < rawRows.length; i++) {
+                        const row = rawRows[i];
+                        if (row.length === 0 || row.every(c => c === "")) continue;
+
+                        let chuoiNuX = idxNuX !== -1 ? String(row[idxNuX] || "").trim().toUpperCase() : "";
+                        let gioiTinhStr = (chuoiNuX === "X" || chuoiNuX === "1" || chuoiNuX === "NỮ") ? "Nữ" : "Nam";
+
+                        let rawNamSinh = idxNamSinh !== -1 ? row[idxNamSinh] : "";
+                        let namSinhNam = layNamSo(rawNamSinh);
+                        let tuoiHienTai = namSinhNam ? (NAM_HIEN_TAI - namSinhNam) : "";
+
+                        let chuoiNndh = idxNndh !== -1 ? String(row[idxNndh] || "").trim() : "";
+                        let coDocHai = (chuoiNndh === "1" || chuoiNndh.toLowerCase() === "có" || chuoiNndh.toUpperCase() === "X");
+
+                        let namHuuLuatMoi = namSinhNam ? tinhNamHuuToanDien(namSinhNam, gioiTinhStr, coDocHai) : "";
+                        let maDonViValue = idxMaDonVi !== -1 ? String(row[idxMaDonVi]).trim() : "";
+                        if (maDonViValue) setDonVi.add(maDonViValue);
+
+                        TOAN_BO_DATA.push({
+                            rawCells: row,
+                            gioiTinh: gioiTinhStr,
+                            tuoi: tuoiHienTai,
+                            isDocHai: coDocHai,
+                            hưuMoi: namHuuLuatMoi,
+                            maDonVi: maDonViValue
+                        });
+                    }
+
+                    // Đổ danh sách đơn vị vào Bộ lọc thông minh
+                    const selectDV = document.getElementById('filter-donvi');
+                    selectDV.innerHTML = '<option value="">-- Tất cả các đơn vị --</option>' + 
+                        Array.from(setDonVi).sort().map(dv => `<option value="${dv}">${dv}</option>`).join('');
+
+                    // Hiển thị các khối chức năng ẩn
+                    document.getElementById('dashboard-section').classList.remove('hidden');
+                    document.getElementById('filter-section').classList.remove('hidden');
+                    document.getElementById('rows-indicator').classList.remove('hidden');
+
+                    // Chạy bộ lọc lần đầu và dựng Dashboard
+                    applyFilters();
+                    renderDashboardCharts();
+
+                    document.getElementById('status-alert').className = "mt-4 p-3 rounded-lg text-sm bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold";
+                    document.getElementById('status-alert').innerHTML = `✅ Hệ thống vạn năng nạp thành công ${TOAN_BO_DATA.length} hồ sơ nhân sự! Dữ liệu đã được chuẩn hóa font chữ sắc nét.`;
 
                 } catch (err) {
                     console.error(err);
-                    statusNode.className = "text-sm font-medium text-red-600";
-                    statusNode.innerText = "❌ Lỗi định dạng trường dữ liệu.";
-                    alert("Lỗi khi nạp file: " + err.message);
+                    document.getElementById('status-alert').innerHTML = "❌ Lỗi script hoặc định dạng cấu trúc file: " + err.message;
                 }
             };
             reader.readAsArrayBuffer(file);
         }
 
-        // 4. Xóa làm sạch Cơ sở dữ liệu (Clean slate) trước khi nạp lại
-        async function xoaDuLieu() {
-            if (confirm("⚠️ BẠN CÓ CHẮC CHẮN muốn xóa sạch toàn bộ CSDL Nhân sự hiện tại không? Thao tác này giúp dọn dẹp để bạn nạp lại file Excel mới từ đầu.")) {
-                const statusNode = document.getElementById('import-status');
-                statusNode.innerText = "⏳ Đang làm sạch dữ liệu...";
-                
-                try {
-                    // Mẹo xóa diện rộng trên Supabase: sử dụng bộ lọc không bằng giá trị trống
-                    const { error } = await supabase.from(TABLE_NAME).delete().neq('ho_ten', 'XoaSachMoiDuLieuNhanSuVinapaco');
-                    if (error) throw error;
+        // BỘ LỌC THÔNG MINH NHẤT (MULTI-FILTER) LIÊN THÔNG NHAU
+        function applyFilters() {
+            const txt = document.getElementById('filter-search').value.toLowerCase().trim();
+            const dv = document.getElementById('filter-donvi').value;
+            const gt = document.getElementById('filter-gioitinh').value;
 
-                    statusNode.className = "text-sm font-medium text-blue-600";
-                    statusNode.innerText = "🗑️ Đã làm sạch CSDL. Hệ thống đã sẵn sàng nhận file mới.";
-                    
-                    // Cập nhật lại giao diện rỗng
-                    renderThongKe([]);
-                    renderBangDuLieu([]);
-                } catch (err) {
-                    alert("Lỗi xóa: " + err.message);
-                    statusNode.innerText = "";
+            // Khớp các điều kiện lọc cùng lúc
+            const filtered = TOAN_BO_DATA.filter(item => {
+                let matchTxt = true;
+                if (txt) {
+                    matchTxt = item.rawCells.some(cell => String(cell).toLowerCase().includes(txt));
                 }
-            }
+                let matchDv = dv ? (item.maDonVi === dv) : true;
+                let matchGt = gt ? (item.gioiTinh === gt) : true;
+                return matchTxt && matchDv && matchGt;
+            });
+
+            // Vẽ bảng dữ liệu theo kết quả lọc
+            const idxNamSinh = TIEU_DE_GOC.findIndex(h => String(h||"").toLowerCase().replace(/[\s_]/g, "").includes("namsinh"));
+            const idxHuuGoc = TIEU_DE_GOC.findIndex(h => String(h||"").toLowerCase().replace(/[\s_]/g, "").includes("namvehuu"));
+            const idxNuX = TIEU_DE_GOC.findIndex(h => String(h||"").toLowerCase().replace(/[\s_]/g, "").includes("nux"));
+
+            let bodyHtml = "";
+            filtered.forEach(item => {
+                bodyHtml += `<tr class="hover:bg-slate-50 transition duration-100">`;
+                for (let j = 0; j < TIEU_DE_GOC.length; j++) {
+                    let cValue = item.rawCells[j] !== undefined ? item.rawCells[j] : "";
+                    let hName = TIEU_DE_GOC[j].toLowerCase();
+
+                    // Chuẩn hóa hiển thị cột thời gian
+                    if (j === idxNamSinh || j === idxHuuGoc || hName.includes("nam")) {
+                        cValue = formatNgayVietNam(cValue);
+                    }
+                    // Chuẩn hóa hiển thị cột giới tính Nam/Nữ rõ ràng
+                    if (j === idxNuX) {
+                        cValue = item.gioiTinh;
+                    }
+
+                    let tdClass = "";
+                    if (hName.includes("ho_va_ten")) tdClass = "text-left-align font-bold text-slate-900 uppercase";
+                    if (hName.includes("chuc_danh") || hName.includes("cong_viec")) tdClass = "text-left-align text-slate-600 col-chuc-danh";
+
+                    bodyHtml += `<td class="${tdClass}" title="${cValue}">${cValue}</td>`;
+
+                    // CHÈN Ô "TUỔI HIỆN TẠI" KẾ BÊN NĂM SINH GỐC
+                    if (j === idxNamSinh && idxNamSinh !== -1) {
+                        bodyHtml += `<td class="font-bold bg-emerald-50 text-emerald-800">${item.tuoi}</td>`;
+                    }
+                    // CHÈN Ô "NĂM HƯU DỰ KIẾN" KẾ BÊN NĂM VỀ HƯU GỐC
+                    if (j === idxHuuGoc && idxHuuGoc !== -1) {
+                        bodyHtml += `<td class="font-bold bg-purple-50 text-purple-900">${item.hưuMoi}</td>`;
+                    }
+                }
+                bodyHtml += `</tr>`;
+            });
+
+            document.getElementById('dynamic-tbody').innerHTML = bodyHtml || `<tr><td colspan="20" class="p-8 text-center text-slate-400 italic">Không tìm thấy hồ sơ nhân sự nào trùng khớp với bộ lọc!</td></tr>`;
+            document.getElementById('rows-indicator').innerText = `${filtered.length} bản ghi thỏa mãn`;
         }
 
-        // 5. Tính toán các thông số Dashboard
-        function renderThongKe(data) {
-            const tong = data.length;
-            if (tong === 0) {
-                document.getElementById('stat-nam').innerText = "0"; document.getElementById('pct-nam').innerText = "0%";
-                document.getElementById('stat-nu').innerText = "0"; document.getElementById('pct-nu').innerText = "0%";
-                document.getElementById('stat-tuoi-tb').innerText = "0.0";
-                document.getElementById('stat-huu-cu').innerText = "0"; document.getElementById('stat-huu-moi').innerText = "0";
-                document.getElementById('don-vi-list').innerHTML = `<p class="text-sm text-gray-400 italic">CSDL trống.</p>`;
-                return;
-            }
+        // PHẦN THÔNG TIN HIỂN THỊ DẠNG BIỂU ĐỒ DASHBOARD CHUYÊN NGHIỆP
+        function renderDashboardCharts() {
+            let total = TOAN_BO_DATA.length;
+            let nuCount = TOAN_BO_DATA.filter(i => i.gioiTinh === "Nữ").length;
+            let namCount = total - nuCount;
+            let docHaiCount = TOAN_BO_DATA.filter(i => i.isDocHai).length;
+            let binhThuongCount = total - docHaiCount;
 
-            const nam = data.filter(d => d.gioi_tinh?.toLowerCase() === 'nam').length;
-            const nu = tong - nam;
-            document.getElementById('stat-nam').innerText = nam;
-            document.getElementById('pct-nam').innerText = `${Math.round((nam/tong)*100)}%`;
-            document.getElementById('stat-nu').innerText = nu;
-            document.getElementById('pct-nu').innerText = `${Math.round((nu/tong)*100)}%`;
+            let tongTuoi = 0, coTuoi = 0;
+            TOAN_BO_DATA.forEach(i => {
+                if (i.tuoi) { tongTuoi += i.tuoi; coTuoi++; }
+            });
+            let tuoiTB = coTuoi > 0 ? (tongTuoi / coTuoi).toFixed(1) : 0;
 
-            const tongTuoi = data.reduce((sum, d) => sum + (d.tuoi || 0), 0);
-            document.getElementById('stat-tuoi-tb').innerText = (tongTuoi / tong).toFixed(1);
+            document.getElementById('dash-total').innerText = total;
+            document.getElementById('dash-tuoi-tb').innerText = tuoiTB + " tuổi";
 
-            const namHienTai = new Date().getFullYear();
-            const huuCu = data.filter(d => d.nam_huu_goc >= namHienTai && d.nam_huu_goc <= namHienTai + 5).length;
-            const huuMoi = data.filter(d => d.nam_huu_luat_moi >= namHienTai && d.nam_huu_luat_moi <= namHienTai + 5).length;
-            document.getElementById('stat-huu-cu').innerText = huuCu;
-            document.getElementById('stat-huu-moi').innerText = huuMoi;
+            // Phá hủy biểu đồ cũ nếu nạp lại file mới
+            if (chartGT) chartGT.destroy();
+            if (chartDH) chartDH.destroy();
 
-            const donViMap = {};
-            data.forEach(d => { if(d.ma_don_vi) donViMap[d.ma_don_vi] = (donViMap[d.ma_don_vi] || 0) + 1; });
+            // Vẽ biểu đồ tròn Giới tính
+            chartGT = new Chart(document.getElementById('chart-gioitinh'), {
+                type: 'pie',
+                data: {
+                    labels: ['Nam', 'Nữ'],
+                    datasets: [{
+                        data: [namCount, nuCount],
+                        backgroundColor: ['#3b82f6', '#ec4899']
+                    }]
+                },
+                options: { plugins: { title: { display: true, text: 'Tỷ lệ Giới tính', font: {family: 'Times New Roman'} } }, responsive: true, maintainAspectRatio: false }
+            });
 
-            const listContainer = document.getElementById('don-vi-list');
-            listContainer.innerHTML = '';
-            Object.keys(donViMap).sort((a,b) => donViMap[b] - donViMap[a]).forEach(dv => {
-                const count = donViMap[dv];
-                const pct = ((count / tong) * 100).toFixed(1);
-                listContainer.innerHTML += `
-                    <div class="text-xs text-gray-700">
-                        <div class="flex justify-between font-medium mb-0.5">
-                            <span>🏢 Mã ĐV: ${dv}</span>
-                            <span>${count} ng (${pct}%)</span>
-                        </div>
-                        <div class="w-full bg-gray-200 rounded-full h-1.5 mb-1.5">
-                            <div class="bg-blue-600 h-1.5 rounded-full" style="width: ${pct}%"></div>
-                        </div>
-                    </div>`;
+            // Vẽ biểu đồ tròn Độc hại
+            chartDH = new Chart(document.getElementById('chart-dochai'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Độc hại (NNDH)', 'Bình thường'],
+                    datasets: [{
+                        data: [docHaiCount, binhThuongCount],
+                        backgroundColor: ['#f59e0b', '#64748b']
+                    }]
+                },
+                options: { plugins: { title: { display: true, text: 'Môi trường làm việc', font: {family: 'Times New Roman'} } }, responsive: true, maintainAspectRatio: false }
             });
         }
 
-        // 6. Hiển thị bảng danh sách nhân sự đúng định dạng
-        function renderBangDuLieu(data) {
-            const tbody = document.getElementById('data-table-body');
-            if (data.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="12" class="p-4 text-center text-gray-400 italic">Không có dữ liệu nhân sự. Vui lòng bấm "Nạp Excel Nhân Sự" để đưa dữ liệu vào.</td></tr>`;
-                return;
-            }
-
-            tbody.innerHTML = data.map((item, index) => `
-                <tr class="hover:bg-gray-50 text-gray-700 transition">
-                    <td class="p-3 border border-gray-200 text-center">${index + 1}</td>
-                    <td class="p-3 border border-gray-200 text-center">
-                        <button class="bg-purple-600 text-white text-xs px-2 py-1 rounded hover:bg-purple-700 cursor-pointer">🆔 Cấp TB</button>
-                    </td>
-                    <td class="p-3 border border-gray-200 font-bold text-blue-700">${item.ma_don_vi || ''}</td>
-                    <td class="p-3 border border-gray-200 font-bold uppercase text-gray-900">${item.ho_ten || ''}</td>
-                    <td class="p-3 border border-gray-200 font-mono text-xs text-gray-500">${item.so_bhxh || ''}</td>
-                    <td class="p-3 border border-gray-200 font-mono text-xs text-gray-500">${item.cccd || ''}</td>
-                    <td class="p-3 border border-gray-200 text-center">${item.nam_sinh || ''}</td>
-                    <td class="p-3 border border-gray-200 text-center font-semibold">${item.tuoi || ''}</td>
-                    <td class="p-3 border border-gray-200 text-center">${item.gioi_tinh || ''}</td>
-                    <td class="p-3 border border-gray-200 text-center text-red-500 font-medium">${item.nam_huu_goc || ''}</td>
-                    <td class="p-3 border border-gray-200 text-center text-purple-700 font-bold">${item.nam_huu_luat_moi || ''}</td>
-                    <td class="p-3 border border-gray-200 text-xs text-gray-600 max-w-[240px] truncate" title="${item.chuc_danh || ''}">${item.chuc_danh || ''}</td>
-                </tr>
-            `).join('');
+        function xoaSachDuLieu() {
+            TOAN_BO_DATA = [];
+            TIEU_DE_GOC = [];
+            document.getElementById('dynamic-th-row').innerHTML = `<th>Chưa có dữ liệu</th>`;
+            document.getElementById('dynamic-tbody').innerHTML = `<tr><td class="p-12 text-slate-400 italic text-base">Hệ thống đã làm sạch trắng. Sẵn sàng nhận file mới.</td></tr>`;
+            document.getElementById('excel-file-input').value = "";
+            
+            document.getElementById('dashboard-section').classList.add('hidden');
+            document.getElementById('filter-section').classList.add('hidden');
+            document.getElementById('rows-indicator').classList.add('hidden');
+            
+            document.getElementById('status-alert').className = "mt-4 p-3 rounded-lg text-sm bg-slate-800 text-slate-300 border border-slate-700 font-medium";
+            document.getElementById('status-alert').innerHTML = "🗑️ Đã xóa sạch toàn bộ cơ sở dữ liệu trên màn hình.";
         }
     </script>
 </body>
