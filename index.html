@@ -43,7 +43,7 @@
         .panel { background: white; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 20px; }
         .panel-title { margin-top: 0; margin-bottom: 15px; color: #1e3a8a; font-size: 15px; font-weight: 700; border-bottom: 2px solid #f1f5f9; padding-bottom: 8px; }
 
-        .manual-form { display: grid; grid-template-columns: 1fr; gap: 12px; background: #f8fafc; border: 1px dashed #cbd5e1; padding: 15px; border-radius: 10px; margin-bottom: 15px; }
+        .manual-form { display: grid; grid-template-columns: 1fr; gap: 12px; background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 10px; margin-bottom: 15px; }
         @media (min-width: 768px) { .manual-form { grid-template-columns: repeat(3, 1fr); } }
         .form-group { display: flex; flex-direction: column; gap: 4px; }
         .form-group label { font-size: 12px; font-weight: 700; color: #475569; }
@@ -70,6 +70,8 @@
         .pagination-container { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; flex-wrap: wrap; gap: 10px; }
         .pagination-info { font-size: 12px; color: #64748b; }
         .pagination-buttons { display: flex; gap: 5px; }
+        
+        .qr-canvas-container { display: flex; justify-content: center; align-items: center; background: white; padding: 4px; border: 1px solid #cbd5e1; border-radius: 4px; width: 68px; height: 68px; }
     </style>
 </head>
 <body>
@@ -162,31 +164,40 @@
                     <input type="text" id="cp_id" readonly style="background-color: #f1f5f9; font-weight: 700; color: #1e3a8a;">
                 </div>
                 <div class="form-group">
-                    <label>Bộ phận / Nhà máy / Xí nghiệp / Đơn vị</label>
+                    <label>Lọc nhanh theo Mã đơn vị</label>
                     <select id="cp_unit_filter" onchange="updateUserDropdownByUnit()">
-                        <option value="ALL">-- Tất cả đơn vị / phòng ban --</option>
+                        <option value="ALL">-- Tất cả mã đơn vị từ Excel --</option>
                     </select>
                 </div>
-                <div class="form-group" style="grid-column: span 3;">
-                    <label>Người Nhận (Được liên kết trực tiếp từ danh sách nhân sự)</label>
-                    <select id="cp_user_select" style="font-weight: 600; color: #0f172a;">
-                        <option value="">-- Chọn nhân viên nhận thiết bị --</option>
+                <div class="form-group" style="grid-column: span 2;">
+                    <label>Chọn Người Nhận (Liên kết từ nhân sự)</label>
+                    <select id="cp_user_select" style="font-weight: 600; color: #0f172a;" onchange="syncEmployeeToManual()">
+                        <option value="">-- Chọn nhân viên --</option>
                     </select>
+                </div>
+                <div class="form-group">
+                    <label>Hoặc Nhập Tên Người Nhận (Linh hoạt nhập tay)</label>
+                    <input type="text" id="cp_user_manual" placeholder="Nhập họ tên nếu không có trong danh sách...">
+                </div>
+                <div class="form-group" style="grid-column: span 3; background-color: #fffbeb; padding: 10px; border-radius: 6px; border: 1px solid #fef3c7;">
+                    <label style="color: #b45309;">📍 Bộ phận / Phòng ban / Nhà máy / Xí nghiệp (Nhập tự do linh hoạt)</label>
+                    <input type="text" id="cp_unit_manual" placeholder="Ví dụ: Phân xưởng Cơ khí, Nhà máy Giấy, Phòng Kế hoạch..." style="border-color: #fcd34d;">
                 </div>
                 <div class="form-group" style="justify-content: flex-end; grid-column: span 3; margin-top: 5px;">
-                    <button class="btn btn-primary" onclick="addManualCapphat()">📦 Xác Nhận Cấp Phát</button>
+                    <button class="btn btn-primary" onclick="addManualCapphat()">📦 Xác Nhận Cấp Phát & Tạo QR Code</button>
                 </div>
             </div>
 
-            <div class="panel-title" style="font-size: 14px; margin-top: 25px;">Nhật Ký Cấp Phát Đang Lưu Trữ</div>
+            <div class="panel-title" style="font-size: 14px; margin-top: 25px;">Nhật Ký Cấp Phát & Mã Kiểm Soát QR</div>
             <div class="table-responsive">
                 <table id="capphatTable">
                     <thead>
                         <tr>
-                            <th>Mã Thiết Bị / Bảo Hộ</th>
+                            <th style="width: 80px; text-align: center;">Mã QR</th>
+                            <th>Mã Thiết Bị</th>
                             <th>Tên Trang Thiết Bị</th>
-                            <th>Đơn Vị</th>
-                            <th>Người Nhận (Họ và tên - CCCD)</th>
+                            <th>Bộ Phận / Đơn Vị</th>
+                            <th>Người Nhận Bản Ghi</th>
                             <th>Hành Động</th>
                         </tr>
                     </thead>
@@ -216,6 +227,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js" defer></script>
 
 <script>
     let dataNhansu = [], dataCapphat = [], dataSuachua = [];
@@ -233,7 +245,6 @@
         generateAutoIdForEquipment();
     });
 
-    // Tự động sinh mã thiết bị ngẫu nhiên duy nhất
     function generateAutoIdForEquipment() {
         const randomNum = Math.floor(100000 + Math.random() * 900000);
         document.getElementById('cp_id').value = `TB-${randomNum}`;
@@ -418,31 +429,28 @@
         }
     }
 
-    // Xây dựng bộ thả xuống lọc mã đơn vị cho cả phần Nhân sự và Cấp phát thiết bị
     function buildUnitDropdown() {
         const uSelect = document.getElementById('filterUnit');
         const cpUnitSelect = document.getElementById('cp_unit_filter');
         
         if(uSelect) uSelect.innerHTML = '<option value="ALL">Tất cả mã đơn vị</option>';
-        if(cpUnitSelect) cpUnitSelect.innerHTML = '<option value="ALL">-- Toàn bộ Đơn vị / Phòng ban / Nhà máy / Xí nghiệp --</option>';
+        if(cpUnitSelect) cpUnitSelect.innerHTML = '<option value="ALL">-- Tất cả mã đơn vị từ Excel --</option>';
         
         let uniqueUnits = [...new Set(dataNhansu.map(e => e.rightStt).filter(u => u && u !== "-"))].sort();
         uniqueUnits.forEach(u => { 
             if(uSelect) uSelect.innerHTML += `<option value="${u}">${u}</option>`; 
-            if(cpUnitSelect) cpUnitSelect.innerHTML += `<option value="${u}">Đơn vị / Khối: ${u}</option>`;
+            if(cpUnitSelect) cpUnitSelect.innerHTML += `<option value="${u}">Khối mã: ${u}</option>`;
         });
         
-        // Cập nhật lại dropdown người nhận tương ứng
         updateUserDropdownByUnit();
     }
 
-    // Hàm cập nhật danh sách nhân viên tương ứng với Đơn vị được chọn trong phần Cấp Phát
     function updateUserDropdownByUnit() {
         const selectedUnit = document.getElementById('cp_unit_filter').value;
         const userSelect = document.getElementById('cp_user_select');
         if(!userSelect) return;
 
-        userSelect.innerHTML = '<option value="">-- Chọn nhân viên nhận thiết bị --</option>';
+        userSelect.innerHTML = '<option value="">-- Chọn nhân viên từ danh sách --</option>';
         
         let filteredEmps = dataNhansu;
         if(selectedUnit !== "ALL") {
@@ -450,8 +458,24 @@
         }
 
         filteredEmps.forEach(emp => {
-            userSelect.innerHTML += `<option value="${emp.fullName} (${emp.rightStt})" data-unit="${emp.rightStt}">${emp.fullName} (CCCD: ${emp.cccd} - Mã ĐV: ${emp.rightStt})</option>`;
+            userSelect.innerHTML += `<option value="${emp.fullName}" data-unit="${emp.rightStt}">${emp.fullName} (Mã ĐV: ${emp.rightStt} - CCCD: ${emp.cccd})</option>`;
         });
+    }
+
+    // Khi chọn nhân sự từ dropdown, tự động điền vào ô nhập tay và đồng bộ mã đơn vị lên ô Bộ phận
+    function syncEmployeeToManual() {
+        const userSelect = document.getElementById('cp_user_select');
+        const userManualInput = document.getElementById('cp_user_manual');
+        const unitManualInput = document.getElementById('cp_unit_manual');
+        
+        if(userSelect.value !== "") {
+            userManualInput.value = userSelect.value;
+            let selectedOption = userSelect.options[userSelect.selectedIndex];
+            let unitCode = selectedOption.getAttribute('data-unit');
+            if(unitCode && unitCode !== "-") {
+                unitManualInput.value = `Mã đơn vị: ${unitCode}`;
+            }
+        }
     }
 
     function resetPageAndFilter() {
@@ -533,10 +557,8 @@
 
     function calculateNSKPIs() {
         let total = dataNhansu.length; if(total === 0) return;
-        
         let nndhCount = dataNhansu.filter(e => e.nndh && e.nndh !== "-").length;
         let atvCount = dataNhansu.filter(e => e.atv && e.atv !== "-").length;
-        
         let validAgeEmps = dataNhansu.filter(e => !isNaN(e.currentAge));
         let avgAge = validAgeEmps.length > 0 ? Math.round(validAgeEmps.reduce((sum, e) => sum + e.currentAge, 0) / validAgeEmps.length) : 0;
 
@@ -553,23 +575,23 @@
         document.getElementById('btn-' + tabId).classList.add('active');
     }
 
-    // PHÂN HỆ CẤP PHÁT TRANG THIẾB BỊ / BẢO HỘ (ĐÃ CẬP NHẬT)
+    // PHÂN HỆ 2: CẤP PHÁT TRANG THIẾT BỊ / BẢO HỘ
     function addManualCapphat() {
-        let name = document.getElementById('cp_name').value;
-        let id = document.getElementById('cp_id').value;
-        let userSelect = document.getElementById('cp_user_select');
-        let user = userSelect.value;
+        let name = document.getElementById('cp_name').value.trim();
+        let id = document.getElementById('cp_id').value.trim();
+        let user = document.getElementById('cp_user_manual').value.trim();
+        let unitCode = document.getElementById('cp_unit_manual').value.trim();
         
-        if(!user) { alert('Vui lòng chọn nhân sự nhận trang thiết bị!'); return; }
-        
-        // Lấy thông tin mã đơn vị của nhân sự được chọn
-        let selectedOption = userSelect.options[userSelect.selectedIndex];
-        let unitCode = selectedOption.getAttribute('data-unit') || "-";
+        if(!user) { alert('Vui lòng chọn hoặc điền tên nhân sự nhận trang thiết bị!'); return; }
+        if(!unitCode) { unitCode = "Chung / Chưa rõ bộ phận"; }
 
         dataCapphat.push({ id, name, user, unitCode });
         localStorage.setItem('erp_capphat_db', JSON.stringify(dataCapphat));
         
-        // Reset form và tạo mã thiết bị ngẫu nhiên mới
+        // Reset form
+        document.getElementById('cp_user_manual').value = '';
+        document.getElementById('cp_unit_manual').value = '';
+        document.getElementById('cp_user_select').value = '';
         generateAutoIdForEquipment();
         renderCapphatTable();
     }
@@ -577,19 +599,49 @@
     function renderCapphatTable() {
         let tbody = document.querySelector('#capphatTable tbody'); if(!tbody) return;
         tbody.innerHTML = '';
+        
         dataCapphat.forEach((item, index) => {
+            const canvasId = `qr-canvas-${index}`;
             tbody.innerHTML += `<tr>
+                <td style="text-align:center; vertical-align:middle;">
+                    <div class="qr-canvas-container">
+                        <canvas id="${canvasId}"></canvas>
+                    </div>
+                </td>
                 <td style="font-weight:700; color:#1e3a8a;">${item.id}</td>
                 <td>${item.name}</td>
-                <td style="font-weight:600; color:#0284c7;">${item.unitCode || '-'}</td>
+                <td style="font-weight:600; color:#b45309;">${item.unitCode}</td>
                 <td><b>${item.user}</b></td>
                 <td><button class="btn btn-sm btn-danger" onclick="deleteCapphat(${index})">Xóa</button></td>
             </tr>`;
+            
+            // Vẽ QR Code độ nét cao sau khi dòng được chèn vào DOM bằng microtask
+            setTimeout(() => {
+                const canvas = document.getElementById(canvasId);
+                if (canvas && window.QRCode) {
+                    // Nội dung văn bản mã hóa tiếng Việt rõ ràng, hiển thị khi quét bằng mọi thiết bị
+                    const qrText = `MA THIET BI: ${item.id}\nTEN THIET BI: ${item.name}\nNGUOI NHAN: ${item.user}\nBO PHAN: ${item.unitCode}`;
+                    QRCode.toCanvas(canvas, qrText, {
+                        width: 60,
+                        margin: 1,
+                        errorCorrectionLevel: 'H' // Mức độ chống nhiễu / sửa lỗi cao nhất giúp quét siêu nét
+                    }, function (error) {
+                        if (error) console.error(error);
+                    });
+                }
+            }, 0);
         });
     }
-    function deleteCapphat(idx) { dataCapphat.splice(idx,1); localStorage.setItem('erp_capphat_db', JSON.stringify(dataCapphat)); renderCapphatTable(); }
+    
+    function deleteCapphat(idx) { 
+        if(confirm("Bạn có chắc chắn muốn xóa bản ghi cấp phát này không?")) {
+            dataCapphat.splice(idx,1); 
+            localStorage.setItem('erp_capphat_db', JSON.stringify(dataCapphat)); 
+            renderCapphatTable(); 
+        }
+    }
 
-    // PHÂN HỆ NHẬT TRÌNH SỬA CHỮA
+    // PHÂN HỆ 3: NHẬT TRÌNH SỬA CHỮA
     function addManualSuachua() {
         let id = document.getElementById('sc_id').value;
         let name = document.getElementById('sc_name').value;
