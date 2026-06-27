@@ -50,7 +50,7 @@
         .form-group input, .form-group select { padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; background: white; }
 
         .filter-dashboard { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 10px; margin-bottom: 15px; display: grid; grid-template-columns: 1fr; gap: 10px; }
-        @media (min-width: 768px) { .filter-dashboard { grid-template-columns: repeat(4, 1fr); } }
+        @media (min-width: 768px) { .filter-dashboard { grid-template-columns: repeat(5, 1fr); } }
         .filter-dashboard label { font-size: 11px; font-weight: 700; color: #334155; }
         .filter-dashboard input, .filter-dashboard select { padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; background: white; width: 100%; }
 
@@ -77,7 +77,7 @@
 <div class="container">
     <header>
         <h1>Hệ Thống ERP Toàn Diện</h1>
-        <p>Bản sửa lỗi: Khớp chính xác cột An Toàn Viên, bổ sung Bộ lọc Mã đơn vị & Tỷ lệ % KPIs</p>
+        <p>Quản lý Cơ sở dữ liệu đồng bộ Nhân sự, Bảo hộ lao động và Nhật trình kỹ thuật</p>
     </header>
 
     <div class="nav-tabs">
@@ -111,6 +111,7 @@
                 <div><label>Tìm kiếm nhanh (Tên/CCCD)</label><input type="text" id="filterSearch" onkeyup="resetPageAndFilter()"></div>
                 <div><label>Mã Đơn Vị</label><select id="filterUnit" onchange="resetPageAndFilter()"><option value="ALL">Tất cả mã đơn vị</option></select></div>
                 <div><label>An Toàn Viên</label><select id="filterAtv" onchange="resetPageAndFilter()"><option value="ALL">Tất cả</option><option value="YES">Có (Là An toàn viên)</option><option value="NO">Không</option></select></div>
+                <div><label>Nghề Độc Hại (NNĐH)</label><select id="filterNndh" onchange="resetPageAndFilter()"><option value="ALL">Tất cả</option><option value="YES">Có độc hại</option><option value="NO">Không độc hại</option></select></div>
                 <div><label>Giới Tính</label><select id="filterGender" onchange="resetPageAndFilter()"><option value="ALL">Tất cả</option><option value="Nam">Nam</option><option value="Nữ">Nữ</option></select></div>
             </div>
 
@@ -202,6 +203,7 @@
         renderSuachuaTable();
     });
 
+    // Hàm chuẩn hóa định dạng ngày tháng xuất sắc từ Excel
     function formatExcelDate(cellVal, onlyYear = false) {
         if (cellVal === undefined || cellVal === null || String(cellVal).trim() === "") return "-";
         let strVal = String(cellVal).trim();
@@ -222,7 +224,7 @@
         if (strVal.includes("-")) {
             let parts = strVal.split("-");
             if (parts.length === 3) {
-                if (parts[0].length === 4) {
+                if (parts[0].length === 4) { // yyyy-mm-dd
                     if (onlyYear) return parts[0];
                     return `${parts[2].substring(0,2)}/${parts[1]}/${parts[0]}`;
                 }
@@ -238,6 +240,8 @@
 
     function parseBirthYear(dateStr) {
         if (!dateStr || dateStr === "-") return 1990;
+        let parts = dateStr.split("/");
+        if (parts.length === 3) return parseInt(parts[2]);
         let match = dateStr.match(/\d{4}/);
         return match ? parseInt(match[0]) : 1990;
     }
@@ -274,7 +278,7 @@
 
     function processExcelNhansu(input) {
         const file = input.files[0]; if (!file) return;
-        showStatus("⏳ Đang giải mã cấu trúc cột và khôi phục dữ liệu An Toàn Viên...", "loading");
+        showStatus("⏳ Đang nhận diện cấu trúc tệp dữ liệu chuẩn hóa...", "loading");
 
         const reader = new FileReader();
         reader.onload = function(e) {
@@ -294,22 +298,23 @@
                     }
                 }
 
-                if (headerIdx === -1) { showStatus("❌ Không định vị được dòng tiêu đề phù hợp.", "error"); return; }
+                if (headerIdx === -1) { showStatus("❌ Không tìm thấy dòng tiêu đề hợp lệ.", "error"); return; }
 
+                // Chuẩn hóa tiêu đề loại bỏ hoàn toàn các ký tự ẩn dấu cách thừa
                 let headers = sheetData[headerIdx].map(c => String(c).trim().toLowerCase().normalize("NFC").replace(/[\s\n\r]/g, ''));
                 
                 let idxFullName = headers.indexOf("họvàtên");
                 let idxBhxh = headers.indexOf("sốsổbhxh");
                 let idxCccd = headers.indexOf("sốcccd");
                 
-                // Giải pháp chuẩn: Tìm kiếm tương đối để khớp chính xác cột An toàn viên dạng Unicode tổ hợp
+                // Khớp chính xác hoàn toàn tiêu đề bất chấp khoảng trống
                 let idxAtv = headers.findIndex(h => h.includes("toanvien") || h.includes("antoan") || h.includes("atv"));
-                let idxNndh = headers.findIndex(h => h === "nnđh" || h.includes("nndh"));
-                let idxRetireOld = headers.findIndex(h => h.includes("nămvềhưu") || h.includes("namvehuu"));
+                let idxNndh = headers.findIndex(h => h === "nnđh" || h.includes("nndh") || h.includes("độchại"));
+                let idxRetireOld = headers.findIndex(h => h.includes("nămvềhưu") || h.includes("namvehuu") || h.includes("vềhưu"));
                 let idxUnitCode = headers.findIndex(h => h.includes("mãđơnvị") || h.includes("madonvi") || h.includes("mãđơn")); 
                 let idxYear = headers.indexOf("năm");
                 let idxBirth = headers.findIndex(h => h.includes("nămsinh") || h.includes("namsinh"));
-                let idxGender = headers.map(h => h.includes("nữ")).indexOf(true);
+                let idxGender = headers.findIndex(h => h.includes("nữ") || h.includes("nu(x)"));
                 let idxJob = headers.findIndex(h => h.includes("chứcdanh") || h.includes("chucdanh"));
 
                 let currentYear = 2026;
@@ -349,7 +354,7 @@
                         bhxh: idxBhxh !== -1 ? String(row[idxBhxh]).trim() : "-",
                         cccd: idxCccd !== -1 ? String(row[idxCccd]).trim() : "-",
                         atv: (rawAtv === "0" || rawAtv === "") ? "-" : rawAtv, 
-                        nndh: rawNndh,
+                        nndh: (rawNndh === "0" || rawNndh === "") ? "-" : rawNndh,
                         oldRetire: oldRetireVal,
                         currentAge: currentAge,
                         retireTime: autoRetireDate, 
@@ -364,16 +369,16 @@
                 localStorage.setItem('erp_precise_db', JSON.stringify(dataNhansu));
                 currentPage = 1;
                 renderNhansu();
-                showStatus("🎉 Nạp dữ liệu thành công! Cột An toàn viên và bộ lọc hoạt động chuẩn xác hoàn toàn.", "success");
+                showStatus("🎉 Đã nhập dữ liệu thành công! Toàn bộ cột An toàn viên và bộ lọc đã đồng bộ chính xác.", "success");
             } catch(err) {
-                showStatus("❌ Lỗi xử lý: " + err.message, "error");
+                showStatus("❌ Lỗi xử lý dữ liệu: " + err.message, "error");
             }
         };
         reader.readAsArrayBuffer(file);
     }
 
     function clearDatabase() {
-        if(confirm("Bạn có muốn xóa dữ liệu cache hiện tại không?")) {
+        if(confirm("Bạn có muốn xóa dữ liệu bộ nhớ tạm không?")) {
             localStorage.removeItem('erp_precise_db');
             dataNhansu=[]; filteredNhansuData=[]; currentPage=1;
             renderNhansu();
@@ -397,6 +402,7 @@
         let gender = document.getElementById('filterGender').value;
         let selectedUnit = document.getElementById('filterUnit').value;
         let atvOpt = document.getElementById('filterAtv').value;
+        let nndhOpt = document.getElementById('filterNndh').value;
 
         filteredNhansuData = dataNhansu.filter(emp => {
             let matchKeyword = !keyword || emp.fullName.toLowerCase().includes(keyword) || emp.cccd.includes(keyword);
@@ -406,7 +412,10 @@
             let isAtv = emp.atv && emp.atv !== "-";
             let matchAtv = (atvOpt === "ALL") || (atvOpt === "YES" && isAtv) || (atvOpt === "NO" && !isAtv);
             
-            return matchKeyword && matchGender && matchUnit && matchAtv;
+            let isNndh = emp.nndh && emp.nndh !== "-";
+            let matchNndh = (nndhOpt === "ALL") || (nndhOpt === "YES" && isNndh) || (nndhOpt === "NO" && !isNndh);
+            
+            return matchKeyword && matchGender && matchUnit && matchAtv && matchNndh;
         });
 
         const totalRows = filteredNhansuData.length;
@@ -428,7 +437,7 @@
                 <td>${emp.bhxh}</td>
                 <td>${emp.cccd}</td>
                 <td style="font-weight:700; color:#1e3a8a; background-color: #e0f2fe; text-align: center;">${emp.atv}</td>
-                <td style="text-align: center; font-weight: bold; color: #b45309;">${emp.nndh || '-'}</td>
+                <td style="text-align: center; font-weight: bold; color: #b45309; background-color: #fef3c7;">${emp.nndh}</td>
                 <td style="font-weight:700; color:#475569; background-color: #f1f5f9; text-align:center;">${emp.oldRetire}</td>
                 <td style="font-weight:800; color:#991b1b; background-color: #fef2f2; text-align:center;">${emp.retireTime}</td>
                 <td style="font-weight:700; color:#065f46; background-color: #ecfdf5; text-align:center;">${emp.currentAge} tuổi</td>
@@ -463,7 +472,7 @@
     function calculateNSKPIs() {
         let total = dataNhansu.length; if(total === 0) return;
         
-        let nndhCount = dataNhansu.filter(e => e.nndh && e.nndh !== "0" && e.nndh !== "").length;
+        let nndhCount = dataNhansu.filter(e => e.nndh && e.nndh !== "-").length;
         let atvCount = dataNhansu.filter(e => e.atv && e.atv !== "-").length;
         
         let validAgeEmps = dataNhansu.filter(e => !isNaN(e.currentAge));
