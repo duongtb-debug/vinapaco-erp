@@ -203,7 +203,6 @@
         renderSuachuaTable();
     });
 
-    // Hàm chuẩn hóa định dạng ngày tháng xuất sắc từ Excel
     function formatExcelDate(cellVal, onlyYear = false) {
         if (cellVal === undefined || cellVal === null || String(cellVal).trim() === "") return "-";
         let strVal = String(cellVal).trim();
@@ -224,7 +223,7 @@
         if (strVal.includes("-")) {
             let parts = strVal.split("-");
             if (parts.length === 3) {
-                if (parts[0].length === 4) { // yyyy-mm-dd
+                if (parts[0].length === 4) {
                     if (onlyYear) return parts[0];
                     return `${parts[2].substring(0,2)}/${parts[1]}/${parts[0]}`;
                 }
@@ -278,7 +277,7 @@
 
     function processExcelNhansu(input) {
         const file = input.files[0]; if (!file) return;
-        showStatus("⏳ Đang nhận diện cấu trúc tệp dữ liệu chuẩn hóa...", "loading");
+        showStatus("⏳ Đang nhận diện cấu trúc tệp dữ liệu chuẩn hóa và nạp cột...", "loading");
 
         const reader = new FileReader();
         reader.onload = function(e) {
@@ -293,29 +292,29 @@
                 let headerIdx = -1;
                 for (let i = 0; i < Math.min(sheetData.length, 15); i++) {
                     let rowStr = sheetData[i].map(c => String(c).toLowerCase().normalize("NFC").replace(/[\s\n\r]/g, '')).join(',');
-                    if (rowStr.includes("họvàtên") && rowStr.includes("sốsổbhxh")) {
+                    if (rowStr.includes("họvàtên") && (rowStr.includes("sốsổbhxh") || rowStr.includes("bhxh"))) {
                         headerIdx = i; break;
                     }
                 }
 
                 if (headerIdx === -1) { showStatus("❌ Không tìm thấy dòng tiêu đề hợp lệ.", "error"); return; }
 
-                // Chuẩn hóa tiêu đề loại bỏ hoàn toàn các ký tự ẩn dấu cách thừa
-                let headers = sheetData[headerIdx].map(c => String(c).trim().toLowerCase().normalize("NFC").replace(/[\s\n\r]/g, ''));
+                // Chuẩn hóa tiêu đề bằng cách khử toàn bộ khoảng trắng, dấu xuống dòng và chuẩn hóa Unicode dạng NFC
+                let cleanHeaders = sheetData[headerIdx].map(c => String(c).trim().toLowerCase().normalize("NFC").replace(/[\s\n\r]/g, ''));
                 
-                let idxFullName = headers.indexOf("họvàtên");
-                let idxBhxh = headers.indexOf("sốsổbhxh");
-                let idxCccd = headers.indexOf("sốcccd");
+                let idxFullName = cleanHeaders.findIndex(h => h.includes("họvàtên") || h.includes("hovaten"));
+                let idxBhxh = cleanHeaders.findIndex(h => h.includes("sốsổbhxh") || h.includes("sosobhxh") || h == "bhxh");
+                let idxCccd = cleanHeaders.findIndex(h => h.includes("sốcccd") || h.includes("socccd") || h == "cccd");
                 
-                // Khớp chính xác hoàn toàn tiêu đề bất chấp khoảng trống
-                let idxAtv = headers.findIndex(h => h.includes("toanvien") || h.includes("antoan") || h.includes("atv"));
-                let idxNndh = headers.findIndex(h => h === "nnđh" || h.includes("nndh") || h.includes("độchại"));
-                let idxRetireOld = headers.findIndex(h => h.includes("nămvềhưu") || h.includes("namvehuu") || h.includes("vềhưu"));
-                let idxUnitCode = headers.findIndex(h => h.includes("mãđơnvị") || h.includes("madonvi") || h.includes("mãđơn")); 
-                let idxYear = headers.indexOf("năm");
-                let idxBirth = headers.findIndex(h => h.includes("nămsinh") || h.includes("namsinh"));
-                let idxGender = headers.findIndex(h => h.includes("nữ") || h.includes("nu(x)"));
-                let idxJob = headers.findIndex(h => h.includes("chứcdanh") || h.includes("chucdanh"));
+                // GIẢI PHÁP ĐỘC QUYỀN REGEX: Quét trúng cột An toàn viên và Mã đơn vị bất kể có bao nhiêu dấu cách ở giữa
+                let idxAtv = cleanHeaders.findIndex(h => /antoànviên|antoanvien|toanvien|atv/.test(h));
+                let idxNndh = cleanHeaders.findIndex(h => /nnđh|nndh|độchại|dochai/.test(h));
+                let idxRetireOld = cleanHeaders.findIndex(h => /nămvềhưu|namvehuu|vehuu/.test(h));
+                let idxUnitCode = cleanHeaders.findIndex(h => /mãđơnvị|madonvi|mãđơn|madon/.test(h)); 
+                let idxYear = cleanHeaders.findIndex(h => h === "năm" || h === "nam");
+                let idxBirth = cleanHeaders.findIndex(h => /nămsinh|namsinh/.test(h));
+                let idxGender = cleanHeaders.findIndex(h => /nữ|nu/.test(h));
+                let idxJob = cleanHeaders.findIndex(h => /chứcdanh|chucdanh|côngviệc|congviec/.test(h));
 
                 let currentYear = 2026;
                 let tempNhansu = [];
@@ -369,9 +368,9 @@
                 localStorage.setItem('erp_precise_db', JSON.stringify(dataNhansu));
                 currentPage = 1;
                 renderNhansu();
-                showStatus("🎉 Đã nhập dữ liệu thành công! Toàn bộ cột An toàn viên và bộ lọc đã đồng bộ chính xác.", "success");
+                showStatus("🎉 Đã nhập dữ liệu thành công! Cột An toàn viên đã hiển thị chính xác hoàn toàn.", "success");
             } catch(err) {
-                showStatus("❌ Lỗi xử lý dữ liệu: " + err.message, "error");
+                showStatus("❌ Lỗi dữ liệu: " + err.message, "error");
             }
         };
         reader.readAsArrayBuffer(file);
@@ -457,7 +456,7 @@
         executeAdvancedFilter();
     }
 
-    function renderNhansu() {
+    UX: function renderNhansu() {
         buildUnitDropdown();
         executeAdvancedFilter(); 
         calculateNSKPIs(); 
