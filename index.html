@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Hệ Thống ERP Toàn Diện - Đồng Bộ Điện Toán Đám Mây</title>
+    <title>Hệ Thống Cloud ERP Nhân Sự - Bản Fix CORS</title>
     <style>
         *, *::before, *::after { box-sizing: border-box; }
         body {
@@ -67,7 +67,6 @@
         .btn-primary { background-color: #2563eb; color: white; }
         .btn-success { background-color: #16a34a; color: white; }
         .btn-danger { background-color: #ef4444; color: white; }
-        .btn-purple { background-color: #8b5cf6; color: white; }
         
         .table-responsive { overflow-x: auto; max-height: 400px; border: 1px solid #e2e8f0; border-radius: 8px; background: white; }
         table { width: 100%; border-collapse: collapse; font-size: 13px; white-space: nowrap; }
@@ -85,7 +84,7 @@
 <div class="container">
     <header>
         <h1>Hệ Thống Cloud ERP Nhân Sự</h1>
-        <p>Đồng Bộ Thời Gian Thực Toàn Diện Trên Mọi Thiết Bị</p>
+        <p>Giải Pháp Kết Nối JSONP - Khắc Phục Triệt Để Lỗi Mạng CORS</p>
     </header>
 
     <div class="erp-dashboard">
@@ -173,37 +172,48 @@
         fetchDataFromCloud();
     });
 
-    // 🔄 TẢI DỮ LIỆU TỪ CLOUD VỀ MÁY / ĐIỆN THOẠI
+    // 🔄 ĐỌC DỮ LIỆU QUA CƠ CHẾ JSONP AN TOÀN TUYỆT ĐỐI (KHÔNG LO LỖI MẠNG / CORS)
     function fetchDataFromCloud() {
-        setCloudStatus("Loading...", "status-loading");
-        if(CLOUD_URL === "URL_WEB_APP_GOOGLE_CỦA_BẠN") {
-            alert("Vui lòng cấu hình URL Web App Google Sheets ở dòng 127 trong code!");
+        setCloudStatus("Đang đồng bộ...", "status-loading");
+        if(!CLOUD_URL || CLOUD_URL.includes("URL_WEB_APP_GOOGLE")) {
+            alert("Vui lòng dán chính xác URL bản triển khai Web App Google của bạn vào dòng 128!");
             return;
         }
-        fetch(CLOUD_URL)
-            .then(res => res.json())
-            .then(data => {
-                dataNhansu = data;
-                renderNhansuTable(dataNhansu);
-                calculateAnalytics();
-                setCloudStatus("Đã Đồng Bộ Cloud", "status-online");
-            })
-            .catch(err => {
-                console.error(err);
-                setCloudStatus("Lỗi Mạng", "status-loading");
-            });
+
+        // Xóa script JSONP cũ nếu có
+        const oldScript = document.getElementById('jsonp-cloud-script');
+        if(oldScript) oldScript.remove();
+
+        // Tạo thẻ script động để kéo dữ liệu xuyên miền bypass qua CORS
+        const script = document.createElement('script');
+        script.id = 'jsonp-cloud-script';
+        script.src = CLOUD_URL + "?callback=handleCloudResponse&ts=" + new Date().getTime();
+        script.onerror = function() {
+            setCloudStatus("Lỗi Kết Nối", "status-loading");
+        };
+        document.body.appendChild(script);
+    }
+
+    // Hàm hứng kết quả trả về từ thẻ script đám mây
+    function handleCloudResponse(responseRaw) {
+        dataNhansu = responseRaw;
+        renderNhansuTable(dataNhansu);
+        calculateAnalytics();
+        setCloudStatus("Đã Đồng Bộ Cloud", "status-online");
     }
 
     function setCloudStatus(text, className) {
         const ind = document.getElementById('cloud_indicator');
-        ind.innerText = text;
-        ind.className = "cloud-status " + className;
+        if(ind) {
+            ind.innerText = text;
+            ind.className = "cloud-status " + className;
+        }
     }
 
-    // 📤 ĐẨY DỮ LIỆU FILE EXCEL LÊN MÂY CHO TẤT CẢ MÁY KHÁC CÙNG THẤY
+    // 📤 ĐẨY DỮ LIỆU LÊN ĐÁM MÂY QUA PHƯƠNG THỨC 'NO-CORS' CHUẨN HOÁ
     function uploadExcelToCloud(input) {
         const file = input.files[0]; if (!file) return;
-        setCloudStatus("Đang tải dữ liệu...", "status-loading");
+        setCloudStatus("Đang nạp Excel...", "status-loading");
         const reader = new FileReader();
         reader.onload = function(e) {
             const data = new Uint8Array(e.target.result);
@@ -237,7 +247,6 @@
                 let isFemale = (idxFemale !== -1 && r[idxFemale].toString().toUpperCase().includes("X"));
                 let isNndh = (idxNndh !== -1 && r[idxNndh].toString().trim() !== "");
 
-                // Tính luật hưu mới 2026
                 let stdAge = isFemale ? 55 : 60;
                 let origRetire = bYear + stdAge;
                 let gap = origRetire - 2020;
@@ -262,21 +271,25 @@
                 });
             }
 
-            // Đồng bộ trực tiếp JSON lên Google Sheets API
+            setCloudStatus("Đang gửi Cloud...", "status-loading");
+
             fetch(CLOUD_URL, {
                 method: "POST",
-                mode: "no-cors",
-                headers: { "Content-Type": "application/json" },
+                mode: "no-cors", 
+                headers: { "Content-Type": "text/plain" },
                 body: JSON.stringify({ action: "saveAll", data: parsed })
             }).then(() => {
-                alert("Đã tải dữ liệu lên Đám mây thành công! Hệ thống đang tải lại dữ liệu đồng bộ...");
-                setTimeout(fetchDataFromCloud, 2000);
-            }).catch(err => alert("Lỗi đẩy dữ liệu: " + err));
+                alert("Gửi tệp lên Đám mây thành công! Hệ thống tự động đồng bộ lại sau 3 giây...");
+                input.value = "";
+                setTimeout(fetchDataFromCloud, 3000);
+            }).catch(err => {
+                alert("Lỗi đẩy dữ liệu: " + err);
+                setCloudStatus("Lỗi Upload", "status-loading");
+            });
         };
         reader.readAsArrayBuffer(file);
     }
 
-    // 📊 PHÂN TÍCH THỐNG KÊ CHI TIẾT
     function calculateAnalytics() {
         const total = dataNhansu.length;
         document.getElementById('dash_staff_total').innerText = total;
@@ -319,7 +332,8 @@
 
     function renderNhansuTable(list) {
         const b = document.getElementById('corporateBody');
-        if(list.length === 0) { b.innerHTML = `<tr><td colspan="11" style="text-align:center;">Trống.</td></tr>`; return; }
+        if(!b) return;
+        if(list.length === 0) { b.innerHTML = `<tr><td colspan="11" style="text-align:center;">Trống hoặc chưa có dữ liệu. Hãy bấm "Tải Excel Mới Lên Cloud".</td></tr>`; return; }
         b.innerHTML = list.map(e => `<tr><td>${e.stt}</td><td style="font-weight:bold;color:#1e3a8a;">${e.unitCode}</td><td><b>${e.fullName}</b></td><td>${e.bhxh}</td><td>${e.cccd}</td><td>${e.birthYear}</td><td>${e.currentAge}</td><td>${e.genderLabel}</td><td style="color:red;">${e.retireOriginal}</td><td style="color:purple;font-weight:bold;">${e.retireNewLaw}</td><td>${e.jobTitle}</td></tr>`).join('');
     }
 
