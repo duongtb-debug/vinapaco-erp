@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hệ Thống ERP Toàn Diện - Cập Nhật Định Dạng Ngày Tháng</title>
+    <title>Hệ Thống ERP Toàn Diện - Quản Lý Nhân Sự & Hồ Sơ Thanh Toán</title>
     <style>
         *, *::before, *::after { box-sizing: border-box; }
         body {
@@ -35,7 +35,7 @@
         .status-success { background-color: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
         .status-error { background-color: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
 
-        .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 20px; }
+        .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px; }
         .metric-card { background: white; padding: 14px; border-radius: 10px; border: 1px solid #e2e8f0; border-top: 4px solid #1e3a8a; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
         .metric-card h4 { margin: 0; color: #64748b; font-size: 11px; text-transform: uppercase; }
         .metric-card .value { font-size: 14px; font-weight: 800; margin-top: 6px; color: #0f172a; word-break: break-word; }
@@ -57,8 +57,8 @@
         .action-buttons { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 15px; }
         .btn { padding: 10px 14px; border: none; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; min-height: 38px; }
         .btn-primary { background-color: #2563eb; color: white; }
+        .btn-success { background-color: #10b981; color: white; }
         .btn-danger { background-color: #ef4444; color: white; }
-        .btn-warning { background-color: #f59e0b; color: white; }
         .btn-sm { padding: 6px 10px; font-size: 11px; min-height: 30px; }
 
         .table-responsive { overflow-x: auto; max-height: 500px; border: 1px solid #e2e8f0; border-radius: 8px; background: white; }
@@ -70,7 +70,12 @@
         .pagination-container { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; flex-wrap: wrap; gap: 10px; }
         .pagination-info { font-size: 12px; color: #64748b; }
         .pagination-buttons { display: flex; gap: 5px; }
-        .badge { display: inline-block; padding: 4px 8px; font-size: 11px; font-weight: 700; border-radius: 4px; background-color: #e2e8f0; color: #1e293b; }
+        
+        .badge { display: inline-block; padding: 4px 8px; font-size: 11px; font-weight: 700; border-radius: 4px; }
+        .badge-unit { background-color: #e0f2fe; color: #0369a1; }
+        .badge-pending { background-color: #fef3c7; color: #d97706; }
+        .badge-paid { background-color: #d1fae5; color: #065f46; }
+        .badge-rejected { background-color: #fee2e2; color: #b91c1c; }
     </style>
 </head>
 <body>
@@ -78,13 +83,13 @@
 <div class="container">
     <header>
         <h1>Hệ Thống ERP Toàn Diện</h1>
-        <p>Bản sửa lỗi định dạng Ngày Tháng Năm (Serial Date) & Đồng bộ Mã Đơn Vị, An Toàn Viên chính xác</p>
+        <p>Bản sửa lỗi: Khớp chính xác cột An Toàn Viên, bổ sung Bộ lọc Mã đơn vị, Tỷ lệ % KPIs & Hồ sơ thanh toán</p>
     </header>
 
     <div class="nav-tabs">
         <button class="tab-btn active" id="btn-tab-nhansu" onclick="switchTab('tab-nhansu')">👥 1. Quản Lý Nhân Sự</button>
         <button class="tab-btn" id="btn-tab-capphat" onclick="switchTab('tab-capphat')">📦 2. Cấp Phát Bảo Hộ</button>
-        <button class="tab-btn" id="btn-tab-suachua" onclick="switchTab('tab-suachua')">🛠️ 3. Nhật Trình Sửa Chữa</button>
+        <button class="tab-btn" id="btn-tab-thanhtoan" onclick="switchTab('tab-thanhtoan')">💳 3. Hồ Sơ Thanh Toán</button>
     </div>
 
     <div id="tab-nhansu" class="tab-content active">
@@ -92,16 +97,16 @@
 
         <div class="metrics-grid">
             <div class="metric-card"><h4 style="color:#1e3a8a">Tổng Số Nhân Sự</h4><div class="value" id="countTotal">0 người</div></div>
-            <div class="metric-card" style="border-top-color:#0284c7;"><h4 style="color:#0284c7">Lao ĐỘng Nam</h4><div class="value" id="countMaleWithRatio">0 người (0%)</div></div>
-            <div class="metric-card" style="border-top-color:#ec4899;"><h4 style="color:#ec4899">Lao Động Nữ</h4><div class="value" id="countFemaleWithRatio">0 người (0%)</div></div>
-            <div class="metric-card" style="border-top-color:#ef4444;"><h4 style="color:#ef4444">Nghề Độc Hại (NNĐH)</h4><div class="value" id="countNndh">0 người</div></div>
+            <div class="metric-card" style="border-top-color:#0284c7;"><h4 style="color:#0284c7">Lao Động Nam / Nữ</h4><div class="value" id="countGenderRatio">0 / 0 người</div></div>
+            <div class="metric-card" style="border-top-color:#ef4444;"><h4 style="color:#ef4444">Tỷ Lệ Nghề Độc Hại</h4><div class="value" id="countNndhRatio">0 người (0%)</div></div>
+            <div class="metric-card" style="border-top-color:#0369a1;"><h4 style="color:#0369a1">Tỷ Lệ An Toàn Viên</h4><div class="value" id="countAtvRatio">0 người (0%)</div></div>
             <div class="metric-card" style="border-top-color:#10b981;"><h4 style="color:#10b981">Tuổi Trung Bình</h4><div class="value" id="avgAge">0 tuổi</div></div>
         </div>
 
         <div class="panel">
             <div class="panel-title">Thao Tác Cơ Sở Dữ Liệu</div>
             <div class="action-buttons">
-                <button class="btn btn-primary" onclick="document.getElementById('excelFile').click()">📁 Tải Excel Hệ Thống</button>
+                <button class="btn btn-primary" onclick="document.getElementById('excelFile').click()">📁 Tải Excel Cập Nhật</button>
                 <button class="btn btn-danger" onclick="clearDatabase()">🗑️ Xóa Bộ Nhớ Cache</button>
                 <input type="file" id="excelFile" accept=".xlsx, .xls, .csv" style="display: none;" onchange="processExcelNhansu(this)">
             </div>
@@ -110,9 +115,10 @@
         <div class="panel">
             <div class="panel-title">Danh Sách Nhân Sự Đang Quản Lý</div>
             <div class="filter-dashboard">
-                <div><label>Tìm nhanh</label><input type="text" id="filterSearch" onkeyup="resetPageAndFilter()"></div>
+                <div><label>Tìm nhanh (Tên/CCCD)</label><input type="text" id="filterSearch" onkeyup="resetPageAndFilter()"></div>
                 <div><label>Giới Tính</label><select id="filterGender" onchange="resetPageAndFilter()"><option value="ALL">Tất cả</option><option value="Nam">Nam</option><option value="Nữ">Nữ</option></select></div>
-                <div><label>Phân Loại An Toàn Viên</label><select id="filterAtv" onchange="resetPageAndFilter()"><option value="ALL">Tất cả</option><option value="YES">Là An toàn viên</option><option value="NO">Không phải</option></select></div>
+                <div><label>Mã Đơn Vị</label><select id="filterUnit" onchange="resetPageAndFilter()"><option value="ALL">Tất cả</option></select></div>
+                <div><label>An Toàn Viên</label><select id="filterAtv" onchange="resetPageAndFilter()"><option value="ALL">Tất cả</option><option value="YES">Là An toàn viên</option><option value="NO">Không phải</option></select></div>
             </div>
 
             <div class="table-responsive">
@@ -167,18 +173,56 @@
         </div>
     </div>
 
-    <div id="tab-suachua" class="tab-content">
+    <div id="tab-thanhtoan" class="tab-content">
+        <div class="metrics-grid">
+            <div class="metric-card" style="border-top-color:#cbd5e1;"><h4 style="color:#475569">Tổng Số Hồ Sơ</h4><div class="value" id="tt_total_count">0 bộ</div></div>
+            <div class="metric-card" style="border-top-color:#f59e0b;"><h4 style="color:#d97706">Tổng Tiền Chờ Duyệt</h4><div class="value" id="tt_total_pending">0 VNĐ</div></div>
+            <div class="metric-card" style="border-top-color:#10b981;"><h4 style="color:#065f46">Tổng Tiền Đã Thanh Toán</h4><div class="value" id="tt_total_paid">0 VNĐ</div></div>
+        </div>
+
         <div class="panel">
-            <div class="panel-title">Nhật Trình Bảo Dưỡng & Sửa Chữa Thiết Bị</div>
+            <div class="panel-title">Tạo Mới Hồ Sơ Yêu Cầu Thanh Toán</div>
             <div class="manual-form">
-                <div class="form-group"><label>Mã Thiết Bị</label><input type="text" id="sc_id" value="M-PXP-02"></div>
-                <div class="form-group"><label>Tên Thiết Bị / Máy Móc</label><input type="text" id="sc_name" value="Máy chặt sàng nguyên liệu"></div>
-                <div class="form-group"><label>Nội Dung Sửa Chữa / Sự Cố</label><input type="text" id="sc_content" placeholder="Mô tả sự cố..."></div>
-                <div class="form-group" style="justify-content: flex-end; grid-column: span 3;"><button class="btn btn-warning" onclick="addManualSuachua()">🛠️ Lưu Ghi Nhận Nhật Trình</button></div>
+                <div class="form-group"><label>Mã Hồ Sơ</label><input type="text" id="pay_id" placeholder="Ví dụ: HS-2026-001"></div>
+                <div class="form-group"><label>Tên Người / Đơn Vị Thụ Hưởng</label><input type="text" id="pay_beneficiary" placeholder="Nhập đơn vị hoặc cá nhân..."></div>
+                <div class="form-group"><label>Số Tiền Thanh Toán (VNĐ)</label><input type="number" id="pay_amount" placeholder="Nhập số tiền..."></div>
+                <div class="form-group"><label>Nội Dung / Lý Do Thanh Toán</label><input type="text" id="pay_content" placeholder="Mô tả nội dung hồ sơ thanh toán..."></div>
+                <div class="form-group"><label>Trạng Thái</label>
+                    <select id="pay_status">
+                        <option value="PENDING">Chờ duyệt</option>
+                        <option value="PAID">Đã thanh toán</option>
+                        <option value="REJECTED">Từ chối</option>
+                    </select>
+                </div>
+                <div class="form-group" style="justify-content: flex-end; align-items:flex-end;"><button class="btn btn-success" onclick="addManualPayment()">➕ Lưu Hồ Sơ</button></div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-title">Quản Lý Danh Sách Chứng Từ Thanh Toán</div>
+            <div class="filter-dashboard">
+                <div style="grid-column: span 2;"><label>Lọc nhanh hồ sơ</label><input type="text" id="pay_search" onkeyup="renderPaymentTable()" placeholder="Tìm kiếm theo mã, tên thụ hưởng hoặc nội dung..."></div>
+                <div style="grid-column: span 2;"><label>Trạng Thái Hồ Sơ</label>
+                    <select id="pay_filter_status" onchange="renderPaymentTable()">
+                        <option value="ALL">Tất cả trạng thái</option>
+                        <option value="PENDING">Chờ duyệt</option>
+                        <option value="PAID">Đã thanh toán</option>
+                        <option value="REJECTED">Từ chối</option>
+                    </select>
+                </div>
             </div>
             <div class="table-responsive">
-                <table id="suachuaTable">
-                    <thead><tr><th>Mã Thiết Bị</th><th>Tên Máy Móc</th><th>Nội Dung Xử Lý</th><th>Hành Động</th></tr></thead>
+                <table id="paymentTable">
+                    <thead>
+                        <tr>
+                            <th>Mã Hồ Sơ</th>
+                            <th>Đơn Vị Thụ Hưởng</th>
+                            <th>Số Tiền (VNĐ)</th>
+                            <th>Nội Dung Chi Tiết</th>
+                            <th>Trạng Thái</th>
+                            <th>Thao Tác Linh Hoạt</th>
+                        </tr>
+                    </thead>
                     <tbody></tbody>
                 </table>
             </div>
@@ -189,7 +233,7 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
 
 <script>
-    let dataNhansu = [], dataCapphat = [], dataSuachua = [];
+    let dataNhansu = [], dataCapphat = [], dataPayment = [];
     let currentPage = 1;
     const rowsPerPage = 20;
     let filteredNhansuData = [];
@@ -197,44 +241,34 @@
     window.addEventListener('DOMContentLoaded', () => {
         dataNhansu = JSON.parse(localStorage.getItem('erp_precise_db')) || [];
         dataCapphat = JSON.parse(localStorage.getItem('erp_capphat_db')) || [];
-        dataSuachua = JSON.parse(localStorage.getItem('erp_suachua_db')) || [];
+        dataPayment = JSON.parse(localStorage.getItem('erp_payment_db')) || [];
         renderNhansu();
         renderCapphatTable();
-        renderSuachuaTable();
+        renderPaymentTable();
     });
 
-    // Hàm chuyển đổi vạn năng từ số Excel (46266...) thành định dạng chuỗi dd/mm/yyyy
     function formatExcelDate(cellVal, onlyYear = false) {
         if (cellVal === undefined || cellVal === null || String(cellVal).trim() === "") return "-";
         let strVal = String(cellVal).trim();
-        
-        // Nếu là số Serial Date của Excel
         if (!isNaN(strVal) && parseFloat(strVal) > 10000 && parseFloat(strVal) < 100000) {
             try {
                 const serial = parseFloat(strVal);
                 const utc_days  = Math.floor(serial - 25569);
                 const date_info = new Date(utc_days * 86400 * 1000);
-                
                 const day = String(date_info.getDate()).padStart(2, '0');
                 const month = String(date_info.getMonth() + 1).padStart(2, '0');
                 const year = date_info.getFullYear();
-                
                 if (onlyYear) return String(year);
                 return `${day}/${month}/${year}`;
             } catch (err) { return strVal; }
         }
-        
-        // Nếu đã là định dạng yyyy-mm-dd sẵn từ text thô
         if (strVal.includes("-")) {
             let parts = strVal.split("-");
-            if (parts.length === 3) {
-                if (parts[0].length === 4) { // yyyy-mm-dd
-                    if (onlyYear) return parts[0];
-                    return `${parts[2].substring(0,2)}/${parts[1]}/${parts[0]}`;
-                }
+            if (parts.length === 3 && parts[0].length === 4) {
+                if (onlyYear) return parts[0];
+                return `${parts[2].substring(0,2)}/${parts[1]}/${parts[0]}`;
             }
         }
-        
         if (onlyYear) {
             let match = strVal.match(/\d{4}/);
             return match ? match[0] : strVal;
@@ -248,16 +282,11 @@
         return match ? parseInt(match[0]) : 1990;
     }
 
-    // Tính toán ngày dự kiến nghỉ hưu chính xác (đầy đủ ngày tháng năm dựa theo ngày sinh)
     function calculateRetirementDateStr(birthDateStr, gender, isNndh) {
         if (!birthDateStr || birthDateStr === "-") return "-";
         let parts = birthDateStr.split("/");
         if (parts.length !== 3) return "-";
-        
-        let d = parseInt(parts[0]);
-        let m = parseInt(parts[1]);
-        let y = parseInt(parts[2]);
-        
+        let d = parseInt(parts[0]), m = parseInt(parts[1]), y = parseInt(parts[2]);
         let targetAge = 60;
         if (isNndh) {
             targetAge = (gender === "Nữ") ? 55 : 57;
@@ -267,9 +296,7 @@
                 if (baseRetireYear <= 2020) targetAge = 60;
                 else {
                     let diff = baseRetireYear - 2020;
-                    let addMonths = Math.min(diff * 3, 24);
-                    let totalMonths = 60 * 12 + addMonths;
-                    let retireDate = new Date(y, m - 1 + totalMonths, d);
+                    let retireDate = new Date(y, m - 1 + (60 * 12 + Math.min(diff * 3, 24)), d);
                     return `${String(retireDate.getDate()).padStart(2,'0')}/${String(retireDate.getMonth()+1).padStart(2,'0')}/${retireDate.getFullYear()}`;
                 }
             } else {
@@ -277,20 +304,17 @@
                 if (baseRetireYear <= 2020) targetAge = 55;
                 else {
                     let diff = baseRetireYear - 2020;
-                    let addMonths = Math.min(diff * 4, 60);
-                    let totalMonths = 55 * 12 + addMonths;
-                    let retireDate = new Date(y, m - 1 + totalMonths, d);
+                    let retireDate = new Date(y, m - 1 + (55 * 12 + Math.min(diff * 4, 60)), d);
                     return `${String(retireDate.getDate()).padStart(2,'0')}/${String(retireDate.getMonth()+1).padStart(2,'0')}/${retireDate.getFullYear()}`;
                 }
             }
         }
-        
         return `${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}/${y + targetAge}`;
     }
 
     function processExcelNhansu(input) {
         const file = input.files[0]; if (!file) return;
-        showStatus("⏳ Đang xử lý bóc tách cấu trúc cột và sửa lỗi định dạng ngày tháng...", "loading");
+        showStatus("⏳ Đang nhận diện động dữ liệu An Toàn Viên và các cột thông tin...", "loading");
 
         const reader = new FileReader();
         reader.onload = function(e) {
@@ -300,35 +324,27 @@
                 const sheet = workbook.Sheets[workbook.SheetNames[0]];
                 const sheetData = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
                 
-                if (sheetData.length === 0) {
-                    showStatus("❌ File trống.", "error");
-                    return;
-                }
+                if (sheetData.length === 0) { showStatus("❌ File trống.", "error"); return; }
 
                 let headerIdx = -1;
                 for (let i = 0; i < Math.min(sheetData.length, 15); i++) {
                     let rowStr = sheetData[i].map(c => String(c).toLowerCase().replace(/[\s\n\r]/g, '')).join(',');
                     if (rowStr.includes("họvàtên") && rowStr.includes("sốsổbhxh")) {
-                        headerIdx = i;
-                        break;
+                        headerIdx = i; break;
                     }
                 }
 
-                if (headerIdx === -1) {
-                    showStatus("❌ Không tìm thấy tiêu đề phù hợp.", "error");
-                    return;
-                }
+                if (headerIdx === -1) { showStatus("❌ Không tìm thấy dòng tiêu đề hợp lệ.", "error"); return; }
 
                 let headers = sheetData[headerIdx].map(c => String(c).trim().toLowerCase().replace(/[\s\n\r]/g, ''));
                 
-                // Định vị index chính xác dựa theo dữ liệu thực tế trong file
                 let idxFullName = headers.indexOf("họvàtên");
                 let idxBhxh = headers.indexOf("sốsổbhxh");
                 let idxCccd = headers.indexOf("sốcccd");
                 
-                // Nhận diện cột An Toàn Viên và Mã Đơn Vị theo đúng sơ đồ file gốc
-                let idxAtv = headers.findIndex(h => h === "antoànviên" || h === "atv" || h.includes("antoan"));
-                let idxNndh = headers.indexOf("nnđh");
+                // Giải pháp tối ưu: Tìm kiếm tương đối để bắt trọn vẹn cột An Toàn Viên dù có ký tự đặc biệt hay lệch cột
+                let idxAtv = headers.findIndex(h => h.includes("toànviên") || h === "atv" || h.includes("antoan"));
+                let idxNndh = headers.findIndex(h => h === "nnđh" || h.includes("độchại"));
                 let idxRetireOld = headers.indexOf("nămvềhưu");
                 let idxUnitCode = headers.findIndex(h => h === "mãđơnvị" || h.includes("mãđơn")); 
                 let idxYear = headers.indexOf("năm");
@@ -346,7 +362,6 @@
                     let nameVal = idxFullName !== -1 ? row[idxFullName] : "";
                     if (!nameVal || String(nameVal).trim() === "" || String(nameVal).toLowerCase().includes("họ và tên")) continue;
 
-                    // Chuẩn hóa hiển thị trường dữ liệu ngày tháng
                     let cleanBirthStr = idxBirth !== -1 ? formatExcelDate(row[idxBirth], false) : "-"; 
                     let birthYear = parseBirthYear(cleanBirthStr);
                     
@@ -356,6 +371,7 @@
                         if (["X", "1", "NỮ", "NU"].includes(gText)) genderStr = "Nữ";
                     }
 
+                    // Giải pháp bóc tách giá trị An toàn viên thô từ file gốc
                     let rawAtv = idxAtv !== -1 ? String(row[idxAtv]).trim() : "";
                     let rawNndh = idxNndh !== -1 ? String(row[idxNndh]).trim() : "";
                     let rightCodeStt = idxUnitCode !== -1 ? String(row[idxUnitCode]).trim() : "-";
@@ -369,17 +385,17 @@
 
                     tempNhansu.push({
                         stt: tempNhansu.length + 1,
-                        rightStt: rightCodeStt, // Hiển thị chuẩn trường Mã đơn vị gốc
+                        rightStt: rightCodeStt, 
                         fullName: String(nameVal).trim(),
                         bhxh: idxBhxh !== -1 ? String(row[idxBhxh]).trim() : "-",
                         cccd: idxCccd !== -1 ? String(row[idxCccd]).trim() : "-",
-                        atv: (rawAtv === "0" || rawAtv === "") ? "-" : rawAtv, // Trả dữ liệu gốc nguyên bản
+                        atv: (rawAtv === "0" || rawAtv === "") ? "-" : rawAtv, 
                         nndh: rawNndh,
                         oldRetire: oldRetireVal,
                         currentAge: currentAge,
-                        retireTime: autoRetireDate, // Đầy đủ ngày tháng năm nghỉ hưu dự kiến
-                        year: yearOnlyVal, // Chỉ hiển thị năm
-                        birthOrigin: cleanBirthStr, // Đầy đủ ngày tháng năm sinh
+                        retireTime: autoRetireDate, 
+                        year: yearOnlyVal, 
+                        birthOrigin: cleanBirthStr, 
                         gender: genderStr,
                         jobTitle: idxJob !== -1 ? String(row[idxJob]).trim() : "-"
                     });
@@ -389,20 +405,28 @@
                 localStorage.setItem('erp_precise_db', JSON.stringify(dataNhansu));
                 currentPage = 1;
                 renderNhansu();
-                showStatus("🎉 Đã nhập thành công! Khớp chính xác toàn bộ định dạng Ngày/Tháng/Năm của file gốc.", "success");
+                showStatus("🎉 Nạp dữ liệu thành công! Đã bắt được dữ liệu cột An toàn viên và Mã đơn vị.", "success");
             } catch(err) {
-                showStatus("❌ Lỗi cấu trúc xử lý: " + err.message, "error");
+                showStatus("❌ Lỗi xử lý: " + err.message, "error");
             }
         };
         reader.readAsArrayBuffer(file);
     }
 
     function clearDatabase() {
-        if(confirm("Bạn có muốn xóa dữ liệu cache hiện tại không?")) {
+        if(confirm("Xóa sạch cache dữ liệu hiện hành?")) {
             localStorage.removeItem('erp_precise_db');
             dataNhansu=[]; filteredNhansuData=[]; currentPage=1;
             renderNhansu();
         }
+    }
+
+    // Tự động gom các Mã đơn vị có sẵn trong file để hiển thị lên bộ lọc
+    function buildUnitDropdown() {
+        const uSelect = document.getElementById('filterUnit'); if(!uSelect) return;
+        uSelect.innerHTML = '<option value="ALL">Tất cả mã đơn vị</option>';
+        let uniqueUnits = [...new Set(dataNhansu.map(e => e.rightStt).filter(u => u && u !== "-"))].sort();
+        uniqueUnits.forEach(u => { uSelect.innerHTML += `<option value="${u}">${u}</option>`; });
     }
 
     function resetPageAndFilter() {
@@ -413,14 +437,16 @@
     function executeAdvancedFilter() {
         let keyword = document.getElementById('filterSearch').value.toLowerCase().trim();
         let gender = document.getElementById('filterGender').value;
+        let selectedUnit = document.getElementById('filterUnit').value;
         let atvOpt = document.getElementById('filterAtv').value;
 
         filteredNhansuData = dataNhansu.filter(emp => {
             let matchKeyword = !keyword || emp.fullName.toLowerCase().includes(keyword) || emp.cccd.includes(keyword);
             let matchGender = (gender === "ALL") || (emp.gender === gender);
+            let matchUnit = (selectedUnit === "ALL") || (emp.rightStt === selectedUnit);
             let isAtv = emp.atv && emp.atv !== "-";
             let matchAtv = (atvOpt === "ALL") || (atvOpt === "YES" && isAtv) || (atvOpt === "NO" && !isAtv);
-            return matchKeyword && matchGender && matchAtv;
+            return matchKeyword && matchGender && matchUnit && matchAtv;
         });
 
         const totalRows = filteredNhansuData.length;
@@ -463,6 +489,7 @@
     }
 
     function renderNhansu() {
+        buildUnitDropdown();
         executeAdvancedFilter(); 
         calculateNSKPIs(); 
     }
@@ -480,22 +507,26 @@
         document.getElementById('btn-' + tabId).classList.add('active');
     }
 
+    // Tính toán Tỷ lệ % Độc hại và % An toàn viên chuẩn xác trên tổng số nhân sự
     function calculateNSKPIs() {
         let total = dataNhansu.length; if(total === 0) return;
         let female = dataNhansu.filter(e => e.gender === "Nữ").length;
         let male = total - female;
+        
         let nndhCount = dataNhansu.filter(e => e.nndh && e.nndh !== "0" && e.nndh !== "").length;
+        let atvCount = dataNhansu.filter(e => e.atv && e.atv !== "-").length;
+        
         let validAgeEmps = dataNhansu.filter(e => !isNaN(e.currentAge));
         let avgAge = validAgeEmps.length > 0 ? Math.round(validAgeEmps.reduce((sum, e) => sum + e.currentAge, 0) / validAgeEmps.length) : 0;
 
         document.getElementById('countTotal').innerHTML = `<b>${total}</b> người`;
-        document.getElementById('countMaleWithRatio').innerHTML = `<b>${male}</b> nam (${((male/total)*100).toFixed(1)}%)`;
-        document.getElementById('countFemaleWithRatio').innerHTML = `<b>${female}</b> nữ (${((female/total)*100).toFixed(1)}%)`;
-        document.getElementById('countNndh').innerHTML = `<b>${nndhCount}</b> người`;
+        document.getElementById('countGenderRatio').innerHTML = `<b>${male}</b> Nam / <b>${female}</b> Nữ`;
+        document.getElementById('countNndhRatio').innerHTML = `<b>${nndhCount}</b> người (${((nndhCount/total)*100).toFixed(1)}%)`;
+        document.getElementById('countAtvRatio').innerHTML = `<b>${atvCount}</b> người (${((atvCount/total)*100).toFixed(1)}%)`;
         document.getElementById('avgAge').innerText = avgAge + " tuổi";
     }
 
-    // Logic Phân hệ Cấp phát bảo hộ
+    // Cấp phát bảo hộ
     function addManualCapphat() {
         let name = document.getElementById('cp_name').value;
         let id = document.getElementById('cp_id').value;
@@ -515,25 +546,84 @@
     }
     function deleteCapphat(idx) { dataCapphat.splice(idx,1); localStorage.setItem('erp_capphat_db', JSON.stringify(dataCapphat)); renderCapphatTable(); }
 
-    // Logic Phân hệ Sửa chữa bảo dưỡng
-    function addManualSuachua() {
-        let id = document.getElementById('sc_id').value;
-        let name = document.getElementById('sc_name').value;
-        let content = document.getElementById('sc_content').value;
-        if(!content) { alert('Vui lòng điền nội dung sự cố sửa chữa!'); return; }
-        dataSuachua.push({ id, name, content });
-        localStorage.setItem('erp_suachua_db', JSON.stringify(dataSuachua));
-        document.getElementById('sc_content').value = '';
-        renderSuachuaTable();
+    // MODULE QUẢN LÝ HỒ SƠ THANH TOÁN CHUYÊN NGHIỆP
+    function addManualPayment() {
+        let id = document.getElementById('pay_id').value.trim();
+        let beneficiary = document.getElementById('pay_beneficiary').value.trim();
+        let amount = parseFloat(document.getElementById('pay_amount').value);
+        let content = document.getElementById('pay_content').value.trim();
+        let status = document.getElementById('pay_status').value;
+
+        if(!id || !beneficiary || isNaN(amount)) { alert('Vui lòng điền đầy đủ Mã HS, Người hưởng và Số tiền hợp lệ!'); return; }
+        
+        dataPayment.push({ id, beneficiary, amount, content, status });
+        localStorage.setItem('erp_payment_db', JSON.stringify(dataPayment));
+        
+        // Reset form
+        document.getElementById('pay_id').value = '';
+        document.getElementById('pay_beneficiary').value = '';
+        document.getElementById('pay_amount').value = '';
+        document.getElementById('pay_content').value = '';
+        
+        renderPaymentTable();
     }
-    function renderSuachuaTable() {
-        let tbody = document.querySelector('#suachuaTable tbody'); if(!tbody) return;
+
+    function renderPaymentTable() {
+        let search = document.getElementById('pay_search').value.toLowerCase().trim();
+        let fStatus = document.getElementById('pay_filter_status').value;
+        let tbody = document.querySelector('#paymentTable tbody'); if(!tbody) return;
         tbody.innerHTML = '';
-        dataSuachua.forEach((item, index) => {
-            tbody.innerHTML += `<tr><td>${item.id}</td><td>${item.name}</td><td>${item.content}</td><td><button class="btn btn-sm btn-danger" onclick="deleteSuachua(${index})">Xóa</button></td></tr>`;
+
+        let totalPending = 0, totalPaid = 0;
+
+        let filteredPay = dataPayment.filter(p => {
+            let matchSearch = !search || p.id.toLowerCase().includes(search) || p.beneficiary.toLowerCase().includes(search) || p.content.toLowerCase().includes(search);
+            let matchStatus = (fStatus === "ALL") || (p.status === fStatus);
+            return matchSearch && matchStatus;
+        });
+
+        // Tính toán số liệu Dashboard Tài chính
+        dataPayment.forEach(p => {
+            if(p.status === "PENDING") totalPending += p.amount;
+            if(p.status === "PAID") totalPaid += p.amount;
+        });
+
+        document.getElementById('tt_total_count').innerHTML = `<b>${dataPayment.length}</b> bộ hồ sơ`;
+        document.getElementById('tt_total_pending').innerHTML = `<b>${totalPending.toLocaleString('vi-VN')}</b> VNĐ`;
+        document.getElementById('tt_total_paid').innerHTML = `<b>${totalPaid.toLocaleString('vi-VN')}</b> VNĐ`;
+
+        filteredPay.forEach((p, idx) => {
+            let realIndex = dataPayment.indexOf(p);
+            let statusBadge = p.status === "PAID" ? '<span class="badge badge-paid">Đã thanh toán</span>' : (p.status === "REJECTED" ? '<span class="badge badge-rejected">Từ chối</span>' : '<span class="badge badge-pending">Chờ duyệt</span>');
+            
+            tbody.innerHTML += `<tr>
+                <td><b>${p.id}</b></td>
+                <td>${p.beneficiary}</td>
+                <td style="font-weight:700; color:#1e3a8a;">${p.amount.toLocaleString('vi-VN')}</td>
+                <td>${p.content || '-'}</td>
+                <td>${statusBadge}</td>
+                <td>
+                    <button class="btn btn-sm btn-primary" onclick="updatePaymentStatus(${realIndex}, 'PAID')">✓ Chi</button>
+                    <button class="btn btn-sm btn-primary" style="background-color:#64748b;" onclick="updatePaymentStatus(${realIndex}, 'PENDING')">⏳ Treo</button>
+                    <button class="btn btn-sm btn-danger" onclick="deletePayment(${realIndex})">🗑 Xóa</button>
+                </td>
+            </tr>`;
         });
     }
-    function deleteSuachua(idx) { dataSuachua.splice(idx,1); localStorage.setItem('erp_suachua_db', JSON.stringify(dataSuachua)); renderSuachuaTable(); }
+
+    function updatePaymentStatus(index, newStatus) {
+        dataPayment[index].status = newStatus;
+        localStorage.setItem('erp_payment_db', JSON.stringify(dataPayment));
+        renderPaymentTable();
+    }
+
+    function deletePayment(index) {
+        if(confirm("Xóa bỏ chứng từ thanh toán này?")) {
+            dataPayment.splice(index, 1);
+            localStorage.setItem('erp_payment_db', JSON.stringify(dataPayment));
+            renderPaymentTable();
+        }
+    }
 </script>
 </body>
 </html>
