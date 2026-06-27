@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vinapaco ERP - Quản Lý Nhân Sự</title>
+    <title>Vinapaco ERP - Quản Lý Nhân Sự (Excel Sync)</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
         body { background-color: #f4f6f9; }
         .card { background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); padding: 16px; }
@@ -59,13 +60,17 @@
 
     <div class="card mb-6">
         <h3 class="font-bold text-blue-900 mb-3">🛠️ Tác Vụ Cơ Sở Dữ Liệu Nhân Sự</h3>
-        <div class="flex gap-4">
-            <button onclick="alert('Tính năng nạp Excel cấu hình riêng')" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded flex items-center gap-2 cursor-pointer transition">
+        <div class="flex flex-wrap items-center gap-4">
+            <label class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded flex items-center gap-2 cursor-pointer transition shadow-sm">
                 📂 Nạp Excel Nhân Sự
-            </button>
-            <button onclick="xoaDuLieu()" class="bg-red-600 hover:bg-red-700 text-white font-medium px-4 py-2 rounded flex items-center gap-2 cursor-pointer transition">
+                <input type="file" id="excel-file-input" accept=".xlsx, .xls" class="hidden" onchange="xuLyNapExcel(event)">
+            </label>
+            
+            <button onclick="xoaDuLieu()" class="bg-red-600 hover:bg-red-700 text-white font-medium px-4 py-2 rounded flex items-center gap-2 cursor-pointer transition shadow-sm">
                 🗑️ Xóa CSDL
             </button>
+
+            <span id="import-status" class="text-sm font-medium text-gray-500"></span>
         </div>
     </div>
 
@@ -108,17 +113,17 @@
         <table class="w-full text-left text-sm border-collapse">
             <thead>
                 <tr class="bg-blue-900 text-white text-xs uppercase">
-                    <th class="p-3 border border-blue-800">Stt</th>
-                    <th class="p-3 border border-blue-800">Hành Động</th>
+                    <th class="p-3 border border-blue-800 text-center">Stt</th>
+                    <th class="p-3 border border-blue-800 text-center">Hành Động</th>
                     <th class="p-3 border border-blue-800">Mã Đơn Vị</th>
                     <th class="p-3 border border-blue-800">Họ và tên</th>
                     <th class="p-3 border border-blue-800">Số sổ BHXH</th>
                     <th class="p-3 border border-blue-800">Số CCCD</th>
-                    <th class="p-3 border border-blue-800">Năm sinh</th>
-                    <th class="p-3 border border-blue-800">Tuổi</th>
-                    <th class="p-3 border border-blue-800">Giới tính</th>
-                    <th class="p-3 border border-blue-800">Năm hưu gốc</th>
-                    <th class="p-3 border border-blue-800">Năm hưu luật mới</th>
+                    <th class="p-3 border border-blue-800 text-center">Năm sinh</th>
+                    <th class="p-3 border border-blue-800 text-center">Tuổi</th>
+                    <th class="p-3 border border-blue-800 text-center">Giới tính</th>
+                    <th class="p-3 border border-blue-800 text-center">Năm hưu gốc</th>
+                    <th class="p-3 border border-blue-800 text-center">Năm hưu luật mới</th>
                     <th class="p-3 border border-blue-800">Chức danh công việc</th>
                 </tr>
             </thead>
@@ -131,37 +136,28 @@
     </div>
 
     <script>
-        // 1. Cấu hình thông tin API Supabase kết nối trực tiếp
+        // 1. Kết nối cơ sở dữ liệu Supabase của bạn
         const SUPABASE_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co";
         const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ";
         
         const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        
-        // Tên bảng lưu thông tin nhân sự trong Supabase của bạn
-        const TABLE_NAME = "nhan_su"; 
+        const TABLE_NAME = "nhan_su"; // Tên bảng lưu trên Supabase
 
-        // Chạy ngay khi tải trang
-        window.addEventListener('DOMContentLoaded', () => {
-            taiDuLieu();
-        });
+        window.addEventListener('DOMContentLoaded', taiDuLieu);
 
-        // 2. Hàm lấy dữ liệu & xử lý bộ lọc chuyên sâu
+        // 2. Tải & Tìm kiếm lọc dữ liệu thời gian thực
         async function taiDuLieu() {
             try {
-                let query = supabase.from(TABLE_NAME).select('*');
+                let query = supabase.from(TABLE_NAME).select('*').order('id', { ascending: true });
 
-                // Lấy giá trị từ các ô lọc
                 const maDV = document.getElementById('filter-ma-dv').value.trim();
                 const search = document.getElementById('filter-search').value.trim();
                 const gioiTinh = document.getElementById('filter-gioi-tinh').value;
                 const docHai = document.getElementById('filter-doc-hai').value;
 
-                // Áp dụng bộ lọc Supabase tương ứng
                 if (maDV) query = query.eq('ma_don_vi', maDV);
                 if (gioiTinh) query = query.eq('gioi_tinh', gioiTinh);
                 if (docHai) query = query.eq('nghe_doc_hai', docHai);
-                
-                // Bộ lọc tìm kiếm kết hợp (OR) theo Tên, CCCD hoặc BHXH
                 if (search) {
                     query = query.or(`ho_ten.ilike.%${search}%,cccd.ilike.%${search}%,so_bhxh.ilike.%${search}%`);
                 }
@@ -169,109 +165,183 @@
                 const { data, error } = await query;
                 if (error) throw error;
 
-                // Thực hiện render giao diện dựa trên dữ liệu thật trả về
                 renderThongKe(data);
                 renderBangDuLieu(data);
 
             } catch (err) {
-                console.error("Lỗi tải dữ liệu:", err);
-                document.getElementById('data-table-body').innerHTML = `<tr><td colspan="12" class="p-4 text-center text-red-500 font-semibold">Lỗi: Không thể kết nối tới bảng '${TABLE_NAME}'. Hãy chắc chắn tên bảng chính xác và đã tắt/cấu hình RLS.</td></tr>`;
+                console.error("Lỗi:", err);
+                document.getElementById('data-table-body').innerHTML = `<tr><td colspan="12" class="p-4 text-center text-red-500 font-semibold">Không kết nối được tới bảng '${TABLE_NAME}'. Vui lòng kiểm tra lại cấu hình.</td></tr>`;
             }
         }
 
-        // 3. Hàm tính toán và cập nhật các ô Dashboard như hình vẽ
-        function renderThongKe(data) {
-            if (!data || data.length === 0) return;
+        // 3. Đọc Excel, Chuẩn hóa trường thông tin, Đẩy tự động hàng loạt lên Database
+        function xuLyNapExcel(event) {
+            const file = event.target.files[0];
+            if (!file) return;
 
+            const statusNode = document.getElementById('import-status');
+            statusNode.className = "text-sm font-medium text-amber-600 animate-pulse";
+            statusNode.innerText = "⏳ Đang phân tích file Excel...";
+
+            const reader = new FileReader();
+            reader.onload = async function (e) {
+                try {
+                    const dataBytes = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(dataBytes, { type: 'array' });
+                    
+                    // Lấy Sheet đầu tiên trong file Excel
+                    const sheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[sheetName];
+                    
+                    // Chuyển dữ liệu Excel thành mảng JSON
+                    const rawJson = XLSX.utils.sheet_to_json(worksheet);
+                    
+                    if (rawJson.length === 0) {
+                        alert("File Excel trống hoặc không đúng cấu trúc!");
+                        statusNode.innerText = "";
+                        return;
+                    }
+
+                    statusNode.innerText = `⏳ Đang chuẩn hóa và nạp ${rawJson.length} nhân sự...`;
+
+                    // Ánh xạ (Mapping) tiêu đề cột Excel khớp với CSDL
+                    const dataUpSupabase = rawJson.map(row => ({
+                        // Tên cột trên Excel (Viết đúng như file của bạn) -> Tên cột CSDL
+                        ma_don_vi: String(row["Mã Đơn Vị"] || row["ma_don_vi"] || "").trim(),
+                        ho_ten: String(row["Họ và tên"] || row["ho_ten"] || "").trim(),
+                        so_bhxh: String(row["Số sổ BHXH"] || row["so_bhxh"] || "").trim(),
+                        cccd: String(row["Số CCCD"] || row["cccd"] || "").trim(),
+                        nam_sinh: String(row["Năm sinh"] || row["nam_sinh"] || "").trim(),
+                        tuoi: parseInt(row["Tuổi"] || row["tuoi"]) || null,
+                        gioi_tinh: String(row["Giới tính"] || row["gioi_tinh"] || "").trim(),
+                        nam_huu_goc: parseInt(row["Năm hưu gốc"] || row["nam_huu_goc"]) || null,
+                        nam_huu_luat_moi: parseInt(row["Năm hưu luật mới"] || row["nam_huu_luat_moi"]) || null,
+                        chuc_danh: String(row["Chức danh công việc"] || row["chuc_danh"] || "").trim(),
+                        nghe_doc_hai: String(row["Nghề Độc Hại"] || row["nghe_doc_hai"] || "Không").trim()
+                    }));
+
+                    // Đẩy dữ liệu hàng loạt (Bulk Insert) lên Supabase
+                    const { error } = await supabase.from(TABLE_NAME).insert(dataUpSupabase);
+                    if (error) throw error;
+
+                    statusNode.className = "text-sm font-medium text-green-600";
+                    statusNode.innerText = `✅ Đã nạp thành công ${rawJson.length} lao động!`;
+                    
+                    // Reset input file để có thể chọn tiếp lần sau
+                    document.getElementById('excel-file-input').value = "";
+                    
+                    // Tải lại bảng dữ liệu mới nhất
+                    taiDuLieu();
+
+                } catch (err) {
+                    console.error(err);
+                    statusNode.className = "text-sm font-medium text-red-600";
+                    statusNode.innerText = "❌ Lỗi định dạng trường dữ liệu.";
+                    alert("Lỗi khi nạp file: " + err.message);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // 4. Xóa làm sạch Cơ sở dữ liệu (Clean slate) trước khi nạp lại
+        async function xoaDuLieu() {
+            if (confirm("⚠️ BẠN CÓ CHẮC CHẮN muốn xóa sạch toàn bộ CSDL Nhân sự hiện tại không? Thao tác này giúp dọn dẹp để bạn nạp lại file Excel mới từ đầu.")) {
+                const statusNode = document.getElementById('import-status');
+                statusNode.innerText = "⏳ Đang làm sạch dữ liệu...";
+                
+                try {
+                    // Mẹo xóa diện rộng trên Supabase: sử dụng bộ lọc không bằng giá trị trống
+                    const { error } = await supabase.from(TABLE_NAME).delete().neq('ho_ten', 'XoaSachMoiDuLieuNhanSuVinapaco');
+                    if (error) throw error;
+
+                    statusNode.className = "text-sm font-medium text-blue-600";
+                    statusNode.innerText = "🗑️ Đã làm sạch CSDL. Hệ thống đã sẵn sàng nhận file mới.";
+                    
+                    // Cập nhật lại giao diện rỗng
+                    renderThongKe([]);
+                    renderBangDuLieu([]);
+                } catch (err) {
+                    alert("Lỗi xóa: " + err.message);
+                    statusNode.innerText = "";
+                }
+            }
+        }
+
+        // 5. Tính toán các thông số Dashboard
+        function renderThongKe(data) {
             const tong = data.length;
-            const nam = data.filter(d => d.gioi_tinh === 'Nam').length;
+            if (tong === 0) {
+                document.getElementById('stat-nam').innerText = "0"; document.getElementById('pct-nam').innerText = "0%";
+                document.getElementById('stat-nu').innerText = "0"; document.getElementById('pct-nu').innerText = "0%";
+                document.getElementById('stat-tuoi-tb').innerText = "0.0";
+                document.getElementById('stat-huu-cu').innerText = "0"; document.getElementById('stat-huu-moi').innerText = "0";
+                document.getElementById('don-vi-list').innerHTML = `<p class="text-sm text-gray-400 italic">CSDL trống.</p>`;
+                return;
+            }
+
+            const nam = data.filter(d => d.gioi_tinh?.toLowerCase() === 'nam').length;
             const nu = tong - nam;
-            
-            // Tính phần trăm giới tính
             document.getElementById('stat-nam').innerText = nam;
             document.getElementById('pct-nam').innerText = `${Math.round((nam/tong)*100)}%`;
             document.getElementById('stat-nu').innerText = nu;
             document.getElementById('pct-nu').innerText = `${Math.round((nu/tong)*100)}%`;
 
-            // Tính tuổi trung bình
             const tongTuoi = data.reduce((sum, d) => sum + (d.tuoi || 0), 0);
             document.getElementById('stat-tuoi-tb').innerText = (tongTuoi / tong).toFixed(1);
 
-            // Dự báo nghỉ hưu (ví dụ đếm số người có năm hưu thuộc 5 năm tới)
             const namHienTai = new Date().getFullYear();
             const huuCu = data.filter(d => d.nam_huu_goc >= namHienTai && d.nam_huu_goc <= namHienTai + 5).length;
             const huuMoi = data.filter(d => d.nam_huu_luat_moi >= namHienTai && d.nam_huu_luat_moi <= namHienTai + 5).length;
-            
-            document.getElementById('stat-huu-cu').innerText = huuCu || 111; // fallback số mẫu nếu DB trống
-            document.getElementById('stat-huu-moi').innerText = huuMoi || 120;
+            document.getElementById('stat-huu-cu').innerText = huuCu;
+            document.getElementById('stat-huu-moi').innerText = huuMoi;
 
-            // Xử lý thống kê Đơn vị (Tỷ lệ phân bổ lao động)
             const donViMap = {};
-            data.forEach(d => {
-                if(d.ma_don_vi) donViMap[d.ma_don_vi] = (donViMap[d.ma_don_vi] || 0) + 1;
-            });
+            data.forEach(d => { if(d.ma_don_vi) donViMap[d.ma_don_vi] = (donViMap[d.ma_don_vi] || 0) + 1; });
 
             const listContainer = document.getElementById('don-vi-list');
             listContainer.innerHTML = '';
-            
             Object.keys(donViMap).sort((a,b) => donViMap[b] - donViMap[a]).forEach(dv => {
                 const count = donViMap[dv];
                 const pct = ((count / tong) * 100).toFixed(1);
                 listContainer.innerHTML += `
                     <div class="text-xs text-gray-700">
-                        <div class="flex justify-between font-medium mb-1">
+                        <div class="flex justify-between font-medium mb-0.5">
                             <span>🏢 Mã ĐV: ${dv}</span>
                             <span>${count} ng (${pct}%)</span>
                         </div>
-                        <div class="w-full bg-gray-200 rounded-full h-1.5 mb-2">
+                        <div class="w-full bg-gray-200 rounded-full h-1.5 mb-1.5">
                             <div class="bg-blue-600 h-1.5 rounded-full" style="width: ${pct}%"></div>
                         </div>
                     </div>`;
             });
         }
 
-        // 4. Đổ dữ liệu vào bảng table
+        // 6. Hiển thị bảng danh sách nhân sự đúng định dạng
         function renderBangDuLieu(data) {
             const tbody = document.getElementById('data-table-body');
-            if (!data || data.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="12" class="p-4 text-center text-gray-500">Không tìm thấy bản ghi nào khớp với bộ lọc.</td></tr>`;
+            if (data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="12" class="p-4 text-center text-gray-400 italic">Không có dữ liệu nhân sự. Vui lòng bấm "Nạp Excel Nhân Sự" để đưa dữ liệu vào.</td></tr>`;
                 return;
             }
 
             tbody.innerHTML = data.map((item, index) => `
-                <tr class="hover:bg-gray-50 text-gray-700">
+                <tr class="hover:bg-gray-50 text-gray-700 transition">
                     <td class="p-3 border border-gray-200 text-center">${index + 1}</td>
                     <td class="p-3 border border-gray-200 text-center">
                         <button class="bg-purple-600 text-white text-xs px-2 py-1 rounded hover:bg-purple-700 cursor-pointer">🆔 Cấp TB</button>
                     </td>
                     <td class="p-3 border border-gray-200 font-bold text-blue-700">${item.ma_don_vi || ''}</td>
-                    <td class="p-3 border border-gray-200 font-bold uppercase">${item.ho_ten || ''}</td>
-                    <td class="p-3 border border-gray-200 text-gray-500">${item.so_bhxh || ''}</td>
-                    <td class="p-3 border border-gray-200 text-gray-500">${item.cccd || ''}</td>
-                    <td class="p-3 border border-gray-200">${item.nam_sinh || ''}</td>
-                    <td class="p-3 border border-gray-200 font-semibold">${item.tuoi || ''}</td>
-                    <td class="p-3 border border-gray-200">${item.gioi_tinh || ''}</td>
-                    <td class="p-3 border border-gray-200 text-red-500 font-medium">${item.nam_huu_goc || ''}</td>
-                    <td class="p-3 border border-gray-200 text-purple-700 font-bold">${item.nam_huu_luat_moi || ''}</td>
-                    <td class="p-3 border border-gray-200 text-xs text-gray-600 max-w-[250px] truncate" title="${item.chuc_danh || ''}">${item.chuc_danh || ''}</td>
+                    <td class="p-3 border border-gray-200 font-bold uppercase text-gray-900">${item.ho_ten || ''}</td>
+                    <td class="p-3 border border-gray-200 font-mono text-xs text-gray-500">${item.so_bhxh || ''}</td>
+                    <td class="p-3 border border-gray-200 font-mono text-xs text-gray-500">${item.cccd || ''}</td>
+                    <td class="p-3 border border-gray-200 text-center">${item.nam_sinh || ''}</td>
+                    <td class="p-3 border border-gray-200 text-center font-semibold">${item.tuoi || ''}</td>
+                    <td class="p-3 border border-gray-200 text-center">${item.gioi_tinh || ''}</td>
+                    <td class="p-3 border border-gray-200 text-center text-red-500 font-medium">${item.nam_huu_goc || ''}</td>
+                    <td class="p-3 border border-gray-200 text-center text-purple-700 font-bold">${item.nam_huu_luat_moi || ''}</td>
+                    <td class="p-3 border border-gray-200 text-xs text-gray-600 max-w-[240px] truncate" title="${item.chuc_danh || ''}">${item.chuc_danh || ''}</td>
                 </tr>
             `).join('');
-        }
-
-        // 5. Chức năng Xóa sạch cơ sở dữ liệu nhân sự công ty
-        async function xoaDuLieu() {
-            if (confirm("⚠️ BẠN CÓ CHẮC CHẮN muốn xóa toàn bộ dữ liệu nhân sự không? Hành động này không thể hoàn tác!")) {
-                try {
-                    // Xóa tất cả các dòng (Sử dụng lệnh xóa diện rộng dựa trên bộ lọc không rỗng bất kỳ)
-                    const { error } = await supabase.from(TABLE_NAME).delete().neq('ho_ten', 'MãĐộcNhấtVôNhịNàoĐóBấtKỳ');
-                    if (error) throw error;
-                    
-                    alert("Đã xóa sạch cơ sở dữ liệu thành công.");
-                    taiDuLieu();
-                } catch (err) {
-                    alert("Lỗi khi xóa dữ liệu: " + err.message);
-                }
-            }
         }
     </script>
 </body>
