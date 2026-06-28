@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vinapaco ERP - Đám Mây Hợp Nhất v34.2</title>
+    <title>Vinapaco ERP - Đám Mây Hợp Nhất v34.3</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -52,7 +52,7 @@
             <div>
                 <h1 class="text-xl md:text-2xl font-bold uppercase tracking-wide">Tổng Công Ty Giấy Việt Nam</h1>
                 <div class="text-amber-400 font-bold text-xs md:text-sm mt-1">
-                    <i class="fa-solid fa-circle-check mr-1"></i> CLOUD V34.2 - TỰ ĐỘNG LỌC TÌM KIẾM NHÂN SỰ THEO ĐƠN VỊ
+                    <i class="fa-solid fa-circle-check mr-1"></i> CLOUD V34.3 - TÍCH HỢP TOÀN DIỆN CHỨC NĂNG SỬA & XÓA TRỰC QUAN
                 </div>
             </div>
         </div>
@@ -135,15 +135,19 @@
 
     <div id="tab-capphat" class="tab-content p-3 md:p-6 hidden no-print">
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 h-fit space-y-3">
-                <h3 class="text-xs font-black text-slate-800 uppercase border-b pb-2"><i class="fa-solid fa-box text-blue-600"></i> Đăng ký cấp phát thiết bị</h3>
+            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 h-fit space-y-3 shadow-sm">
+                <h3 id="cp-form-title" class="text-xs font-black text-slate-800 uppercase border-b pb-2 flex items-center justify-between">
+                    <span><i class="fa-solid fa-box text-blue-600"></i> Đăng ký cấp phát thiết bị</span>
+                    <span id="cp-edit-badge" class="hidden bg-amber-500 text-slate-950 font-black px-2 py-0.5 rounded text-[10px]">ĐANG SỬA</span>
+                </h3>
+                <input type="hidden" id="cp-editing-id" value="">
                 <div>
                     <label class="text-[11px] font-bold text-slate-600 block mb-1">Tên thiết bị tài sản *</label>
                     <input type="text" id="cp-input-ten" placeholder="Ví dụ: Máy tính xách tay Dell Latitude" class="w-full border p-2 rounded text-xs bg-white">
                 </div>
                 <div class="grid grid-cols-2 gap-2">
                     <div>
-                        <label class="text-[11px] font-bold text-slate-600 block mb-1">Mã tài sản (Tự động sinh)</label>
+                        <label class="text-[11px] font-bold text-slate-600 block mb-1">Mã tài sản</label>
                         <input type="text" id="cp-input-ma" class="w-full border p-2 rounded text-xs bg-slate-100 font-mono uppercase font-bold text-blue-900" readonly>
                     </div>
                     <div>
@@ -166,19 +170,22 @@
                         <input type="date" id="cp-input-ngay" class="w-full border p-2 rounded text-xs bg-white">
                     </div>
                     <div>
-                        <label class="text-[11px] font-bold text-slate-600 block mb-1">Gắn chứng từ mua sắm (Từ Kế toán)</label>
+                        <label class="text-[11px] font-bold text-slate-600 block mb-1">Gắn chứng từ mua sắm</label>
                         <select id="cp-input-hoadon" class="w-full border p-2 rounded text-xs bg-white"></select>
                     </div>
                 </div>
-                <button onclick="luuMoiCapPhatThietBi()" class="w-full bg-blue-700 hover:bg-blue-800 text-white font-black py-2 rounded text-xs transition"><i class="fa-solid fa-plus"></i> Xác nhận cấp phát tài sản</button>
+                <div class="flex gap-2">
+                    <button id="btn-cp-submit" onclick="luuMoiCapPhatThietBi()" class="flex-1 bg-blue-700 hover:bg-blue-800 text-white font-black py-2 rounded text-xs transition"><i class="fa-solid fa-plus"></i> Xác nhận cấp phát</button>
+                    <button id="btn-cp-cancel" onclick="resetFormCapPhat()" class="hidden bg-slate-400 hover:bg-slate-500 text-slate-900 font-bold px-3 py-2 rounded text-xs transition">Hủy</button>
+                </div>
             </div>
             
-            <div class="lg:col-span-2 bg-white border border-slate-200 rounded-xl p-4">
+            <div class="lg:col-span-2 bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
                 <h3 class="text-xs font-black text-slate-800 uppercase border-b pb-2 mb-3"><i class="fa-solid fa-list-check text-blue-600"></i> Sổ theo dõi cấp phát trang thiết bị</h3>
-                <div class="overflow-x-auto max-h-[400px] border border-slate-200 rounded-lg">
+                <div class="overflow-x-auto max-h-[400px] border border-slate-200 rounded-lg custom-scrollbar">
                     <table>
                         <thead>
-                            <tr><th>STT</th><th>Mã thiết bị</th><th>Tên thiết bị</th><th>Người sở hữu</th><th>Ngày cấp</th><th>Hóa đơn chi</th><th>Mã QR</th><th>Xóa</th></tr>
+                            <tr><th>STT</th><th>Mã thiết bị</th><th>Tên thiết bị</th><th>Người sở hữu</th><th>Ngày cấp</th><th>Hóa đơn chi</th><th>Mã QR</th><th>Thao tác</th></tr>
                         </thead>
                         <tbody id="cp-table-body"></tbody>
                     </table>
@@ -189,8 +196,12 @@
 
     <div id="tab-suachua" class="tab-content p-3 md:p-6 hidden no-print">
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 h-fit space-y-3">
-                <h3 class="text-xs font-black text-slate-800 uppercase border-b pb-2"><i class="fa-solid fa-wrench text-orange-600"></i> Khai báo nhật ký sửa chữa</h3>
+            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 h-fit space-y-3 shadow-sm">
+                <h3 id="sc-form-title" class="text-xs font-black text-slate-800 uppercase border-b pb-2 flex items-center justify-between">
+                    <span><i class="fa-solid fa-wrench text-orange-600"></i> Khai báo nhật ký sửa chữa</span>
+                    <span id="sc-edit-badge" class="hidden bg-amber-500 text-slate-950 font-black px-2 py-0.5 rounded text-[10px]">ĐANG SỬA</span>
+                </h3>
+                <input type="hidden" id="sc-editing-id" value="">
                 <div>
                     <label class="text-[11px] font-bold text-slate-600 block mb-1">Chọn thiết bị cần sửa chữa *</label>
                     <select id="sc-input-thietbi" onchange="tuDongDienThongTinThietBiSuaChua()" class="w-full border p-2 rounded text-xs bg-white font-bold"></select>
@@ -201,7 +212,7 @@
                 </div>
                 <div>
                     <label class="text-[11px] font-bold text-slate-600 block mb-1">Tình trạng hỏng hóc / Nội dung sửa chữa *</label>
-                    <textarea id="sc-input-noidung" rows="2" placeholder="Ví dụ: Thay thế ổ cứng SSD hỏng, bảo dưỡng quạt chip" class="w-full border p-2 rounded text-xs bg-white"></textarea>
+                    <textarea id="sc-input-noidung" rows="2" placeholder="Nội dung bảo dưỡng, linh kiện thay thế..." class="w-full border p-2 rounded text-xs bg-white"></textarea>
                 </div>
                 <div class="grid grid-cols-2 gap-2">
                     <div>
@@ -213,15 +224,18 @@
                         <input type="text" id="sc-input-donvi" placeholder="Trung tâm máy tính" class="w-full border p-2 rounded text-xs bg-white">
                     </div>
                 </div>
-                <button onclick="luuMoiNhatKySuaChua()" class="w-full bg-orange-600 hover:bg-orange-700 text-white font-black py-2 rounded text-xs transition"><i class="fa-solid fa-screwdriver-wrench"></i> Ghi sổ nhật ký sửa chữa</button>
+                <div class="flex gap-2">
+                    <button id="btn-sc-submit" onclick="luuMoiNhatKySuaChua()" class="flex-1 bg-orange-600 hover:bg-orange-700 text-white font-black py-2 rounded text-xs transition"><i class="fa-solid fa-screwdriver-wrench"></i> Ghi sổ nhật ký</button>
+                    <button id="btn-sc-cancel" onclick="resetFormSuaChua()" class="hidden bg-slate-400 hover:bg-slate-500 text-slate-900 font-bold px-3 py-2 rounded text-xs transition">Hủy</button>
+                </div>
             </div>
 
-            <div class="lg:col-span-2 bg-white border border-slate-200 rounded-xl p-4">
+            <div class="lg:col-span-2 bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
                 <h3 class="text-xs font-black text-slate-800 uppercase border-b pb-2 mb-3"><i class="fa-solid fa-clock-rotate-left text-orange-600"></i> Nhật ký lịch sử sửa chữa, bảo trì</h3>
-                <div class="overflow-x-auto max-h-[400px] border border-slate-200 rounded-lg">
+                <div class="overflow-x-auto max-h-[400px] border border-slate-200 rounded-lg custom-scrollbar">
                     <table>
                         <thead>
-                            <tr><th>STT</th><th>Thiết bị</th><th>Nội dung hỏng hóc / sửa chữa</th><th>Đơn vị sửa</th><th>Chi phí</th><th>Liên kết tài chính</th><th>Xóa</th></tr>
+                            <tr><th>STT</th><th>Thiết bị</th><th>Nội dung hỏng hóc / sửa chữa</th><th>Đơn vị sửa</th><th>Chi phí</th><th>Liên kết tài chính</th><th>Thao tác</th></tr>
                         </thead>
                         <tbody id="sc-table-body"></tbody>
                     </table>
@@ -251,16 +265,20 @@
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 h-fit space-y-3">
-                <h3 class="text-xs font-black text-slate-800 uppercase border-b pb-2 flex items-center gap-1"><i class="fa-solid fa-file-invoice-dollar text-emerald-600"></i> Lập hồ sơ thanh toán mới</h3>
+            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 h-fit space-y-3 shadow-sm">
+                <h3 id="tt-form-title" class="text-xs font-black text-slate-800 uppercase border-b pb-2 flex items-center justify-between">
+                    <span><i class="fa-solid fa-file-invoice-dollar text-emerald-600"></i> Lập hồ sơ thanh toán mới</span>
+                    <span id="tt-edit-badge" class="hidden bg-amber-500 text-slate-950 font-black px-2 py-0.5 rounded text-[10px]">ĐANG SỬA</span>
+                </h3>
+                <input type="hidden" id="tt-editing-id" value="">
                 <div>
                     <label class="text-[11px] font-bold text-slate-600 block mb-1">Tên hồ sơ / Nội dung chi *</label>
                     <input type="text" id="tt-input-ten" placeholder="Ví dụ: Thanh toán tiền mua vật tư quý II" class="w-full border p-2 rounded text-xs bg-white">
                 </div>
                 <div class="grid grid-cols-2 gap-2">
                     <div>
-                        <label class="text-[11px] font-bold text-slate-600 block mb-1">Mã chứng từ / Hóa đơn (Tự sinh)</label>
-                        <input type="text" id="tt-input-ma" placeholder="VNP-HD-2026-XXXX" class="w-full border p-2 rounded text-xs bg-slate-100 font-mono uppercase font-bold text-emerald-900">
+                        <label class="text-[11px] font-bold text-slate-600 block mb-1">Mã chứng từ / Hóa đơn</label>
+                        <input type="text" id="tt-input-ma" class="w-full border p-2 rounded text-xs bg-slate-100 font-mono uppercase font-bold text-emerald-900" readonly>
                     </div>
                     <div>
                         <label class="text-[11px] font-bold text-slate-600 block mb-1">Đơn vị yêu cầu</label>
@@ -270,7 +288,7 @@
                 <div class="grid grid-cols-3 gap-2 bg-white p-2 rounded border">
                     <div class="col-span-2">
                         <label class="text-[11px] font-bold text-slate-600 block mb-1">Số tiền trước thuế *</label>
-                        <input type="number" id="tt-input-goc" oninput="tinhToanThueSuatTuDong()" placeholder="Nhập tiền trước thuế" class="w-full border p-1.5 rounded text-xs font-bold text-blue-900">
+                        <input type="number" id="tt-input-goc" oninput="tinhToanThueSuatTuDong()" placeholder="Nhập tiền" class="w-full border p-1.5 rounded text-xs font-bold text-blue-900">
                     </div>
                     <div>
                         <label class="text-[11px] font-bold text-slate-600 block mb-1">Thuế suất</label>
@@ -302,19 +320,22 @@
                     <input type="file" id="tt-input-files" multiple class="text-xs w-full" onchange="xuLyDinhKemFilesHoSo(event)">
                     <div id="tt-file-preview-list" class="mt-2 space-y-1 max-h-[120px] overflow-y-auto custom-scrollbar"></div>
                 </div>
-                <button onclick="luuMoiHoSoThanhToan()" class="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-black py-2.5 rounded-lg text-xs transition shadow"><i class="fa-solid fa-floppy-disk mr-1"></i> Ghi sổ & Lưu trữ Hồ sơ</button>
+                <div class="flex gap-2">
+                    <button id="btn-tt-submit" onclick="luuMoiHoSoThanhToan()" class="flex-1 bg-emerald-700 hover:bg-emerald-800 text-white font-black py-2.5 rounded-lg text-xs transition shadow"><i class="fa-solid fa-floppy-disk mr-1"></i> Lưu hồ sơ</button>
+                    <button id="btn-tt-cancel" onclick="resetFormThanhToan()" class="hidden bg-slate-400 hover:bg-slate-500 text-slate-900 font-bold px-3 py-2.5 rounded-lg text-xs transition">Hủy</button>
+                </div>
             </div>
 
-            <div class="lg:col-span-2 bg-white border border-slate-200 rounded-xl p-4 flex flex-col justify-between">
+            <div class="lg:col-span-2 bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col justify-between">
                 <div>
                     <div class="flex justify-between items-center border-b pb-2 mb-3">
                         <h3 class="text-xs font-black text-slate-800 uppercase"><i class="fa-solid fa-list-check text-blue-600"></i> Danh sách hồ sơ kế toán</h3>
-                        <button onclick="moTrangInVanBanHanhChinh()" class="bg-slate-800 hover:bg-slate-900 text-white px-3 py-1.5 rounded text-xs font-bold transition"><i class="fa-solid fa-print"></i> In Báo Cáo Chuẩn Nhà Nước</button>
+                        <button onclick="moTrangInVanBanHanhChinh()" class="bg-slate-800 hover:bg-slate-900 text-white px-3 py-1.5 rounded text-xs font-bold transition"><i class="fa-solid fa-print"></i> In Báo Cáo</button>
                     </div>
                     <div class="overflow-x-auto max-h-[420px] border border-slate-200 rounded-lg custom-scrollbar">
                         <table>
                             <thead>
-                                <tr><th>STT</th><th>Nội dung hồ sơ chi</th><th>Đơn vị</th><th>Trước thuế</th><th>VAT</th><th>Sau thuế</th><th>Chứng từ</th><th>Trạng thái</th><th>Xóa</th></tr>
+                                <tr><th>STT</th><th>Nội dung hồ sơ chi</th><th>Đơn vị</th><th>Trước thuế</th><th>VAT</th><th>Sau thuế</th><th>Chứng từ</th><th>Trạng thái</th><th>Thao tác</th></tr>
                             </thead>
                             <tbody id="tt-table-body"></tbody>
                         </table>
@@ -333,12 +354,11 @@
             <div class="w-[50%] text-slate-900 font-bold text-xs">
                 <div class="uppercase tracking-tight">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
                 <div class="font-bold text-sm tracking-normal">Độc lập - Tự do - Hạnh phúc</div>
-                <div class="font-normal italic text-[12px] mt-1">Phù Ninh, ngày..... tháng..... năm 2026</div>
+                <div class="font-normal italic text-[12px] mt-1">Phù Ninh, năm 2026</div>
             </div>
         </div>
         <div class="text-center my-8">
             <h2 class="text-lg font-black uppercase tracking-wide">BÁO CÁO THỐNG KÊ CHI PHÍ TÀI CHÍNH & HỒ SƠ THANH TOÁN</h2>
-            <p class="italic text-xs mt-1">(Hệ thống Cơ sở dữ liệu đám mây trực tuyến Vinapaco)</p>
         </div>
         <table class="w-full mb-6">
             <thead>
@@ -396,8 +416,8 @@
         document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
         let target = document.getElementById(tabId); if(target) target.classList.remove('hidden');
         document.getElementById('btn-' + tabId).classList.add('active');
-        if(tabId === 'tab-capphat') { sinhMaTaiSanTuDong(); locNhanSuTheoDonViVaTuKhoa(); }
-        if(tabId === 'tab-thanhtoan') { sinhMaHoaDonTuDong(); }
+        if(tabId === 'tab-capphat' && !document.getElementById('cp-editing-id').value) { sinhMaTaiSanTuDong(); locNhanSuTheoDonViVaTuKhoa(); }
+        if(tabId === 'tab-thanhtoan' && !document.getElementById('tt-editing-id').value) { sinhMaHoaDonTuDong(); }
     }
 
     function sinhMaTaiSanTuDong() {
@@ -536,10 +556,7 @@
         document.getElementById('db-ns-huu-giai-doan-label').innerText = `Giai đoạn: ${namBatDau} - ${namKetThuc}`;
     }
 
-    function capNhatGiaiDoanVaLoc() {
-        capNhatSoLuongDuBaoHuuTri();
-        locDanhSachNhanSu();
-    }
+    function capNhatGiaiDoanVaLoc() { capNhatSoLuongDuBaoHuuTri(); locDanhSachNhanSu(); }
 
     function locDanhSachNhanSu() {
         let txt = document.getElementById('filter-ns-search').value.trim().toLowerCase();
@@ -587,8 +604,7 @@
         if(!wasFocused) rowElement.classList.add('focused-row');
     }
 
-    // TÍNH NĂNG CHỦ CHỐT MỚI: LỌC NHÂN SỰ BẬC THANG TẠI KHU VỰC CẤP PHÁT THIẾT BỊ
-    function locNhanSuTheoDonViVaTuKhoa() {
+    function locNhanSuTheoDonViVaTuKhoa(selectedNhanSuTen = "") {
         let madvSelected = document.getElementById('cp-input-madv').value;
         let tuKhoa = document.getElementById('cp-search-nhansu').value.trim().toLowerCase();
         let selectNhanSu = document.getElementById('cp-input-nhansu');
@@ -605,15 +621,17 @@
             selectNhanSu.innerHTML = '<option value="">-- Không tìm thấy cán bộ nào --</option>';
         } else {
             selectNhanSu.innerHTML = filtered.map(d => `
-                <option value="${d.hoTen}">👤 ${d.hoTen} [Mã ĐV: ${d.maDV}] - CCCD: ${d.cccd}</option>
+                <option value="${d.hoTen}" ${d.hoTen === selectedNhanSuTen ? 'selected' : ''}>👤 ${d.hoTen} [Mã ĐV: ${d.maDV}] - CCCD: ${d.cccd}</option>
             `).join('');
         }
     }
 
     function loadDropdownsLienKetDuLieu() {
         let selectCpHd = document.getElementById('cp-input-hoadon');
-        if(selectCpHd) selectCpHd.innerHTML = '<option value="Chưa gắn hóa đơn">-- Không gắn hóa đơn --</option>' + databaseThanhToan.map(t => `<option value="${t.maChungTu}">${t.maChungTu} - ${t.noiDung}</option>`).join('');
-        
+        if(selectCpHd) {
+            let options = '<option value="Chưa gắn hóa đơn">-- Không gắn hóa đơn --</option>' + databaseThanhToan.map(t => `<option value="${t.maChungTu}">${t.maChungTu} - ${t.noiDung}</option>`).join('');
+            selectCpHd.innerHTML = options;
+        }
         let selectScTbi = document.getElementById('sc-input-thietbi');
         if(selectScTbi) {
             selectScTbi.innerHTML = '<option value="">-- Chọn thiết bị --</option>' + databaseCapPhat.map(c => `<option value="${c.maThietBi}">${c.maThietBi} - ${c.tenThiếtBị}</option>`).join('');
@@ -633,22 +651,72 @@
         }
     }
 
+    // --- PHÂN HỆ CẤP PHÁT: THÊM / SỬA / XÓA ---
     async function luuMoiCapPhatThietBi() {
         let ten = document.getElementById('cp-input-ten').value.trim();
         let ma = document.getElementById('cp-input-ma').value.trim();
         let nhansu = document.getElementById('cp-input-nhansu').value;
         let ngay = document.getElementById('cp-input-ngay').value || new Date().toISOString().split('T')[0];
         let hoadon = document.getElementById('cp-input-hoadon').value;
+        let editingId = document.getElementById('cp-editing-id').value;
+
         if(!ten) return alert("Nhập tên tài sản!");
         if(!nhansu) return alert("Vui lòng chọn cán bộ tiếp nhận!");
         
-        let RowCp = { id: Date.now(), maThietBi: ma, tenThiếtBị: ten, nguoiNhan: nhansu, ngayCap: ngay, maHoaDonLienKet: hoadon };
-        if(dbClient && isCloudReady) { await dbClient.from('capphat').insert([RowCp]); }
-        databaseCapPhat.push(RowCp); localStorage.setItem('VINAPACO_CACHE_CAPPHAT', JSON.stringify(databaseCapPhat));
+        if (editingId) {
+            let item = databaseCapPhat.find(d => d.id == editingId);
+            if (item) {
+                item.tenThiếtBị = ten; item.nguoiNhan = nhansu; item.ngayCap = ngay; item.maHoaDonLienKet = hoadon;
+                if(dbClient && isCloudReady) { await dbClient.from('capphat').update({ tenThiếtBị: ten, nguoiNhan: nhansu, ngayCap: ngay, maHoaDonLienKet: hoadon }).eq('id', editingId); }
+            }
+        } else {
+            let RowCp = { id: Date.now(), maThietBi: ma, tenThiếtBị: ten, nguoiNhan: nhansu, ngayCap: ngay, maHoaDonLienKet: hoadon };
+            if(dbClient && isCloudReady) { await dbClient.from('capphat').insert([RowCp]); }
+            databaseCapPhat.push(RowCp);
+        }
+
+        localStorage.setItem('VINAPACO_CACHE_CAPPHAT', JSON.stringify(databaseCapPhat));
+        resetFormCapPhat(); renderCapPhatTable(); loadDropdownsLienKetDuLieu();
+    }
+
+    function kichHoatSuaCapPhat(id) {
+        let item = databaseCapPhat.find(d => d.id == id);
+        if(!item) return;
+
+        document.getElementById('cp-editing-id').value = item.id;
+        document.getElementById('cp-input-ten').value = item.tenThiếtBị;
+        document.getElementById('cp-input-ma').value = item.maThietBi;
+        document.getElementById('cp-input-ngay').value = item.ngayCap;
         
+        let canBoGoc = GLOBAL_NHAN_SU_LIST.find(n => n.hoTen === item.nguoiNhan);
+        if(canBoGoc) {
+            document.getElementById('cp-input-madv').value = canBoGoc.maDV;
+        }
+        locNhanSuTheoDonViVaTuKhoa(item.nguoiNhan);
+        document.getElementById('cp-input-hoadon').value = item.maHoaDonLienKet;
+
+        document.getElementById('cp-edit-badge').classList.remove('hidden');
+        document.getElementById('btn-cp-cancel').classList.remove('hidden');
+        document.getElementById('btn-cp-submit').innerHTML = '<i class="fa-solid fa-square-check"></i> Cập nhật thay đổi';
+    }
+
+    function resetFormCapPhat() {
+        document.getElementById('cp-editing-id').value = "";
         document.getElementById('cp-input-ten').value = "";
         document.getElementById('cp-search-nhansu').value = "";
+        document.getElementById('cp-input-madv').value = "";
+        locNhanSuTheoDonViVaTuKhoa();
         sinhMaTaiSanTuDong();
+
+        document.getElementById('cp-edit-badge').classList.add('hidden');
+        document.getElementById('btn-cp-cancel').classList.add('hidden');
+        document.getElementById('btn-cp-submit').innerHTML = '<i class="fa-solid fa-plus"></i> Xác nhận cấp phát';
+    }
+
+    async function xoaCapPhatThietBi(id) {
+        if(!confirm("Bạn có chắc chắn muốn xóa bản ghi cấp phát tài sản này khỏi kho dữ liệu?")) return;
+        if(dbClient && isCloudReady) { await dbClient.from('capphat').delete().eq('id', id); }
+        databaseCapPhat = databaseCapPhat.filter(d => d.id !== id); localStorage.setItem('VINAPACO_CACHE_CAPPHAT', JSON.stringify(databaseCapPhat));
         renderCapPhatTable(); loadDropdownsLienKetDuLieu();
     }
 
@@ -659,50 +727,86 @@
                 <td class="text-left font-bold text-slate-800">${c.tenThiếtBị}</td><td>${c.nguoiNhan}</td>
                 <td>${formatExcelDateToVN(c.ngayCap)}</td><td><span class="text-xs font-mono text-blue-700 underline">${c.maHoaDonLienKet}</span></td>
                 <td><button onclick="moXemMaQrThietBi('${c.maThietBi}', '${c.tenThiếtBị}', '${c.nguoiNhan}')" class="bg-slate-900 text-amber-400 font-bold text-[11px] px-2 py-1 rounded shadow"><i class="fa-solid fa-qrcode"></i> Xem QR</button></td>
-                <td><button onclick="xoaCapPhatThietBi(${c.id})" class="text-rose-600"><i class="fa-solid fa-trash"></i></button></td>
+                <td>
+                    <div class="flex gap-1 justify-center">
+                        <button onclick="kichHoatSuaCapPhat(${c.id})" class="text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200 text-xs"><i class="fa-solid fa-pen"></i></button>
+                        <button onclick="xoaCapPhatThietBi(${c.id})" class="text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200 text-xs"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                </td>
             </tr>
-        `).join('') || '<tr><td colspan="8" class="p-4 italic text-slate-400">Trống.</td></tr>';
+        `).join('') || '<tr><td colspan="8" class="p-4 italic text-slate-400">Chưa có dữ liệu cấp phát.</td></tr>';
     }
 
-    async function xoaCapPhatThietBi(id) {
-        if(!confirm("Xóa?")) return;
-        if(dbClient && isCloudReady) { await dbClient.from('capphat').delete().eq('id', id); }
-        databaseCapPhat = databaseCapPhat.filter(d => d.id !== id); localStorage.setItem('VINAPACO_CACHE_CAPPHAT', JSON.stringify(databaseCapPhat));
-        renderCapPhatTable(); loadDropdownsLienKetDuLieu();
-    }
-
-    function moXemMaQrThietBi(ma, text, nguoi) {
-        const container = document.getElementById('qrcode-container'); container.innerHTML = "";
-        let textInfo = `MA TS: ${ma}\nTEN: ${text}\nNGUOI GIU: ${nguoi}\nVINAPACO ERP CLOUD`;
-        document.getElementById('qr-modal-desc').innerText = textInfo;
-        document.getElementById('qr-modal-title').innerText = "TÀI SẢN: " + ma;
-        new QRCode(container, { text: textInfo, width: 200, height: 200, colorDark : "#0f172a", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.H });
-        document.getElementById('modal-qr-code').classList.remove('hidden');
-    }
-
+    // --- PHÂN HỆ SỬA CHỮA: THÊM / SỬA / XÓA ---
     async function luuMoiNhatKySuaChua() {
         let maTbi = document.getElementById('sc-input-thietbi').value;
         let noidung = document.getElementById('sc-input-noidung').value.trim();
         let chiphi = parseFloat(document.getElementById('sc-input-chiphi').value) || 0;
         let donvi = document.getElementById('sc-input-donvi').value.trim() || "Bộ phận bảo trì";
-        if(!maTbi || !noidung) return alert("Điền thông tin!");
-        
+        let editingId = document.getElementById('sc-editing-id').value;
+
+        if(!maTbi || !noidung) return alert("Điền đầy đủ thông tin sửa chữa bắt buộc!");
         let tbiGoc = databaseCapPhat.find(c => c.maThietBi === maTbi);
         let tenTbiHienThi = tbiGoc ? `${maTbi} - ${tbiGoc.tenThiếtBị}` : maTbi;
         let nguoiGiu = tbiGoc ? tbiGoc.nguoiNhan : "Chưa rõ";
 
-        let maHDTuDong = "VNP-SC-" + Date.now().toString().slice(-6);
-        let RowSc = { id: Date.now(), thietBi: tenTbiHienThi, noiDungSua: noidung, donViSua: donvi, chiPhiSua: chiphi, maChungTuSinhRa: maHDTuDong };
-        if(dbClient && isCloudReady) { await dbClient.from('suachua').insert([RowSc]); }
-        databaseSuaChua.push(RowSc); localStorage.setItem('VINAPACO_CACHE_SUACHUA', JSON.stringify(databaseSuaChua));
+        if(editingId) {
+            let item = databaseSuaChua.find(d => d.id == editingId);
+            if(item) {
+                item.thietBi = tenTbiHienThi; item.noiDungSua = noidung; item.donViSua = donvi; item.chiPhiSua = chiphi;
+                if(dbClient && isCloudReady) { await dbClient.from('suachua').update({ thietBi: tenTbiHienThi, noiDungSua: noidung, donViSua: donvi, chiPhiSua: chiphi }).eq('id', editingId); }
+            }
+        } else {
+            let maHDTuDong = "VNP-SC-" + Date.now().toString().slice(-6);
+            let RowSc = { id: Date.now(), thietBi: tenTbiHienThi, noiDungSua: noidung, donViSua: donvi, chiPhiSua: chiphi, maChungTuSinhRa: maHDTuDong };
+            if(dbClient && isCloudReady) { await dbClient.from('suachua').insert([RowSc]); }
+            databaseSuaChua.push(RowSc);
 
-        let RowTtTuDong = { id: Date.now() + 1, maChungTu: maHDTuDong, noiDung: `Chi phí sửa chữa [${tenTbiHienThi}] - Cán bộ: ${nguoiGiu}. Nội dung: ${noidung}`, donViDeXuat: donvi, tienTruocThue: chiphi, thueSuatPt: 10, tienVat: Math.round(chiphi * 0.1), tienSauThue: Math.round(chiphi * 1.1), trangThai: "Chờ duyệt", danhSachFiles: [] };
-        if(dbClient && isCloudReady) { await dbClient.from('thanhtoan').insert([RowTtTuDong]); }
-        databaseThanhToan.push(RowTtTuDong); localStorage.setItem('VINAPACO_CACHE_THANHTOAN', JSON.stringify(databaseThanhToan));
-        
-        document.getElementById('sc-input-noidung').value = ""; document.getElementById('sc-input-chiphi').value = "";
-        renderSuaChuaTable(); renderThanhToanTableVaDashboard(); loadDropdownsLienKetDuLieu();
-        alert(`Hệ thống liên thông đã tự động tạo bộ hồ sơ thanh toán mã: ${maHDTuDong}`);
+            let RowTtTuDong = { id: Date.now() + 1, maChungTu: maHDTuDong, noiDung: `Chi phí sửa chữa [${tenTbiHienThi}] - Cán bộ: ${nguoiGiu}. Nội dung: ${noidung}`, donViDeXuat: donvi, tienTruocThue: chiphi, thueSuatPt: 10, tienVat: Math.round(chiphi * 0.1), tienSauThue: Math.round(chiphi * 1.1), trangThai: "Chờ duyệt", danhSachFiles: [] };
+            if(dbClient && isCloudReady) { await dbClient.from('thanhtoan').insert([RowTtTuDong]); }
+            databaseThanhToan.push(RowTtTuDong);
+        }
+
+        localStorage.setItem('VINAPACO_CACHE_SUACHUA', JSON.stringify(databaseSuaChua));
+        localStorage.setItem('VINAPACO_CACHE_THANHTOAN', JSON.stringify(databaseThanhToan));
+        resetFormSuaChua(); renderSuaChuaTable(); renderThanhToanTableVaDashboard(); loadDropdownsLienKetDuLieu();
+    }
+
+    function kichHoatSuaSuaChua(id) {
+        let item = databaseSuaChua.find(d => d.id == id);
+        if(!item) return;
+
+        document.getElementById('sc-editing-id').value = item.id;
+        let maTríchXuat = item.thietBi.split(" - ")[0];
+        document.getElementById('sc-input-thietbi').value = maTríchXuat;
+        document.getElementById('sc-input-noidung').value = item.noiDungSua;
+        document.getElementById('sc-input-chiphi').value = item.chiPhiSua;
+        document.getElementById('sc-input-donvi').value = item.donViSua;
+
+        tuDongDienThongTinThietBiSuaChua();
+        document.getElementById('sc-edit-badge').classList.remove('hidden');
+        document.getElementById('btn-sc-cancel').classList.remove('hidden');
+        document.getElementById('btn-sc-submit').innerHTML = '<i class="fa-solid fa-square-check"></i> Cập nhật nhật ký';
+    }
+
+    function resetFormSuaChua() {
+        document.getElementById('sc-editing-id').value = "";
+        document.getElementById('sc-input-thietbi').value = "";
+        document.getElementById('sc-input-noidung').value = "";
+        document.getElementById('sc-input-chiphi').value = "";
+        document.getElementById('sc-input-donvi').value = "";
+        tuDongDienThongTinThietBiSuaChua();
+
+        document.getElementById('sc-edit-badge').classList.add('hidden');
+        document.getElementById('btn-sc-cancel').classList.add('hidden');
+        document.getElementById('btn-sc-submit').innerHTML = '<i class="fa-solid fa-screwdriver-wrench"></i> Ghi sổ nhật ký';
+    }
+
+    async function xoaNhatKySuaChua(id) {
+        if(!confirm("Xóa bản ghi nhật ký bảo trì này?")) return;
+        if(dbClient && isCloudReady) { await dbClient.from('suachua').delete().eq('id', id); }
+        databaseSuaChua = databaseSuaChua.filter(d => d.id !== id); localStorage.setItem('VINAPACO_CACHE_SUACHUA', JSON.stringify(databaseSuaChua));
+        renderSuaChuaTable();
     }
 
     function renderSuaChuaTable() {
@@ -711,49 +815,18 @@
                 <td>${idx + 1}</td><td class="font-bold text-slate-900 text-left">${s.thietBi}</td>
                 <td class="text-left text-xs">${s.noiDungSua}</td><td>${s.donViSua}</td>
                 <td class="font-bold text-red-600">${Number(s.chiPhiSua).toLocaleString()} đ</td>
-                <td><span class="bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded text-[11px] font-mono font-bold">💳 ${s.maChungTuSinhRa}</span></td>
-                <td><button onclick="xoaNhatKySuaChua(${s.id})" class="text-rose-600"><i class="fa-solid fa-trash"></i></button></td>
+                <td><span class="bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded text-[11px] font-mono font-bold">💳 ${s.maChungTuSinhRa || '-'}</span></td>
+                <td>
+                    <div class="flex gap-1 justify-center">
+                        <button onclick="kichHoatSuaSuaChua(${s.id})" class="text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200 text-xs"><i class="fa-solid fa-pen"></i></button>
+                        <button onclick="xoaNhatKySuaChua(${s.id})" class="text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200 text-xs"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                </td>
             </tr>
-        `).join('') || '<tr><td colspan="7" class="p-4 italic text-slate-400">Trống.</td></tr>';
+        `).join('') || '<tr><td colspan="7" class="p-4 italic text-slate-400">Chưa có nhật ký sửa chữa.</td></tr>';
     }
 
-    async function xoaNhatKySuaChua(id) {
-        if(!confirm("Xóa?")) return;
-        if(dbClient && isCloudReady) { await dbClient.from('suachua').delete().eq('id', id); }
-        databaseSuaChua = databaseSuaChua.filter(d => d.id !== id); localStorage.setItem('VINAPACO_CACHE_SUACHUA', JSON.stringify(databaseSuaChua));
-        renderSuaChuaTable();
-    }
-
-    function tinhToanThueSuatTuDong() {
-        let tienGoc = parseFloat(document.getElementById('tt-input-goc').value) || 0;
-        let thueSuatPt = parseFloat(document.getElementById('tt-input-thue-pt').value) || 0;
-        let tienThuế = Math.round(tienGoc * (thueSuatPt / 100));
-        document.getElementById('tt-calc-vat').innerText = tienThuế.toLocaleString() + " đ";
-        document.getElementById('tt-calc-sau').innerText = (tienGoc + tienThuế).toLocaleString() + " đ";
-    }
-
-    function xuLyDinhKemFilesHoSo(e) {
-        const files = e.target.files; const container = document.getElementById('tt-file-preview-list'); container.innerHTML = ""; tamLuuFileDinhKemBase64 = [];
-        Array.from(files).forEach((file, index) => {
-            const reader = new FileReader();
-            reader.onload = function(evt) {
-                tamLuuFileDinhKemBase64.push({ tenFile: file.name, kieuFile: file.type, duLieuBase64: evt.target.result });
-                container.innerHTML += `<div class="flex justify-between items-center bg-white p-1 rounded border text-[11px]"><span class="truncate max-w-[180px] text-slate-700">${file.name}</span><button onclick="xemTruocFileChungTu(${index})" class="text-blue-600 font-bold">Xem</button></div>`;
-            };
-            reader.readAsDataURL(file);
-        });
-    }
-
-    function xemTruocFileChungTu(index) {
-        let fileObj = tamLuuFileDinhKemBase64[index]; if(!fileObj) return;
-        document.getElementById('preview-file-title').innerText = fileObj.tenFile;
-        let viewBody = document.getElementById('preview-file-body');
-        if(fileObj.kieuFile.startsWith('image/')) viewBody.innerHTML = `<img src="${fileObj.duLieuBase64}" class="max-w-full max-h-[65vh] object-contain shadow rounded">`;
-        else viewBody.innerHTML = `<div class="p-4 text-xs text-slate-500">Tập tin an toàn.</div>`;
-        document.getElementById('modal-preview-file').classList.remove('hidden');
-    }
-    function dongCuaSoXemTruocFile() { document.getElementById('modal-preview-file').classList.add('hidden'); }
-
+    // --- PHÂN HỆ KẾ TOÁN THANH TOÁN: THÊM / SỬA / XÓA ---
     async function luuMoiHoSoThanhToan() {
         let ten = document.getElementById('tt-input-ten').value.trim();
         let ma = document.getElementById('tt-input-ma').value.trim().toUpperCase();
@@ -761,23 +834,71 @@
         let truocThue = parseFloat(document.getElementById('tt-input-goc').value) || 0;
         let thueSuat = parseFloat(document.getElementById('tt-input-thue-pt').value) || 0;
         let trangThai = document.getElementById('tt-input-trangthai').value;
-        if(!ten || truocThue <= 0) return alert("Điền đủ thông tin!");
-        
+        let editingId = document.getElementById('tt-editing-id').value;
+
+        if(!ten || truocThue <= 0) return alert("Điền đủ tên và số tiền trước thuế lớn hơn 0!");
         let vat = Math.round(truocThue * (thueSuat / 100)); let sauThue = truocThue + vat;
-        let NewRow = { id: Date.now(), maChungTu: ma, noiDung: ten, donViDeXuat: donvi, tienTruocThue: truocThue, thueSuatPt: thueSuat, tienVat: vat, tienSauThue: sauThue, trangThai: trangThai, danhSachFiles: tamLuuFileDinhKemBase64 };
         
-        if(dbClient && isCloudReady) { await dbClient.from('thanhtoan').insert([NewRow]); }
-        databaseThanhToan.push(NewRow); localStorage.setItem('VINAPACO_CACHE_THANHTOAN', JSON.stringify(databaseThanhToan));
-        
+        if (editingId) {
+            let item = databaseThanhToan.find(d => d.id == editingId);
+            if (item) {
+                item.noiDung = ten; item.donViDeXuat = donvi; item.tienTruocThue = truocThue;
+                item.thueSuatPt = thueSuat; item.tienVat = vat; item.tienSauThue = sauThue; item.trangThai = trangThai;
+                if(tamLuuFileDinhKemBase64.length > 0) item.danhSachFiles = tamLuuFileDinhKemBase64;
+
+                if(dbClient && isCloudReady) {
+                    await dbClient.from('thanhtoan').update({ noiDung: ten, donViDeXuat: donvi, tienTruocThue: truocThue, thueSuatPt: thueSuat, tienVat: vat, tienSauThue: sauThue, trangThai: trangThai }).eq('id', editingId);
+                }
+            }
+        } else {
+            let NewRow = { id: Date.now(), maChungTu: ma, noiDung: ten, donViDeXuat: donvi, tienTruocThue: truocThue, thueSuatPt: thueSuat, tienVat: vat, tienSauThue: sauThue, trangThai: trangThai, danhSachFiles: tamLuuFileDinhKemBase64 };
+            if(dbClient && isCloudReady) { await dbClient.from('thanhtoan').insert([NewRow]); }
+            databaseThanhToan.push(NewRow);
+        }
+
+        localStorage.setItem('VINAPACO_CACHE_THANHTOAN', JSON.stringify(databaseThanhToan));
+        resetFormThanhToan(); renderThanhToanTableVaDashboard(); loadDropdownsLienKetDuLieu();
+    }
+
+    function kichHoatSuaThanhToan(id) {
+        let item = databaseThanhToan.find(d => d.id == id);
+        if(!item) return;
+
+        document.getElementById('tt-editing-id').value = item.id;
+        document.getElementById('tt-input-ten').value = item.noiDung;
+        document.getElementById('tt-input-ma').value = item.maChungTu;
+        document.getElementById('tt-input-donvi').value = item.donViDeXuat;
+        document.getElementById('tt-input-goc').value = item.tienTruocThue;
+        document.getElementById('tt-input-thue-pt').value = item.thueSuatPt;
+        document.getElementById('tt-input-trangthai').value = item.trangThai;
+
+        tinhToanThueSuatTuDong();
+        document.getElementById('tt-edit-badge').classList.remove('hidden');
+        document.getElementById('btn-tt-cancel').classList.remove('hidden');
+        document.getElementById('btn-tt-submit').innerHTML = '<i class="fa-solid fa-square-check"></i> Cập nhật hồ sơ';
+    }
+
+    function resetFormThanhToan() {
+        document.getElementById('tt-editing-id').value = "";
         document.getElementById('tt-input-ten').value = ""; 
         document.getElementById('tt-input-goc').value = "";
+        document.getElementById('tt-input-donvi').value = "";
         document.getElementById('tt-file-preview-list').innerHTML = "";
         tamLuuFileDinhKemBase64 = []; 
         
         sinhMaHoaDonTuDong();
         tinhToanThueSuatTuDong(); 
-        renderThanhToanTableVaDashboard(); 
-        loadDropdownsLienKetDuLieu();
+
+        document.getElementById('tt-edit-badge').classList.add('hidden');
+        document.getElementById('btn-tt-cancel').classList.add('hidden');
+        document.getElementById('btn-tt-submit').innerHTML = '<i class="fa-solid fa-floppy-disk mr-1"></i> Lưu hồ sơ';
+    }
+
+    async function xoaHoSoThanhToan(id) {
+        if(!confirm("Xóa chứng từ thanh toán này? Hành động này không thể hoàn tác.")) return;
+        if(dbClient && isCloudReady) { await dbClient.from('thanhtoan').delete().eq('id', id); }
+        databaseThanhToan = databaseThanhToan.filter(d => d.id !== id); localStorage.setItem('VINAPACO_CACHE_THANHTOAN', JSON.stringify(databaseThanhToan));
+        renderThanhToanTableVaDashboard(); loadDropdownsLienKetDuLieu();
     }
 
     function renderThanhToanTableVaDashboard() {
@@ -794,10 +915,15 @@
                 <td class="text-left font-bold text-slate-800">${item.noiDung} <br><span class="text-[10px] text-slate-500 font-mono">Mã HĐ: ${item.maChungTu}</span></td>
                 <td>${item.donViDeXuat}</td><td>${Number(item.tienTruocThue).toLocaleString()} đ</td>
                 <td>${Number(item.tienVat).toLocaleString()} đ</td><td class="font-black text-emerald-700">${Number(item.tienSauThue).toLocaleString()} đ</td>
-                <td>${item.danhSachFiles && item.danhSachFiles.length > 0 ? 'Có file 📎' : 'Không'}</td><td>${item.trangThai}</td>
-                <td><button onclick="xoaHoSoThanhToan(${item.id})" class="text-rose-600"><i class="fa-solid fa-trash"></i></button></td>
+                <td>${item.danhSachFiles && item.danhSachFiles.length > 0 ? '📎 Chứng từ' : 'Trống'}</td><td>${item.trangThai}</td>
+                <td>
+                    <div class="flex gap-1 justify-center">
+                        <button onclick="kichHoatSuaThanhToan(${item.id})" class="text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200 text-xs"><i class="fa-solid fa-pen"></i></button>
+                        <button onclick="xoaHoSoThanhToan(${item.id})" class="text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200 text-xs"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                </td>
             </tr>
-        `).join('') || '<tr><td colspan="9" class="p-4 italic text-slate-400">Trống.</td></tr>';
+        `).join('') || '<tr><td colspan="9" class="p-4 italic text-slate-400">Chưa có hồ sơ kế toán.</td></tr>';
 
         document.getElementById('print-table-rows').innerHTML = databaseThanhToan.map((item, idx) => `
             <tr>
@@ -813,14 +939,44 @@
         `).join('');
     }
 
-    async function xoaHoSoThanhToan(id) {
-        if(!confirm("Xóa?")) return;
-        if(dbClient && isCloudReady) { await dbClient.from('thanhtoan').delete().eq('id', id); }
-        databaseThanhToan = databaseThanhToan.filter(d => d.id !== id); localStorage.setItem('VINAPACO_CACHE_THANHTOAN', JSON.stringify(databaseThanhToan));
-        renderThanhToanTableVaDashboard(); loadDropdownsLienKetDuLieu();
+    // --- CÁC HÀM BỔ TRỢ HỆ THỐNG GỐC ---
+    function moXemMaQrThietBi(ma, text, nguoi) {
+        const container = document.getElementById('qrcode-container'); container.innerHTML = "";
+        let textInfo = `MA TS: ${ma}\nTEN: ${text}\nNGUOI GIU: ${nguoi}\nVINAPACO ERP CLOUD`;
+        document.getElementById('qr-modal-desc').innerText = textInfo;
+        document.getElementById('qr-modal-title').innerText = "TÀI SẢN: " + ma;
+        new QRCode(container, { text: textInfo, width: 200, height: 200, colorDark : "#0f172a", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.H });
+        document.getElementById('modal-qr-code').classList.remove('hidden');
     }
-
+    function tinhToanThueSuatTuDong() {
+        let tienGoc = parseFloat(document.getElementById('tt-input-goc').value) || 0;
+        let thueSuatPt = parseFloat(document.getElementById('tt-input-thue-pt').value) || 0;
+        let tienThuế = Math.round(tienGoc * (thueSuatPt / 100));
+        document.getElementById('tt-calc-vat').innerText = tienThuế.toLocaleString() + " đ";
+        document.getElementById('tt-calc-sau').innerText = (tienGoc + tienThuế).toLocaleString() + " đ";
+    }
+    function xuLyDinhKemFilesHoSo(e) {
+        const files = e.target.files; const container = document.getElementById('tt-file-preview-list'); container.innerHTML = ""; tamLuuFileDinhKemBase64 = [];
+        Array.from(files).forEach((file, index) => {
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                tamLuuFileDinhKemBase64.push({ tenFile: file.name, kieuFile: file.type, duLieuBase64: evt.target.result });
+                container.innerHTML += `<div class="flex justify-between items-center bg-white p-1 rounded border text-[11px]"><span class="truncate max-w-[180px] text-slate-700">${file.name}</span><button onclick="xemTruocFileChungTu(${index})" class="text-blue-600 font-bold">Xem</button></div>`;
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+    function xemTruocFileChungTu(index) {
+        let fileObj = tamLuuFileDinhKemBase64[index]; if(!fileObj) return;
+        document.getElementById('preview-file-title').innerText = fileObj.tenFile;
+        let viewBody = document.getElementById('preview-file-body');
+        if(fileObj.kieuFile.startsWith('image/')) viewBody.innerHTML = `<img src="${fileObj.duLieuBase64}" class="max-w-full max-h-[65vh] object-contain shadow rounded">`;
+        else viewBody.innerHTML = `<div class="p-4 text-xs text-slate-500">Tập tin an toàn.</div>`;
+        document.getElementById('modal-preview-file').classList.remove('hidden');
+    }
+    function dongCuaSoXemTruocFile() { document.getElementById('modal-preview-file').classList.add('hidden'); }
     function moTrangInVanBanHanhChinh() { window.print(); }
+    function xoaBoNhoDemVaTaiLai() { localStorage.clear(); isCloudReady = false; taiDuLieuTuSupabase(); }
 
     async function docTepExcelChongLechCot(e) {
         const file = e.target.files[0]; if(!file) return; const reader = new FileReader();
@@ -864,7 +1020,6 @@
         reader.readAsArrayBuffer(file);
     }
 
-    function xoaBoNhoDemVaTaiLai() { localStorage.clear(); isCloudReady = false; taiDuLieuTuSupabase(); }
     window.onload = function() { taiDuLieuTuSupabase(); };
 </script>
 </body>
