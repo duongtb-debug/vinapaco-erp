@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vinapaco ERP - Đám Mây Hợp Nhất v29.3</title>
+    <title>Vinapaco ERP - Đám Mây Hợp Nhất v30.0</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -11,7 +11,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <style>
-        body, table, button, input, select, textarea, span, h1, h2, h3, div { font-family: "Times New Roman", Times, serif !important; }
+        body, table, button, input, select, textarea, span, h1, h2, h3, div, p { font-family: "Times New Roman", Times, serif !important; }
         body { background-color: #f1f5f9; }
         .main-container { max-width: 1750px; margin: 0 auto; background: #ffffff; box-shadow: 0 10px 30px rgba(0,0,0,0.05); border-radius: 12px; overflow: hidden; }
         .banner-header { background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%); border-bottom: 4px solid #b45309; }
@@ -24,12 +24,22 @@
         .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        
+        /* CSS DÀNH RIÊNG CHO IN ẤN BÁO CÁO CHUẨN VĂN BẢN NHÀ NƯỚC */
+        @media print {
+            body { background: white !important; p: 0 !important; }
+            .no-print { display: none !important; }
+            .main-container { box-shadow: none !important; border-radius: 0 !important; max-width: 100% !important; }
+            .print-report-page { display: block !important; padding: 20mm 15mm 20mm 25mm !important; background: white; }
+            table { width: 100% !important; border-collapse: collapse !important; }
+            th, td { border: 1px solid black !important; color: black !important; font-size: 13px !important; }
+        }
     </style>
 </head>
 <body class="p-2 md:p-6">
 
 <div class="main-container">
-    <div class="banner-header p-4 md:p-6 text-white flex flex-col lg:flex-row justify-between items-center gap-4">
+    <div class="banner-header p-4 md:p-6 text-white flex flex-col lg:flex-row justify-between items-center gap-4 no-print">
         <div class="flex items-center gap-4 text-center md:text-left flex-col md:flex-row">
             <div class="w-14 h-14 bg-gradient-to-br from-amber-500 to-amber-700 rounded-xl flex items-center justify-center shadow-lg">
                 <i class="fa-solid fa-cloud text-2xl text-slate-900"></i>
@@ -37,48 +47,47 @@
             <div>
                 <h1 class="text-xl md:text-2xl font-bold uppercase tracking-wide">Tổng Công Ty Giấy Việt Nam</h1>
                 <div class="text-amber-400 font-bold text-xs md:text-sm mt-1">
-                    <i class="fa-solid fa-circle-check mr-1"></i> CLOUD V29.3 - ĐỒNG BỘ CHUẨN HÓA ĐỊNH DẠNG NGÀY THÁNG & DASHBOARD
+                    <i class="fa-solid fa-circle-check mr-1"></i> CLOUD V30.0 - FIX LỖI F5 & MODULE KẾ TOÁN THUẾ HOÀN CHỈNH
                 </div>
             </div>
         </div>
         
-        <div class="flex flex-wrap gap-2 justify-center no-print w-full lg:w-auto">
+        <div class="flex flex-wrap gap-2 justify-center w-full lg:w-auto">
             <label class="bg-amber-600 hover:bg-amber-700 text-slate-950 font-black py-2 px-4 rounded-lg cursor-pointer transition shadow-md flex items-center justify-center gap-2 text-xs border border-amber-500 w-full sm:w-auto">
                 <i class="fa-solid fa-file-excel text-base"></i> NẠP SOÁT LỖI & ĐỒNG BỘ LÊN CLOUD
                 <input type="file" id="excel-file-input" accept=".xlsx, .xls, .csv" class="hidden" onchange="docTepExcelChongLechCot(event)">
             </label>
-            <button onclick="isCloudReady=false; taiDuLieuTuSupabase()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-3 rounded-lg transition text-xs w-full sm:w-auto">
-                <i class="fa-solid fa-cloud-arrow-down"></i> LÀM MỚI DỮ LIỆU
+            <button onclick="xoaBoNhoDemVaTaiLai()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-3 rounded-lg transition text-xs w-full sm:w-auto">
+                <i class="fa-solid fa-rotate"></i> LÀM MỚI HỆ THỐNG
             </button>
         </div>
     </div>
 
     <div class="bg-slate-100 p-1.5 flex flex-col md:flex-row gap-1 border-b border-slate-200 no-print">
         <button onclick="switchTab('tab-nhansu')" id="btn-tab-nhansu" class="nav-tab active px-4 py-2 font-bold rounded-md border text-xs transition flex items-center gap-2 bg-white text-slate-700 shadow-sm"><i class="fa-solid fa-id-card"></i> 1. Hồ Sơ Nhân Sự Cloud</button>
-        <button onclick="switchTab('tab-capphat')" id="btn-tab-capphat" class="nav-tab px-4 py-2 font-bold rounded-md border text-xs transition flex items-center gap-2 bg-white text-slate-700 shadow-sm"><i class="fa-solid fa-laptop-house"></i> 2. Cấp Phát Tài Sản</button>
-        <button onclick="switchTab('tab-suachua')" id="btn-tab-suachua" class="nav-tab px-4 py-2 font-bold rounded-md border text-xs transition flex items-center gap-2 bg-white text-slate-700 shadow-sm"><i class="fa-solid fa-screwdriver-wrench"></i> 3. Nhật Ký Sửa Chữa</button>
+        <button onclick="switchTab('tab-thanhtoan')" id="btn-tab-thanhtoan" class="nav-tab px-4 py-2 font-bold rounded-md border text-xs transition flex items-center gap-2 bg-white text-slate-700 shadow-sm"><i class="fa-solid fa-file-invoice-dollar"></i> 2. Kế Toán Thuế & Thanh Toán</button>
     </div>
 
-    <div id="cloud-status-alert" class="m-4 p-3 bg-blue-50 border border-blue-200 text-blue-800 text-xs font-bold rounded-lg">
-        <div id="status-text"><i class="fa-solid fa-spinner fa-spin mr-1"></i> Hệ thống đang liên kết cổng API trực tuyến...</div>
+    <div id="cloud-status-alert" class="m-4 p-3 bg-blue-50 border border-blue-200 text-blue-800 text-xs font-bold rounded-lg no-print">
+        <div id="status-text"><i class="fa-solid fa-spinner fa-spin mr-1"></i> Hệ thống đang liên kết dữ liệu trực tuyến...</div>
     </div>
 
-    <div id="tab-nhansu" class="tab-content p-3 md:p-6">
+    <div id="tab-nhansu" class="tab-content p-3 md:p-6 no-print">
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
             <div class="bg-slate-900 text-white p-3 rounded-xl border border-slate-800">
-                <span class="text-[10px] md:text-xs font-bold text-slate-400 uppercase block">Tổng cán bộ</span>
+                <span class="text-[10px] md:text-xs font-bold text-slate-400 uppercase block">Tổng số cán bộ</span>
                 <span id="db-ns-tong" class="text-xl md:text-2xl font-black text-amber-400 mt-1">0</span>
             </div>
             <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
-                <span class="text-[10px] md:text-xs font-bold text-slate-500 uppercase block">Giới tính</span>
-                <div class="flex flex-col sm:flex-row sm:justify-between mt-1 font-bold text-xs">
+                <span class="text-[10px] md:text-xs font-bold text-slate-500 uppercase block">Nam / Nữ</span>
+                <div class="text-xs font-bold mt-1 flex justify-between">
                     <span class="text-blue-600">Nam: <b id="db-ns-nam">0</b></span>
                     <span class="text-rose-600">Nữ: <b id="db-ns-nu">0</b></span>
                 </div>
             </div>
             <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
                 <span class="text-[10px] md:text-xs font-bold text-slate-500 uppercase block">Đặc thù công việc</span>
-                <div class="flex flex-col text-[11px] font-bold mt-1">
+                <div class="text-[11px] font-bold mt-1 flex flex-col">
                     <span class="text-emerald-700">An toàn viên: <b id="db-ns-atv">0</b></span>
                     <span class="text-amber-700">Diện Độc hại: <b id="db-ns-nndh">0</b></span>
                 </div>
@@ -88,7 +97,7 @@
                 <span id="db-ns-huu5nam" class="text-base md:text-lg font-black text-orange-900 mt-1">0 người</span>
             </div>
         </div>
-
+        
         <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 mb-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-2">
             <input type="text" id="filter-ns-search" oninput="locDanhSachNhanSu()" placeholder="Tìm kiếm họ tên, CCCD..." class="border p-2 rounded text-xs bg-white outline-none w-full">
             <select id="filter-ns-madv" onchange="locDanhSachNhanSu()" class="border p-2 rounded text-xs bg-white font-bold text-slate-700"><option value="">-- Tất cả Đơn vị --</option></select>
@@ -97,22 +106,187 @@
             <select id="filter-ns-huutri" onchange="locDanhSachNhanSu()" class="border p-2 rounded text-xs bg-white font-bold text-orange-900"><option value="">-- Toàn bộ thời gian --</option><option value="sap_huu">Sắp về hưu (Đến 2030)</option></select>
         </div>
 
-        <div class="overflow-x-auto max-h-[550px] border border-slate-200 rounded-lg custom-scrollbar">
-            <table id="main-data-table">
+        <div class="overflow-x-auto max-h-[500px] border border-slate-200 rounded-lg custom-scrollbar">
+            <table>
                 <thead>
-                    <tr>
-                        <th>STT</th><th>Họ và tên</th><th>Số BHXH</th><th>Số CCCD</th><th>Ngày sinh</th><th>Giới tính</th><th>Tuổi</th><th>Ngày về hưu</th><th>Năm gốc (Sửa đổi)</th><th>ATV</th><th>NNĐH</th><th>Mã ĐV</th><th>Chức danh công việc</th>
-                    </tr>
+                    <tr><th>STT</th><th>Họ và tên</th><th>Số BHXH</th><th>Số CCCD</th><th>Ngày sinh</th><th>Giới tính</th><th>Tuổi</th><th>Ngày về hưu</th><th>Năm gốc</th><th>ATV</th><th>NNĐH</th><th>Mã ĐV</th><th>Chức danh</th></tr>
                 </thead>
                 <tbody id="table-body-rows">
-                    <tr><td colspan="13" class="p-8 italic text-slate-400">Hãy nhấn nút màu vàng để nạp dữ liệu Excel lên hệ thống trực tuyến...</td></tr>
+                    <tr><td colspan="13" class="p-4 italic text-slate-400">Đang đồng bộ cơ sở dữ liệu nền...</td></tr>
                 </tbody>
             </table>
         </div>
     </div>
 
-    <div id="tab-capphat" class="tab-content p-3 md:p-6 hidden"></div>
-    <div id="tab-suachua" class="tab-content p-3 md:p-6 hidden"></div>
+    <div id="tab-thanhtoan" class="tab-content p-3 md:p-6 hidden no-print">
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+            <div class="bg-slate-900 text-white p-3 rounded-xl border border-slate-800">
+                <span class="text-[10px] md:text-xs font-bold text-slate-400 uppercase block">Tổng hồ sơ chứng từ</span>
+                <span id="tt-dash-tong" class="text-xl md:text-2xl font-black text-amber-400 mt-1">0 bộ</span>
+            </div>
+            <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                <span class="text-[10px] md:text-xs font-bold text-slate-500 uppercase block">Tổng Tiền Trước Thuế</span>
+                <span id="tt-dash-truoc" class="text-lg md:text-xl font-black text-slate-800 block mt-1">0 đ</span>
+            </div>
+            <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                <span class="text-[10px] md:text-xs font-bold text-slate-500 uppercase block">Tổng Tiền Thuế VAT</span>
+                <span id="tt-dash-vat" class="text-lg md:text-xl font-black text-rose-600 block mt-1">0 đ</span>
+            </div>
+            <div class="bg-emerald-900 text-emerald-300 p-3 rounded-xl shadow-sm">
+                <span class="text-[10px] md:text-xs font-bold text-emerald-400 uppercase block">Tổng Tiền Sau Thuế</span>
+                <span id="tt-dash-sau" class="text-lg md:text-xl font-black block mt-1">0 đ</span>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 h-fit space-y-3">
+                <h3 class="text-xs font-black text-slate-800 uppercase border-b pb-2 flex items-center gap-1"><i class="fa-solid fa-file-invoice-dollar text-emerald-600"></i> Lập hồ sơ thanh toán mới</h3>
+                
+                <div>
+                    <label class="text-[11px] font-bold text-slate-600 block mb-1">Tên hồ sơ / Nội dung chi *</label>
+                    <input type="text" id="tt-input-ten" placeholder="Ví dụ: Thanh toán tiền mua vật tư quý II" class="w-full border p-2 rounded text-xs bg-white">
+                </div>
+                
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="text-[11px] font-bold text-slate-600 block mb-1">Mã chứng từ / Hóa đơn</label>
+                        <input type="text" id="tt-input-ma" placeholder="HD-00123" class="w-full border p-2 rounded text-xs bg-white font-mono uppercase">
+                    </div>
+                    <div>
+                        <label class="text-[11px] font-bold text-slate-600 block mb-1">Đơn vị yêu cầu</label>
+                        <input type="text" id="tt-input-donvi" placeholder="Phòng Kế Hoạch" class="w-full border p-2 rounded text-xs bg-white">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-2 bg-white p-2 rounded border">
+                    <div class="col-span-2">
+                        <label class="text-[11px] font-bold text-slate-600 block mb-1">Số tiền trước thuế *</label>
+                        <input type="number" id="tt-input-goc" oninput="tinhToanThueSuatTuDong()" placeholder="Nhập tiền trước thuế" class="w-full border p-1.5 rounded text-xs font-bold text-blue-900">
+                    </div>
+                    <div>
+                        <label class="text-[11px] font-bold text-slate-600 block mb-1">Thuế suất</label>
+                        <select id="tt-input-thue-pt" onchange="tinhToanThueSuatTuDong()" class="w-full border p-1.5 rounded text-xs font-bold bg-slate-50">
+                            <option value="10">10%</option>
+                            <option value="8">8%</option>
+                            <option value="5">5%</option>
+                            <option value="0">0%</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                    <div class="bg-rose-50 p-2 border border-rose-100 rounded">
+                        <span class="text-[10px] text-rose-700 font-bold uppercase block">Tiền thuế VAT:</span>
+                        <span id="tt-calc-vat" class="font-bold text-rose-600">0 đ</span>
+                    </div>
+                    <div class="bg-emerald-50 p-2 border border-emerald-100 rounded">
+                        <span class="text-[10px] text-emerald-700 font-bold uppercase block">Tổng thanh toán:</span>
+                        <span id="tt-calc-sau" class="font-black text-emerald-700">0 đ</span>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-[11px] font-bold text-slate-600 block mb-1">Trạng thái xử lý</label>
+                    <select id="tt-input-trangthai" class="w-full border p-2 rounded text-xs bg-white font-bold text-amber-800">
+                        <option value="Chờ duyệt">⏳ Chờ duyệt cấp kinh phí</option>
+                        <option value="Đã duyệt">✅ Đã duyệt lãnh đạo</option>
+                        <option value="Đã thanh toán">💵 Đã giải ngân chi trả</option>
+                    </select>
+                </div>
+
+                <div class="p-2 border border-dashed border-slate-300 rounded bg-amber-50/50">
+                    <label class="text-[11px] font-bold text-amber-900 block mb-1"><i class="fa-solid fa-paperclip"></i> Đính kèm tập tin chứng từ/hóa đơn (Không giới hạn)</label>
+                    <input type="file" id="tt-input-files" multiple class="text-xs w-full cursor-pointer" onchange="xuLyDinhKemFilesHoSo(event)">
+                    <div id="tt-file-preview-list" class="mt-2 space-y-1 max-h-[120px] overflow-y-auto custom-scrollbar"></div>
+                </div>
+
+                <button onclick="luuMoiHoSoThanhToan()" class="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-black py-2.5 rounded-lg text-xs transition shadow"><i class="fa-solid fa-floppy-disk mr-1"></i> Ghi sổ & Lưu trữ Hồ sơ</button>
+            </div>
+
+            <div class="lg:col-span-2 bg-white border border-slate-200 rounded-xl p-4 flex flex-col justify-between">
+                <div>
+                    <div class="flex justify-between items-center border-b pb-2 mb-3">
+                        <h3 class="text-xs font-black text-slate-800 uppercase"><i class="fa-solid fa-list-check text-blue-600"></i> Danh sách hồ sơ kế toán</h3>
+                        <div class="flex gap-1">
+                            <button onclick="moTrangInVanBanHanhChinh()" class="bg-slate-800 hover:bg-slate-900 text-white px-3 py-1.5 rounded text-xs font-bold transition flex items-center gap-1"><i class="fa-solid fa-print"></i> In Báo Cáo Chuẩn Nhà Nước</button>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto max-h-[420px] border border-slate-200 rounded-lg custom-scrollbar">
+                        <table>
+                            <thead>
+                                <tr><th>STT</th><th>Nội dung hồ sơ chi</th><th>Đơn vị</th><th>Trước thuế</th><th>VAT</th><th>Sau thuế</th><th>Chứng từ</th><th>Trạng thái</th><th>Xóa</th></tr>
+                            </thead>
+                            <tbody id="tt-table-body">
+                                <tr><td colspan="9" class="p-4 italic text-slate-400">Chưa có chứng từ nào được ghi nhận.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="print-section" class="hidden print-report-page">
+        <div class="flex justify-between items-start text-center mb-6">
+            <div class="w-[45%] text-slate-900 font-bold uppercase text-xs">
+                <div>TỔNG CÔNG TY GIẤY VIỆT NAM</div>
+                <div class="underline tracking-wide font-normal">HỘI ĐỒNG THÀNH VIÊN</div>
+            </div>
+            <div class="w-[50%] text-slate-900 font-bold text-xs">
+                <div class="uppercase tracking-tight">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
+                <div class="font-bold text-sm tracking-normal">Độc lập - Tự do - Hạnh phúc</div>
+                <div class="font-normal italic text-[12px] mt-1">Phù Ninh, ngày..... tháng..... năm 2026</div>
+            </div>
+        </div>
+
+        <div class="text-center my-8">
+            <h2 class="text-lg font-black uppercase tracking-wide">BÁO CÁO THỐNG KÊ CHI PHÍ TÀI CHÍNH & HỒ SƠ THANH TOÁN</h2>
+            <p class="italic text-xs mt-1">(Kèm theo Tờ trình tổng hợp của Bộ phận Kế toán thuế và Hồ sơ số liệu Đám mây trực tuyến)</p>
+        </div>
+
+        <table class="w-full mb-6">
+            <thead>
+                <tr>
+                    <th style="padding:6px; border:1px solid black;">STT</th>
+                    <th style="padding:6px; border:1px solid black;">Mã HĐ</th>
+                    <th style="padding:6px; border:1px solid black;">Nội dung chi phí hồ sơ</th>
+                    <th style="padding:6px; border:1px solid black;">Bộ phận đề xuất</th>
+                    <th style="padding:6px; border:1px solid black;">Tiền trước thuế</th>
+                    <th style="padding:6px; border:1px solid black;">Thuế suất</th>
+                    <th style="padding:6px; border:1px solid black;">Tổng sau thuế</th>
+                    <th style="padding:6px; border:1px solid black;">Trạng thái</th>
+                </tr>
+            </thead>
+            <tbody id="print-table-rows"></tbody>
+        </table>
+
+        <div class="flex justify-between text-center mt-12 font-bold text-xs" style="page-break-inside: avoid;">
+            <div class="w-[30%]">
+                <div class="uppercase mb-16 text-slate-500 font-normal italic">Người lập báo cáo</div>
+                <div class="uppercase text-slate-900 font-bold" id="print-signer-user">Kế toán viên</div>
+            </div>
+            <div class="w-[30%]">
+                <div class="uppercase mb-16 text-slate-500 font-normal italic">Kế toán trưởng</div>
+                <div class="uppercase text-slate-900 font-bold">Xác nhận cấp quản lý</div>
+            </div>
+            <div class="w-[30%]">
+                <div class="uppercase mb-16 text-slate-500 font-normal italic">Phê duyệt của Lãnh đạo</div>
+                <div class="uppercase text-slate-900 font-bold">TỔNG GIÁM ĐỐC</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="modal-preview-file" class="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50 hidden no-print">
+    <div class="bg-white rounded-xl max-w-4xl w-full p-4 flex flex-col max-h-[90vh]">
+        <div class="flex justify-between items-center border-b pb-2 mb-3">
+            <h4 id="preview-file-title" class="text-xs font-black text-slate-800">Xem trước tệp hóa đơn</h4>
+            <button onclick="dongCuaSoXemTruocFile()" class="text-slate-500 hover:text-slate-900 text-sm font-black">&times; ĐÓNG MÀN HÌNH</button>
+        </div>
+        <div id="preview-file-body" class="flex-1 overflow-auto flex justify-center items-center bg-slate-100 p-2 rounded max-h-[75vh]">
+            </div>
+    </div>
 </div>
 
 <script>
@@ -127,6 +301,8 @@
     } catch(e) { console.error(e); }
 
     let GLOBAL_NHAN_SU_LIST = []; 
+    let databaseThanhToan = [];
+    let tamLuuFileDinhKemBase64 = []; // Bộ nhớ đệm giữ các file hóa đơn được chọn dưới dạng Base64
     let isCloudReady = false;
 
     function switchTab(tabId) {
@@ -136,13 +312,10 @@
         document.getElementById('btn-' + tabId).classList.add('active');
     }
 
-    // HÀM CHUYỂN ĐỔI SỐ EXCEL VỀ NGÀY THÁNG NĂM CHUẨN VIỆT NAM (DD/MM/YYYY)
     function formatExcelDateToVN(cellValue) {
         if (!cellValue) return "-";
         let valStr = String(cellValue).trim();
         if (!valStr || valStr === "-") return "-";
-        
-        // Nếu là định dạng số Serial của Excel (Ví dụ: 25425 hoặc 46266)
         if (/^\d+(\.\d+)?$/.test(valStr)) {
             let serial = parseFloat(valStr);
             let dateObj = new Date((serial - 25569) * 86400 * 1000);
@@ -150,8 +323,6 @@
                 return `${String(dateObj.getDate()).padStart(2, '0')}/${String(dateObj.getMonth() + 1).padStart(2, '0')}/${dateObj.getFullYear()}`;
             }
         }
-        
-        // Nếu là định dạng chuỗi YYYY-MM-DD từ Database
         if (valStr.includes("-") && valStr.length >= 10) {
             let parts = valStr.split('T')[0].split('-');
             if(parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
@@ -159,7 +330,6 @@
         return valStr;
     }
 
-    // HÀM TÍNH TUỔI HIỆN TẠI TỪ CHUỖI NGÀY SINH CHUẨN HÓA
     function tinhTuoiHienTai(ngaySinhStr) {
         if(!ngaySinhStr || ngaySinhStr === "-") return "-";
         let year = 0;
@@ -167,67 +337,80 @@
             let p = ngaySinhStr.split("/"); year = parseInt(p[p.length - 1]);
         } else if (ngaySinhStr.includes("-")) {
             year = parseInt(ngaySinhStr.split("-")[0]);
-        } else {
-            year = parseInt(ngaySinhStr);
-        }
+        } else { year = parseInt(ngaySinhStr); }
         if(isNaN(year) || year < 1900) return "-";
         return new Date().getFullYear() - year;
     }
 
+    // --- CƠ CHẾ KHẮC PHỤC LỖI F5: TẢI BỘ NHỚ ĐỆM LOCAL STORAGE TRƯỚC ---
+    function docBoNhoDemTrinhDuyet() {
+        const localNs = localStorage.getItem('VINAPACO_CACHE_NHANSU');
+        const localTt = localStorage.getItem('VINAPACO_CACHE_THANHTOAN');
+        
+        if (localNs) {
+            GLOBAL_NHAN_SU_LIST = JSON.parse(localNs);
+            hienThiGiaoDienNhanSu();
+        }
+        if (localTt) {
+            databaseThanhToan = JSON.parse(localTt);
+            renderThanhToanTableVaDashboard();
+        }
+    }
+
     async function taiDuLieuTuSupabase() {
+        // Đọc dữ liệu từ bộ nhớ đệm Offline chạy luôn trong 0.1 giây đầu tiên
+        docBoNhoDemTrinhDuyet();
+
         if (isCloudReady) return;
         const alertBox = document.getElementById('cloud-status-alert');
         const statusText = document.getElementById('status-text');
-        
-        let backupTimer = setTimeout(() => {
-            if(!isCloudReady) {
-                alertBox.className = "m-4 p-3 bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold rounded-lg";
-                statusText.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Không tải được dữ liệu Cloud. Chuyển sang lưu trữ cục bộ. Hãy bấm nút màu vàng để nạp dữ liệu.`;
-                capNhatDashboardVaGiaoDien();
-            }
-        }, 3000);
 
         if (!dbClient) return;
         try {
-            const { data: ns, error } = await dbClient.from('nhansu').select('*');
-            if (ns && !error) {
-                // Chuẩn hóa dữ liệu ngay khi tải về từ Cloud trực tuyến
+            const { data: ns, error: errNs } = await dbClient.from('nhansu').select('*');
+            if (ns && !errNs) {
                 GLOBAL_NHAN_SU_LIST = ns.map(d => {
                     let birthStr = formatExcelDateToVN(d.dateSinh);
-                    let hgStr = formatExcelDateToVN(d.txtHuuGoc);
-                    let hmStr = formatExcelDateToVN(d.dateHuuMoi);
                     return {
                         ...d,
                         dateSinh: birthStr,
-                        txtHuuGoc: hgStr,
-                        dateHuuMoi: hmStr,
+                        txtHuuGoc: formatExcelDateToVN(d.txtHuuGoc),
+                        dateHuuMoi: formatExcelDateToVN(d.dateHuuMoi),
                         tuoiHienTai: tinhTuoiHienTai(birthStr)
                     };
                 });
-                
-                clearTimeout(backupTimer);
-                isCloudReady = true;
-                alertBox.className = "m-4 p-3 bg-green-50 border border-green-200 text-green-800 text-xs font-bold rounded-lg";
-                statusText.innerHTML = `<i class="fa-solid fa-circle-check mr-1"></i> ĐÃ KẾT NỐI API THÀNH CÔNG! Cơ sở dữ liệu đám mây trực tuyến sẵn sàng. Tải dữ liệu hoàn tất.`;
-                capNhatDashboardVaGiaoDien();
+                // Sao lưu dữ liệu vào trình duyệt chống lỗi F5
+                localStorage.setItem('VINAPACO_CACHE_NHANSU', JSON.stringify(GLOBAL_NHAN_SU_LIST));
             }
-        } catch(err) { console.log(err); }
+
+            const { data: tt, error: errTt } = await dbClient.from('thanhtoan').select('*');
+            if (tt && !errTt) {
+                databaseThanhToan = tt;
+                localStorage.setItem('VINAPACO_CACHE_THANHTOAN', JSON.stringify(databaseThanhToan));
+            }
+            
+            isCloudReady = true;
+            alertBox.className = "m-4 p-3 bg-green-50 border border-green-200 text-green-800 text-xs font-bold rounded-lg no-print";
+            statusText.innerHTML = `<i class="fa-solid fa-circle-check mr-1"></i> ĐÃ ĐỒNG BỘ ĐÁM MÂY THÀNH CÔNG! Đã nạp dữ liệu trực tuyến an toàn.`;
+            
+            hienThiGiaoDienNhanSu();
+            renderThanhToanTableVaDashboard();
+        } catch(err) {
+            console.log("Đang chạy chế độ đệm nội bộ:", err);
+        }
     }
 
-    function capNhatDashboardVaGiaoDien() {
-        // 1. Khởi tạo danh sách Mã đơn vị động cho thanh lọc
+    function hienThiGiaoDienNhanSu() {
         let setMaDV = new Set(); 
         GLOBAL_NHAN_SU_LIST.forEach(d => { if(d.maDV) setMaDV.add(d.maDV) });
         document.getElementById('filter-ns-madv').innerHTML = '<option value="">-- Tất cả Đơn vị --</option>' + Array.from(setMaDV).sort().map(dv => `<option value="${dv}">${dv}</option>`).join('');
         
-        // 2. Tính toán và cập nhật số liệu Dashboard tổng quan
         let tong = GLOBAL_NHAN_SU_LIST.length;
         let nam = GLOBAL_NHAN_SU_LIST.filter(d => d.gioiTinh === "Nam").length;
         let nu = GLOBAL_NHAN_SU_LIST.filter(d => d.gioiTinh === "Nữ").length;
         let atv = GLOBAL_NHAN_SU_LIST.filter(d => d.atv && d.atv !== "-" && d.atv !== "0").length;
         let nndh = GLOBAL_NHAN_SU_LIST.filter(d => d.nndh && d.nndh !== "-" && d.nndh !== "0").length;
         
-        // Đếm số người sẽ nghỉ hưu từ năm hiện tại đến 2030 dựa trên Ngày Về Hưu mới
         let huuTris = 0;
         GLOBAL_NHAN_SU_LIST.forEach(d => {
             if(d.dateHuuMoi && d.dateHuuMoi !== "-") {
@@ -245,99 +428,6 @@
         document.getElementById('db-ns-huu5nam').innerText = huuTris + ` người`;
 
         locDanhSachNhanSu();
-    }
-
-    function docTepExcelChongLechCot(e) {
-        const file = e.target.files[0]; if(!file) return;
-        const reader = new FileReader();
-        reader.onload = async function(evt) {
-            try {
-                const data = new Uint8Array(evt.target.result);
-                const workbook = XLSX.read(data, {type: 'array'});
-                const sheet = workbook.Sheets[workbook.SheetNames[0]];
-                const range = XLSX.utils.decode_range(sheet['!ref']);
-                
-                let dòngTiêuĐề = -1;
-                for (let r = range.s.r; r <= range.e.r; r++) {
-                    for (let c = range.s.c; c <= range.e.c; c++) {
-                        let cell = sheet[XLSX.utils.encode_cell({r: r, c: c})];
-                        if (cell && cell.v) {
-                            let text = String(cell.v).toLowerCase().replace(/[\r\n]+/g, "").replace(/\s/g, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d");
-                            if (text.includes("hovaten") || text.includes("hoten")) { dòngTiêuĐề = r; break; }
-                        }
-                    }
-                    if (dòngTiêuĐề !== -1) break;
-                }
-                if (dòngTiêuĐề === -1) dòngTiêuĐề = range.s.r;
-
-                // CHỈNH SỬA TOÀN DIỆN KHỚP KHÍT TÊN CỘT THEO FILE EXCEL GỐC CỦA BẠN
-                let mapCột = { hoTen: -1, maDV: -1, bhxh: -1, cccd: -1, namSinh: -1, nu: -1, atv: -1, nndh: -1, chucDanh: -1, huuGoc: -1, dateHuuMoi: -1 };
-                for (let c = range.s.c; c <= range.e.c; c++) {
-                    let cell = sheet[XLSX.utils.encode_cell({r: dòngTiêuĐề, c: c})];
-                    if (!cell || !cell.v) continue;
-                    let hText = String(cell.v).toLowerCase().replace(/[\r\n]+/g, "").replace(/\s/g, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d");
-                    
-                    if (/hovaten|hoten/i.test(hText)) mapCột.hoTen = c;
-                    else if (/madonvi|madv|madon/i.test(hText)) mapCột.maDV = c;
-                    else if (/bhxh|sosobhxh/i.test(hText)) mapCột.bhxh = c;
-                    else if (/cccd|socccd/i.test(hText)) mapCột.cccd = c;
-                    else if (/namsinh|ngaysinh/i.test(hText)) mapCột.namSinh = c;
-                    else if (/nu/i.test(hText)) mapCột.nu = c;
-                    else if (/antoanvien|atv/i.test(hText)) mapCột.atv = c;
-                    else if (/nndh|dochai|nghenghiepdochai/i.test(hText)) mapCột.nndh = c;
-                    else if (/chucdanh/i.test(hText)) mapCột.chucDanh = c;
-                    if (/namvehuu|ngayvehuu/i.test(hText)) {
-                        if (hText.includes("goc")) mapCột.huuGoc = c;
-                        else mapCột.dateHuuMoi = c;
-                    }
-                }
-
-                let uploadRows = [];
-                for (let r = dòngTiêuĐề + 1; r <= range.e.r; r++) {
-                    let cellName = sheet[XLSX.utils.encode_cell({r: r, c: mapCột.hoTen})];
-                    if (!cellName || !cellName.v || String(cellName.v).trim() === "" || String(cellName.v).trim() === "Stt") continue;
-                    
-                    function layVal(colIndex) { if (colIndex === -1 || colIndex === undefined) return ""; let cell = sheet[XLSX.utils.encode_cell({r: r, c: colIndex})]; return cell ? String(cell.v).trim() : ""; }
-                    
-                    let birthFormatted = formatExcelDateToVN(layVal(mapCột.namSinh));
-                    let hGocFormatted = formatExcelDateToVN(layVal(mapCột.huuGoc));
-                    let hMoiFormatted = formatExcelDateToVN(layVal(mapCột.dateHuuMoi));
-                    
-                    let txtNu = layVal(mapCột.nu).toLowerCase();
-                    let laNu = txtNu === "x" || txtNu === "1" || txtNu === "nữ";
-                    
-                    uploadRows.push({
-                        id: Date.now() + r + Math.floor(Math.random() * 1000), 
-                        hoTen: layVal(mapCột.hoTen), 
-                        maDV: layVal(mapCột.maDV) || "CHUNG", 
-                        bhxh: layVal(mapCột.bhxh) || "-", 
-                        cccd: layVal(mapCột.cccd) || "-",
-                        dateSinh: birthFormatted, 
-                        gioiTinh: laNu ? "Nữ" : "Nam", 
-                        tuoiHienTai: tinhTuoiHienTai(birthFormatted),
-                        dateHuuMoi: hMoiFormatted, 
-                        txtHuuGoc: hGocFormatted,
-                        atv: layVal(mapCột.atv) || "-", 
-                        nndh: layVal(mapCột.nndh) || "-", 
-                        chucDanh: layVal(mapCột.chucDanh) || "-"
-                    });
-                }
-
-                if (isCloudReady && dbClient) {
-                    // Đồng bộ làm sạch dữ liệu cũ trực tuyến
-                    await dbClient.from('nhansu').delete().neq('id', 0);
-                    // Đẩy dữ liệu mới chuẩn hóa lên mây trực tuyến theo gói nhỏ (Tránh tràn băng thông)
-                    for (let i = 0; i < uploadRows.length; i += 50) {
-                        await dbClient.from('nhansu').insert(uploadRows.slice(i, i + 50));
-                    }
-                }
-                
-                alert(`Nạp hoàn tất ${uploadRows.length} nhân sự chuẩn hóa dữ liệu trực tuyến thành công.`);
-                GLOBAL_NHAN_SU_LIST = uploadRows;
-                capNhatDashboardVaGiaoDien();
-            } catch(err) { alert("Lỗi xử lý tệp: " + err.message); }
-        };
-        reader.readAsArrayBuffer(file);
     }
 
     function locDanhSachNhanSu() {
@@ -363,22 +453,288 @@
         });
 
         document.getElementById('table-body-rows').innerHTML = filtered.map((d, idx) => `
-            <tr class="${d.atv && d.atv !== '-' ? 'bg-emerald-50/50' : ''}">
-                <td>${idx + 1}</td>
-                <td class="font-bold text-left text-slate-900">${d.hoTen}</td>
-                <td>${d.bhxh}</td>
-                <td>${d.cccd}</td>
-                <td class="font-bold text-blue-900">${d.dateSinh}</td>
-                <td>${d.gioiTinh}</td>
-                <td>${d.tuoiHienTai}</td>
-                <td class="font-bold text-orange-700">${d.dateHuuMoi}</td>
-                <td class="text-slate-400 italic">${d.txtHuuGoc}</td>
-                <td><span class="${d.atv && d.atv !== '-' ? 'bg-emerald-600 text-white px-1.5 py-0.5 rounded text-[11px] font-bold' : ''}">${d.atv}</span></td>
-                <td><span class="${d.nndh && d.nndh !== '-' ? 'bg-amber-600 text-slate-950 px-1.5 py-0.5 rounded text-[11px] font-bold' : ''}">${d.nndh}</span></td>
-                <td class="font-mono text-xs">${d.maDV}</td>
-                <td class="text-left text-xs max-w-[250px] truncate" title="${d.chucDanh}">${d.chucDanh}</td>
+            <tr>
+                <td>${idx + 1}</td><td class="font-bold text-left text-slate-900">${d.hoTen}</td><td>${d.bhxh}</td><td>${d.cccd}</td>
+                <td class="font-bold text-blue-900">${d.dateSinh}</td><td>${d.gioiTinh}</td><td>${d.tuoiHienTai}</td>
+                <td class="font-bold text-orange-700">${d.dateHuuMoi}</td><td class="text-slate-400 italic">${d.txtHuuGoc}</td>
+                <td>${d.atv}</td><td>${d.nndh}</td><td class="font-mono text-xs">${d.maDV}</td><td class="text-left text-xs">${d.chucDanh}</td>
             </tr>
-        `).join('') || '<tr><td colspan="13" class="p-8 italic text-slate-400">Không tìm thấy kết quả phù hợp. Hãy nhấn nút vàng để nạp dữ liệu Excel nếu bảng trống!</td></tr>';
+        `).join('') || '<tr><td colspan="13" class="p-4 italic text-slate-400">Không có dữ liệu.</td></tr>';
+    }
+
+    async function docTepExcelChongLechCot(e) {
+        const file = e.target.files[0]; if(!file) return;
+        const reader = new FileReader();
+        reader.onload = async function(evt) {
+            try {
+                const data = new Uint8Array(evt.target.result);
+                const workbook = XLSX.read(data, {type: 'array'});
+                const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                const range = XLSX.utils.decode_range(sheet['!ref']);
+                
+                let dòngTiêuĐề = -1;
+                for (let r = range.s.r; r <= range.e.r; r++) {
+                    for (let c = range.s.c; c <= range.e.c; c++) {
+                        let cell = sheet[XLSX.utils.encode_cell({r: r, c: c})];
+                        if (cell && cell.v) {
+                            let text = String(cell.v).toLowerCase().replace(/[\r\n]+/g, "").replace(/\s/g, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d");
+                            if (text.includes("hovaten") || text.includes("hoten")) { dòngTiêuĐề = r; break; }
+                        }
+                    }
+                    if (dòngTiêuĐề !== -1) break;
+                }
+                if (dòngTiêuĐề === -1) dòngTiêuĐề = range.s.r;
+
+                let mapCột = { hoTen: -1, maDV: -1, bhxh: -1, cccd: -1, namSinh: -1, nu: -1, atv: -1, nndh: -1, chucDanh: -1, huuGoc: -1, dateHuuMoi: -1 };
+                for (let c = range.s.c; c <= range.e.c; c++) {
+                    let cell = sheet[XLSX.utils.encode_cell({r: dòngTiêuĐề, c: c})];
+                    if (!cell || !cell.v) continue;
+                    let hText = String(cell.v).toLowerCase().replace(/[\r\n]+/g, "").replace(/\s/g, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d");
+                    if (/hovaten|hoten/i.test(hText)) mapCột.hoTen = c;
+                    else if (/madonvi|madv/i.test(hText)) mapCột.maDV = c;
+                    else if (/bhxh/i.test(hText)) mapCột.bhxh = c;
+                    else if (/cccd/i.test(hText)) mapCột.cccd = c;
+                    else if (/namsinh|ngaysinh/i.test(hText)) mapCột.namSinh = c;
+                    else if (/nu/i.test(hText)) mapCột.nu = c;
+                    else if (/atv|antoan/i.test(hText)) mapCột.atv = c;
+                    else if (/nndh|dochai/i.test(hText)) mapCột.nndh = c;
+                    else if (/chucdanh/i.test(hText)) mapCột.chucDanh = c;
+                    if (/namvehuu|ngayvehuu/i.test(hText)) {
+                        if (hText.includes("goc")) mapCột.huuGoc = c; else mapCột.dateHuuMoi = c;
+                    }
+                }
+
+                let uploadRows = [];
+                for (let r = dòngTiêuĐề + 1; r <= range.e.r; r++) {
+                    let cellName = sheet[XLSX.utils.encode_cell({r: r, c: mapCột.hoTen})];
+                    if (!cellName || !cellName.v || String(cellName.v).trim() === "") continue;
+                    function layVal(colIndex) { if (colIndex === -1 || colIndex === undefined) return ""; let cell = sheet[XLSX.utils.encode_cell({r: r, c: colIndex})]; return cell ? String(cell.v).trim() : ""; }
+                    
+                    let birthFormatted = formatExcelDateToVN(layVal(mapCột.namSinh));
+                    let txtNu = layVal(mapCột.nu).toLowerCase(); let laNu = txtNu === "x" || txtNu === "1" || txtNu === "nữ";
+                    
+                    uploadRows.push({
+                        id: Date.now() + r + Math.floor(Math.random() * 100), hoTen: layVal(mapCột.hoTen), maDV: layVal(mapCột.maDV) || "CHUNG", 
+                        bhxh: layVal(mapCột.bhxh) || "-", cccd: layVal(mapCột.cccd) || "-", dateSinh: birthFormatted, gioiTinh: laNu ? "Nữ" : "Nam", 
+                        tuoiHienTai: tinhTuoiHienTai(birthFormatted), dateHuuMoi: formatExcelDateToVN(layVal(mapCột.dateHuuMoi)), 
+                        txtHuuGoc: formatExcelDateToVN(layVal(mapCột.huuGoc)), atv: layVal(mapCột.atv) || "-", nndh: layVal(mapCột.nndh) || "-", chucDanh: layVal(mapCột.chucDanh) || "-"
+                    });
+                }
+
+                if (dbClient) {
+                    await dbClient.from('nhansu').delete().neq('id', 0);
+                    for (let i = 0; i < uploadRows.length; i += 50) { await dbClient.from('nhansu').insert(uploadRows.slice(i, i + 50)); }
+                }
+                alert(`Đã tải lên đám mây thành công ${uploadRows.length} nhân sự.`);
+                GLOBAL_NHAN_SU_LIST = uploadRows;
+                localStorage.setItem('VINAPACO_CACHE_NHANSU', JSON.stringify(GLOBAL_NHAN_SU_LIST));
+                hienThiGiaoDienNhanSu();
+            } catch(err) { alert("Lỗi đọc file: " + err.message); }
+        };
+        reader.readAsArrayBuffer(file);
+    }
+
+    // ==========================================
+    // KHU VỰC LOGIC CHO MODULE KẾ TOÁN THUẾ
+    // ==========================================
+    
+    // 1. CÔNG CỤ TÍNH THUẾ SUẤT TỰ ĐỘNG
+    function tinhToanThueSuatTuDong() {
+        let tienGoc = parseFloat(document.getElementById('tt-input-goc').value) || 0;
+        let thueSuatPt = parseFloat(document.getElementById('tt-input-thue-pt').value) || 0;
+        
+        let tienThuế = Math.round(tienGoc * (thueSuatPt / 100));
+        let tongTien = tienGoc + tienThuế;
+
+        document.getElementById('tt-calc-vat').innerText = tienThuế.toLocaleString() + " đ";
+        document.getElementById('tt-calc-sau').innerText = tongTien.toLocaleString() + " đ";
+    }
+
+    // 2. CHỌN NHIỀU FILE CHỨC NĂNG KHÔNG GIỚI HẠN DUNG LƯỢNG (XEM TRƯỚC TRỰC QUAN)
+    function xuLyDinhKemFilesHoSo(e) {
+        const files = e.target.files;
+        const container = document.getElementById('tt-file-preview-list');
+        container.innerHTML = "";
+        tamLuuFileDinhKemBase64 = [];
+
+        Array.from(files).forEach((file, index) => {
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                tamLuuFileDinhKemBase64.push({
+                    tenFile: file.name,
+                    kieuFile: file.type,
+                    duLieuBase64: evt.target.result
+                });
+
+                container.innerHTML += `
+                    <div class="flex justify-between items-center bg-white p-1 rounded border text-[11px]">
+                        <span class="truncate max-w-[180px] text-slate-700"><i class="fa-solid fa-file text-blue-500 mr-1"></i>${file.name}</span>
+                        <button onclick="xemTruocFileChungTu(${index})" class="text-blue-600 hover:underline font-bold">Xem file</button>
+                    </div>
+                `;
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    function xemTruocFileChungTu(index) {
+        let fileObj = tamLuuFileDinhKemBase64[index];
+        if(!fileObj) return;
+        
+        document.getElementById('preview-file-title').innerText = "Xem trước: " + fileObj.tenFile;
+        let viewBody = document.getElementById('preview-file-body');
+        viewBody.innerHTML = "";
+
+        if(fileObj.kieuFile.startsWith('image/')) {
+            viewBody.innerHTML = `<img src="${fileObj.duLieuBase64}" class="max-w-full max-h-[65vh] object-contain shadow rounded">`;
+        } else {
+            viewBody.innerHTML = `
+                <div class="text-center p-6 text-slate-500 text-xs">
+                    <i class="fa-solid fa-file-pdf text-4xl text-rose-600 block mb-2"></i>
+                    Tập tin dạng đặc biệt. Bạn có thể tải về khi tải dữ liệu.
+                </div>
+            `;
+        }
+        document.getElementById('modal-preview-file').classList.remove('hidden');
+    }
+
+    function dongCuaSoXemTruocFile() {
+        document.getElementById('modal-preview-file').classList.add('hidden');
+    }
+
+    // 3. LƯU MỚI HỒ SƠ THANH TOÁN
+    async function luuMoiHoSoThanhToan() {
+        let ten = document.getElementById('tt-input-ten').value.trim();
+        let ma = document.getElementById('tt-input-ma').value.trim().toUpperCase() || "CHƯA CÓ MÃ";
+        let donvi = document.getElementById('tt-input-donvi').value.trim() || "VP";
+        let truocThue = parseFloat(document.getElementById('tt-input-goc').value) || 0;
+        let thueSuat = parseFloat(document.getElementById('tt-input-thue-pt').value) || 0;
+        let trangThai = document.getElementById('tt-input-trangthai').value;
+
+        if(!ten || truocThue <= 0) return alert("Vui lòng nhập tên nội dung chi và số tiền trước thuế!");
+
+        let vat = Math.round(truocThue * (thueSuat / 100));
+        let sauThue = truocThue + vat;
+
+        let NewRow = {
+            id: Date.now(),
+            maChungTu: ma,
+            noiDung: ten,
+            donViDeXuat: donvi,
+            tienTruocThue: truocThue,
+            thueSuatPt: thueSuat,
+            tienVat: vat,
+            tienSauThue: sauThue,
+            trangThai: trangThai,
+            danhSachFiles: tamLuuFileDinhKemBase64 // Đính kèm mảng tệp tin mã hóa Base64 vào thẳng Database
+        };
+
+        if(dbClient && isCloudReady) {
+            await dbClient.from('thanhtoan').insert([NewRow]);
+        }
+
+        databaseThanhToan.push(NewRow);
+        localStorage.setItem('VINAPACO_CACHE_THANHTOAN', JSON.stringify(databaseThanhToan));
+        
+        // Reset Form khai báo
+        document.getElementById('tt-input-ten').value = "";
+        document.getElementById('tt-input-goc').value = "";
+        document.getElementById('tt-input-ma').value = "";
+        document.getElementById('tt-file-preview-list').innerHTML = "";
+        tamLuuFileDinhKemBase64 = [];
+        tinhToanThueSuatTuDong();
+
+        renderThanhToanTableVaDashboard();
+        alert("Đã ghi sổ chứng từ kế toán thành công!");
+    }
+
+    // 4. RENDER FINANCIAL DASHBOARD & TABLE DỮ LIỆU
+    function renderThanhToanTableVaDashboard() {
+        let tongHs = databaseThanhToan.length;
+        let bThue = 0; let tThue = 0; let sThue = 0;
+
+        databaseThanhToan.forEach(d => {
+            bThue += parseFloat(d.tienTruocThue || 0);
+            tThue += parseFloat(d.tienVat || 0);
+            sThue += parseFloat(d.tienSauThue || 0);
+        });
+
+        document.getElementById('tt-dash-tong').innerText = tongHs + " bộ";
+        document.getElementById('tt-dash-truoc').innerText = bThue.toLocaleString() + " đ";
+        document.getElementById('tt-dash-vat').innerText = tThue.toLocaleString() + " đ";
+        document.getElementById('tt-dash-sau').innerText = sThue.toLocaleString() + " đ";
+
+        document.getElementById('tt-table-body').innerHTML = databaseThanhToan.map((item, idx) => `
+            <tr>
+                <td>${idx + 1}</td>
+                <td class="text-left font-bold text-slate-800">${item.noiDung} <br><span class="text-[10px] font-mono bg-slate-100 p-0.5 rounded text-slate-500">Mã: ${item.maChungTu || '-'}</span></td>
+                <td>${item.donViDeXuat || '-'}</td>
+                <td class="font-bold text-slate-700">${Number(item.tienTruocThue).toLocaleString()} đ</td>
+                <td class="text-rose-600 text-xs">${Number(item.tienVat).toLocaleString()} đ <br><span class="text-[9px] text-slate-400">(${item.thueSuatPt}%)</span></td>
+                <td class="font-black text-emerald-700">${Number(item.tienSauThue).toLocaleString()} đ</td>
+                <td>
+                    <div class="flex flex-col gap-0.5">
+                        ${item.danhSachFiles && item.danhSachFiles.length > 0 ? 
+                            `<span class="text-[10px] text-blue-600 font-bold"><i class="fa-solid fa-paperclip"></i> ${item.danhSachFiles.length} file</span>` : 
+                            `<span class="text-slate-400 italic text-[11px]">Trống</span>`
+                        }
+                    </div>
+                </td>
+                <td><span class="px-1.5 py-0.5 rounded text-[11px] font-bold ${item.trangThai === 'Đã thanh toán' ? 'bg-emerald-100 text-emerald-800' : (item.trangThai === 'Đã duyệt' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800')}">${item.trangThai}</span></td>
+                <td><button onclick="xoaHoSoThanhToan(${item.id})" class="text-rose-600 hover:text-rose-900 transition"><i class="fa-solid fa-trash"></i></button></td>
+            </tr>
+        `).join('') || '<tr><td colspan="9" class="p-4 italic text-slate-400">Chưa có chứng từ nào được ghi nhận.</td></tr>';
+    }
+
+    async function xoaHoSoThanhToan(id) {
+        if(!confirm("Bạn có chắc chắn muốn xóa hồ sơ chứng từ thanh toán này?")) return;
+        if(dbClient && isCloudReady) {
+            await dbClient.from('thanhtoan').delete().eq('id', id);
+        }
+        databaseThanhToan = databaseThanhToan.filter(d => d.id !== id);
+        localStorage.setItem('VINAPACO_CACHE_THANHTOAN', JSON.stringify(databaseThanhToan));
+        renderThanhToanTableVaDashboard();
+    }
+
+    // 5. IN ẤN BÁO CÁO TÀI CHÍNH HÀNH CHÍNH QUỐC GIA CHUẨN NGHỊ ĐỊNH 30
+    function moTrangInVanBanHanhChinh() {
+        if(databaseThanhToan.length === 0) return alert("Hiện tại chưa có dữ liệu chi phí để kết xuất báo cáo!");
+        
+        let printRows = document.getElementById('print-table-rows');
+        printRows.innerHTML = databaseThanhToan.map((item, idx) => `
+            <tr>
+                <td style="padding:6px; border:1px solid black; text-align:center;">${idx + 1}</td>
+                <td style="padding:6px; border:1px solid black; font-family:monospace; text-align:center;">${item.maChungTu || '-'}</td>
+                <td style="padding:6px; border:1px solid black; text-align:left; font-weight:bold;">${item.noiDung}</td>
+                <td style="padding:6px; border:1px solid black; text-align:center;">${item.donViDeXuat || '-'}</td>
+                <td style="padding:6px; border:1px solid black; text-align:right;">${Number(item.tienTruocThue).toLocaleString()} đ</td>
+                <td style="padding:6px; border:1px solid black; text-align:center;">${item.thueSuatPt}%</td>
+                <td style="padding:6px; border:1px solid black; text-align:right; font-weight:bold;">${Number(item.tienSauThue).toLocaleString()} đ</td>
+                <td style="padding:6px; border:1px solid black; text-align:center;">${item.trangThai}</td>
+            </tr>
+        `).join('');
+
+        // Tính hàng tổng cuối bảng báo cáo nhà nước
+        let totalTruoc = databaseThanhToan.reduce((sum, item) => sum + parseFloat(item.tienTruocThue || 0), 0);
+        let totalSau = databaseThanhToan.reduce((sum, item) => sum + parseFloat(item.tienSauThue || 0), 0);
+        
+        printRows.innerHTML += `
+            <tr style="font-weight:bold; background-color:#f2f2f2;">
+                <td colspan="4" style="padding:6px; border:1px solid black; text-align:center; uppercase">TỔNG CỘNG TOÀN DOANH NGHIỆP</td>
+                <td style="padding:6px; border:1px solid black; text-align:right;">${totalTruoc.toLocaleString()} đ</td>
+                <td style="padding:6px; border:1px solid black; text-align:center;">-</td>
+                <td style="padding:6px; border:1px solid black; text-align:right; color:red;">${totalSau.toLocaleString()} đ</td>
+                <td style="padding:6px; border:1px solid black; text-align:center;">-</td>
+            </tr>
+        `;
+
+        window.print();
+    }
+
+    function xoaBoNhoDemVaTaiLai() {
+        localStorage.clear();
+        isCloudReady = false;
+        taiDuLieuTuSupabase();
     }
 
     window.onload = function() { taiDuLieuTuSupabase(); };
