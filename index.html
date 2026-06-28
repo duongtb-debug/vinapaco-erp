@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vinapaco ERP - Đám Mây Hợp Nhất v29.1</title>
+    <title>Vinapaco ERP - Đám Mây Hợp Nhất v29.2</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -39,7 +39,7 @@
             <div>
                 <h1 class="text-xl md:text-2xl font-bold uppercase tracking-wide">Tổng Công Ty Giấy Việt Nam</h1>
                 <div class="text-amber-400 font-bold text-xs md:text-sm mt-1">
-                    <i class="fa-solid fa-circle-check mr-1"></i> CLOUD V29.1 - TỰ ĐỘNG CHỐNG TREO MÀN HÌNH KHI MẠNG CHẬM
+                    <i class="fa-solid fa-circle-check mr-1"></i> CLOUD V29.2 - KHẮC PHỤC TRIỆT ĐỂ LỖI ĐỂ TRÙNG BIẾN SUPABASE
                 </div>
             </div>
         </div>
@@ -64,7 +64,6 @@
 
     <div id="cloud-status-alert" class="m-4 p-3 bg-blue-50 border border-blue-200 text-blue-800 text-xs font-bold rounded-lg">
         <div id="status-text"><i class="fa-solid fa-spinner fa-spin mr-1"></i> Hệ thống đang liên kết cổng API trực tuyến...</div>
-        <div id="debug-error-box" class="mt-2 p-2 bg-slate-900 text-rose-400 font-mono text-[11px] rounded hidden border border-rose-900/50"></div>
     </div>
 
     <div id="tab-nhansu" class="tab-content p-3 md:p-6">
@@ -109,7 +108,7 @@
                     </tr>
                 </thead>
                 <tbody id="table-body-rows">
-                    <tr><td colspan="13" class="p-8 italic text-slate-400">Đang đợi tải hoặc hãy bấm nạp dữ liệu Excel...</td></tr>
+                    <tr><td colspan="13" class="p-8 italic text-slate-400">Hãy bấm nút màu vàng để nạp danh sách dữ liệu Excel của bạn...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -208,21 +207,22 @@
 </div>
 
 <script>
-    const SUPABASE_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co"; 
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ";
+    // --- KHỞI TẠO KHÔNG TRÙNG BIẾN (FIXED 100% TRÙNG LẶP ĐỊNH DANH) ---
+    const DB_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co"; 
+    const DB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ";
     
-    let supabase = null;
+    let dbClient = null;
     try {
         if (typeof supabase !== 'undefined' && supabase.createClient) {
-            supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            dbClient = supabase.createClient(DB_URL, DB_KEY);
         }
-    } catch(e) {}
+    } catch(e) { console.warn("Lỗi nạp thư viện gốc:", e); }
 
     let GLOBAL_NHAN_SU_LIST = []; 
     let databaseCapPhat = [];
     let databaseSuaChua = [];
     let databaseThanhToan = [];
-    let isConnected = false;
+    let isCloudReady = false;
 
     function switchTab(tabId) {
         document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
@@ -238,33 +238,33 @@
     }
 
     async function taiDuLieuTuSupabase() {
-        if (isConnected) return;
+        if (isCloudReady) return;
         const alertBox = document.getElementById('cloud-status-alert');
         const statusText = document.getElementById('status-text');
         
-        // CƠ CHẾ CHỐNG TREO: Quá 4 giây tự động chuyển sang chế độ Sẵn sàng (Offline)
-        let timeoutTrigger = setTimeout(() => {
-            if(!isConnected) {
+        // Cơ chế kích hoạt chế độ nội bộ khẩn cấp nếu mạng trễ quá 3.5 giây
+        let backupTimer = setTimeout(() => {
+            if(!isCloudReady) {
                 alertBox.className = "m-4 p-3 bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold rounded-lg";
-                statusText.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Mạng kết nối trực tuyến chậm. Hệ thống đã mở chế độ Nội bộ. Bạn hãy bấm nút màu vàng để nạp Excel làm việc ngay!`;
+                statusText.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Mạng kết nối trực tuyến chậm. Hệ thống tự động mở cổng Offline bộ nhớ đệm. Bạn hãy bấm nút màu vàng để nạp Excel làm việc ngay!`;
                 capNhatGiaoDienSauKhiTai();
             }
-        }, 4000);
+        }, 3500);
 
-        if (!supabase) return;
+        if (!dbClient) return;
         try {
-            const { data: ns } = await supabase.from('nhansu').select('*'); if(ns) GLOBAL_NHAN_SU_LIST = ns;
-            const { data: cp } = await supabase.from('capphat').select('*'); if(cp) databaseCapPhat = cp;
-            const { data: sc } = await supabase.from('suachua').select('*'); if(sc) databaseSuaChua = sc;
-            const { data: tt } = await supabase.from('thanhtoan').select('*'); if(tt) databaseThanhToan = tt;
+            const { data: ns } = await dbClient.from('nhansu').select('*'); if(ns) GLOBAL_NHAN_SU_LIST = ns;
+            const { data: cp } = await dbClient.from('capphat').select('*'); if(cp) databaseCapPhat = cp;
+            const { data: sc } = await dbClient.from('suachua').select('*'); if(sc) databaseSuaChua = sc;
+            const { data: tt } = await dbClient.from('thanhtoan').select('*'); if(tt) databaseThanhToan = tt;
             
-            clearTimeout(timeoutTrigger);
-            isConnected = true;
+            clearTimeout(backupTimer);
+            isCloudReady = true;
             alertBox.className = "m-4 p-3 bg-green-50 border border-green-200 text-green-800 text-xs font-bold rounded-lg";
-            statusText.innerHTML = `<i class="fa-solid fa-circle-check mr-1"></i> ĐÃ KẾT NỐI API THÀNH CÔNG! Đám mây trực tuyến sẵn sàng.`;
+            statusText.innerHTML = `<i class="fa-solid fa-circle-check mr-1"></i> ĐÃ KẾT NỐI API THÀNH CÔNG! Cơ sở dữ liệu đám mây Vinapaco trực tuyến sẵn sàng.`;
             capNhatGiaoDienSauKhiTai();
         } catch(err) {
-            console.log("Chuyển chế độ dự phòng", err);
+            console.log("Dự phòng nội bộ", err);
         }
     }
 
@@ -277,7 +277,6 @@
         renderCapPhatTable();
         capNhatDropdownThietBiSuaChua();
         renderSuaChuaTable();
-        renderThanhToanTable();
     }
 
     function docTepExcelChongLechCot(e) {
@@ -331,25 +330,23 @@
                     let txtNu = layVal(mapCột.nu).toLowerCase();
                     let laNu = txtNu === "x" || txtNu === "1";
                     
-                    let dateHuuMoi = new Date(); // Tính tạm thời nghỉ hưu mới
-                    
                     uploadRows.push({
-                        id: Date.now() + r, 
+                        id: Date.now() + r + Math.floor(Math.random() * 100), 
                         hoTen: layVal(mapCột.hoTen), maDV: layVal(mapCột.maDV) || "CHUNG", bhxh: layVal(mapCột.bhxh), cccd: layVal(mapCột.cccd),
                         dateSinh: dateSinhStr, gioiTinh: laNu ? "Nữ" : "Nam", tuoiHienTai: 45,
-                        dateHuuMoi: dateHuuMoi.toISOString().split('T')[0], txtHuuGoc: layVal(mapCột.huuGoc) || "-",
+                        dateHuuMoi: new Date().toISOString().split('T')[0], txtHuuGoc: layVal(mapCột.huuGoc) || "-",
                         atv: layVal(mapCột.atv), nndh: layVal(mapCột.nndh), chucDanh: layVal(mapCột.chucDanh)
                     });
                 }
 
-                if (isConnected && supabase) {
-                    await supabase.from('nhansu').delete().neq('id', 0);
+                if (isCloudReady && dbClient) {
+                    await dbClient.from('nhansu').delete().neq('id', 0);
                     for (let i = 0; i < uploadRows.length; i += 50) {
-                        await supabase.from('nhansu').insert(uploadRows.slice(i, i + 50));
+                        await dbClient.from('nhansu').insert(uploadRows.slice(i, i + 50));
                     }
                 }
                 
-                alert(`Đã nạp thành công ${uploadRows.length} nhân sự.`);
+                alert(`Đã nạp thành công ${uploadRows.length} nhân sự lên màn hình.`);
                 GLOBAL_NHAN_SU_LIST = uploadRows;
                 capNhatGiaoDienSauKhiTai();
             } catch(err) { alert("Lỗi đọc file: " + err.message); }
@@ -371,11 +368,11 @@
 
         document.getElementById('table-body-rows').innerHTML = filtered.map((d, idx) => `
             <tr>
-                <td>${idx + 1}</td><td class="font-bold text-left">${d.hoTen}</td><td>${d.bhxh || "-"}</td><td>${d.cccd || "-"}</td>
+                <td>${idx + 1}</td><td class="font-bold text-left text-slate-900">${d.hoTen}</td><td>${d.bhxh || "-"}</td><td>${d.cccd || "-"}</td>
                 <td>${d.dateSinh || "-"}</td><td>${d.gioiTinh}</td><td>${d.tuoiHienTai}</td><td>${dinhDangNgayVN(d.dateHuuMoi)}</td>
                 <td>${d.txtHuuGoc}</td><td>${d.atv || "-"}</td><td>${d.nndh || "-"}</td><td>${d.maDV}</td><td>${d.chucDanh || "-"}</td>
             </tr>
-        `).join('') || '<tr><td colspan="13" class="p-4 italic text-slate-400">Hãy nhấn nút "NẠP SOÁT LỖI" màu vàng để tải dữ liệu Excel lên màn hình.</td></tr>';
+        `).join('') || '<tr><td colspan="13" class="p-4 italic text-slate-400">Hãy nhấn nút "NẠP SOÁT LỖI" màu vàng để tải dữ liệu Excel cán bộ lên.</td></tr>';
 
         document.getElementById('db-ns-tong').innerText = GLOBAL_NHAN_SU_LIST.length;
     }
@@ -398,7 +395,7 @@
         if(!ma || !ten || !sel.value) return alert("Vui lòng điền đủ!");
         
         let row = { id: Date.now(), ma, ten, madv: document.getElementById('cp-madv').value, nguoi: sel.options[sel.selectedIndex].text.split(' (')[0], ngay: document.getElementById('cp-ngay').value, tinhTrang: document.getElementById('cp-tinhtrang').value };
-        if(isConnected && supabase) await supabase.from('capphat').insert([row]);
+        if(isCloudReady && dbClient) await dbClient.from('capphat').insert([row]);
         databaseCapPhat.push(row);
         capNhatGiaoDienSauKhiTai();
     }
@@ -430,7 +427,7 @@
         let noiDung = document.getElementById('sc-noidung').value.trim();
         if(!cpId || !noiDung) return alert("Điền thiếu thông tin!");
         let row = { id: Date.now(), capPhatId: parseInt(cpId), maTaiSan: document.getElementById('sc-ma-ts').value, tenThietBi: document.getElementById('sc-ten-ts').value, nguoiYeuCau: document.getElementById('sc-nguoi-nhan').value, ngayBaoHu: document.getElementById('sc-ngay').value, noiDungSua: noiDung, chiPhi: parseFloat(document.getElementById('sc-chiphi').value) || 0, trangThaiSua: document.getElementById('sc-trangthai').value };
-        if(isConnected && supabase) await supabase.from('suachua').insert([row]);
+        if(isCloudReady && dbClient) await dbClient.from('suachua').insert([row]);
         databaseSuaChua.push(row);
         capNhatGiaoDienSauKhiTai();
     }
@@ -447,7 +444,6 @@
 
     function tinhToanThueSuat() {}
     function themHoSoThanhToan() {}
-    function renderThanhToanTable() {}
 
     window.onload = function() { taiDuLieuTuSupabase(); };
 </script>
