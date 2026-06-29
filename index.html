@@ -421,11 +421,9 @@
     <div id="print-area" style="display: none;"></div>
 
     <script>
-    // --- ĐỔI TÊN ĐỊNH DANH BIẾN ĐỂ TRÁNH XUNG ĐỘT TUYỆT ĐỐI VỚI THƯ VIỆN GỐC ---
     const SUPABASE_URL = `https://mtfpxsfxjsnghtalamdd.supabase.co`;
     const SUPABASE_KEY = `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ`;
     
-    // Khởi tạo SDK kết nối bằng định danh duy nhất: supabaseClient
     const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let dataNhanSuHienTai = [];
@@ -522,7 +520,7 @@
         }
     }
 
-    // --- SỬA ĐỔI THÔNG MINH: TỰ ĐỘNG QUÉT TIÊU ĐỀ CỘT CHỐNG RỖNG DỮ LIỆU ---
+    // --- KHU VỰC SỬA LỖI ĐỌC EXCEL TOÀN DIỆN ---
     async function xuLyDocFileNhanSu() {
         let input = document.getElementById('ns-file-input'); if (!input || input.files.length === 0) return;
         let reader = new FileReader();
@@ -530,19 +528,17 @@
             let wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
             let rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1 });
             
-            // Tìm hàng tiêu đề (Header row) thực tế trong file Excel
             let headerIdx = -1;
-            for(let i=0; i<Math.min(rows.length, 15); i++) {
-                let txt = rows[i].map(c => String(c||'').toLowerCase());
-                if(txt.includes('ho va ten') || txt.includes('họ và tên') || txt.includes('cccd')) { headerIdx = i; break; }
+            for(let i=0; i<Math.min(rows.length, 20); i++) {
+                let txt = rows[i].map(c => String(c||'').toLowerCase().trim());
+                if(txt.includes('ho va ten') || txt.includes('họ và tên') || txt.includes('cccd') || txt.includes('họ tên')) { headerIdx = i; break; }
             }
-            if(headerIdx === -1) headerIdx = 0; // Fallback mặc định nếu không tìm thấy tiêu đề tiếng Việt
+            if(headerIdx === -1) headerIdx = 0;
 
             let headers = rows[headerIdx].map(c => String(c||'').trim().toLowerCase());
             let findCol = (keys) => headers.findIndex(h => keys.some(k => h.includes(k)));
 
-            // Định vị chỉ mục động dựa trên từ khóa tiêu đề cột
-            let idxStt = findCol(['stt', 'số tt']);
+            let idxStt = findCol(['stt', 'số tt', 'thứ tự']);
             let idxHoTen = findCol(['họ và tên', 'ho va ten', 'họ tên']);
             let idxTen = findCol(['tên', 'ten']) === idxHoTen ? idxHoTen + 1 : findCol(['tên', 'ten']);
             let idxBhxh = findCol(['bhxh', 'bảo hiểm', 'số sổ']);
@@ -555,21 +551,26 @@
             let idxHc = findCol(['hưu gốc', 'hưu cũ', 'tuổi hưu']);
             let idxCd = findCol(['chức danh', 'chức vụ', 'chuc danh']);
 
-            // Điền chỉ mục dự phòng mặc định nếu file Excel không có dòng tiêu đề chuẩn
+            // Fallback chỉ mục mặc định
             if(idxHoTen===-1) idxHoTen = 1; if(idxBhxh===-1) idxBhxh = 3; if(idxCccd===-1) idxCccd = 4;
             if(idxAtv===-1) idxAtv = 6; if(idxDh===-1) idxDh = 7; if(idxDv===-1) idxDv = 9;
             if(idxTd===-1) idxTd = 10; if(idxNs===-1) idxNs = 11; if(idxHc===-1) idxHc = 8; if(idxCd===-1) idxCd = 13;
 
             let parsed = [];
             for(let i = headerIdx + 1; i < rows.length; i++) {
-                let r = rows[i]; if(!r || r.length < 3) continue;
+                let r = rows[i]; if(!r || r.length === 0) continue;
                 let cell = (idx) => idx !== -1 && r[idx] !== undefined && r[idx] !== null ? String(r[idx]).trim() : '';
                 
                 let hoTenThuc = cell(idxHoTen);
-                if(!hoTenThuc || hoTenThuc.toLowerCase().includes('họ và tên') || hoTenThuc.toLowerCase() === 'stt') continue;
+                // Bỏ qua dòng tiêu đề lặp lại hoặc dòng trống không có tên
+                if(!hoTenThuc || hoTenThuc.toLowerCase().includes('họ và tên') || hoTenThuc.toLowerCase() === 'stt' || hoTenThuc === '') continue;
 
                 let chuoiNgaySinh = dinhDangNgayExcelMoi(cell(idxNs));
-                let isNu = cell(idxHoTen+1).toUpperCase() === "X" || cell(12).toUpperCase() === "X"; 
+                
+                // Thuật toán nhận diện giới tính thông minh linh hoạt, tránh bị kẹt dòng rỗng
+                let chuoiNu = (headers.indexOf('nữ') !== -1) ? cell(headers.indexOf('nữ')) : '';
+                let isNu = chuoiNu.toUpperCase() === "X" || chuoiNu === "1";
+
                 let isDocHai = cell(idxDh) === "1" || cell(idxDh).toLowerCase() === "x";
                 let chuoiNgayHuuMoi = tinhNgayVeHuuLuatMoiFull(chuoiNgaySinh, isNu, isDocHai);
                 
@@ -588,8 +589,8 @@
                     ten: cell(idxTen) || hoTenThuc.split(' ').pop(), 
                     soSo: cell(idxBhxh) || 'Trống', 
                     cccd: cell(idxCccd) || 'Trống', 
-                    anToanVien: cell(idxAtv), 
-                    nndh: cell(idxDh), 
+                    anToanVien: cell(idxAtv) || '', 
+                    nndh: cell(idxDh) || '', 
                     madv: cell(idxDv) || 'VP',
                     namTheoDoi: dinhDangNgayExcelMoi(cell(idxTd)), 
                     namSinh: chuoiNgaySinh, 
@@ -603,17 +604,21 @@
             }
 
             if(parsed.length > 0) {
-                document.getElementById('ns-table-body').innerHTML = '<tr><td colspan="16" class="text-center p-8 text-amber-600 font-bold"><i class="fa-solid fa-spinner animate-spin mr-1"></i> Đang tải dữ liệu trực tuyến lên Cloud...</td></tr>';
+                document.getElementById('ns-table-body').innerHTML = '<tr><td colspan="16" class="text-center p-8 text-amber-600 font-bold"><i class="fa-solid fa-spinner animate-spin mr-1"></i> Đang cập nhật dữ liệu trực tuyến lên Cloud...</td></tr>';
                 try {
                     await supabaseClient.from('nhansu').delete().neq('stt', '-1');
-                    await supabaseClient.from('nhansu').insert(parsed);
-                    alert("Đã đồng bộ thành công " + parsed.length + " lao động từ Excel lên Cloud Server!");
+                    const { error } = await supabaseClient.from('nhansu').insert(parsed);
+                    if(error) {
+                        alert("Lỗi cấu trúc dữ liệu Supabase: " + error.message);
+                    } else {
+                        alert("Đã đồng bộ thành công " + parsed.length + " dòng dữ liệu nhân sự lên máy chủ đám mây!");
+                    }
                 } catch(err) {
-                    alert("Lỗi đẩy dữ liệu lên Supabase.");
+                    alert("Gặp sự cố kết nối Cloud Server.");
                 }
                 await dongBoDuLieuTuSupabase();
             } else {
-                alert("Không đọc được bản ghi nào. Vui lòng kiểm tra lại file Excel xem có đúng định dạng không!");
+                alert("Hệ thống đọc file thành công nhưng không tìm thấy dữ liệu nhân sự hợp lệ. Vui lòng kiểm tra lại hàng tiêu đề hoặc cột Họ Tên trong file!");
                 await dongBoDuLieuTuSupabase();
             }
         };
@@ -709,7 +714,7 @@
         document.getElementById('btn-cp-cancel').classList.remove('hidden'); capNhatLivePreviewQR();
     }
     function huySuaCapPhat() {
-        document.getElementById('cp-edit-id').value = ""; document.getElementById('cp-form-title').innerText = "Khởi tạo cấp phát";
+        document.getElementById('cp-edit-id').value = ""; document.getElementById('form-title').innerText = "Khởi tạo cấp phát";
         document.getElementById('btn-cp-submit').innerText = "XÁC NHẬN CẤP PHÁT"; document.getElementById('btn-cp-cancel').classList.add('hidden');
         sinhMaTaiSanTuDong(); capNhatLivePreviewQR();
     }
@@ -843,8 +848,8 @@
         let editId = document.getElementById('tt-edit-id').value;
         if (!doiTuong || !noiDung || goc <= 0) { alert("Vui lòng nhập đủ thông tin kế toán!"); return; }
         
-        let tongTien = goc + Math.round(goc * (pt / 100));
-        let payload = { maChungTu: maChungTu, noiDung: noiDung, donViDeXuat: doiTuong, tienTruocThue: goc, tienSauThue: tongTien, textQr: "MAKT:" + maChungTu + "|TIEN:" + tongTien, danhSachFile: [...mangFileThucTeDangCho] };
+        let tongueTien = goc + Math.round(goc * (pt / 100));
+        let payload = { maChungTu: maChungTu, noiDung: noiDung, donViDeXuat: doiTuong, tienTruocThue: goc, tienSauThue: tongueTien, textQr: "MAKT:" + maChungTu + "|TIEN:" + tongueTien, danhSachFile: [...mangFileThucTeDangCho] };
         
         try {
             if(editId) {
