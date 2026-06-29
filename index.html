@@ -421,12 +421,12 @@
     <div id="print-area" style="display: none;"></div>
 
     <script>
-    // --- KHU VỰC CẤU HÌNH DUY NHẤT ĐƯỢC PHÉP KHAI BÁO BIẾN SUPABASE ---
+    // --- ĐỔI TÊN ĐỊNH DANH BIẾN ĐỂ TRÁNH XUNG ĐỘT TUYỆT ĐỐI VỚI THƯ VIỆN GỐC ---
     const SUPABASE_URL = `https://mtfpxsfxjsnghtalamdd.supabase.co`;
     const SUPABASE_KEY = `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ`;
     
-    // Khởi tạo SDK kết nối đám mây (Chỉ khai báo const một lần duy nhất tại đây)
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    // Khởi tạo SDK kết nối bằng định danh duy nhất: supabaseClient
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let dataNhanSuHienTai = [];
     let databaseCapPhat = [];
@@ -488,30 +488,25 @@
 
     async function dongBoDuLieuTuSupabase() {
         try {
-            // 1. Tải dữ liệu Nhân sự
-            let resNs = await supabase.from('nhansu').select('*');
+            let resNs = await supabaseClient.from('nhansu').select('*');
             if (!resNs.error && resNs.data) { dataNhanSuHienTai = resNs.data; } 
             buildDropdownDonViFilter(); 
             renderNhanSuTable(dataNhanSuHienTai); 
             chayDashboardNhanSuDong();
 
-            // 2. Tải dữ liệu Cấp phát tài sản
-            let resCp = await supabase.from('capphat').select('*');
+            let resCp = await supabaseClient.from('capphat').select('*');
             if (!resCp.error && resCp.data) { databaseCapPhat = resCp.data; } 
             renderCapPhatTable();
 
-            // 3. Tải dữ liệu Bảo trì sửa chữa
-            let resSc = await supabase.from('baotri').select('*');
+            let resSc = await supabaseClient.from('baotri').select('*');
             if (!resSc.error && resSc.data) { databaseSuachua = resSc.data; } 
             renderSuachuaTable();
 
-            // 4. Tải dữ liệu Đề xuất Kế toán
-            let resKt = await supabase.from('ketoan').select('*');
+            let resKt = await supabaseClient.from('ketoan').select('*');
             if (!resKt.error && resKt.data) { databaseThanhToan = resKt.data; } 
             renderThanhToanTable(); 
             capNhatDashboardKeToanThue();
 
-            // Thay đổi giao diện hiển thị trạng thái đã kết nối
             document.getElementById('cloud-status').className = "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[11px] font-bold px-3 py-1.5 rounded-lg";
             document.getElementById('cloud-status').innerHTML = '<i class="fa-solid fa-circle-check mr-1 text-emerald-500"></i> Trực Tuyến Đám Mây';
         } catch(e) {
@@ -547,10 +542,10 @@
                 });
             }
             if(parsed.length > 0) {
-                document.getElementById('ns-table-body').innerHTML = '<tr><td colspan="16" class="text-center p-8 text-amber-600 font-bold"><i class="fa-solid fa-spinner animate-spin mr-1"></i> Đang ghi đè dữ liệu lên đám mây...</td></tr>';
+                document.getElementById('ns-table-body').innerHTML = '<tr><td colspan="16" class="text-center p-8 text-amber-600 font-bold"><i class="fa-solid fa-spinner animate-spin mr-1"></i> Đang ghi đè dữ liệu...</td></tr>';
                 try {
-                    await supabase.from('nhansu').delete().neq('stt', '-1');
-                    await supabase.from('nhansu').insert(parsed);
+                    await supabaseClient.from('nhansu').delete().neq('stt', '-1');
+                    await supabaseClient.from('nhansu').insert(parsed);
                     alert("Đã đồng bộ thành công " + parsed.length + " lao động lên Cloud!");
                 } catch(err) {
                     alert("Không thể lưu lên Cloud.");
@@ -609,8 +604,8 @@
         }
         tbody.innerHTML = codeHtml;
     }
-    async function xoaMotDongNhanSu(id) { if(confirm("Xóa nhân sự này?")) { await supabase.from('nhansu').delete().eq('id', id); dongBoDuLieuTuSupabase(); } }
-    async function xoaSachNhanSu() { if(confirm("Xóa hết nhân sự?")) { await supabase.from('nhansu').delete().neq('stt', '-1'); dongBoDuLieuTuSupabase(); } }
+    async function xoaMotDongNhanSu(id) { if(confirm("Xóa nhân sự này?")) { await supabaseClient.from('nhansu').delete().eq('id', id); dongBoDuLieuTuSupabase(); } }
+    async function xoaSachNhanSu() { if(confirm("Xóa hết nhân sự?")) { await supabaseClient.from('nhansu').delete().neq('stt', '-1'); dongBoDuLieuTuSupabase(); } }
 
     // PHÂN HỆ 2: CẤP PHÁT TÀI SẢN
     function sinhMaTaiSanTuDong() { if(document.getElementById('cp-input-ma')) document.getElementById('cp-input-ma').value = "VNP-TS-2026-" + Math.floor(1000 + Math.random() * 9000); }
@@ -634,8 +629,8 @@
         if(!textTen || !nameField) { alert("Vui lòng nhập đủ thông tin!"); return; }
         let payload = { maThietBi: ma, tenThietBi: textTen, canBoNhan: nameField, ngayCap: document.getElementById('cp-input-ngay').value, giaGoc: parseFloat(document.getElementById('cp-input-giatri').value)||0, textQr: "MATS:" + ma + "|TS:" + textTen + "|CB:" + nameField };
         try {
-            if(editId) { await supabase.from('capphat').update(payload).eq('id', editId); huySuaCapPhat(); }
-            else { await supabase.from('capphat').insert([payload]); }
+            if(editId) { await supabaseClient.from('capphat').update(payload).eq('id', editId); huySuaCapPhat(); }
+            else { await supabaseClient.from('capphat').insert([payload]); }
         } catch(e) { alert("Lỗi kết nối bảng 'capphat'."); }
         document.getElementById('cp-input-ten').value = ""; document.getElementById('cp-select-nhansu-input').value = ""; document.getElementById('cp-input-nhansu-ten').value = ""; document.getElementById('cp-input-giatri').value = "";
         dongBoDuLieuTuSupabase(); sinhMaTaiSanTuDong(); capNhatLivePreviewQR();
@@ -677,8 +672,8 @@
         area.innerHTML = '<div style="border: 2px dashed #000; padding: 15px; width: 70mm; margin: 20px auto; text-align: center; background: #fff; font-family: sans-serif;"><div style="font-size: 13px; font-weight: 900; border-bottom: 2px solid #000; padding-bottom: 5px;">VINAPACO ERP • ' + loaiTem + '</div><div style="display: flex; justify-content: center; margin: 10px 0;"><img src="' + taoUrlQRCodeNhanh(codeText) + '" style="width: 140px; height: 140px;" /></div><div style="font-size: 14px; font-weight: bold; font-family: monospace;">MÃ: ' + ma + '</div><div style="font-size: 11px; font-weight: bold; text-align: left; margin-top: 5px;">TÊN: ' + ten + '</div><div style="font-size: 10px; color: #475569; text-align: left;">ĐỐI TƯỢNG: ' + doiTuong + '</div></div>';
         area.style.display = 'block'; setTimeout(() => { window.print(); area.style.display = 'none'; }, 350);
     }
-    async function xoaCapPhat(id) { if(confirm("Xóa tài sản này?")) { await supabase.from('capphat').delete().eq('id', id); dongBoDuLieuTuSupabase(); } }
-    async function xoaSachCapPhat() { if(confirm("Xóa tất cả tài sản?")) { await supabase.from('capphat').delete().neq('id', 0); dongBoDuLieuTuSupabase(); } }
+    async function xoaCapPhat(id) { if(confirm("Xóa tài sản này?")) { await supabaseClient.from('capphat').delete().eq('id', id); dongBoDuLieuTuSupabase(); } }
+    async function xoaSachCapPhat() { if(confirm("Xóa tất cả tài sản?")) { await supabaseClient.from('capphat').delete().neq('id', 0); dongBoDuLieuTuSupabase(); } }
 
     // PHÂN HỆ 3: NHẬT KÝ BẢO TRÌ SỬA CHỮA
     async function luuMoiNhatKySuachua() {
@@ -689,8 +684,8 @@
         if(!noiDung) return;
         let payload = { maThietBi: ts.maThietBi, tenThietBi: ts.tenThietBi, noiDung: noiDung, trangThai: trangThai };
         try {
-            if(editId) { await supabase.from('baotri').update(payload).eq('id', editId); huySuaSuachua(); }
-            else { await supabase.from('baotri').insert([payload]); }
+            if(editId) { await supabaseClient.from('baotri').update(payload).eq('id', editId); huySuaSuachua(); }
+            else { await supabaseClient.from('baotri').insert([payload]); }
         } catch(e) { alert("Lỗi lưu bảo trì."); }
         document.getElementById('sc-input-noidung').value = ""; dongBoDuLieuTuSupabase();
     }
@@ -718,8 +713,8 @@
         }
         tbody.innerHTML = codeHtml;
     }
-    async function xoaSuachua(id) { await supabase.from('baotri').delete().eq('id', id); dongBoDuLieuTuSupabase(); }
-    async function xoaSachSuachua() { await supabase.from('baotri').delete().neq('id', 0); dongBoDuLieuTuSupabase(); }
+    async function xoaSuachua(id) { await supabaseClient.from('baotri').delete().eq('id', id); dongBoDuLieuTuSupabase(); }
+    async function xoaSachSuachua() { await supabaseClient.from('baotri').delete().neq('id', 0); dongBoDuLieuTuSupabase(); }
 
     // PHÂN HỆ 4: KẾ TOÁN
     function capNhatHeThongLienThongDropdowns() {
@@ -760,16 +755,16 @@
             let fileNameClean = Date.now() + "_" + boDauTiengVietChuoi(file.name).replace(/\s+/g, '_');
             
             try {
-                let { data, error } = await supabase.storage.from('chung-tu').upload(fileNameClean, file);
+                let { data, error } = await supabaseClient.storage.from('chung-tu').upload(fileNameClean, file);
                 if (error) { alert("Lỗi tải file: " + error.message); continue; }
-                let { data: resUrl } = supabase.storage.from('chung-tu').getPublicUrl(fileNameClean);
+                let { data: resUrl } = supabaseClient.storage.from('chung-tu').getPublicUrl(fileNameClean);
                 mangFileThucTeDangCho.push({
                     tenFile: file.name,
                     kichThuoc: (file.size / 1024).toFixed(1) + " KB",
                     kieuTep: file.type || "application/pdf",
                     fileUrl: resUrl.publicUrl
                 });
-            } catch(e) { alert("Kho lưu trữ 'chung-tu' chưa được bật."); }
+            } catch(e) { alert("Kho lưu trữ 'chung-tu' chưa được kích hoạt cấu hình."); }
         }
         waitingDiv.innerHTML = mangFileThucTeDangCho.map(f => '<div class="bg-emerald-50 text-emerald-700 p-1 rounded text-[11px] font-bold border border-emerald-200"><i class="fa-solid fa-cloud-check mr-1"></i> ' + f.tenFile + ' (Đã lên Cloud)</div>').join('');
     }
@@ -790,10 +785,10 @@
             if(editId) {
                 let oldObj = databaseThanhToan.find(x => x.id == editId);
                 if(mangFileThucTeDangCho.length === 0 && oldObj) payload.danhSachFile = oldObj.danhSachFile;
-                await supabase.from('ketoan').update(payload).eq('id', editId);
+                await supabaseClient.from('ketoan').update(payload).eq('id', editId);
                 huySuaThanhToan();
             } else {
-                await supabase.from('ketoan').insert([payload]);
+                await supabaseClient.from('ketoan').insert([payload]);
             }
         } catch(e) { alert("Lỗi bảng 'ketoan'."); }
         
@@ -836,8 +831,8 @@
         }
         tbody.innerHTML = codeHtml;
     }
-    async function xoaChungTuTaiChinh(id) { if(confirm("Xóa chứng từ này?")) { await supabase.from('ketoan').delete().eq('id', id); dongBoDuLieuTuSupabase(); } }
-    async function xoaSachThanhToan() { if(confirm("Xóa toàn bộ chứng từ?")) { await supabase.from('ketoan').delete().neq('id', 0); dongBoDuLieuTuSupabase(); } }
+    async function xoaChungTuTaiChinh(id) { if(confirm("Xóa chứng từ này?")) { await supabaseClient.from('ketoan').delete().eq('id', id); dongBoDuLieuTuSupabase(); } }
+    async function xoaSachThanhToan() { if(confirm("Xóa toàn bộ chứng từ?")) { await supabaseClient.from('ketoan').delete().neq('id', 0); dongBoDuLieuTuSupabase(); } }
     function sinhMaHoaDonTuDong() { if(document.getElementById('tt-input-ma')) document.getElementById('tt-input-ma').value = "VNP-KT-2026-" + Math.floor(1000 + Math.random() * 9000); }
 
     function moTrinhXemChungTuGoc(idHoSo) {
@@ -866,7 +861,7 @@
         } else if(kieu === 'application/pdf' || fileGoc.tenFile.endsWith('.pdf')) {
             container.innerHTML = '<iframe src="' + fileGoc.fileUrl + '" class="w-full h-[65vh] border rounded shadow-inner bg-white"></iframe>';
         } else {
-            container.innerHTML = '<div class="p-6 text-slate-700 bg-white rounded-xl text-center shadow"><i class="fa-solid fa-file-excel text-4xl text-emerald-600 mb-2"></i><br>Tệp không hỗ trợ xem trực tiếp.<br><span class="text-xs text-slate-400 font-mono">' + fileGoc.tenFile + '</span><br><span class="text-xs text-blue-600 font-bold block mt-2">Bấm nút "Tải file gốc" ở góc trên để mở.</span></div>';
+            container.innerHTML = '<div class="p-6 text-slate-700 bg-white rounded-xl text-center shadow"><i class="fa-solid fa-file-excel text-4xl text-emerald-600 mb-2"></i><br>Tệp không hỗ trợ xem trực tiếp.<br><span class="text-xs text-slate-400 font-mono">' + fileGoc.tenFile + '</span><br><span class="text-xs text-blue-600 font-bold block mt-2">Bấm nút "Tải file gốc" để mở.</span></div>';
         }
         modal.classList.remove('hidden');
     }
