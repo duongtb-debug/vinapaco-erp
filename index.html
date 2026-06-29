@@ -545,7 +545,7 @@
         }
     }
 
-    // --- HÀM ĐỌC FILE ĐÃ CẢI TIẾN THÔNG MINH ---
+    // --- HÀM ĐỌC FILE ĐÃ ĐƯỢC TỐI ƯU TOÀN DIỆN CHO FILE CỦA BẠN ---
     async function xuLyDocFileNhanSu() {
         let input = document.getElementById('ns-file-input'); 
         if (!input || input.files.length === 0) return;
@@ -555,37 +555,43 @@
             let wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
             let rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1 });
             
-            // TỰ ĐỘNG QUÉT DÒ DÒNG TIÊU ĐỀ THỰC SỰ (BỎ QUA DÒNG TRỐNG)
+            // 1. TÌM DÒNG TIÊU ĐỀ CHÍNH XÁC (Quét bỏ qua dòng rác rỗng)
             let headerIdx = 0;
             for (let i = 0; i < rows.length; i++) {
-                if (rows[i] && rows[i].some(cell => String(cell || '').toLowerCase().includes('họ và tên') || String(cell || '').toLowerCase().includes('stt'))) {
+                if (rows[i] && rows[i].some(cell => {
+                    let cellStr = String(cell || '').toLowerCase();
+                    return cellStr.includes('họ và tên') || cellStr.includes('stt') || cellStr.includes('bhxh');
+                })) {
                     headerIdx = i;
                     break;
                 }
             }
 
-            let headers = rows[headerIdx].map(c => String(c||'').trim().toLowerCase());
+            // 2. LÀM SẠCH KÝ TỰ XUỐNG DÒNG (\n) TRONG TIÊU ĐỀ EXCEL
+            let headers = rows[headerIdx].map(c => String(c||'').trim().toLowerCase().replace(/[\r\n\t]+/g, ' ').replace(/\s+/g, ''));
             let findCol = (keys) => headers.findIndex(h => keys.some(k => h.includes(k)));
 
-            let idxStt = findCol(['stt', 'số tt']);
-            let idxHoTen = findCol(['họ và tên', 'ho va ten', 'họ tên']);
+            let idxStt = findCol(['stt', 'sott']);
+            let idxHoTen = findCol(['hovaten', 'hoten']);
             let idxTen = findCol(['tên', 'ten']);
-            let idxBhxh = findCol(['bhxh', 'bảo hiểm', 'số sổ']);
-            let idxCccd = findCol(['cccd', 'cmnd', 'căn cước']);
-            let idxAtv = findCol(['an toàn viên', 'atv']);
-            let idxDh = findCol(['độc hại', 'doc hai', 'nndh']);
-            let idxDv = findCol(['mã đv', 'madv', 'đơn vị']);
-            let idxTd = findCol(['năm tuyển dụng', 'năm theo dõi', 'năm']);
-            let idxNs = findCol(['ngày sinh', 'nam sinh']);
-            let idxHc = findCol(['hưu gốc', 'hưu cũ']);
-            let idxCd = findCol(['chức danh công việc', 'chức danh']);
-            let idxNu = findCol(['nữ']);
+            let idxBhxh = findCol(['bhxh', 'baohiem', 'sosobuoi']);
+            let idxCccd = findCol(['cccd', 'cmnd', 'cancuoc']);
+            let idxAtv = findCol(['antoanvien', 'atv']);
+            let idxDh = findCol(['dochai', 'nndh']);
+            let idxDv = findCol(['madonvi', 'madv', 'donvi']);
+            let idxTd = findCol(['namtuyendung', 'theodoi', 'nam']);
+            let idxNs = findCol(['ngaysinh', 'namsinh']);
+            let idxHc = findCol(['huugoc', 'huucu']);
+            let idxCd = findCol(['chucdanh', 'congviec']);
+            let idxNu = findCol(['nữ', 'nu']);
 
             let parsed = [];
             for(let i = headerIdx + 1; i < rows.length; i++) {
                 let r = rows[i]; if(!r || r.length === 0) continue;
                 let cell = (idx) => idx !== -1 && r[idx] !== undefined && r[idx] !== null ? String(r[idx]).trim() : '';
-                let hoTenThuc = cell(idxHoTen); if(!hoTenThuc) continue;
+                
+                let hoTenThuc = cell(idxHoTen); 
+                if(!hoTenThuc || hoTenThuc.toLowerCase().includes('tổng cộng')) continue; // Bỏ qua dòng rác
 
                 let chuoiNgaySinh = dinhDangNgayExcelMoi(cell(idxNs));
                 let chuoiNgayTD = dinhDangNgayExcelMoi(cell(idxTd));
@@ -607,16 +613,35 @@
                 }
 
                 parsed.push({
-                    stt: cell(idxStt) || String(parsed.length + 1), hoTen: hoTenThuc.toUpperCase(), ten: cell(idxTen), soSo: cell(idxBhxh), cccd: cell(idxCccd), anToanVien: giaTriATV, nndh: giaTriDocHai, madv: cell(idxDv) || 'VP', namTheoDoi: chuoiNgayTD, namSinh: chuoiNgaySinh, tuoiHienTai: 2026 - (parseInt(chuoiNgaySinh.split('-')[0])||1975), gioiTinh: isNu ? "Nữ" : "Nam", namHuuGocFile: dinhDangNgayExcelMoi(cell(idxHc)), namVeHuuLuatMoi: chuoiNgayHuuMoi, doiChieu: diffText, chucDanh: chucDanhGoc
+                    stt: cell(idxStt) || String(parsed.length + 1), 
+                    hoTen: hoTenThuc.toUpperCase(), 
+                    ten: cell(idxTen), 
+                    soSo: cell(idxBhxh), 
+                    cccd: cell(idxCccd), 
+                    anToanVien: giaTriATV, 
+                    nndh: giaTriDocHai, 
+                    madv: cell(idxDv) || 'VP', 
+                    namTheoDoi: chuoiNgayTD, 
+                    namSinh: chuoiNgaySinh, 
+                    tuoiHienTai: 2026 - (parseInt(chuoiNgaySinh.split('-')[0])||1975), 
+                    gioiTinh: isNu ? "Nữ" : "Nam", 
+                    namHuuGocFile: dinhDangNgayExcelMoi(cell(idxHc)), 
+                    namVeHuuLuatMoi: chuoiNgayHuuMoi, 
+                    doiChieu: diffText, 
+                    chucDanh: chucDanhGoc
                 });
             }
             if(parsed.length > 0) {
+                // Xóa dữ liệu tạm cũ và lưu bộ dữ liệu mới chuẩn hóa
                 await supabaseClient.from('nhansu').delete().neq('stt', '-1');
                 await supabaseClient.from('nhansu').insert(parsed);
-                dataNhanSuHienTai = parsed; buildDropdownDonViFilter(); renderNhanSuTable(dataNhanSuHienTai); chayDashboardNhanSuDong();
-                alert("Nạp thành công " + parsed.length + " nhân sự!");
+                dataNhanSuHienTai = parsed; 
+                buildDropdownDonViFilter(); 
+                renderNhanSuTable(dataNhanSuHienTai); 
+                chayDashboardNhanSuDong();
+                alert("Nạp thành công " + parsed.length + " nhân sự từ file Excel của bạn!");
             } else {
-                alert("Không tìm thấy dữ liệu hợp lệ!");
+                alert("Hệ thống đã nhận tệp nhưng không trích xuất được cột dữ liệu nào. Vui lòng kiểm tra lại dòng tiêu đề!");
             }
         };
         reader.readAsArrayBuffer(input.files[0]);
@@ -771,7 +796,7 @@
         tbody.innerHTML = codeHtml;
     }
 
-    // PHÂN HỆ 4: KẾ TOÁN (CÓ SỐ TÀI KHOẢN & NGÂN HÀNG TRÊN QR CODE)
+    // PHÂN HỆ 4: KẾ TOÁN
     function capNhatHeThongLienThongDropdowns() {
         let options = '<option value="">-- Chọn tài sản liên thông --</option>' + databaseCapPhat.map(c => '<option value="' + c.id + '">' + c.maThietBi + ' - ' + c.tenThietBi + '</option>').join('');
         if(document.getElementById('sc-select-thietbi')) document.getElementById('sc-select-thietbi').innerHTML = options;
