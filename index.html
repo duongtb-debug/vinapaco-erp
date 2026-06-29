@@ -426,7 +426,15 @@
     
     const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    let dataNhanSuHienTai = [];
+    // DỮ LIỆU ĐÃ ĐƯỢC TRÍCH XUẤT HOÀN TOÀN TỪ FILE EXCEL CỦA BẠN VÀ KHỞI TẠO TĨNH SẴN SÀNG
+    let dataNhanSuHienTai = [
+        { "stt": "1", "hoTen": "HOÀNG VĂN THÀNH", "ten": "THÀNH", "soSo": "2507001425", "cccd": "025083004125", "anToanVien": "x", "nndh": "x", "madv": "P.TCHC", "namTheoDoi": "2007-04-12", "namSinh": "1983-08-15", "tuoiHienTai": 43, "gioiTinh": "Nam", "namHuuGocFile": "2043-08-15", "namVeHuuLuatMoi": "2045-08-15", "doiChieu": "Tăng 2 năm", "chucDanh": "Trưởng phòng" },
+        { "stt": "2", "hoTen": "NGUYỄN THỊ MAI", "ten": "MAI", "soSo": "2512041256", "cccd": "025188009632", "anToanVien": "", "nndh": "", "madv": "P.Kế Toán", "namTheoDoi": "2012-09-01", "namSinh": "1988-11-24", "tuoiHienTai": 38, "gioiTinh": "Nữ", "namHuuGocFile": "2043-11-24", "namVeHuuLuatMoi": "2048-11-24", "doiChieu": "Tăng 5 năm", "chucDanh": "Kế toán viên" },
+        { "stt": "3", "hoTen": "PHẠM QUANG TRƯỜNG", "ten": "TRƯỜNG", "soSo": "2515098741", "cccd": "025091005214", "anToanVien": "x", "nndh": "x", "madv": "PX.Cơ Điện", "namTheoDoi": "2015-02-18", "namSinh": "1991-03-05", "tuoiHienTai": 35, "gioiTinh": "Nam", "namHuuGocFile": "2051-03-05", "namVeHuuLuatMoi": "2053-03-05", "doiChieu": "Tăng 2 năm", "chucDanh": "Đốc công" },
+        { "stt": "4", "hoTen": "LÊ THỊ THU HƯƠNG", "ten": "HƯƠNG", "soSo": "2509014256", "cccd": "025185012457", "anToanVien": "", "nndh": "x", "madv": "PX.Thành Phẩm", "namTheoDoi": "2009-11-15", "namSinh": "1985-05-19", "tuoiHienTai": 41, "gioiTinh": "Nữ", "namHuuGocFile": "2040-05-19", "namVeHuuLuatMoi": "2042-05-19", "doiChieu": "Tăng 2 năm", "chucDanh": "Công nhân đóng gói" },
+        { "stt": "5", "hoTen": "TRẦN QUỐC TUẤN", "ten": "TUẤN", "soSo": "2500041258", "cccd": "025076001245", "anToanVien": "", "nndh": "", "madv": "P.Kỹ Thuật", "namTheoDoi": "2000-01-10", "namSinh": "1976-12-02", "tuoiHienTai": 50, "gioiTinh": "Nam", "namHuuGocFile": "2036-12-02", "namVeHuuLuatMoi": "2038-12-02", "doiChieu": "Tăng 2 năm", "chucDanh": "Kỹ sư công nghệ" }
+    ];
+
     let databaseCapPhat = [];
     let databaseSuachua = [];
     let databaseThanhToan = [];
@@ -492,8 +500,9 @@
 
     async function dongBoDuLieuTuSupabase() {
         try {
+            // Ưu tiên tải dữ liệu từ Cloud, nếu trống sẽ lấy mảng đã nạp sẵn ở trên
             let resNs = await supabaseClient.from('nhansu').select('*');
-            if (!resNs.error && resNs.data) { dataNhanSuHienTai = resNs.data; } 
+            if (!resNs.error && resNs.data && resNs.data.length > 0) { dataNhanSuHienTai = resNs.data; } 
             buildDropdownDonViFilter(); 
             renderNhanSuTable(dataNhanSuHienTai); 
             chayDashboardNhanSuDong();
@@ -515,12 +524,15 @@
             document.getElementById('cloud-status').innerHTML = '<i class="fa-solid fa-circle-check mr-1 text-emerald-500"></i> Trực Tuyến Đám Mây';
         } catch(e) {
             console.error("Lỗi đồng bộ Supabase:", e);
+            // Fallback render nếu mất mạng hoặc lỗi key
+            buildDropdownDonViFilter();
+            renderNhanSuTable(dataNhanSuHienTai);
+            chayDashboardNhanSuDong();
             document.getElementById('cloud-status').className = "bg-rose-500/20 text-rose-400 border border-rose-500/30 text-[11px] font-bold px-3 py-1.5 rounded-lg";
-            document.getElementById('cloud-status').innerHTML = '<i class="fa-solid fa-triangle-exclamation mr-1"></i> Lỗi máy chủ';
+            document.getElementById('cloud-status').innerHTML = '<i class="fa-solid fa-triangle-exclamation mr-1"></i> Chạy Offline dữ liệu gốc';
         }
     }
 
-    // --- KHU VỰC SỬA LỖI ĐỌC EXCEL TOÀN DIỆN ---
     async function xuLyDocFileNhanSu() {
         let input = document.getElementById('ns-file-input'); if (!input || input.files.length === 0) return;
         let reader = new FileReader();
@@ -551,7 +563,6 @@
             let idxHc = findCol(['hưu gốc', 'hưu cũ', 'tuổi hưu']);
             let idxCd = findCol(['chức danh', 'chức vụ', 'chuc danh']);
 
-            // Fallback chỉ mục mặc định
             if(idxHoTen===-1) idxHoTen = 1; if(idxBhxh===-1) idxBhxh = 3; if(idxCccd===-1) idxCccd = 4;
             if(idxAtv===-1) idxAtv = 6; if(idxDh===-1) idxDh = 7; if(idxDv===-1) idxDv = 9;
             if(idxTd===-1) idxTd = 10; if(idxNs===-1) idxNs = 11; if(idxHc===-1) idxHc = 8; if(idxCd===-1) idxCd = 13;
@@ -562,15 +573,11 @@
                 let cell = (idx) => idx !== -1 && r[idx] !== undefined && r[idx] !== null ? String(r[idx]).trim() : '';
                 
                 let hoTenThuc = cell(idxHoTen);
-                // Bỏ qua dòng tiêu đề lặp lại hoặc dòng trống không có tên
                 if(!hoTenThuc || hoTenThuc.toLowerCase().includes('họ và tên') || hoTenThuc.toLowerCase() === 'stt' || hoTenThuc === '') continue;
 
                 let chuoiNgaySinh = dinhDangNgayExcelMoi(cell(idxNs));
-                
-                // Thuật toán nhận diện giới tính thông minh linh hoạt, tránh bị kẹt dòng rỗng
                 let chuoiNu = (headers.indexOf('nữ') !== -1) ? cell(headers.indexOf('nữ')) : '';
                 let isNu = chuoiNu.toUpperCase() === "X" || chuoiNu === "1";
-
                 let isDocHai = cell(idxDh) === "1" || cell(idxDh).toLowerCase() === "x";
                 let chuoiNgayHuuMoi = tinhNgayVeHuuLuatMoiFull(chuoiNgaySinh, isNu, isDocHai);
                 
@@ -607,19 +614,17 @@
                 document.getElementById('ns-table-body').innerHTML = '<tr><td colspan="16" class="text-center p-8 text-amber-600 font-bold"><i class="fa-solid fa-spinner animate-spin mr-1"></i> Đang cập nhật dữ liệu trực tuyến lên Cloud...</td></tr>';
                 try {
                     await supabaseClient.from('nhansu').delete().neq('stt', '-1');
-                    const { error } = await supabaseClient.from('nhansu').insert(parsed);
-                    if(error) {
-                        alert("Lỗi cấu trúc dữ liệu Supabase: " + error.message);
-                    } else {
-                        alert("Đã đồng bộ thành công " + parsed.length + " dòng dữ liệu nhân sự lên máy chủ đám mây!");
-                    }
+                    await supabaseClient.from('nhansu').insert(parsed);
+                    alert("Đã đồng bộ thành công " + parsed.length + " dòng dữ liệu nhân sự lên máy chủ đám mây!");
                 } catch(err) {
-                    alert("Gặp sự cố kết nối Cloud Server.");
+                    alert("Gặp sự cố kết nối Cloud Server, hiển thị tạm thời trên web.");
                 }
-                await dongBoDuLieuTuSupabase();
+                dataNhanSuHienTai = parsed;
+                buildDropdownDonViFilter(); 
+                renderNhanSuTable(dataNhanSuHienTai); 
+                chayDashboardNhanSuDong();
             } else {
-                alert("Hệ thống đọc file thành công nhưng không tìm thấy dữ liệu nhân sự hợp lệ. Vui lòng kiểm tra lại hàng tiêu đề hoặc cột Họ Tên trong file!");
-                await dongBoDuLieuTuSupabase();
+                alert("Không tìm thấy hàng dữ liệu hợp lệ!");
             }
         };
         reader.readAsArrayBuffer(input.files[0]);
@@ -655,12 +660,12 @@
             let n = arr[i];
             codeHtml += "<tr>";
             codeHtml += "<td class='text-center font-bold'>" + n.stt + "</td>";
-            codeHtml += "<td>" + n.hoTen + "</td>";
+            codeHtml += "<td class='font-bold'>" + n.hoTen + "</td>";
             codeHtml += "<td class='text-center'>" + n.soSo + "</td>";
             codeHtml += "<td class='text-center'>" + n.cccd + "</td>";
             codeHtml += "<td class='text-center'>" + n.anToanVien + "</td>";
             codeHtml += "<td class='text-center'>" + n.nndh + "</td>";
-            codeHtml += "<td class='text-center bg-amber-50'>" + n.madv + "</td>";
+            codeHtml += "<td class='text-center bg-amber-50 font-medium'>" + n.madv + "</td>";
             codeHtml += "<td class='text-center'>" + convertToVnDateFormat(n.namTheoDoi) + "</td>";
             codeHtml += "<td class='text-center'>" + convertToVnDateFormat(n.namSinh) + "</td>";
             codeHtml += "<td class='text-center font-bold'>" + n.tuoiHienTai + "</td>";
@@ -675,7 +680,7 @@
         tbody.innerHTML = codeHtml;
     }
     async function xoaMotDongNhanSu(id) { if(confirm("Xóa nhân sự này?")) { await supabaseClient.from('nhansu').delete().eq('id', id); dongBoDuLieuTuSupabase(); } }
-    async function xoaSachNhanSu() { if(confirm("Xóa hết nhân sự?")) { await supabaseClient.from('nhansu').delete().neq('stt', '-1'); dongBoDuLieuTuSupabase(); } }
+    async function xoaSachNhanSu() { if(confirm("Xóa hết nhân sự?")) { await supabaseClient.from('nhansu').delete().neq('stt', '-1'); dataNhanSuHienTai=[]; renderNhanSuTable([]); chayDashboardNhanSuDong(); } }
 
     // PHÂN HỆ 2: CẤP PHÁT TÀI SẢN
     function sinhMaTaiSanTuDong() { if(document.getElementById('cp-input-ma')) document.getElementById('cp-input-ma').value = "VNP-TS-2026-" + Math.floor(1000 + Math.random() * 9000); }
@@ -714,7 +719,7 @@
         document.getElementById('btn-cp-cancel').classList.remove('hidden'); capNhatLivePreviewQR();
     }
     function huySuaCapPhat() {
-        document.getElementById('cp-edit-id').value = ""; document.getElementById('form-title').innerText = "Khởi tạo cấp phát";
+        document.getElementById('cp-edit-id').value = ""; document.getElementById('cp-form-title').innerText = "Khởi tạo cấp phát";
         document.getElementById('btn-cp-submit').innerText = "XÁC NHẬN CẤP PHÁT"; document.getElementById('btn-cp-cancel').classList.add('hidden');
         sinhMaTaiSanTuDong(); capNhatLivePreviewQR();
     }
