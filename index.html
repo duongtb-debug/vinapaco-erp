@@ -7,14 +7,21 @@
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         .nav-tab.active { background-color: #1e293b; color: #ffffff; border-bottom: 4px solid #3b82f6; }
+        
+        /* CẤU HÌNH IN ẤN CHUYÊN DỤNG - CHỐNG TRANG TRẮNG */
         @media print {
-            body * { visibility: hidden; }
-            #print-area, #print-area * { visibility: visible; }
-            #print-area { position: absolute; left: 0; top: 0; width: 100%; }
+            body * { visibility: hidden !important; }
+            #print-area, #print-area * { visibility: visible !important; }
+            #print-area { 
+                position: absolute !important; 
+                left: 0 !important; 
+                top: 0 !important; 
+                width: 100% !important; 
+                display: block !important; 
+            }
         }
     </style>
 </head>
@@ -179,7 +186,7 @@
                         
                         <div class="bg-slate-50 border rounded-xl p-3 flex flex-col items-center justify-center gap-2 mt-4">
                             <div class="text-[10px] uppercase font-bold text-slate-400">Tem QR mã hóa thông tin liên thông</div>
-                            <div id="cp-live-qr-container" class="bg-white p-2 border shadow-sm rounded"></div>
+                            <img id="cp-live-qr-img" src="" class="bg-white p-2 border shadow-sm rounded w-36 h-36" alt="Live QR">
                         </div>
 
                         <div class="flex gap-2 pt-2">
@@ -402,14 +409,13 @@
         </div>
     </div>
 
-    <div id="print-area" class="hidden"></div>
+    <div id="print-area" style="display: none;"></div>
 
     <script>
     let dataNhanSuHienTai = [];
     let databaseCapPhat = [];
     let databaseSuachua = [];
     let databaseThanhToan = [];
-    let liveQrObject = null;
     let mangFileThucTeDangCho = [];
 
     document.addEventListener("DOMContentLoaded", function() {
@@ -417,22 +423,22 @@
         sinhMaTaiSanTuDong();
         sinhMaHoaDonTuDong();
         if(document.getElementById('cp-input-ngay')) document.getElementById('cp-input-ngay').value = new Date().toISOString().split('T')[0];
-        
-        // Khởi tạo QR an toàn
-        try {
-            let container = document.getElementById('cp-live-qr-container');
-            if(container && typeof QRCode !== 'undefined') { 
-                container.innerHTML = ""; 
-                liveQrObject = new QRCode(container, { text: "VNP-INIT", width: 140, height: 140 }); 
-            }
-        } catch(e) { console.log("Chờ tải thư viện QR..."); }
-        
         capNhatLivePreviewQR();
     });
 
+    // CHUYỂN ĐỔI CHUỖI TIẾNG VIỆT SANG KHÔNG DẤU ĐỂ ĐẢM BẢO QUÉT MÃ QR CỰC NHẠY
     function boDauTiengVietChuoi(str) {
         if (!str) return "";
-        return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").replace(/[^a-zA-Z0-9\s\-\:\.\,\|]/g, "");
+        return str.normalize("NFD")
+                  .replace(/[\u0300-\u036f]/g, "")
+                  .replace(/đ/g, "d").replace(/Đ/g, "D")
+                  .replace(/[^a-zA-Z0-9\s\-\:\.\,\|]/g, "");
+    }
+
+    // TẠO ĐƯỜNG DẪN QR CODE QUA API GOOGLE (CHỐNG CRASH VÀ QUÉT ĐƯỢC 100%)
+    function taoUrlQRCodeNhanh(text) {
+        let cleanText = boDauTiengVietChuoi(text);
+        return `https://chart.googleapis.com/chart?chs=150x150&cht=qr&chl=${encodeURIComponent(cleanText)}&choe=UTF-8`;
     }
 
     function switchTab(tabId) {
@@ -483,7 +489,7 @@
         let reader = new FileReader();
         reader.onload = function(e) {
             try {
-                if(typeof XLSX === 'undefined') { alert("Chưa tải xong thư viện Excel, vui lòng đợi 3 giây rồi thử lại!"); return; }
+                if(typeof XLSX === 'undefined') { alert("Chưa tải xong thư viện Excel, vui lòng đợi vài giây!"); return; }
                 let workbook = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
                 let rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1 });
                 let parsedData = [];
@@ -560,7 +566,7 @@
     function xoaSachNhanSu() { if(confirm("Bạn có chắc chắn muốn xoá toàn bộ danh sách lao động hiện tại không?")) { dataNhanSuHienTai = []; lưuCacheNhanSu(); renderNhanSuTable([]); chayDashboardNhanSuDong(); buildDropdownDonViFilter(); buildDropdownDonViFilterCapPhat(); locDanhSachNhanSuCapPhatDropdown(); } }
     function lưuCacheNhanSu() { localStorage.setItem('VNP_V95_NHANSU', JSON.stringify(dataNhanSuHienTai)); }
 
-    // --- PHÂN HỆ 2: CẤP PHÁT ---
+    // --- PHÂN HỆ 2: CẤP PHÁT TÀI SẢN ---
     function sinhMaTaiSanTuDong() { if(document.getElementById('cp-input-ma')) document.getElementById('cp-input-ma').value = `VNP-TS-2026-${Math.floor(1000 + Math.random() * 9000)}`; }
     function buildDropdownDonViFilterCapPhat() {
         let setDonVi = new Set(dataNhanSuHienTai.map(x => x.madv).filter(Boolean));
@@ -579,18 +585,14 @@
         } else { document.getElementById('cp-input-nhansu-ten').value = ""; }
         capNhatLivePreviewQR();
     }
+    
     function capNhatLivePreviewQR() {
-        let m = document.getElementById('cp-input-ma')?.value || "RONG";
-        let t = document.getElementById('cp-input-ten')?.value.trim() || "CHUA NHAP";
-        let c = document.getElementById('cp-input-nhansu-ten')?.value || "CHUA CHON";
-        let container = document.getElementById('cp-live-qr-container');
-        if(!container) return;
-        container.innerHTML = "";
-        if(typeof QRCode !== 'undefined') {
-            new QRCode(container, { text: boDauTiengVietChuoi(`MATS:${m}|TS:${t}|CB:${c}`), width: 140, height: 140 });
-        } else {
-            container.innerHTML = "<span class='text-xs text-slate-400 p-4 block text-center'>Đang tải mã...</span>";
-        }
+        let m = document.getElementById('cp-input-ma')?.value || "VNP-INIT";
+        let t = document.getElementById('cp-input-ten')?.value.trim() || "CHUA-NHAP";
+        let c = document.getElementById('cp-input-nhansu-ten')?.value || "CHUA-CHON";
+        let rawText = `MATS:${m}|TS:${t}|CB:${c}`;
+        let imgEl = document.getElementById('cp-live-qr-img');
+        if(imgEl) imgEl.src = taoUrlQRCodeNhanh(rawText);
     }
 
     function luuMoiCapPhatThietBi() {
@@ -601,7 +603,7 @@
 
         if(!textTen || !nameField) { alert("Vui lòng điền đủ tên tài sản và chọn cán bộ thụ hưởng!"); return; }
         
-        let cleanText = boDauTiengVietChuoi(`MATS:${ma}|TS:${textTen}|CB:${nameField}`);
+        let rawQrText = `MATS:${ma}|TS:${textTen}|CB:${nameField}`;
         let ngayCap = document.getElementById('cp-input-ngay').value;
         let giaGoc = parseFloat(document.getElementById('cp-input-giatri').value)||0;
 
@@ -613,11 +615,11 @@
                 databaseCapPhat[idx].canBoNhan = nameField;
                 databaseCapPhat[idx].ngayCap = ngayCap;
                 databaseCapPhat[idx].giaGoc = giaGoc;
-                databaseCapPhat[idx].textQr = cleanText;
+                databaseCapPhat[idx].textQr = rawQrText;
             }
             huySuaCapPhat();
         } else {
-            databaseCapPhat.push({ id: Date.now(), maThietBi: ma, tenThietBi: textTen, canBoNhan: nameField, ngayCap: ngayCap, giaGoc: giaGoc, textQr: cleanText });
+            databaseCapPhat.push({ id: Date.now(), maThietBi: ma, tenThietBi: textTen, canBoNhan: nameField, ngayCap: ngayCap, giaGoc: giaGoc, textQr: rawQrText });
         }
 
         lưuCacheCapPhat();
@@ -654,41 +656,50 @@
     function renderCapPhatTable() {
         let tbody = document.getElementById('cp-table-body'); if(!tbody) return;
         if(databaseCapPhat.length === 0) { tbody.innerHTML = '<tr><td colspan="8" class="text-center italic text-slate-400">Chưa có tài sản nào được cấp phát.</td></tr>'; return; }
-        tbody.innerHTML = databaseCapPhat.map((c, idx) => `
-            <tr>
-                <td class="text-center font-bold">${idx+1}</td><td class="font-mono text-xs text-center font-bold">${c.maThietBi}</td><td class="font-bold text-slate-900">${c.tenThietBi}</td><td>${c.canBoNhan}</td>
-                <td class="text-center"><div id="table-qr-cp-${c.id}" class="flex justify-center p-1 bg-white" style="min-width:55px; min-height:55px;"></div></td>
-                <td class="text-center"><button onclick="inDocLapTemQR('TAI SAN', '${c.maThietBi}', '${c.tenThietBi}', '${c.canBoNhan}', '${c.textQr}')" class="bg-blue-600 text-white text-[11px] px-2 py-1 rounded font-bold cursor-pointer"><i class="fa-solid fa-print"></i></button></td>
-                <td class="text-center"><button onclick="suaCapPhat(${c.id})" class="text-amber-600 hover:text-amber-800"><i class="fa-solid fa-pen-to-square"></i></button></td>
-                <td class="text-center"><button onclick="xoaCapPhat(${c.id})" class="text-rose-600 hover:text-rose-800"><i class="fa-solid fa-trash"></i></button></td>
-            </tr>
-        `).join('');
-        
-        databaseCapPhat.forEach(c => { 
-            let el = document.getElementById(`table-qr-cp-${c.id}`); 
-            if(el) { 
-                el.innerHTML=""; 
-                if(typeof QRCode !== 'undefined') {
-                    try { new QRCode(el, { text: c.textQr, width: 55, height: 55 }); } catch(err){}
-                } else { el.innerText = "N/A"; }
-            } 
-        });
+        tbody.innerHTML = databaseCapPhat.map((c, idx) => {
+            let srcQr = taoUrlQRCodeNhanh(c.textQr);
+            return `
+                <tr>
+                    <td class="text-center font-bold">${idx+1}</td>
+                    <td class="font-mono text-xs text-center font-bold">${c.maThietBi}</td>
+                    <td class="font-bold text-slate-900">${c.tenThietBi}</td>
+                    <td>${c.canBoNhan}</td>
+                    <td class="text-center flex justify-center p-1">
+                        <img src="${srcQr}" class="w-14 h-14 border rounded" alt="QR">
+                    </td>
+                    <td class="text-center">
+                        <button onclick="inDocLapTemQR('TAI SAN', '${c.maThietBi}', '${c.tenThietBi}', '${c.canBoNhan}', '${c.textQr}')" class="bg-blue-600 text-white text-[11px] px-2 py-1 rounded font-bold cursor-pointer hover:bg-blue-700 transition"><i class="fa-solid fa-print"></i> In Tem</button>
+                    </td>
+                    <td class="text-center"><button onclick="suaCapPhat(${c.id})" class="text-amber-600 hover:text-amber-800"><i class="fa-solid fa-pen-to-square"></i></button></td>
+                    <td class="text-center"><button onclick="xoaCapPhat(${c.id})" class="text-rose-600 hover:text-rose-800"><i class="fa-solid fa-trash"></i></button></td>
+                </tr>
+            `;
+        }).join('');
     }
 
+    // HÀM SỬA LỖI IN TRANG TRẮNG - ĐẢM BẢO HIỂN THỊ TRÊN MÁY IN KHÔNG LỖI LAYOUT
     function inDocLapTemQR(loaiTem, ma, ten, doiTuong, codeText) {
         let area = document.getElementById('print-area');
+        let qrUrl = taoUrlQRCodeNhanh(codeText);
+        
+        // Tạo cấu trúc tem chuẩn kích thước tem dán công nghiệp
         area.innerHTML = `
-            <div style="border: 2px solid #000; padding: 12px; width: 60mm; text-align: center; background: #fff; font-family: serif;">
-                <div style="font-size:12px; font-weight:bold; border-bottom: 1px solid #000; padding-bottom:3px; margin-bottom:6px;">VINAPACO ERP • ${loaiTem}</div>
-                <div id="print-qrcode-target" style="display:flex; justify-content:center; margin: 6px 0;"></div>
-                <div style="font-size:12px; font-weight:bold; font-family:monospace;">MÃ: ${ma}</div>
-                <div style="font-size:10px; font-weight:bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">TÊN: ${ten}</div>
+            <div style="border: 2px dashed #1e293b; padding: 15px; width: 70mm; margin: 20px auto; text-align: center; background: #fff; font-family: 'Segoe UI', sans-serif; color: #000; box-shadow: 0 0 5px rgba(0,0,0,0.1); border-radius: 8px;">
+                <div style="font-size: 13px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; border-bottom: 2px solid #000; padding-bottom: 5px; margin-bottom: 10px; color:#1e3a8a;">VINAPACO ERP • ${loaiTem}</div>
+                <div style="display: flex; justify-content: center; margin: 10px 0;">
+                    <img src="${qrUrl}" style="width: 140px; hieght: 140px; border: 1px solid #e2e8f0; padding: 4px; border-radius:4px;" />
+                </div>
+                <div style="font-size: 14px; font-weight: bold; font-family: monospace; margin-top: 5px; background: #f1f5f9; padding: 2px 0;">MÃ: ${ma}</div>
+                <div style="font-size: 11px; font-weight: bold; margin-top: 6px; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">TÊN: ${ten}</div>
+                <div style="font-size: 10px; color: #475569; text-align: left; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">ĐƯỢC CẤP: ${doiTuong}</div>
             </div>
         `;
-        if(typeof QRCode !== 'undefined') {
-            new QRCode(document.getElementById('print-qrcode-target'), { text: codeText, width: 130, height: 130 });
-        }
-        setTimeout(() => { window.print(); }, 400);
+        
+        area.style.display = 'block';
+        setTimeout(() => { 
+            window.print(); 
+            area.style.display = 'none';
+        }, 350);
     }
 
     function xoaCapPhat(id) { if(confirm("Xóa bản ghi này?")) { databaseCapPhat = databaseCapPhat.filter(x => x.id !== id); lưuCacheCapPhat(); renderCapPhatTable(); capNhatHeThongLienThongDropdowns(); } }
@@ -827,6 +838,7 @@
             if (goc <= 0) { alert("⚠️ LỖI: Số tiền trước thuế phải lớn hơn 0 đ!"); return; }
             
             let tongTien = goc + Math.round(goc * (pt / 100));
+            let rawText = `MAKT:${maChungTu}|TIEN:${tongTien}`;
 
             if(editId) {
                 let idx = databaseThanhToan.findIndex(x => x.id == editId);
@@ -835,7 +847,7 @@
                     databaseThanhToan[idx].donViDeXuat = doiTuong;
                     databaseThanhToan[idx].tienTruocThue = goc;
                     databaseThanhToan[idx].tienSauThue = tongTien;
-                    databaseThanhToan[idx].textQr = boDauTiengVietChuoi(`MAKT:${maChungTu}|TIEN:${tongTien}`);
+                    databaseThanhToan[idx].textQr = rawText;
                     if(mangFileThucTeDangCho.length > 0) {
                         databaseThanhToan[idx].danhSachFile = [...databaseThanhToan[idx].danhSachFile, ...mangFileThucTeDangCho];
                     }
@@ -849,7 +861,7 @@
                     donViDeXuat: doiTuong, 
                     tienTruocThue: goc, 
                     tienSauThue: tongTien, 
-                    textQr: boDauTiengVietChuoi(`MAKT:${maChungTu}|TIEN:${tongTien}`), 
+                    textQr: rawText, 
                     danhSachFile: [...mangFileThucTeDangCho] 
                 });
             }
@@ -901,32 +913,31 @@
     function renderThanhToanTable() {
         let tbody = document.getElementById('tt-table-body'); if(!tbody) return;
         if(databaseThanhToan.length === 0) { tbody.innerHTML = '<tr><td colspan="10" class="text-center italic text-slate-400">Chưa phát sinh chứng từ thanh toán nào.</td></tr>'; return; }
-        tbody.innerHTML = databaseThanhToan.map((t, idx) => `
-            <tr>
-                <td class='text-center font-bold'>${idx+1}</td><td class='font-mono font-bold text-center'>${t.maChungTu}</td><td>${t.donViDeXuat}</td><td class='text-xs'>${t.noiDung}</td>
-                <td class='text-right font-mono font-black bg-emerald-50'>${parseFloat(t.tienSauThue).toLocaleString()} đ</td>
-                <td class='text-center'><div id="table-qr-kt-${t.id}" class="flex justify-center p-0.5 bg-white" style="min-width:55px; min-height:55px;"></div></td>
-                <td class='text-center'><button onclick="inDocLapTemQR('CHUNG TU', '${t.maChungTu}', '${t.noiDung}', '${t.donViDeXuat}', '${t.textQr}')" class="bg-amber-500 text-xs font-bold p-1 px-2 rounded cursor-pointer"><i class="fa-solid fa-print"></i></button></td>
-                <td class='text-center'>
-                    <button onclick="moTrinhXemChungTuGoc(${t.id})" class="bg-slate-800 text-white font-bold px-2 py-1 rounded text-[11px] flex items-center gap-1 mx-auto cursor-pointer">
-                        <i class="fa-solid fa-images"></i> (${t.danhSachFile ? t.danhSachFile.length : 0})
-                    </button>
-                </td>
-                <td class="text-center"><button onclick="suaThanhToan(${t.id})" class="text-amber-600 hover:text-amber-800"><i class="fa-solid fa-pen-to-square"></i></button></td>
-                <td class='text-center'><button onclick="xoaChungTuTaiChinh(${t.id})" class="text-rose-600 hover:text-rose-800"><i class="fa-solid fa-trash"></i></button></td>
-            </tr>
-        `).join('');
-        
-        // Bảo vệ Render QR không bao giờ gây Crash bảng dữ liệu
-        databaseThanhToan.forEach(t => { 
-            let el = document.getElementById(`table-qr-kt-${t.id}`); 
-            if(el) { 
-                el.innerHTML=""; 
-                if(typeof QRCode !== 'undefined') {
-                    try { new QRCode(el, { text: t.textQr, width: 55, height: 55 }); } catch(err){}
-                } else { el.innerText = "N/A"; }
-            } 
-        });
+        tbody.innerHTML = databaseThanhToan.map((t, idx) => {
+            let srcQr = taoUrlQRCodeNhanh(t.textQr);
+            return `
+                <tr>
+                    <td class='text-center font-bold'>${idx+1}</td>
+                    <td class='font-mono font-bold text-center'>${t.maChungTu}</td>
+                    <td>${t.donViDeXuat}</td>
+                    <td class='text-xs'>${t.noiDung}</td>
+                    <td class='text-right font-mono font-black bg-emerald-50'>${parseFloat(t.tienSauThue).toLocaleString()} đ</td>
+                    <td class='text-center flex justify-center p-1'>
+                        <img src="${srcQr}" class="w-14 h-14 border rounded" alt="QR">
+                    </td>
+                    <td class='text-center'>
+                        <button onclick="inDocLapTemQR('CHUNG TU', '${t.maChungTu}', '${t.noiDung}', '${t.donViDeXuat}', '${t.textQr}')" class="bg-amber-500 text-white font-bold text-xs p-1 px-2 rounded cursor-pointer hover:bg-amber-600 transition"><i class="fa-solid fa-print"></i> In</button>
+                    </td>
+                    <td class='text-center'>
+                        <button onclick="moTrinhXemChungTuGoc(${t.id})" class="bg-slate-800 text-white font-bold px-2 py-1 rounded text-[11px] flex items-center gap-1 mx-auto cursor-pointer">
+                            <i class="fa-solid fa-images"></i> (${t.danhSachFile ? t.danhSachFile.length : 0})
+                        </button>
+                    </td>
+                    <td class="text-center"><button onclick="suaThanhToan(${t.id})" class="text-amber-600 hover:text-amber-800"><i class="fa-solid fa-pen-to-square"></i></button></td>
+                    <td class='text-center'><button onclick="xoaChungTuTaiChinh(${t.id})" class="text-rose-600 hover:text-rose-800"><i class="fa-solid fa-trash"></i></button></td>
+                </tr>
+            `;
+        }).join('');
     }
 
     function xoaChungTuTaiChinh(id) { if(confirm("Xóa chứng từ tài chính này?")) { databaseThanhToan = databaseThanhToan.filter(x => x.id !== id); lưuCacheThanhToan(); renderThanhToanTable(); capNhatDashboardKeToanThue(); } }
@@ -964,11 +975,12 @@
 
     function xuatBaoCaoTaiChinhNghiDinh30() {
         let now = new Date(); let tf = databaseThanhToan.length;
-        let t1 = 0, t2 = 0; databaseThanhToan.forEach(x => { t1 += parseFloat(x.tienTruocThue||0); t2 += parseFloat(x.tienSauThue||0); });
+        let t2 = 0; databaseThanhToan.forEach(x => { t2 += parseFloat(x.tienSauThue||0); });
         let htmlRows = databaseThanhToan.length === 0 ? `<tr><td colspan="5" style="text-align:center; padding:12px; font-style:italic;">Chưa có số liệu chứng từ giải ngân.</td></tr>` : 
             databaseThanhToan.map((t, idx) => `<tr><td style="border:1px solid #000; text-align:center; padding:6px;">${idx+1}</td><td style="border:1px solid #000; text-align:center; padding:6px; font-family:monospace; font-weight:bold;">${t.maChungTu}</td><td style="border:1px solid #000; padding:6px;">${t.donViDeXuat}</td><td style="border:1px solid #000; padding:6px;">${t.noiDung}</td><td style="border:1px solid #000; text-align:right; padding:6px; font-weight:bold;">${Math.round(t.tienSauThue).toLocaleString()}</td></tr>`).join('');
 
-        document.getElementById('print-area').innerHTML = `
+        let area = document.getElementById('print-area');
+        area.innerHTML = `
             <div style="background:#fff; color:#000; padding:20mm 15mm 20mm 25mm; width:210mm; font-family:'Times New Roman',serif; font-size:14px; margin:0 auto;">
                 <table style="width:100%; border:none; margin-bottom:20px;">
                     <tr>
@@ -1001,7 +1013,11 @@
                 </table>
             </div>
         `;
-        setTimeout(() => { window.print(); }, 300);
+        area.style.display = 'block';
+        setTimeout(() => { 
+            window.print(); 
+            area.style.display = 'none';
+        }, 350);
     }
 
     function taiDuLieuTuCache() {
