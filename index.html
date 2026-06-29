@@ -32,8 +32,8 @@
                 </div>
             </div>
             <div class="flex items-center gap-2">
-                <span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[11px] font-bold px-3 py-1.5 rounded-lg">
-                    <i class="fa-solid fa-circle-check mr-1 text-emerald-500"></i> Trực Tuyến Đám Mây
+                <span id="cloud-status" class="bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[11px] font-bold px-3 py-1.5 rounded-lg">
+                    <i class="fa-solid fa-spinner animate-spin mr-1"></i> Đang kết nối Cloud...
                 </span>
             </div>
         </div>
@@ -421,7 +421,6 @@
     <div id="print-area" style="display: none;"></div>
 
     <script>
-    // 🛠️ THÔNG TIN KẾT NỐI SUPABASE CỦA BẠN (Đã tích hợp bảo mật)
     const SUPABASE_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ";
     const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -440,7 +439,6 @@
         capNhatLivePreviewQR();
     });
 
-    // Các hàm phụ trợ định dạng & chuỗi
     function boDauTiengVietChuoi(str) {
         if (!str) return "";
         return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").replace(/[^a-zA-Z0-9\s\-\:\.\,\|]/g, "");
@@ -485,20 +483,40 @@
         if(laDocHai) th -= 5; return `${Math.floor(ns + th)}-${p[1]}-${p[2]}`;
     }
 
-    // 🌐 ĐỒNG BỘ ĐÁM MÂY QUA API SUPABASE MỐC 2026
+    // 🌐 ĐỒNG BỘ ĐÁM MÂY AN TOÀN - CHỐNG CRASH BẢNG
     async function dongBoDuLieuTuSupabase() {
-        // Tải Nhân sự
-        let { data: ns } = await supabase.from('nhansu').select('*');
-        if (ns) { dataNhanSuHienTai = ns; buildDropdownDonViFilter(); renderNhanSuTable(dataNhanSuHienTai); chayDashboardNhanSuDong(); }
-        // Tải Cấp phát
-        let { data: cp } = await supabase.from('capphat').select('*');
-        if (cp) { databaseCapPhat = cp; renderCapPhatTable(); }
-        // Tải Bảo trì
-        let { data: sc } = await supabase.from('baotri').select('*');
-        if (sc) { databaseSuachua = sc; renderSuachuaTable(); }
-        // Tải Kế toán
-        let { data: kt } = await supabase.from('ketoan').select('*');
-        if (kt) { databaseThanhToan = kt; renderThanhToanTable(); capNhatDashboardKeToanThue(); }
+        try {
+            // Tải Nhân sự
+            let { data: ns, error: nsErr } = await supabase.from('nhansu').select('*');
+            if (!nsErr && ns) { dataNhanSuHienTai = ns; } 
+            buildDropdownDonViFilter(); 
+            renderNhanSuTable(dataNhanSuHienTai); 
+            chayDashboardNhanSuDong();
+
+            // Tải Cấp phát
+            let { data: cp, error: cpErr } = await supabase.from('capphat').select('*');
+            if (!cpErr && cp) { databaseCapPhat = cp; } 
+            renderCapPhatTable();
+
+            // Tải Bảo trì
+            let { data: sc, error: scErr } = await supabase.from('baotri').select('*');
+            if (!scErr && sc) { databaseSuachua = sc; } 
+            renderSuachuaTable();
+
+            // Tải Kế toán
+            let { data: kt, error: ktErr } = await supabase.from('ketoan').select('*');
+            if (!ktErr && kt) { databaseThanhToan = kt; } 
+            renderThanhToanTable(); 
+            capNhatDashboardKeToanThue();
+
+            document.getElementById('cloud-status').className = "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[11px] font-bold px-3 py-1.5 rounded-lg";
+            document.getElementById('cloud-status').innerHTML = `<i class="fa-solid fa-circle-check mr-1 text-emerald-500"></i> Trực Tuyến Đám Mây`;
+        } catch(e) {
+            console.error("Lỗi đồng bộ Supabase:", e);
+            document.getElementById('cloud-status').className = "bg-rose-500/20 text-rose-400 border border-rose-500/30 text-[11px] font-bold px-3 py-1.5 rounded-lg";
+            document.getElementById('cloud-status').innerHTML = `<i class="fa-solid fa-triangle-exclamation mr-1"></i> Đồng bộ lỗi (Bảng trống)`;
+            renderNhanSuTable([]);
+        }
     }
 
     // PHÂN HỆ 1: NHÂN SỰ
@@ -527,9 +545,15 @@
                 });
             }
             if(parsed.length > 0) {
-                await supabase.from('nhansu').delete().neq('cccd', '0'); // Reset cloud trước khi chèn mới
-                await supabase.from('nhansu').insert(parsed);
-                await dongBoDuLieuTuSupabase(); alert(`Đã đồng bộ ${parsed.length} nhân sự lên Cloud.`);
+                document.getElementById('ns-table-body').innerHTML = '<tr><td colspan="16" class="text-center p-8 text-amber-600 font-bold"><i class="fa-solid fa-spinner animate-spin mr-1"></i> Đang ghi đè dữ liệu lên đám mây...</td></tr>';
+                try {
+                    await supabase.from('nhansu').delete().neq('stt', '-1');
+                    await supabase.from('nhansu').insert(parsed);
+                    alert(`Đã đồng bộ thành công ${parsed.length} lao động lên Cloud!`);
+                } catch(err) {
+                    alert("Không thể lưu lên Cloud. Hãy đảm bảo bạn đã tạo bảng 'nhansu' trên Supabase.");
+                }
+                await dongBoDuLieuTuSupabase();
             }
         };
         reader.readAsArrayBuffer(input.files[0]);
@@ -558,7 +582,7 @@
     }
     function renderNhanSuTable(arr) {
         let tbody = document.getElementById('ns-table-body'); if(!tbody) return;
-        if(arr.length === 0) { tbody.innerHTML = '<tr><td colspan="16" class="text-center italic">Không có dữ liệu.</td></tr>'; return; }
+        if(arr.length === 0) { tbody.innerHTML = '<tr><td colspan="16" class="text-center italic p-4 text-slate-400">Không có dữ liệu trên Cloud. Vui lòng bấm "Nạp File Excel Nhân Sự" để kích hoạt hệ thống.</td></tr>'; return; }
         tbody.innerHTML = arr.map(n => `
             <tr>
                 <td class="text-center font-bold">${n.stt}</td><td>${n.hoTen}</td><td class="text-center">${n.soSo}</td><td class="text-center">${n.cccd}</td><td class="text-center">${n.anToanVien}</td><td class="text-center">${n.nndh}</td><td class="text-center bg-amber-50">${n.madv}</td><td class="text-center">${convertToVnDateFormat(n.namTheoDoi)}</td><td class="text-center">${convertToVnDateFormat(n.namSinh)}</td><td class="text-center font-bold">${n.tuoiHienTai}</td><td class="text-center">${n.gioiTinh}</td><td class="text-center">${convertToVnDateFormat(n.namHuuGocFile)}</td><td class="text-center text-rose-700 bg-rose-50 font-bold">${convertToVnDateFormat(n.namVeHuuLuatMoi)}</td><td class="text-center">${n.doiChieu}</td><td>${n.chucDanh}</td>
@@ -567,7 +591,7 @@
         `).join('');
     }
     async function xoaMotDongNhanSu(id) { if(confirm("Xóa nhân sự này khỏi cloud?")) { await supabase.from('nhansu').delete().eq('id', id); dongBoDuLieuTuSupabase(); } }
-    async function xoaSachNhanSu() { if(confirm("Xóa hết nhân sự?")) { await supabase.from('nhansu').delete().neq('cccd', '0'); dongBoDuLieuTuSupabase(); } }
+    async function xoaSachNhanSu() { if(confirm("Xóa hết nhân sự?")) { await supabase.from('nhansu').delete().neq('stt', '-1'); dongBoDuLieuTuSupabase(); } }
 
     // PHÂN HỆ 2: CẤP PHÁT TÀI SẢN
     function sinhMaTaiSanTuDong() { if(document.getElementById('cp-input-ma')) document.getElementById('cp-input-ma').value = `VNP-TS-2026-${Math.floor(1000 + Math.random() * 9000)}`; }
@@ -590,8 +614,10 @@
         let nameField = document.getElementById('cp-input-nhansu-ten').value; let editId = document.getElementById('cp-edit-id').value;
         if(!textTen || !nameField) { alert("Vui lòng nhập đủ thông tin!"); return; }
         let payload = { maThietBi: ma, tenThietBi: textTen, canBoNhan: nameField, ngayCap: document.getElementById('cp-input-ngay').value, giaGoc: parseFloat(document.getElementById('cp-input-giatri').value)||0, textQr: `MATS:${ma}|TS:${textTen}|CB:${nameField}` };
-        if(editId) { await supabase.from('capphat').update(payload).eq('id', editId); huySuaCapPhat(); }
-        else { await supabase.from('capphat').insert([payload]); }
+        try {
+            if(editId) { await supabase.from('capphat').update(payload).eq('id', editId); huySuaCapPhat(); }
+            else { await supabase.from('capphat').insert([payload]); }
+        } catch(e) { alert("Lỗi kết nối bảng 'capphat' trên Supabase."); }
         document.getElementById('cp-input-ten').value = ""; document.getElementById('cp-select-nhansu-input').value = ""; document.getElementById('cp-input-nhansu-ten').value = ""; document.getElementById('cp-input-giatri').value = "";
         dongBoDuLieuTuSupabase(); sinhMaTaiSanTuDong(); capNhatLivePreviewQR();
     }
@@ -610,7 +636,7 @@
     }
     function renderCapPhatTable() {
         let tbody = document.getElementById('cp-table-body'); if(!tbody) return;
-        if(databaseCapPhat.length === 0) { tbody.innerHTML = '<tr><td colspan="8" class="text-center italic">Trống.</td></tr>'; return; }
+        if(databaseCapPhat.length === 0) { tbody.innerHTML = '<tr><td colspan="8" class="text-center italic">Chưa có tài sản.</td></tr>'; return; }
         tbody.innerHTML = databaseCapPhat.map((c, idx) => `
             <tr>
                 <td class="text-center font-bold">${idx+1}</td><td class="text-center font-mono font-bold">${c.maThietBi}</td><td class="font-bold">${c.tenThietBi}</td><td>${c.canBoNhan}</td>
@@ -645,8 +671,10 @@
         let trangThai = document.getElementById('sc-select-trangthai').value; let editId = document.getElementById('sc-edit-id').value;
         if(!noiDung) return;
         let payload = { maThietBi: ts.maThietBi, tenThietBi: ts.tenThietBi, noiDung: noiDung, trangThai: trangThai };
-        if(editId) { await supabase.from('baotri').update(payload).eq('id', editId); huySuaSuachua(); }
-        else { await supabase.from('baotri').insert([payload]); }
+        try {
+            if(editId) { await supabase.from('baotri').update(payload).eq('id', editId); huySuaSuachua(); }
+            else { await supabase.from('baotri').insert([payload]); }
+        } catch(e) { alert("Lỗi lưu bảo trì lên Supabase."); }
         document.getElementById('sc-input-noidung').value = ""; dongBoDuLieuTuSupabase();
     }
     function suaSuachua(id) {
@@ -657,6 +685,7 @@
     function huySuaSuachua() { document.getElementById('sc-edit-id').value = ""; document.getElementById('btn-sc-cancel').classList.add('hidden'); }
     function renderSuachuaTable() {
         let tbody = document.getElementById('sc-table-body'); if(!tbody) return;
+        if(databaseSuachua.length === 0) { tbody.innerHTML = '<tr><td colspan="7" class="text-center italic">Không có nhật ký bảo trì.</td></tr>'; return; }
         tbody.innerHTML = databaseSuachua.map((s, idx) => `
             <tr>
                 <td class='text-center'>${idx+1}</td><td>${s.maThietBi}</td><td class='font-bold'>${s.tenThietBi}</td><td>${s.noiDung}</td><td class="font-bold text-amber-600">${s.trangThai}</td>
@@ -668,7 +697,7 @@
     async function xoaSuachua(id) { await supabase.from('baotri').delete().eq('id', id); dongBoDuLieuTuSupabase(); }
     async function xoaSachSuachua() { await supabase.from('baotri').delete().neq('id', 0); dongBoDuLieuTuSupabase(); }
 
-    // PHÂN HỆ 4: KẾ TOÁN (XỬ LÝ FILE ĐÁM MÂY QUA SUPABASE STORAGE)
+    // PHÂN HỆ 4: KẾ TOÁN
     function capNhatHeThongLienThongDropdowns() {
         let options = '<option value="">-- Chọn tài sản liên thông --</option>' + databaseCapPhat.map(c => `<option value="${c.id}">${c.maThietBi} - ${c.tenThietBi}</option>`).join('');
         if(document.getElementById('sc-select-thietbi')) document.getElementById('sc-select-thietbi').innerHTML = options;
@@ -696,7 +725,6 @@
         document.getElementById('dash-tien-sau-thue').innerText = Math.round(t2).toLocaleString() + " đ";
     }
     
-    // Đẩy file vật lý lên Supabase Cloud Storage
     async function xuLyUploadFileKetoanThucTe() {
         let input = document.getElementById('tt-upload-files'); if(!input || input.files.length === 0) return;
         let waitingDiv = document.getElementById('tt-list-files-waiting');
@@ -707,19 +735,17 @@
             let file = input.files[i];
             let fileNameClean = `${Date.now()}_${boDauTiengVietChuoi(file.name).replace(/\s+/g, '_')}`;
             
-            // Upload trực tiếp tệp gốc (binary) lên bucket 'chung-tu'
-            let { data, error } = await supabase.storage.from('chung-tu').upload(fileNameClean, file);
-            if (error) { alert("Lỗi tải file lên Server: " + error.message); continue; }
-
-            // Lấy URL công khai vĩnh viễn từ cloud
-            let { data: resUrl } = supabase.storage.from('chung-tu').getPublicUrl(fileNameClean);
-            
-            mangFileThucTeDangCho.push({
-                tenFile: file.name,
-                kichThuoc: (file.size / 1024).toFixed(1) + " KB",
-                kieuTep: file.type || "application/pdf",
-                fileUrl: resUrl.publicUrl
-            });
+            try {
+                let { data, error } = await supabase.storage.from('chung-tu').upload(fileNameClean, file);
+                if (error) { alert("Lỗi tải file lên Server: " + error.message); continue; }
+                let { data: resUrl } = supabase.storage.from('chung-tu').getPublicUrl(fileNameClean);
+                mangFileThucTeDangCho.push({
+                    tenFile: file.name,
+                    kichThuoc: (file.size / 1024).toFixed(1) + " KB",
+                    kieuTep: file.type || "application/pdf",
+                    fileUrl: resUrl.publicUrl
+                });
+            } catch(e) { alert("Kho lưu trữ 'chung-tu' chưa được bật."); }
         }
         waitingDiv.innerHTML = mangFileThucTeDangCho.map(f => `<div class="bg-emerald-50 text-emerald-700 p-1 rounded text-[11px] font-bold border border-emerald-200"><i class="fa-solid fa-cloud-check mr-1"></i> ${f.tenFile} (Đã lên Cloud)</div>`).join('');
     }
@@ -736,15 +762,16 @@
         let tongTien = goc + Math.round(goc * (pt / 100));
         let payload = { maChungTu: maChungTu, noiDung: noiDung, donViDeXuat: doiTuong, tienTruocThue: goc, tienSauThue: tongTien, textQr: `MAKT:${maChungTu}|TIEN:${tongTien}`, danhSachFile: [...mangFileThucTeDangCho] };
         
-        if(editId) {
-            // Nếu sửa, giữ lại các file cũ nếu không up thêm file mới
-            let oldObj = databaseThanhToan.find(x => x.id == editId);
-            if(mangFileThucTeDangCho.length === 0 && oldObj) payload.danhSachFile = oldObj.danhSachFile;
-            await supabase.from('ketoan').update(payload).eq('id', editId);
-            huySuaThanhToan();
-        } else {
-            await supabase.from('ketoan').insert([payload]);
-        }
+        try {
+            if(editId) {
+                let oldObj = databaseThanhToan.find(x => x.id == editId);
+                if(mangFileThucTeDangCho.length === 0 && oldObj) payload.danhSachFile = oldObj.danhSachFile;
+                await supabase.from('ketoan').update(payload).eq('id', editId);
+                huySuaThanhToan();
+            } else {
+                await supabase.from('ketoan').insert([payload]);
+            }
+        } catch(e) { alert("Lỗi bảng 'ketoan' trên Supabase."); }
         
         document.getElementById('tt-input-ten').value = ""; document.getElementById('tt-input-goc').value = ""; document.getElementById('tt-input-donvi').value = "";
         mangFileThucTeDangCho = []; document.getElementById('tt-list-files-waiting').innerHTML = "";
@@ -765,7 +792,7 @@
     }
     function renderThanhToanTable() {
         let tbody = document.getElementById('tt-table-body'); if(!tbody) return;
-        if(databaseThanhToan.length === 0) { tbody.innerHTML = '<tr><td colspan="10" class="text-center italic">Trống.</td></tr>'; return; }
+        if(databaseThanhToan.length === 0) { tbody.innerHTML = '<tr><td colspan="10" class="text-center italic">Chưa phát sinh chứng từ.</td></tr>'; return; }
         tbody.innerHTML = databaseThanhToan.map((t, idx) => `
             <tr>
                 <td class='text-center font-bold'>${idx+1}</td><td class='font-mono font-bold text-center'>${t.maChungTu}</td><td>${t.donViDeXuat}</td><td>${t.noiDung}</td><td class='text-right font-black bg-emerald-50'>${parseFloat(t.tienSauThue).toLocaleString()} đ</td>
@@ -781,7 +808,6 @@
     async function xoaSachThanhToan() { if(confirm("Xóa toàn bộ chứng từ?")) { await supabase.from('ketoan').delete().neq('id', 0); dongBoDuLieuTuSupabase(); } }
     function sinhMaHoaDonTuDong() { if(document.getElementById('tt-input-ma')) document.getElementById('tt-input-ma').value = `VNP-KT-2026-${Math.floor(1000 + Math.random() * 9000)}`; }
 
-    // 🖥️ TRÌNH PREVIEW FILE TRỰC TUYẾN 100% (MÁY NÀO CŨNG XEM ĐƯỢC)
     function moTrinhXemChungTuGoc(idHoSo) {
         let hoso = databaseThanhToan.find(x => x.id == idHoSo); if(!hoso) return;
         let container = document.getElementById('file-preview-content');
@@ -795,7 +821,6 @@
         let fileGoc = hoso.danhSachFile[0];
         document.getElementById('preview-file-title').innerText = `${fileGoc.tenFile} (${fileGoc.kichThuoc})`;
 
-        // Thiết lập nút Tải file: Đọc luồng dữ liệu chuẩn từ đám mây
         document.getElementById('btn-download-direct').onclick = function() {
             let link = document.createElement("a");
             link.href = fileGoc.fileUrl; link.download = fileGoc.tenFile;
@@ -803,7 +828,6 @@
             link.click(); document.body.removeChild(link);
         };
 
-        // Phân tích định dạng để hiển thị Trình đọc tương ứng trước khi in/tải
         let kieu = fileGoc.kieuTep.toLowerCase();
         if(kieu.startsWith('image/')) {
             container.innerHTML = `<img src="${fileGoc.fileUrl}" class="max-w-full max-h-[65vh] object-contain rounded shadow-md border bg-white">`;
