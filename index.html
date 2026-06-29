@@ -107,7 +107,7 @@
                 <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
                     <label class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2.5 rounded-lg shadow cursor-pointer transition flex items-center gap-2">
                         <i class="fa-solid fa-file-excel text-base"></i> Nạp File Excel Nhân Sự
-                        <input type="file" id="ns-file-input" accept=".xlsx, .xls" class="hidden" onchange="xuLyDocFileNhanSu()">
+                        <input type="file" id="ns-file-input" accept=".xlsx, .xls, .csv" class="hidden" onchange="xuLyDocFileNhanSu()">
                     </label>
                     <button onclick="xoaSachNhanSu()" class="bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 text-xs font-bold px-3 py-2.5 rounded-lg border transition cursor-pointer">Xóa danh sách</button>
                 </div>
@@ -332,9 +332,21 @@
                             <input type="text" id="tt-input-ma" readonly class="w-full border bg-slate-100 p-2 rounded font-mono font-bold text-slate-500">
                         </div>
                         <div>
-                            <label class="block font-bold text-slate-600 mb-1">Đơn vị thụ hưởng</label>
+                            <label class="block font-bold text-slate-600 mb-1">Đơn vị / Người thụ hưởng</label>
                             <input type="text" id="tt-input-donvi" placeholder="Tên công ty hoặc cá nhân nhận..." class="w-full border p-2 rounded focus:outline-blue-500">
                         </div>
+                        
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block font-bold text-slate-600 mb-1">Số tài khoản nhận</label>
+                                <input type="text" id="tt-input-stk" placeholder="Ví dụ: 190355..." class="w-full border p-2 rounded focus:outline-blue-500 font-mono">
+                            </div>
+                            <div>
+                                <label class="block font-bold text-slate-600 mb-1">Ngân hàng nhận</label>
+                                <input type="text" id="tt-input-nganhang" placeholder="Ví dụ: Vietcombank" class="w-full border p-2 rounded focus:outline-blue-500">
+                            </div>
+                        </div>
+
                         <div>
                             <label class="block font-bold text-slate-600 mb-1">Nội dung thanh toán</label>
                             <input type="text" id="tt-input-ten" placeholder="Lý do đề xuất chi..." class="w-full border p-2 rounded focus:outline-blue-500">
@@ -362,7 +374,7 @@
                         <div class="border-2 border-dashed border-slate-300 rounded-xl p-3 bg-slate-50 text-center">
                             <label class="block font-bold text-slate-700 mb-1 cursor-pointer hover:text-blue-600">
                                 <i class="fa-solid fa-cloud-arrow-up text-xl block mb-1 text-blue-500 animate-bounce"></i> 
-                                Đính kèm Hóa đơn/Chứng từ gốc (Max 50MB)
+                                Đính kèm Hóa đơn/Chứng từ gốc
                                 <input type="file" id="tt-upload-files" multiple accept="image/*, application/pdf" class="hidden" onchange="xuLyUploadFileKetoanThucTe()">
                             </label>
                             <div id="tt-list-files-waiting" class="mt-2 space-y-1"></div>
@@ -389,7 +401,7 @@
                                 <tr>
                                     <th class="p-3 text-center border-b">STT</th>
                                     <th class="p-3 text-center border-b">Số hồ sơ</th>
-                                    <th class="p-3 border-b">Người thụ hưởng</th>
+                                    <th class="p-3 border-b">Người thụ hưởng / TK Nhận</th>
                                     <th class="p-3 border-b">Lý do thanh toán</th>
                                     <th class="p-3 text-right border-b">Tổng thanh toán</th>
                                     <th class="p-3 text-center border-b">QR Code</th>
@@ -471,7 +483,6 @@
         if(tabId === 'tab-suachua' || tabId === 'tab-thanhtoan') { capNhatHeThongLienThongDropdowns(); if(tabId === 'tab-thanhtoan') { capNhatDashboardKeToanThue(); renderThanhToanTable(); } }
     }
 
-    // Hàm chuyển đổi chuỗi YYYY-MM-DD sang định dạng hiển thị Việt Nam DD/MM/YYYY
     function convertToVnDateFormat(isoDateStr) {
         if (!isoDateStr || !isoDateStr.includes('-')) return isoDateStr || "";
         let parts = isoDateStr.split('-'); 
@@ -479,7 +490,6 @@
         return parts[2].substring(0,2) + "/" + parts[1] + "/" + parts[0];
     }
 
-    // Chuyển đổi định dạng ngày tháng từ file Excel một cách chuẩn xác
     function dinhDangNgayExcelMoi(val) {
         if (!val) return ""; 
         let t = String(val).trim();
@@ -532,63 +542,60 @@
             document.getElementById('cloud-status').innerHTML = '<i class="fa-solid fa-circle-check mr-1 text-emerald-500"></i> Trực Tuyến Đám Mây';
         } catch(e) {
             console.error(e);
-            document.getElementById('cloud-status').className = "bg-rose-500/20 text-rose-400 border border-rose-500/30 text-[11px] font-bold px-3 py-1.5 rounded-lg";
-            document.getElementById('cloud-status').innerHTML = '<i class="fa-solid fa-triangle-exclamation mr-1"></i> Chạy Offline';
         }
     }
 
+    // --- HÀM ĐỌC FILE ĐÃ CẢI TIẾN THÔNG MINH ---
     async function xuLyDocFileNhanSu() {
-        let input = document.getElementById('ns-file-input'); if (!input || input.files.length === 0) return;
+        let input = document.getElementById('ns-file-input'); 
+        if (!input || input.files.length === 0) return;
+        
         let reader = new FileReader();
         reader.onload = async function(e) {
             let wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
             let rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1 });
             
-            let headerIdx = -1;
-            for(let i=0; i<Math.min(rows.length, 20); i++) {
-                let txt = rows[i].map(c => String(c||'').toLowerCase().trim());
-                if(txt.includes('ho va ten') || txt.includes('họ và tên') || txt.includes('cccd') || txt.includes('họ tên')) { headerIdx = i; break; }
+            // TỰ ĐỘNG QUÉT DÒ DÒNG TIÊU ĐỀ THỰC SỰ (BỎ QUA DÒNG TRỐNG)
+            let headerIdx = 0;
+            for (let i = 0; i < rows.length; i++) {
+                if (rows[i] && rows[i].some(cell => String(cell || '').toLowerCase().includes('họ và tên') || String(cell || '').toLowerCase().includes('stt'))) {
+                    headerIdx = i;
+                    break;
+                }
             }
-            if(headerIdx === -1) headerIdx = 0;
 
             let headers = rows[headerIdx].map(c => String(c||'').trim().toLowerCase());
             let findCol = (keys) => headers.findIndex(h => keys.some(k => h.includes(k)));
 
-            let idxStt = findCol(['stt', 'số tt', 'thứ tự']);
+            let idxStt = findCol(['stt', 'số tt']);
             let idxHoTen = findCol(['họ và tên', 'ho va ten', 'họ tên']);
-            let idxTen = findCol(['tên', 'ten']) === idxHoTen ? idxHoTen + 1 : findCol(['tên', 'ten']);
+            let idxTen = findCol(['tên', 'ten']);
             let idxBhxh = findCol(['bhxh', 'bảo hiểm', 'số sổ']);
-            let idxCccd = findCol(['cccd', 'cmnd', 'căn cước', 'số cccd']);
+            let idxCccd = findCol(['cccd', 'cmnd', 'căn cước']);
             let idxAtv = findCol(['an toàn viên', 'atv']);
-            let idxDh = findCol(['độc hại', 'doc hai', 'nndh', 'nnđh']);
-            let idxDv = findCol(['mã đv', 'madv', 'đơn vị', 'ma dv']);
-            let idxTd = findCol(['năm tuyển dụng', 'năm theo dõi', 'năm', 'theo dõi', 'tuyển dụng']);
-            let idxNs = findCol(['ngày sinh', 'nam sinh', 'ngaysinh']);
-            let idxHc = findCol(['hưu gốc', 'hưu cũ', 'năm về hưu', 'về hưu']);
-            let idxCd = findCol(['chức danh công việc', 'chức danh', 'chức vụ', 'chuc danh']);
-            let idxNu = findCol(['nữ\n(x)', 'nữ', 'giới tính']);
+            let idxDh = findCol(['độc hại', 'doc hai', 'nndh']);
+            let idxDv = findCol(['mã đv', 'madv', 'đơn vị']);
+            let idxTd = findCol(['năm tuyển dụng', 'năm theo dõi', 'năm']);
+            let idxNs = findCol(['ngày sinh', 'nam sinh']);
+            let idxHc = findCol(['hưu gốc', 'hưu cũ']);
+            let idxCd = findCol(['chức danh công việc', 'chức danh']);
+            let idxNu = findCol(['nữ']);
 
             let parsed = [];
             for(let i = headerIdx + 1; i < rows.length; i++) {
                 let r = rows[i]; if(!r || r.length === 0) continue;
                 let cell = (idx) => idx !== -1 && r[idx] !== undefined && r[idx] !== null ? String(r[idx]).trim() : '';
-                
-                let hoTenThuc = cell(idxHoTen);
-                if(!hoTenThuc || hoTenThuc.toLowerCase().includes('họ và tên') || hoTenThuc.toLowerCase() === 'stt' || hoTenThuc === '') continue;
+                let hoTenThuc = cell(idxHoTen); if(!hoTenThuc) continue;
 
                 let chuoiNgaySinh = dinhDangNgayExcelMoi(cell(idxNs));
-                let chuoiNgayTD = dinhDangNgayExcelMoi(cell(idxTd)); // Trích xuất đầy đủ ngày tháng năm tuyển dụng
-                
+                let chuoiNgayTD = dinhDangNgayExcelMoi(cell(idxTd));
                 let chuoiNu = idxNu !== -1 ? cell(idxNu).toLowerCase() : '';
                 let isNu = chuoiNu === 'x' || chuoiNu === '1' || chuoiNu.includes('nữ');
-                
-                // Nghiệp vụ: Đọc chính xác giá trị gốc của ATV và Độc Hại từ file Excel
                 let giaTriATV = cell(idxAtv);
                 let giaTriDocHai = cell(idxDh);
-                let isDocHai = giaTriDocHai === "1" || giaTriDocHai.toLowerCase() === "x" || giaTriDocHai.includes("độc hại");
-                
+                let isDocHai = giaTriDocHai === "1" || giaTriDocHai.toLowerCase() === "x";
                 let chuoiNgayHuuMoi = tinhNgayVeHuuLuatMoiFull(chuoiNgaySinh, isNu, isDocHai);
-                let chucDanhGoc = cell(idxCd); // Lấy chính xác chuỗi chức danh công việc nguyên bản
+                let chucDanhGoc = cell(idxCd);
 
                 let diffText = "Khớp";
                 let gInt = parseInt(dinhDangNgayExcelMoi(cell(idxHc)).split('-')[0]);
@@ -600,37 +607,16 @@
                 }
 
                 parsed.push({
-                    stt: cell(idxStt) || String(parsed.length + 1), 
-                    hoTen: hoTenThuc.toUpperCase(), 
-                    ten: cell(idxTen) || hoTenThuc.split(' ').pop(), 
-                    soSo: cell(idxBhxh) || 'Trống', 
-                    cccd: cell(idxCccd) || 'Trống', 
-                    anToanVien: giaTriATV, // Lưu trữ chính xác dữ liệu gốc
-                    nndh: giaTriDocHai,    // Lưu trữ chính xác dữ liệu gốc
-                    madv: cell(idxDv) || 'VP',
-                    namTheoDoi: chuoiNgayTD, // Lưu toàn bộ chuỗi ngày tháng năm tuyển dụng/theo dõi
-                    namSinh: chuoiNgaySinh, 
-                    tuoiHienTai: 2026 - (parseInt(chuoiNgaySinh.split('-')[0])||1975), 
-                    gioiTinh: isNu ? "Nữ" : "Nam",
-                    namHuuGocFile: dinhDangNgayExcelMoi(cell(idxHc)), 
-                    namVeHuuLuatMoi: chuoiNgayHuuMoi, 
-                    doiChieu: diffText, 
-                    chucDanh: chucDanhGoc || 'Trống'
+                    stt: cell(idxStt) || String(parsed.length + 1), hoTen: hoTenThuc.toUpperCase(), ten: cell(idxTen), soSo: cell(idxBhxh), cccd: cell(idxCccd), anToanVien: giaTriATV, nndh: giaTriDocHai, madv: cell(idxDv) || 'VP', namTheoDoi: chuoiNgayTD, namSinh: chuoiNgaySinh, tuoiHienTai: 2026 - (parseInt(chuoiNgaySinh.split('-')[0])||1975), gioiTinh: isNu ? "Nữ" : "Nam", namHuuGocFile: dinhDangNgayExcelMoi(cell(idxHc)), namVeHuuLuatMoi: chuoiNgayHuuMoi, doiChieu: diffText, chucDanh: chucDanhGoc
                 });
             }
-
             if(parsed.length > 0) {
-                document.getElementById('ns-table-body').innerHTML = '<tr><td colspan="16" class="text-center p-8 text-amber-600 font-bold"><i class="fa-solid fa-spinner animate-spin mr-1"></i> Đang tải dữ liệu lên đám mây...</td></tr>';
-                try {
-                    await supabaseClient.from('nhansu').delete().neq('stt', '-1');
-                    await supabaseClient.from('nhansu').insert(parsed);
-                } catch(err) { console.log(err); }
-                dataNhanSuHienTai = parsed;
-                buildDropdownDonViFilter(); 
-                renderNhanSuTable(dataNhanSuHienTai); 
-                chayDashboardNhanSuDong();
+                await supabaseClient.from('nhansu').delete().neq('stt', '-1');
+                await supabaseClient.from('nhansu').insert(parsed);
+                dataNhanSuHienTai = parsed; buildDropdownDonViFilter(); renderNhanSuTable(dataNhanSuHienTai); chayDashboardNhanSuDong();
+                alert("Nạp thành công " + parsed.length + " nhân sự!");
             } else {
-                alert("Không có hàng dữ liệu hợp lệ!");
+                alert("Không tìm thấy dữ liệu hợp lệ!");
             }
         };
         reader.readAsArrayBuffer(input.files[0]);
@@ -642,12 +628,6 @@
         document.getElementById('db-ns-co-cau').innerHTML = '<span class="text-blue-600"><i class="fa-solid fa-mars mr-1"></i>' + nam + ' Nam (' + ((nam/tong)*100).toFixed(1) + '%)</span><br><span class="text-pink-500"><i class="fa-solid fa-venus mr-1"></i>' + nu + ' Nữ (' + ((nu/tong)*100).toFixed(1) + '%)</span>';
         let atv = dataNhanSuHienTai.filter(x => x.anToanVien === "1" || x.anToanVien.toLowerCase() === "x").length; document.getElementById('db-ns-atv').innerText = atv + ' người (' + ((atv/tong)*100).toFixed(1) + '%)';
         let dochai = dataNhanSuHienTai.filter(x => x.nndh === "1" || x.nndh.toLowerCase() === "x").length; document.getElementById('db-ns-dochai').innerText = dochai + ' người (' + ((dochai/tong)*100).toFixed(1) + '%)';
-        let h1=0, h2=0, h3=0, h4=0;
-        dataNhanSuHienTai.forEach(x => {
-            let h = parseInt(x.namVeHuuLuatMoi.split('-')[0]);
-            if (h >= 2026 && h <= 2030) h1++; else if (h >= 2031 && h <= 2035) h2++; else if (h >= 2036 && h <= 2040) h3++; else if (h > 2040) h4++;
-        });
-        document.getElementById('db-h-1').innerText = h1 + " người"; document.getElementById('db-h-2').innerText = h2 + " người"; document.getElementById('db-h-3').innerText = h3 + " người"; document.getElementById('db-h-4').innerText = h4 + " người";
     }
     function buildDropdownDonViFilter() {
         let setDonVi = new Set(dataNhanSuHienTai.map(x => x.madv).filter(Boolean));
@@ -661,55 +641,33 @@
     
     function renderNhanSuTable(arr) {
         let tbody = document.getElementById('ns-table-body'); if(!tbody) return;
-        if(arr.length === 0) { 
-            tbody.innerHTML = '<tr><td colspan="16" class="text-center italic p-8 text-slate-400">Không có dữ liệu trên Cloud. Vui lòng bấm "Nạp File Excel Nhân Sự".</td></tr>'; 
-            return; 
-        }
-        
+        if(arr.length === 0) { tbody.innerHTML = '<tr><td colspan="16" class="text-center italic p-8">Không có dữ liệu.</td></tr>'; return; }
         let codeHtml = "";
         for(let i=0; i<arr.length; i++) {
-            let n = arr[i];
-            let gColor = n.gioiTinh === "Nữ" ? "text-pink-600 font-semibold" : "text-blue-600 font-semibold";
-            
+            let n = arr[i]; let gColor = n.gioiTinh === "Nữ" ? "text-pink-600 font-semibold" : "text-blue-600 font-semibold";
             codeHtml += "<tr class='cursor-default border-b border-slate-100'>";
             codeHtml += "<td class='text-center font-bold text-slate-400 px-3 py-3'>" + n.stt + "</td>";
-            
-            // Cột Họ tên nổi bật, chống tràn chữ
-            codeHtml += "<td class='font-bold text-slate-900 text-sm px-4 py-3 tracking-wide border-r border-slate-100/50 min-w-[220px] max-w-[300px] truncate' title='" + n.hoTen + "'>" + n.hoTen + "</td>";
-            
+            codeHtml += "<td class='font-bold text-slate-900 text-sm px-4 py-3 tracking-wide min-w-[220px] max-w-[300px] truncate'>" + n.hoTen + "</td>";
             codeHtml += "<td class='text-center font-mono px-3 py-3'>" + n.soSo + "</td>";
             codeHtml += "<td class='text-center font-mono text-slate-600 px-3 py-3'>" + n.cccd + "</td>";
-            
-            // Hiển thị chính xác ký tự An toàn viên & Độc hại từ file gốc
             codeHtml += "<td class='text-center px-3 py-3 font-bold text-indigo-700'>" + (n.anToanVien || '') + "</td>";
             codeHtml += "<td class='text-center px-3 py-3 font-bold text-amber-700'>" + (n.nndh || '') + "</td>";
-            
             codeHtml += "<td class='text-center bg-slate-100/30 font-semibold text-slate-600 px-3 py-3'>" + n.madv + "</td>";
-            
-            // Đầy đủ định dạng ngày tháng năm cho Tuyển dụng & Ngày sinh
             codeHtml += "<td class='text-center font-mono font-bold text-slate-700 px-3 py-3'>" + convertToVnDateFormat(n.namTheoDoi) + "</td>";
             codeHtml += "<td class='text-center font-mono px-3 py-3'>" + convertToVnDateFormat(n.namSinh) + "</td>";
-            
             codeHtml += "<td class='text-center font-black text-slate-800 px-3 py-3'>" + n.tuoiHienTai + "</td>";
             codeHtml += "<td class='text-center px-3 py-3 " + gColor + "'>" + n.gioiTinh + "</td>";
             codeHtml += "<td class='text-center text-slate-500 px-3 py-3'>" + convertToVnDateFormat(n.namHuuGocFile) + "</td>";
             codeHtml += "<td class='text-center text-rose-700 bg-rose-50/40 font-bold px-3 py-3 border-x border-rose-100/30'>" + convertToVnDateFormat(n.namVeHuuLuatMoi) + "</td>";
-            
-            let doiChieuStyle = "text-slate-500";
-            if(n.doiChieu.includes("Tăng")) doiChieuStyle = "text-emerald-600 font-bold";
-            else if(n.doiChieu.includes("Giảm")) doiChieuStyle = "text-rose-600 font-bold";
-            codeHtml += "<td class='text-center px-3 py-3 " + doiChieuStyle + "'>" + n.doiChieu + "</td>";
-            
-            // Hiển thị chính xác 100% Chức danh công việc từ file gốc không giới hạn gò bó chữ
-            codeHtml += "<td class='px-4 py-3 text-slate-700 font-medium whitespace-normal min-w-[280px]' title='" + n.chucDanh + "'>" + n.chucDanh + "</td>";
-            
-            codeHtml += "<td class='text-center px-3 py-3'><button onclick=\"xoaMotDongNhanSu('" + n.id + "')\" class='text-slate-400 hover:text-rose-600 cursor-pointer p-1.5 hover:bg-rose-50 rounded-lg transition'><i class='fa-solid fa-trash'></i></button></td>";
+            codeHtml += "<td class='text-center px-3 py-3'>" + n.doiChieu + "</td>";
+            codeHtml += "<td class='px-4 py-3 text-slate-700 font-medium whitespace-normal min-w-[280px]'>" + n.chucDanh + "</td>";
+            codeHtml += "<td class='text-center px-3 py-3'><button onclick=\"xoaMotDongNhanSu('" + n.id + "')\" class='text-slate-400 hover:text-rose-600 p-1.5'><i class='fa-solid fa-trash'></i></button></td>";
             codeHtml += "</tr>";
         }
         tbody.innerHTML = codeHtml;
     }
     async function xoaMotDongNhanSu(id) { if(confirm("Xóa nhân sự này?")) { await supabaseClient.from('nhansu').delete().eq('id', id); dongBoDuLieuTuSupabase(); } }
-    async function xoaSachNhanSu() { if(confirm("Xóa hết nhân sự?")) { await supabaseClient.from('nhansu').delete().neq('stt', '-1'); dataNhanSuHienTai=[]; renderNhanSuTable([]); chayDashboardNhanSuDong(); } }
+    async function xoaSachNhanSu() { if(confirm("Xóa hết nhân sự?")) { await supabaseClient.from('nhansu').delete().neq('stt', '-1'); dongBoDuLieuTuSupabase(); } }
 
     // PHÂN HỆ 2: CẤP PHÁT TÀI SẢN
     function sinhMaTaiSanTuDong() { if(document.getElementById('cp-input-ma')) document.getElementById('cp-input-ma').value = "VNP-TS-2026-" + Math.floor(1000 + Math.random() * 9000); }
@@ -732,11 +690,8 @@
         let nameField = document.getElementById('cp-input-nhansu-ten').value; let editId = document.getElementById('cp-edit-id').value;
         if(!textTen || !nameField) { alert("Vui lòng nhập đủ thông tin!"); return; }
         let payload = { maThietBi: ma, tenThietBi: textTen, canBoNhan: nameField, ngayCap: document.getElementById('cp-input-ngay').value, giaGoc: parseFloat(document.getElementById('cp-input-giatri').value)||0, textQr: "MATS:" + ma + "|TS:" + textTen + "|CB:" + nameField };
-        try {
-            if(editId) { await supabaseClient.from('capphat').update(payload).eq('id', editId); huySuaCapPhat(); }
-            else { await supabaseClient.from('capphat').insert([payload]); }
-        } catch(e) { alert("Lỗi kết nối bảng 'capphat'."); }
-        document.getElementById('cp-input-ten').value = ""; document.getElementById('cp-select-nhansu-input').value = ""; document.getElementById('cp-input-nhansu-ten').value = ""; document.getElementById('cp-input-giatri').value = "";
+        if(editId) { await supabaseClient.from('capphat').update(payload).eq('id', editId); huySuaCapPhat(); }
+        else { await supabaseClient.from('capphat').insert([payload]); }
         dongBoDuLieuTuSupabase(); sinhMaTaiSanTuDong(); capNhatLivePreviewQR();
     }
     function suaCapPhat(id) {
@@ -748,7 +703,7 @@
         document.getElementById('btn-cp-cancel').classList.remove('hidden'); capNhatLivePreviewQR();
     }
     function huySuaCapPhat() {
-        document.getElementById('cp-edit-id').value = ""; document.getElementById('form-title').innerText = "Khởi tạo cấp phát";
+        document.getElementById('cp-edit-id').value = ""; document.getElementById('cp-form-title').innerText = "Khởi tạo cấp phát";
         document.getElementById('btn-cp-submit').innerText = "XÁC NHẬN CẤP PHÁT"; document.getElementById('btn-cp-cancel').classList.add('hidden');
         sinhMaTaiSanTuDong(); capNhatLivePreviewQR();
     }
@@ -764,16 +719,16 @@
             codeHtml += "<td class='font-bold'>" + c.tenThietBi + "</td>";
             codeHtml += "<td>" + c.canBoNhan + "</td>";
             codeHtml += "<td class='text-center flex justify-center p-1'><img src='" + taoUrlQRCodeNhanh(c.textQr) + "' class='w-12 h-12 border'></td>";
-            codeHtml += "<td class='text-center'><button onclick=\"inDocLapTemQR('TAI SAN', '" + c.maThietBi + "', '" + c.tenThietBi + "', '" + c.canBoNhan + "', '" + c.textQr + "')\" class='bg-blue-600 text-white text-xs px-2 py-1 rounded cursor-pointer'>In Tem</button></td>";
-            codeHtml += "<td class='text-center'><button onclick='suaCapPhat(" + c.id + ")' class='text-amber-600 cursor-pointer'><i class='fa-solid fa-pen-to-square'></i></button></td>";
-            codeHtml += "<td class='text-center'><button onclick='xoaCapPhat(" + c.id + ")' class='text-rose-600 cursor-pointer'><i class='fa-solid fa-trash'></i></button></td>";
+            codeHtml += "<td class='text-center'><button onclick=\"inDocLapTemQR('TAI SAN', '" + c.maThietBi + "', '" + c.tenThietBi + "', '" + c.canBoNhan + "', '" + c.textQr + "')\" class='bg-blue-600 text-white text-xs px-2 py-1 rounded'>In Tem</button></td>";
+            codeHtml += "<td class='text-center'><button onclick='suaCapPhat(" + c.id + ")' class='text-amber-600'><i class='fa-solid fa-pen-to-square'></i></button></td>";
+            codeHtml += "<td class='text-center'><button onclick='xoaCapPhat(" + c.id + ")' class='text-rose-600'><i class='fa-solid fa-trash'></i></button></td>";
             codeHtml += "</tr>";
         }
         tbody.innerHTML = codeHtml;
     }
     function inDocLapTemQR(loaiTem, ma, ten, doiTuong, codeText) {
         let area = document.getElementById('print-area');
-        area.innerHTML = '<div style="border: 2px dashed #000; padding: 15px; width: 70mm; margin: 20px auto; text-align: center; background: #fff; font-family: sans-serif;"><div style="font-size: 13px; font-weight: 900; border-bottom: 2px solid #000; padding-bottom: 5px;">VINAPACO ERP • ' + loaiTem + '</div><div style="display: flex; justify-content: center; margin: 10px 0;"><img src="' + taoUrlQRCodeNhanh(codeText) + '" style="width: 140px; height: 140px;" /></div><div style="font-size: 14px; font-weight: bold; font-family: monospace;">MÃ: ' + ma + '</div><div style="font-size: 11px; font-weight: bold; text-align: left; margin-top: 5px;">TÊN: ' + ten + '</div><div style="font-size: 10px; color: #475569; text-align: left;">ĐỐI TƯỢNG: ' + doiTuong + '</div></div>';
+        area.innerHTML = '<div style="border: 2px dashed #000; padding: 15px; width: 70mm; margin: 20px auto; text-align: center; background: #fff; font-family: sans-serif;"><div style="font-size: 13px; font-weight: 900; border-bottom: 2px solid #000; padding-bottom: 5px;">VINAPACO ERP • ' + loaiTem + '</div><div style="display: flex; justify-content: center; margin: 10px 0;"><img src="' + taoUrlQRCodeNhanh(codeText) + '" style="width: 140px; height: 140px;" /></div><div style="font-size: 13px; font-weight: bold; font-family: monospace;">MÃ: ' + ma + '</div><div style="font-size: 11px; font-weight: bold; text-align: left; margin-top: 5px;">NỘI DUNG: ' + ten + '</div><div style="font-size: 10px; color: #475569; text-align: left; white-space: normal;">ĐỐI TƯỢNG: ' + doiTuong + '</div></div>';
         area.style.display = 'block'; setTimeout(() => { window.print(); area.style.display = 'none'; }, 350);
     }
     async function xoaCapPhat(id) { if(confirm("Xóa tài sản này?")) { await supabaseClient.from('capphat').delete().eq('id', id); dongBoDuLieuTuSupabase(); } }
@@ -787,10 +742,8 @@
         let trangThai = document.getElementById('sc-select-trangthai').value; let editId = document.getElementById('sc-edit-id').value;
         if(!noiDung) return;
         let payload = { maThietBi: ts.maThietBi, tenThietBi: ts.tenThietBi, noiDung: noiDung, trangThai: trangThai };
-        try {
-            if(editId) { await supabaseClient.from('baotri').update(payload).eq('id', editId); huySuaSuachua(); }
-            else { await supabaseClient.from('baotri').insert([payload]); }
-        } catch(e) { alert("Lỗi lưu bảo trì."); }
+        if(editId) { await supabaseClient.from('baotri').update(payload).eq('id', editId); huySuaSuachua(); }
+        else { await supabaseClient.from('baotri').insert([payload]); }
         document.getElementById('sc-input-noidung').value = ""; dongBoDuLieuTuSupabase();
     }
     function suaSuachua(id) {
@@ -811,16 +764,14 @@
             codeHtml += "<td class='font-bold'>" + s.tenThietBi + "</td>";
             codeHtml += "<td>" + s.noiDung + "</td>";
             codeHtml += "<td class='font-bold text-amber-600'>" + s.trangThai + "</td>";
-            codeHtml += "<td class='text-center'><button onclick='suaSuachua(" + s.id + ")' class='text-amber-600 cursor-pointer'><i class='fa-solid fa-pen-to-square'></i></button></td>";
-            codeHtml += "<td class='text-center'><button onclick='xoaSuachua(" + s.id + ")' class='text-rose-600 cursor-pointer'><i class='fa-solid fa-trash'></i></button></td>";
+            codeHtml += "<td class='text-center'><button onclick='suaSuachua(" + s.id + ")' class='text-amber-600'><i class='fa-solid fa-pen-to-square'></i></button></td>";
+            codeHtml += "<td class='text-center'><button onclick='xoaSuachua(" + s.id + ")' class='text-rose-600'><i class='fa-solid fa-trash'></i></button></td>";
             codeHtml += "</tr>";
         }
         tbody.innerHTML = codeHtml;
     }
-    async function xoaSuachua(id) { await supabaseClient.from('baotri').delete().eq('id', id); dongBoDuLieuTuSupabase(); }
-    async function xoaSachSuachua() { await supabaseClient.from('baotri').delete().neq('id', 0); dongBoDuLieuTuSupabase(); }
 
-    // PHÂN HỆ 4: KẾ TOÁN
+    // PHÂN HỆ 4: KẾ TOÁN (CÓ SỐ TÀI KHOẢN & NGÂN HÀNG TRÊN QR CODE)
     function capNhatHeThongLienThongDropdowns() {
         let options = '<option value="">-- Chọn tài sản liên thông --</option>' + databaseCapPhat.map(c => '<option value="' + c.id + '">' + c.maThietBi + ' - ' + c.tenThietBi + '</option>').join('');
         if(document.getElementById('sc-select-thietbi')) document.getElementById('sc-select-thietbi').innerHTML = options;
@@ -852,25 +803,17 @@
         let input = document.getElementById('tt-upload-files'); if(!input || input.files.length === 0) return;
         let waitingDiv = document.getElementById('tt-list-files-waiting');
         waitingDiv.innerHTML = '<div class="text-xs text-amber-600 font-bold animate-pulse"><i class="fa-solid fa-spinner animate-spin mr-1"></i> Đang tải tệp lên...</div>';
-        
         mangFileThucTeDangCho = [];
         for (let i = 0; i < input.files.length; i++) {
-            let file = input.files[i];
-            let fileNameClean = Date.now() + "_" + boDauTiengVietChuoi(file.name).replace(/\s+/g, '_');
-            
+            let file = input.files[i]; let fileNameClean = Date.now() + "_" + boDauTiengVietChuoi(file.name).replace(/\s+/g, '_');
             try {
                 let { data, error } = await supabaseClient.storage.from('chung-tu').upload(fileNameClean, file);
-                if (error) { alert("Lỗi tải file: " + error.message); continue; }
+                if (error) continue;
                 let { data: resUrl } = supabaseClient.storage.from('chung-tu').getPublicUrl(fileNameClean);
-                mangFileThucTeDangCho.push({
-                    tenFile: file.name,
-                    kichThuoc: (file.size / 1024).toFixed(1) + " KB",
-                    kieuTep: file.type || "application/pdf",
-                    fileUrl: resUrl.publicUrl
-                });
-            } catch(e) { console.log(e); }
+                mangFileThucTeDangCho.push({ tenFile: file.name, kichThuoc: (file.size / 1024).toFixed(1) + " KB", kieuTep: file.type || "application/pdf", fileUrl: resUrl.publicUrl });
+            } catch(e) {}
         }
-        waitingDiv.innerHTML = mangFileThucTeDangCho.map(f => '<div class="bg-emerald-50 text-emerald-700 p-1 rounded text-[11px] font-bold border border-emerald-200"><i class="fa-solid fa-cloud-check mr-1"></i> ' + f.tenFile + ' (Đã lên Cloud)</div>').join('');
+        waitingDiv.innerHTML = mangFileThucTeDangCho.map(f => '<div class="bg-emerald-50 text-emerald-700 p-1 rounded text-[11px] font-bold border border-emerald-200">✓ ' + f.tenFile + '</div>').join('');
     }
 
     async function luuMoiHoSoThanhToan() {
@@ -879,24 +822,33 @@
         let maChungTu = document.getElementById('tt-input-ma').value;
         let noiDung = document.getElementById('tt-input-ten').value.trim();
         let doiTuong = document.getElementById('tt-input-donvi').value.trim();
+        
+        let soTaiKhoan = document.getElementById('tt-input-stk').value.trim() || "Trống";
+        let nganHang = document.getElementById('tt-input-nganhang').value.trim() || "Trống";
         let editId = document.getElementById('tt-edit-id').value;
+        
         if (!doiTuong || !noiDung || goc <= 0) { alert("Vui lòng nhập đủ thông tin kế toán!"); return; }
-        
         let tongueTien = goc + Math.round(goc * (pt / 100));
-        let payload = { maChungTu: maChungTu, noiDung: noiDung, donViDeXuat: doiTuong, tienTruocThue: goc, tienSauThue: tongueTien, textQr: "MAKT:" + maChungTu + "|TIEN:" + tongueTien, danhSachFile: [...mangFileThucTeDangCho] };
         
-        try {
-            if(editId) {
-                let oldObj = databaseThanhToan.find(x => x.id == editId);
-                if(mangFileThucTeDangCho.length === 0 && oldObj) payload.danhSachFile = oldObj.danhSachFile;
-                await supabaseClient.from('ketoan').update(payload).eq('id', editId);
-                huySuaThanhToan();
-            } else {
-                await supabaseClient.from('ketoan').insert([payload]);
-            }
-        } catch(e) { alert("Lỗi bảng 'ketoan'."); }
+        let textQrHienTai = "MAKT:" + maChungTu + "|TIEN:" + tongueTien + "|TK:" + soTaiKhoan + "|NH:" + nganHang + "|TH:" + doiTuong;
+        
+        let payload = { 
+            maChungTu: maChungTu, noiDung: noiDung, donViDeXuat: doiTuong, 
+            soTaiKhoan: soTaiKhoan, nganHang: nganHang,
+            tienTruocThue: goc, tienSauThue: tongueTien, 
+            textQr: textQrHienTai, danhSachFile: [...mangFileThucTeDangCho] 
+        };
+        
+        if(editId) {
+            let oldObj = databaseThanhToan.find(x => x.id == editId);
+            if(mangFileThucTeDangCho.length === 0 && oldObj) payload.danhSachFile = oldObj.danhSachFile;
+            await supabaseClient.from('ketoan').update(payload).eq('id', editId); huySuaThanhToan();
+        } else {
+            await supabaseClient.from('ketoan').insert([payload]);
+        }
         
         document.getElementById('tt-input-ten').value = ""; document.getElementById('tt-input-goc').value = ""; document.getElementById('tt-input-donvi').value = "";
+        document.getElementById('tt-input-stk').value = ""; document.getElementById('tt-input-nganhang').value = "";
         mangFileThucTeDangCho = []; document.getElementById('tt-list-files-waiting').innerHTML = "";
         sinhMaHoaDonTuDong(); dongBoDuLieuTuSupabase();
     }
@@ -905,32 +857,36 @@
         let obj = databaseThanhToan.find(x => x.id == id); if(!obj) return;
         document.getElementById('tt-edit-id').value = obj.id; document.getElementById('tt-input-ma').value = obj.maChungTu;
         document.getElementById('tt-input-donvi').value = obj.donViDeXuat; document.getElementById('tt-input-ten').value = obj.noiDung;
+        document.getElementById('tt-input-stk').value = obj.soTaiKhoan || ""; document.getElementById('tt-input-nganhang').value = obj.nganHang || "";
         document.getElementById('tt-input-goc').value = obj.tienTruocThue; document.getElementById('tt-calc-sau').innerText = parseFloat(obj.tienSauThue).toLocaleString() + " đ";
         document.getElementById('btn-tt-cancel').classList.remove('hidden');
     }
     function huySuaThanhToan() {
         document.getElementById('tt-edit-id').value = ""; document.getElementById('btn-tt-cancel').classList.add('hidden');
         document.getElementById('tt-input-ten').value = ""; document.getElementById('tt-input-goc').value = ""; document.getElementById('tt-input-donvi').value = "";
+        document.getElementById('tt-input-stk').value = ""; document.getElementById('tt-input-nganhang').value = "";
         sinhMaHoaDonTuDong(); tinhToanThueSuatTuDong();
     }
+    
     function renderThanhToanTable() {
         let tbody = document.getElementById('tt-table-body'); if(!tbody) return;
         if(databaseThanhToan.length === 0) { tbody.innerHTML = '<tr><td colspan="10" class="text-center italic">Chưa phát sinh chứng từ.</td></tr>'; return; }
         let codeHtml = "";
         for(let i=0; i<databaseThanhToan.length; i++) {
-            let t = databaseThanhToan[i];
-            let fileCount = t.danhSachFile ? t.danhSachFile.length : 0;
+            let t = databaseThanhToan[i]; let fileCount = t.danhSachFile ? t.danhSachFile.length : 0;
+            let hienThiStk = (t.soTaiKhoan && t.soTaiKhoan !== 'Trống') ? "<br><span class='text-[10px] text-slate-500 font-mono font-bold'>" + t.soTaiKhoan + " (" + (t.nganHang||'') + ")</span>" : "";
+            
             codeHtml += "<tr>";
             codeHtml += "<td class='text-center font-bold'>" + (i+1) + "</td>";
             codeHtml += "<td class='font-mono font-bold text-center'>" + t.maChungTu + "</td>";
-            codeHtml += "<td>" + t.donViDeXuat + "</td>";
+            codeHtml += "<td class='py-2.5'><span class='font-bold text-slate-900'>" + t.donViDeXuat + "</span>" + hienThiStk + "</td>";
             codeHtml += "<td>" + t.noiDung + "</td>";
             codeHtml += "<td class='text-right font-black bg-emerald-50'>" + parseFloat(t.tienSauThue).toLocaleString() + " đ</td>";
             codeHtml += "<td class='text-center flex justify-center p-1'><img src='" + taoUrlQRCodeNhanh(t.textQr) + "' class='w-12 h-12 border'></td>";
-            codeHtml += "<td class='text-center'><button onclick=\"inDocLapTemQR('CHUNG TU', '" + t.maChungTu + "', '" + t.noiDung + "', '" + t.donViDeXuat + "', '" + t.textQr + "')\" class='bg-amber-500 text-white font-bold text-xs p-1 px-2 rounded cursor-pointer'><i class='fa-solid fa-print'></i></button></td>";
-            codeHtml += "<td class='text-center'><button onclick='moTrinhXemChungTuGoc(" + t.id + ")' class='bg-slate-800 text-white font-bold px-2 py-1 rounded text-xs hover:bg-slate-700 transition cursor-pointer'><i class='fa-solid fa-eye'></i> Xem (" + fileCount + ")</button></td>";
-            codeHtml += "<td class='text-center'><button onclick='suaThanhToan(" + t.id + ")' class='text-amber-600 cursor-pointer'><i class='fa-solid fa-pen-to-square'></i></button></td>";
-            codeHtml += "<td class='text-center'><button onclick='xoaChungTuTaiChinh(" + t.id + ")' class='text-rose-600 cursor-pointer'><i class='fa-solid fa-trash'></i></button></td>";
+            codeHtml += "<td class='text-center'><button onclick=\"inDocLapTemQR('CHUNG TU', '" + t.maChungTu + "', '" + t.noiDung + "', '" + t.donViDeXuat + " | TK: " + (t.soTaiKhoan||'Trống') + " - " + (t.nganHang||'') + "', '" + t.textQr + "')\" class='bg-amber-500 text-white font-bold text-xs p-1 px-2 rounded cursor-pointer'><i class='fa-solid fa-print'></i></button></td>";
+            codeHtml += "<td class='text-center'><button onclick='moTrinhXemChungTuGoc(" + t.id + ")' class='bg-slate-800 text-white px-2 py-1 rounded text-xs'><i class='fa-solid fa-eye'></i> (" + fileCount + ")</button></td>";
+            codeHtml += "<td class='text-center'><button onclick='suaThanhToan(" + t.id + ")' class='text-amber-600'><i class='fa-solid fa-pen-to-square'></i></button></td>";
+            codeHtml += "<td class='text-center'><button onclick='xoaChungTuTaiChinh(" + t.id + ")' class='text-rose-600'><i class='fa-solid fa-trash'></i></button></td>";
             codeHtml += "</tr>";
         }
         tbody.innerHTML = codeHtml;
@@ -941,46 +897,25 @@
 
     function moTrinhXemChungTuGoc(idHoSo) {
         let hoso = databaseThanhToan.find(x => x.id == idHoSo); if(!hoso) return;
-        let container = document.getElementById('file-preview-content');
-        let modal = document.getElementById('file-preview-modal');
-        
-        if(!hoso.danhSachFile || hoso.danhSachFile.length === 0) {
-            container.innerHTML = '<div class="p-8 text-slate-400 bg-white rounded-xl font-bold">Hồ sơ này không đính kèm file gốc!</div>';
-            modal.classList.remove('hidden'); return;
-        }
-
-        let fileGoc = hoso.danhSachFile[0];
-        document.getElementById('preview-file-title').innerText = fileGoc.tenFile + " (" + fileGoc.kichThuoc + ")";
-
-        document.getElementById('btn-download-direct').onclick = function() {
-            let link = document.createElement("a");
-            link.href = fileGoc.fileUrl; link.download = fileGoc.tenFile;
-            link.target = "_blank"; document.body.appendChild(link);
-            link.click(); document.body.removeChild(link);
-        };
-
+        let container = document.getElementById('file-preview-content'); let modal = document.getElementById('file-preview-modal');
+        if(!hoso.danhSachFile || hoso.danhSachFile.length === 0) { modal.classList.remove('hidden'); return; }
+        let fileGoc = hoso.danhSachFile[0]; document.getElementById('preview-file-title').innerText = fileGoc.tenFile;
         let kieu = fileGoc.kieuTep.toLowerCase();
-        if(kieu.startsWith('image/')) {
-            container.innerHTML = '<img src="' + fileGoc.fileUrl + '" class="max-w-full max-h-[65vh] object-contain rounded shadow-md border bg-white">';
-        } else if(kieu === 'application/pdf' || fileGoc.tenFile.endsWith('.pdf')) {
-            container.innerHTML = '<iframe src="' + fileGoc.fileUrl + '" class="w-full h-[65vh] border rounded shadow-inner bg-white"></iframe>';
-        } else {
-            container.innerHTML = '<div class="p-6 text-slate-700 bg-white rounded-xl text-center shadow"><i class="fa-solid fa-file-excel text-4xl text-emerald-600 mb-2"></i><br>Tệp không hỗ trợ xem trực tiếp.<br><span class="text-xs text-slate-400 font-mono">' + fileGoc.tenFile + '</span></div>';
-        }
+        if(kieu.startsWith('image/')) container.innerHTML = '<img src="' + fileGoc.fileUrl + '" class="max-w-full max-h-[65vh] object-contain bg-white">';
+        else container.innerHTML = '<iframe src="' + fileGoc.fileUrl + '" class="w-full h-[65vh] bg-white"></iframe>';
         modal.classList.remove('hidden');
     }
-    
     function dongModalXemFile() { document.getElementById('file-preview-modal').classList.add('hidden'); }
 
     function xuatBaoCaoTaiChinhNghiDinh30() {
-        let now = new Date(); let t2 = 0; databaseThanhToan.forEach(x => { t2 += parseFloat(x.tienSauThue||0); });
-        let htmlRows = "";
+        let now = new Date(); let htmlRows = "";
         for(let i=0; i<databaseThanhToan.length; i++){
             let t = databaseThanhToan[i];
-            htmlRows += '<tr><td style="border:1px solid #000; text-align:center;">' + (i+1) + '</td><td style="border:1px solid #000; text-align:center; font-weight:bold;">' + t.maChungTu + '</td><td style="border:1px solid #000; padding:6px;">' + t.donViDeXuat + '</td><td style="border:1px solid #000; padding:6px;">' + t.noiDung + '</td><td style="border:1px solid #000; text-align:right; font-weight:bold; padding:6px;">' + Math.round(t.tienSauThue).toLocaleString() + '</td></tr>';
+            let thongTinNhan = t.donViDeXuat + (t.soTaiKhoan ? " (TK: " + t.soTaiKhoan + " - " + t.nganHang + ")" : "");
+            htmlRows += '<tr><td style="border:1px solid #000; text-align:center;">' + (i+1) + '</td><td style="border:1px solid #000; text-align:center; font-weight:bold;">' + t.maChungTu + '</td><td style="border:1px solid #000; padding:6px;">' + thongTinNhan + '</td><td style="border:1px solid #000; padding:6px;">' + t.noiDung + '</td><td style="border:1px solid #000; text-align:right; font-weight:bold; padding:6px;">' + Math.round(t.tienSauThue).toLocaleString() + '</td></tr>';
         }
         let area = document.getElementById('print-area');
-        area.innerHTML = '<div style="background:#fff; padding:20mm 15mm; width:210mm; font-family:\'Times New Roman\'; font-size:14px; margin:0 auto;"><table style="width:100%;"><tr><td style="text-align:center; font-weight:bold; font-size:13px;">TỔNG CÔNG TY GIẤY VIỆT NAM<br><u>PHÒNG KẾ TOÁN</u></td><td style="text-align:center; font-weight:bold; font-size:13px;">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM<br><u>Độc lập - Tự do - Hạnh phúc</u><br><span style="font-style:italic; font-weight:normal;">ngày ' + now.getDate() + ' tháng ' + (now.getMonth()+1) + ' năm 2026</span></td></tr></table><h2 style="text-align:center; margin-top:30px;">BÁO CÁO TỔNG HỢP GIẢI NGÂN CHỨNG TỪ</h2><table style="width:100%; border:1px solid #000; border-collapse:collapse; margin-top:10px;"><thead><tr style="background:#e6e6e6;"><th style="border:1px solid #000; padding:5px;">STT</th><th style="border:1px solid #000; padding:5px;">MÃ</th><th style="border:1px solid #000; padding:5px;">THỤ HƯỞNG</th><th style="border:1px solid #000; padding:5px;">NỘI DUNG</th><th style="border:1px solid #000; padding:5px;">TIỀN (VNĐ)</th></tr></thead><tbody>' + htmlRows + '</tbody></table></div>';
+        area.innerHTML = '<div style="background:#fff; padding:20mm 15mm; width:210mm; font-family:\'Times New Roman\'; font-size:14px; margin:0 auto;"><table style="width:100%;"><tr><td style="text-align:center; font-weight:bold; font-size:13px;">TỔNG CÔNG TY GIẤY VIỆT NAM<br><u>PHÒNG KẾ TOÁN</u></td><td style="text-align:center; font-weight:bold; font-size:13px;">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM<br><u>Độc lập - Tự do - Hạnh phúc</u><br><span style="font-style:italic; font-weight:normal;">ngày ' + now.getDate() + ' tháng ' + (now.getMonth()+1) + ' năm 2026</span></td></tr></table><h2 style="text-align:center; margin-top:30px;">BÁO CÁO TỔNG HỢP GIẢI NGÂN CHỨNG TỪ</h2><table style="width:100%; border:1px solid #000; border-collapse:collapse; margin-top:10px;"><thead><tr style="background:#e6e6e6;"><th style="border:1px solid #000; padding:5px;">STT</th><th style="border:1px solid #000; padding:5px;">MÃ</th><th style="border:1px solid #000; padding:5px;">THỤ HƯỞNG & TK NHẬN</th><th style="border:1px solid #000; padding:5px;">NỘI DUNG</th><th style="border:1px solid #000; padding:5px;">TIỀN (VNĐ)</th></tr></thead><tbody>' + htmlRows + '</tbody></table></div>';
         area.style.display = 'block'; setTimeout(() => { window.print(); area.style.display = 'none'; }, 350);
     }
     </script>
