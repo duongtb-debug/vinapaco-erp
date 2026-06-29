@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vinapaco ERP - Quản Lý Nhân Sự & Dashboard Số Hóa v8.1</title>
+    <title>Vinapaco ERP - Quản Lý Nhân Sự & Dashboard Số Hóa v8.2</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -44,7 +44,7 @@
                 <h1 class="text-2xl md:text-3xl font-extrabold uppercase tracking-wider bg-gradient-to-r from-white via-slate-100 to-amber-400 bg-clip-text text-transparent">Tổng Công Ty Giấy Việt Nam</h1>
                 <div class="text-amber-400 font-bold text-xs mt-1 flex items-center justify-center md:justify-start gap-1.5">
                     <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-                    HỆ THỐNG ERP CHUẨN ĐỊNH DẠNG v8.1 • KHẮC PHỤC TRIỆT ĐỂ LỖI SỐ NGUYÊN EXCEL
+                    HỆ THỐNG ERP CHUẨN ĐỊNH DẠNG v8.2 • ĐỊNH DẠNG NGÀY THÁNG VIỆT NAM (DD/MM/YYYY)
                 </div>
             </div>
         </div>
@@ -317,16 +317,33 @@
         if(tabId === 'tab-suachua' || tabId === 'tab-thanhtoan') { capNhatHeThongLienThongDropdowns(); if(tabId === 'tab-thanhtoan') { capNhatDashboardKeToanThue(); } }
     }
 
-    // CHUYỂN ĐỔI SỐ NGUYÊN EXCEL THÀNH CHUỖI NGÀY THÁNG YYYY-MM-DD CHUẨN XÁC
+    // CHUYỂN ĐỔI CHUỖI ĐỊNH DẠNG ISO (YYYY-MM-DD) SANG ĐỊNH DẠNG VIỆT NAM (DD/MM/YYYY) CHUẨN XÁC
+    function convertToVnDateFormat(isoDateStr) {
+        if (!isoDateStr) return "";
+        let trimmed = String(isoDateStr).trim();
+        if (trimmed === "" || trimmed.toLowerCase() === "không rõ" || trimmed === "undefined" || trimmed.toLowerCase() === "trống") return trimmed;
+        
+        // Kiểm tra xem chuỗi có định dạng YYYY-MM-DD (độ dài 10 và chứa dấu gạch ngang)
+        if (trimmed.includes('-') && trimmed.length >= 10) {
+            let parts = trimmed.split('-');
+            if(parts.length >= 3) {
+                let yyyy = parts[0];
+                let mm = parts[1];
+                let dd = parts[2].substring(0, 2); // Chỉ lấy phần ngày đề phòng có giờ đính kèm
+                return `${dd}/${mm}/${yyyy}`;
+            }
+        }
+        return trimmed;
+    }
+
+    // CHUYỂN ĐỔI SỐ NGUYÊN EXCEL THÀNH CHUỖI NGÀY THÁNG YYYY-MM-DD ĐỂ XỬ LÝ LOGIC LƯU TRỮ TRƯỚC
     function dinhDangNgayExcelMoi(val) {
         if (!val) return "";
         let trimmed = String(val).trim();
         if (trimmed === "" || trimmed.toLowerCase() === "không rõ" || trimmed === "undefined") return "Trống";
         
-        // Nếu là số nguyên (Excel Serial Number)
         if (!isNaN(trimmed) && !trimmed.includes('-') && !trimmed.includes('/')) {
             let num = parseInt(trimmed);
-            // Mốc ngày của Excel bắt đầu tính từ 01/01/1900
             let dateObj = new Date(Date.UTC(1900, 0, num - 1));
             
             let yyyy = dateObj.getUTCFullYear();
@@ -335,11 +352,18 @@
             return `${yyyy}-${mm}-${dd}`;
         }
         
-        // Nếu đã ở dạng chuỗi có gạch ngang hoặc gạch chéo
+        // Chuẩn hóa chuỗi ngày tháng gạch chéo sang gạch ngang nếu có
+        if (trimmed.includes('/')) {
+            let parts = trimmed.split('/');
+            if(parts.length === 3) {
+                if(parts[0].length === 4) return trimmed; // YYYY/MM/DD
+                return `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`; // DD/MM/YYYY -> YYYY-MM-DD
+            }
+        }
         return trimmed;
     }
 
-    // TÍNH TUỔI HƯU THEO LUẬT MỚI
+    // TÍNH TUỔI HƯU THEO LUẬT MỚI (TRẢ VỀ CHUỖI YYYY-MM-DD)
     function tinhNgayVeHuuLuatMoiFull(chuoiNgaySinh, laNu, laDocHai) {
         let chuanNgaySinh = dinhDangNgayExcelMoi(chuoiNgaySinh);
         if (!chuanNgaySinh || !chuanNgaySinh.includes('-')) return "Không rõ";
@@ -387,7 +411,6 @@
                     let hoTenRaw = cell(1);
                     if(!hoTenRaw || hoTenRaw === "Họ và tên" || cell(0).toLowerCase() === "stt") continue;
 
-                    // Giải mã sửa lỗi triệt để bằng hàm dinhDangNgayExcelMoi
                     let chuoiNgaySinh = dinhDangNgayExcelMoi(cell(11)); 
                     let namSinhInt = parseInt(chuoiNgaySinh.split('-')[0]) || 1975;
                     
@@ -434,13 +457,13 @@
 
                 if(parsedData.length > 0) {
                     dataNhanSuHienTai = parsedData;
-                    localStorage.setItem('VNP_V81_NHANSU', JSON.stringify(dataNhanSuHienTai));
+                    localStorage.setItem('VNP_V82_NHANSU', JSON.stringify(dataNhanSuHienTai));
                     buildDropdownDonViFilter();
                     renderNhanSuTable(dataNhanSuHienTai);
                     chayDashboardNhanSuDong();
                     buildDropdownDonViFilterCapPhat();
                     locDanhSachNhanSuCapPhatDropdown();
-                    alert(`Đã nạp và giải mã thành công hệ thống ngày tháng năm cho ${dataNhanSuHienTai.length} cán bộ.`);
+                    alert(`Đã nạp thành công dữ liệu cán bộ. Toàn bộ thông tin ngày tháng năm đã được định dạng chuẩn Việt Nam.`);
                 }
             } catch (err) { alert('Có lỗi cấu trúc tệp dữ liệu: ' + err.message); }
         };
@@ -516,6 +539,8 @@
     function renderNhanSuTable(arr) {
         let tbody = document.getElementById('ns-table-body'); if(!tbody) return;
         if(arr.length === 0) { tbody.innerHTML = '<tr><td colspan="15" class="text-center italic">Không tìm thấy bản ghi tương thích.</td></tr>'; return; }
+        
+        // Chuyển đổi hiển thị sang định dạng DD/MM/YYYY thông qua hàm convertToVnDateFormat
         tbody.innerHTML = arr.map(n => `
             <tr>
                 <td class="text-center font-bold">${n.stt}</td>
@@ -525,12 +550,12 @@
                 <td class="text-center text-xs">${n.anToanVien}</td>
                 <td class="text-center font-black ${n.nndh === '1' ? 'bg-orange-100 text-orange-900' : ''}">${n.nndh}</td>
                 <td class="text-center font-black text-slate-900 font-mono bg-amber-50">${n.madv}</td>
-                <td class="text-center font-mono text-xs font-bold text-indigo-900">${n.namTheoDoi}</td>
-                <td class="text-center font-bold font-mono text-xs text-slate-700 bg-slate-50">${n.namSinh}</td>
+                <td class="text-center font-mono text-xs font-bold text-indigo-900">${convertToVnDateFormat(n.namTheoDoi)}</td>
+                <td class="text-center font-bold font-mono text-xs text-slate-700 bg-slate-50">${convertToVnDateFormat(n.namSinh)}</td>
                 <td class="text-center font-black text-blue-700 font-mono">${n.tuoiHienTai}</td>
                 <td class="text-center text-xs">${n.gioiTinh}</td>
-                <td class="text-center font-mono text-xs bg-blue-50/70 text-slate-800 font-bold">${n.namHuuGocFile}</td>
-                <td class="text-center font-black text-rose-700 bg-rose-50 font-mono text-xs">${n.namVeHuuLuatMoi}</td>
+                <td class="text-center font-mono text-xs bg-blue-50/70 text-slate-800 font-bold">${convertToVnDateFormat(n.namHuuGocFile)}</td>
+                <td class="text-center font-black text-rose-700 bg-rose-50 font-mono text-xs">${convertToVnDateFormat(n.namVeHuuLuatMoi)}</td>
                 <td class="text-center font-bold text-xs ${n.doiChieu.includes('Tăng') ? 'text-indigo-700' : 'text-emerald-700'}">${n.doiChieu}</td>
                 <td class="text-xs text-slate-800 font-medium whitespace-normal leading-tight text-left">${n.chucDanh}</td>
             </tr>
@@ -555,7 +580,7 @@
         let ns = dataNhanSuHienTai.find(x => x.stt == sttNs);
         let qrTextRaw = `MATS:${ma}|TS:${ten}|CB:${ns.hoTen}`.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D");
         databaseCapPhat.push({ id: Date.now(), maThietBi: ma, tenThietBi: ten, canBoNhan: ns.hoTen, madv: ns.madv, ngayCap: document.getElementById('cp-input-ngay').value, giaGoc: parseFloat(document.getElementById('cp-input-giatri').value)||0, textQr: qrTextRaw });
-        localStorage.setItem('VNP_V81_CAPPHAT', JSON.stringify(databaseCapPhat));
+        localStorage.setItem('VNP_V82_CAPPHAT', JSON.stringify(databaseCapPhat));
         document.getElementById('cp-input-ten').value = ""; document.getElementById('cp-select-nhansu-input').value = ""; document.getElementById('cp-input-nhansu-ten').value = "";
         sinhMaTaiSanTuDong(); renderCapPhatTable(); capNhatHeThongLienThongDropdowns(); capNhatLivePreviewQR();
     }
@@ -587,12 +612,12 @@
         `;
         new QRCode(document.getElementById('print-qrcode-container'), { text: code, width: 110, height: 110 }); window.print();
     }
-    function xoaCapPhat(id) { if(confirm("Xóa bản ghi cấp phát này?")) { databaseCapPhat = databaseCapPhat.filter(x => x.id !== id); localStorage.setItem('VNP_V81_CAPPHAT', JSON.stringify(databaseCapPhat)); renderCapPhatTable(); capNhatHeThongLienThongDropdowns(); } }
+    function xoaCapPhat(id) { if(confirm("Xóa bản ghi cấp phát này?")) { databaseCapPhat = databaseCapPhat.filter(x => x.id !== id); localStorage.setItem('VNP_V82_CAPPHAT', JSON.stringify(databaseCapPhat)); renderCapPhatTable(); capNhatHeThongLienThongDropdowns(); } }
     function luuMoiNhatKySuachua() {
         let cpId = document.getElementById('sc-select-thietbi').value; if(!cpId) return;
         let ts = databaseCapPhat.find(x => x.id == cpId);
         databaseSuachua.push({ id: Date.now(), maThietBi: ts.maThietBi, tenThietBi: ts.tenThietBi, noiDung: document.getElementById('sc-input-noidung').value, trangThai: document.getElementById('sc-select-trangthai').value });
-        localStorage.setItem('VNP_V81_SUACHUA', JSON.stringify(databaseSuachua)); document.getElementById('sc-input-noidung').value = ""; renderSuachuaTable();
+        localStorage.setItem('VNP_V82_SUACHUA', JSON.stringify(databaseSuachua)); document.getElementById('sc-input-noidung').value = ""; renderSuachuaTable();
     }
     function renderSuachuaTable() {
         let tbody = document.getElementById('sc-table-body'); if(!tbody) return;
@@ -632,7 +657,7 @@
         let pt = parseFloat(document.getElementById('tt-input-thue-pt').value) || 0;
         if(goc <= 0) { alert("Vui lòng nhập giá trị tiền!"); return; }
         databaseThanhToan.push({ id: Date.now(), maChungTu: document.getElementById('tt-input-ma').value, noiDung: document.getElementById('tt-input-ten').value, donViDeXuat: document.getElementById('tt-input-donvi').value, tienTruocThue: goc, tienSauThue: goc + Math.round(goc * (pt / 100)), slFile: mangFileTepChungTuDangCho.length });
-        localStorage.setItem('VNP_V81_THANHTOAN', JSON.stringify(databaseThanhToan));
+        localStorage.setItem('VNP_V82_THANHTOAN', JSON.stringify(databaseThanhToan));
         document.getElementById('tt-input-ten').value = ""; document.getElementById('tt-input-goc').value = ""; mangFileTepChungTuDangCho = [];
         document.getElementById('tt-list-files-waiting').innerHTML = ""; sinhMaHoaDonTuDong(); renderThanhToanTable(); capNhatDashboardKeToanThue();
     }
@@ -652,13 +677,13 @@
             </tr>
         `).join('');
     }
-    function xoaChungTuTaiChinh(id) { if(confirm("Xóa chứng từ này?")) { databaseThanhToan = databaseThanhToan.filter(x => x.id !== id); localStorage.setItem('VNP_V81_THANHTOAN', JSON.stringify(databaseThanhToan)); renderThanhToanTable(); capNhatDashboardKeToanThue(); } }
+    function xoaChungTuTaiChinh(id) { if(confirm("Xóa chứng từ này?")) { databaseThanhToan = databaseThanhToan.filter(x => x.id !== id); localStorage.setItem('VNP_V82_THANHTOAN', JSON.stringify(databaseThanhToan)); renderThanhToanTable(); capNhatDashboardKeToanThue(); } }
     
     function taiDuLieuTuCache() {
-        let ns = localStorage.getItem('VNP_V81_NHANSU');
-        let cp = localStorage.getItem('VNP_V81_CAPPHAT');
-        let sc = localStorage.getItem('VNP_V81_SUACHUA');
-        let tt = localStorage.getItem('VNP_V81_THANHTOAN');
+        let ns = localStorage.getItem('VNP_V82_NHANSU');
+        let cp = localStorage.getItem('VNP_V82_CAPPHAT');
+        let sc = localStorage.getItem('VNP_V82_SUACHUA');
+        let tt = localStorage.getItem('VNP_V82_THANHTOAN');
         if(ns) { dataNhanSuHienTai = JSON.parse(ns); buildDropdownDonViFilter(); renderNhanSuTable(dataNhanSuHienTai); chayDashboardNhanSuDong(); }
         if(cp) { databaseCapPhat = JSON.parse(cp); renderCapPhatTable(); }
         if(sc) { databaseSuachua = JSON.parse(sc); renderSuachuaTable(); }
