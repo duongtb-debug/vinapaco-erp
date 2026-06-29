@@ -476,7 +476,13 @@
             let d = new Date(Date.UTC(1900, 0, parseInt(t) - 1));
             return d.getUTCFullYear() + "-" + String(d.getUTCMonth() + 1).padStart(2, '0') + "-" + String(d.getUTCDate()).padStart(2, '0');
         }
-        if (t.includes('/')) { let p = t.split('/'); if(p.length === 3) return p[2] + "-" + p[1].padStart(2,'0') + "-" + p[0].padStart(2,'0'); }
+        if (t.includes('/')) { 
+            let p = t.split('/'); 
+            if(p.length === 3) {
+                let nam = p[2].length === 2 ? "19" + p[2] : p[2];
+                return nam + "-" + p[1].padStart(2,'0') + "-" + p[0].padStart(2,'0');
+            }
+        }
         return t;
     }
     function tinhNgayVeHuuLuatMoiFull(chuoiNgaySinh, laNu, laDocHai) {
@@ -516,45 +522,104 @@
         }
     }
 
-    // PHÂN HỆ 1: NHÂN SỰ
+    // --- SỬA ĐỔI THÔNG MINH: TỰ ĐỘNG QUÉT TIÊU ĐỀ CỘT CHỐNG RỖNG DỮ LIỆU ---
     async function xuLyDocFileNhanSu() {
         let input = document.getElementById('ns-file-input'); if (!input || input.files.length === 0) return;
         let reader = new FileReader();
         reader.onload = async function(e) {
             let wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
             let rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1 });
+            
+            // Tìm hàng tiêu đề (Header row) thực tế trong file Excel
+            let headerIdx = -1;
+            for(let i=0; i<Math.min(rows.length, 15); i++) {
+                let txt = rows[i].map(c => String(c||'').toLowerCase());
+                if(txt.includes('ho va ten') || txt.includes('họ và tên') || txt.includes('cccd')) { headerIdx = i; break; }
+            }
+            if(headerIdx === -1) headerIdx = 0; // Fallback mặc định nếu không tìm thấy tiêu đề tiếng Việt
+
+            let headers = rows[headerIdx].map(c => String(c||'').trim().toLowerCase());
+            let findCol = (keys) => headers.findIndex(h => keys.some(k => h.includes(k)));
+
+            // Định vị chỉ mục động dựa trên từ khóa tiêu đề cột
+            let idxStt = findCol(['stt', 'số tt']);
+            let idxHoTen = findCol(['họ và tên', 'ho va ten', 'họ tên']);
+            let idxTen = findCol(['tên', 'ten']) === idxHoTen ? idxHoTen + 1 : findCol(['tên', 'ten']);
+            let idxBhxh = findCol(['bhxh', 'bảo hiểm', 'số sổ']);
+            let idxCccd = findCol(['cccd', 'cmnd', 'căn cước']);
+            let idxAtv = findCol(['atv', 'an toàn viên']);
+            let idxDh = findCol(['độc hại', 'doc hai', 'nndh']);
+            let idxDv = findCol(['mã đv', 'madv', 'đơn vị', 'ma dv']);
+            let idxTd = findCol(['theo dõi', 'tuyển dụng', 'nghề']);
+            let idxNs = findCol(['ngày sinh', 'nam sinh', 'ngaysinh']);
+            let idxHc = findCol(['hưu gốc', 'hưu cũ', 'tuổi hưu']);
+            let idxCd = findCol(['chức danh', 'chức vụ', 'chuc danh']);
+
+            // Điền chỉ mục dự phòng mặc định nếu file Excel không có dòng tiêu đề chuẩn
+            if(idxHoTen===-1) idxHoTen = 1; if(idxBhxh===-1) idxBhxh = 3; if(idxCccd===-1) idxCccd = 4;
+            if(idxAtv===-1) idxAtv = 6; if(idxDh===-1) idxDh = 7; if(idxDv===-1) idxDv = 9;
+            if(idxTd===-1) idxTd = 10; if(idxNs===-1) idxNs = 11; if(idxHc===-1) idxHc = 8; if(idxCd===-1) idxCd = 13;
+
             let parsed = [];
-            for(let i = 0; i < rows.length; i++) {
-                let r = rows[i]; if(!r || r.length < 4) continue;
-                let cell = (idx) => r[idx] !== undefined && r[idx] !== null ? String(r[idx]).trim() : '';
-                if(!cell(1) || cell(1) === "Họ và tên" || cell(0).toLowerCase() === "stt") continue;
-                let chuoiNgaySinh = dinhDangNgayExcelMoi(cell(11));
-                let isNu = cell(12).toUpperCase() === "X"; let isDocHai = cell(7) === "1";
+            for(let i = headerIdx + 1; i < rows.length; i++) {
+                let r = rows[i]; if(!r || r.length < 3) continue;
+                let cell = (idx) => idx !== -1 && r[idx] !== undefined && r[idx] !== null ? String(r[idx]).trim() : '';
+                
+                let hoTenThuc = cell(idxHoTen);
+                if(!hoTenThuc || hoTenThuc.toLowerCase().includes('họ và tên') || hoTenThuc.toLowerCase() === 'stt') continue;
+
+                let chuoiNgaySinh = dinhDangNgayExcelMoi(cell(idxNs));
+                let isNu = cell(idxHoTen+1).toUpperCase() === "X" || cell(12).toUpperCase() === "X"; 
+                let isDocHai = cell(idxDh) === "1" || cell(idxDh).toLowerCase() === "x";
                 let chuoiNgayHuuMoi = tinhNgayVeHuuLuatMoiFull(chuoiNgaySinh, isNu, isDocHai);
+                
                 let diffText = "Khớp";
-                let gInt = parseInt(dinhDangNgayExcelMoi(cell(8)).split('-')[0]);
+                let gInt = parseInt(dinhDangNgayExcelMoi(cell(idxHc)).split('-')[0]);
                 let mInt = parseInt(chuoiNgayHuuMoi.split('-')[0]);
-                if(!isNaN(gInt) && !isNaN(mInt)) { let d = mInt - gInt; if(d>0) diffText = "Tăng " + d + " năm"; else if(d<0) diffText = "Giảm " + Math.abs(d) + " năm"; }
+                if(!isNaN(gInt) && !isNaN(mInt)) { 
+                    let d = mInt - gInt; 
+                    if(d>0) diffText = "Tăng " + d + " năm"; 
+                    else if(d<0) diffText = "Giảm " + Math.abs(d) + " năm"; 
+                }
+
                 parsed.push({
-                    stt: cell(0) || String(parsed.length + 1), hoTen: cell(1).toUpperCase(), ten: cell(2), soSo: cell(3)||'Trống', cccd: cell(4)||'Trống', anToanVien: cell(6)||"", nndh: cell(7)||"", madv: cell(9),
-                    namTheoDoi: dinhDangNgayExcelMoi(cell(10)), namSinh: chuoiNgaySinh, tuoiHienTai: 2026 - (parseInt(chuoiNgaySinh.split('-')[0])||1975), gioiTinh: isNu ? "Nữ" : "Nam",
-                    namHuuGocFile: dinhDangNgayExcelMoi(cell(8)), namVeHuuLuatMoi: chuoiNgayHuuMoi, doiChieu: diffText, chucDanh: cell(13) || 'Công nhân'
+                    stt: cell(idxStt) || String(parsed.length + 1), 
+                    hoTen: hoTenThuc.toUpperCase(), 
+                    ten: cell(idxTen) || hoTenThuc.split(' ').pop(), 
+                    soSo: cell(idxBhxh) || 'Trống', 
+                    cccd: cell(idxCccd) || 'Trống', 
+                    anToanVien: cell(idxAtv), 
+                    nndh: cell(idxDh), 
+                    madv: cell(idxDv) || 'VP',
+                    namTheoDoi: dinhDangNgayExcelMoi(cell(idxTd)), 
+                    namSinh: chuoiNgaySinh, 
+                    tuoiHienTai: 2026 - (parseInt(chuoiNgaySinh.split('-')[0])||1975), 
+                    gioiTinh: isNu ? "Nữ" : "Nam",
+                    namHuuGocFile: dinhDangNgayExcelMoi(cell(idxHc)), 
+                    namVeHuuLuatMoi: chuoiNgayHuuMoi, 
+                    doiChieu: diffText, 
+                    chucDanh: cell(idxCd) || 'Công nhân'
                 });
             }
+
             if(parsed.length > 0) {
-                document.getElementById('ns-table-body').innerHTML = '<tr><td colspan="16" class="text-center p-8 text-amber-600 font-bold"><i class="fa-solid fa-spinner animate-spin mr-1"></i> Đang ghi đè dữ liệu...</td></tr>';
+                document.getElementById('ns-table-body').innerHTML = '<tr><td colspan="16" class="text-center p-8 text-amber-600 font-bold"><i class="fa-solid fa-spinner animate-spin mr-1"></i> Đang tải dữ liệu trực tuyến lên Cloud...</td></tr>';
                 try {
                     await supabaseClient.from('nhansu').delete().neq('stt', '-1');
                     await supabaseClient.from('nhansu').insert(parsed);
-                    alert("Đã đồng bộ thành công " + parsed.length + " lao động lên Cloud!");
+                    alert("Đã đồng bộ thành công " + parsed.length + " lao động từ Excel lên Cloud Server!");
                 } catch(err) {
-                    alert("Không thể lưu lên Cloud.");
+                    alert("Lỗi đẩy dữ liệu lên Supabase.");
                 }
+                await dongBoDuLieuTuSupabase();
+            } else {
+                alert("Không đọc được bản ghi nào. Vui lòng kiểm tra lại file Excel xem có đúng định dạng không!");
                 await dongBoDuLieuTuSupabase();
             }
         };
         reader.readAsArrayBuffer(input.files[0]);
     }
+
     function chayDashboardNhanSuDong() {
         let tong = dataNhanSuHienTai.length; document.getElementById('db-ns-tong').innerText = tong; if(tong === 0) return;
         let nam = dataNhanSuHienTai.filter(x => x.gioiTinh === "Nam").length; let nu = dataNhanSuHienTai.filter(x => x.gioiTinh === "Nữ").length;
