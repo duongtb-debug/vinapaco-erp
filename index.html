@@ -421,12 +421,12 @@
     <div id="print-area" style="display: none;"></div>
 
     <script>
-    // Khóa kết nối chính xác của bạn
-    const SUPABASE_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ";
+    // Cấu hình chuẩn mã URL và KEY của bạn (Đã bọc dấu nháy huyền tránh lỗi rác ký tự)
+    const SUPABASE_URL = `https://mtfpxsfxjsnghtalamdd.supabase.co`;
+    const SUPABASE_KEY = `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ`;
     
-    // Khởi tạo client kết nối đám mây Supabase
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    // Khởi tạo SDK kết nối đám mây
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let dataNhanSuHienTai = [];
     let databaseCapPhat = [];
@@ -486,40 +486,39 @@
         if(laDocHai) th -= 5; return Math.floor(ns + th) + "-" + p[1] + "-" + p[2];
     }
 
-    // ĐỒNG BỘ ĐÁM MÂY AN TOÀN - ĐÃ CHUẨN HÓA CÚ PHÁP CHỐNG TOKEN ERROR
+    // ĐỒNG BỘ ĐÁM MÂY AN TOÀN - KHÔNG SỬ DỤNG KÝ TỰ ESCAPE LỖI
     async function dongBoDuLieuTuSupabase() {
         try {
-            // Tải dữ liệu Phân hệ Nhân sự
-            let { data: ns, error: nsErr } = await supabase.from('nhansu').select('*');
-            if (!nsErr && ns) { dataNhanSuHienTai = ns; } 
+            // 1. Tải dữ liệu Nhân sự
+            let resNs = await supabase.from('nhansu').select('*');
+            if (!resNs.error && resNs.data) { dataNhanSuHienTai = resNs.data; } 
             buildDropdownDonViFilter(); 
             renderNhanSuTable(dataNhanSuHienTai); 
             chayDashboardNhanSuDong();
 
-            // Tải dữ liệu Phân hệ Cấp phát tài sản
-            let { data: cp, error: cpErr } = await supabase.from('capphat').select('*');
-            if (!cpErr && cp) { databaseCapPhat = cp; } 
+            // 2. Tải dữ liệu Cấp phát tài sản
+            let resCp = await supabase.from('capphat').select('*');
+            if (!resCp.error && resCp.data) { databaseCapPhat = resCp.data; } 
             renderCapPhatTable();
 
-            // Tải dữ liệu Phân hệ Bảo trì sửa chữa
-            let { data: sc, error: scErr } = await supabase.from('baotri').select('*');
-            if (!scErr && sc) { databaseSuachua = sc; } 
+            // 3. Tải dữ liệu Bảo trì sửa chữa
+            let resSc = await supabase.from('baotri').select('*');
+            if (!resSc.error && resSc.data) { databaseSuachua = resSc.data; } 
             renderSuachuaTable();
 
-            // Tải dữ liệu Phân hệ Đề xuất Kế toán
-            let { data: kt, error: ktErr } = await supabase.from('ketoan').select('*');
-            if (!ktErr && kt) { databaseThanhToan = kt; } 
+            // 4. Tải dữ liệu Đề xuất Kế toán
+            let resKt = await supabase.from('ketoan').select('*');
+            if (!resKt.error && resKt.data) { databaseThanhToan = resKt.data; } 
             renderThanhToanTable(); 
             capNhatDashboardKeToanThue();
 
-            // Cập nhật giao diện Đám mây hợp lệ
+            // Đổi trạng thái hiển thị màu Xanh thành công
             document.getElementById('cloud-status').className = "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[11px] font-bold px-3 py-1.5 rounded-lg";
             document.getElementById('cloud-status').innerHTML = '<i class="fa-solid fa-circle-check mr-1 text-emerald-500"></i> Trực Tuyến Đám Mây';
         } catch(e) {
             console.error("Lỗi đồng bộ Supabase:", e);
             document.getElementById('cloud-status').className = "bg-rose-500/20 text-rose-400 border border-rose-500/30 text-[11px] font-bold px-3 py-1.5 rounded-lg";
-            document.getElementById('cloud-status').innerHTML = '<i class="fa-solid fa-triangle-exclamation mr-1"></i> Đồng bộ lỗi (Bảng trống)';
-            renderNhanSuTable([]);
+            document.getElementById('cloud-status').innerHTML = '<i class="fa-solid fa-triangle-exclamation mr-1"></i> Lỗi máy chủ';
         }
     }
 
@@ -555,7 +554,7 @@
                     await supabase.from('nhansu').insert(parsed);
                     alert("Đã đồng bộ thành công " + parsed.length + " lao động lên Cloud!");
                 } catch(err) {
-                    alert("Không thể lưu lên Cloud. Hãy đảm bảo bạn đã chạy SQL tạo bảng 'nhansu' và tắt RLS.");
+                    alert("Không thể lưu lên Cloud.");
                 }
                 await dongBoDuLieuTuSupabase();
             }
@@ -586,15 +585,32 @@
     }
     function renderNhanSuTable(arr) {
         let tbody = document.getElementById('ns-table-body'); if(!tbody) return;
-        if(arr.length === 0) { tbody.innerHTML = '<tr><td colspan="16" class="text-center italic p-4 text-slate-400">Không có dữ liệu trên Cloud. Vui lòng bấm "Nạp File Excel Nhân Sự" để kích hoạt hệ thống.</td></tr>'; return; }
-        tbody.innerHTML = arr.map(n => `
-            <tr>
-                <td class="text-center font-bold">${n.stt}</td><td>${n.hoTen}</td><td class="text-center">${n.soSo}</td><td class="text-center">${n.cccd}</td><td class="text-center">${n.anToanVien}</td><td class="text-center">${n.nndh}</td><td class="text-center bg-amber-50">${n.madv}</td><td class="text-center">${convertToVnDateFormat(n.namTheoDoi)}</td><td class="text-center">${convertToVnDateFormat(n.namSinh)}</td><td class="text-center font-bold">${n.tuoiHienTai}</td><td class="text-center">${n.gioiTinh}</td><td class="text-center">${convertToVnDateFormat(n.namHuuGocFile)}</td><td class="text-center text-rose-700 bg-rose-50 font-bold">${convertToVnDateFormat(n.namVeHuuLuatMoi)}</td><td class="text-center">${n.doiChieu}</td><td>${n.chucDanh}</td>
-                <td class="text-center"><button onclick="xoaMotDongNhanSu('${n.id}')" class="text-rose-600 cursor-pointer"><i class="fa-solid fa-trash"></i></button></td>
-            </tr>
-        `).join('');
+        if(arr.length === 0) { tbody.innerHTML = '<tr><td colspan="16" class="text-center italic p-4 text-slate-400">Không có dữ liệu trên Cloud. Vui lòng bấm "Nạp File Excel Nhân Sự".</td></tr>'; return; }
+        let codeHtml = "";
+        for(let i=0; i<arr.length; i++) {
+            let n = arr[i];
+            codeHtml += "<tr>";
+            codeHtml += "<td class='text-center font-bold'>" + n.stt + "</td>";
+            codeHtml += "<td>" + n.hoTen + "</td>";
+            codeHtml += "<td class='text-center'>" + n.soSo + "</td>";
+            codeHtml += "<td class='text-center'>" + n.cccd + "</td>";
+            codeHtml += "<td class='text-center'>" + n.anToanVien + "</td>";
+            codeHtml += "<td class='text-center'>" + n.nndh + "</td>";
+            codeHtml += "<td class='text-center bg-amber-50'>" + n.madv + "</td>";
+            codeHtml += "<td class='text-center'>" + convertToVnDateFormat(n.namTheoDoi) + "</td>";
+            codeHtml += "<td class='text-center'>" + convertToVnDateFormat(n.namSinh) + "</td>";
+            codeHtml += "<td class='text-center font-bold'>" + n.tuoiHienTai + "</td>";
+            codeHtml += "<td class='text-center'>" + n.gioiTinh + "</td>";
+            codeHtml += "<td class='text-center'>" + convertToVnDateFormat(n.namHuuGocFile) + "</td>";
+            codeHtml += "<td class='text-center text-rose-700 bg-rose-50 font-bold'>" + convertToVnDateFormat(n.namVeHuuLuatMoi) + "</td>";
+            codeHtml += "<td class='text-center'>" + n.doiChieu + "</td>";
+            codeHtml += "<td>" + n.chucDanh + "</td>";
+            codeHtml += "<td class='text-center'><button onclick=\"xoaMotDongNhanSu('" + n.id + "')\" class='text-rose-600 cursor-pointer'><i class='fa-solid fa-trash'></i></button></td>";
+            codeHtml += "</tr>";
+        }
+        tbody.innerHTML = codeHtml;
     }
-    async function xoaMotDongNhanSu(id) { if(confirm("Xóa nhân sự này khỏi cloud?")) { await supabase.from('nhansu').delete().eq('id', id); dongBoDuLieuTuSupabase(); } }
+    async function xoaMotDongNhanSu(id) { if(confirm("Xóa nhân sự này?")) { await supabase.from('nhansu').delete().eq('id', id); dongBoDuLieuTuSupabase(); } }
     async function xoaSachNhanSu() { if(confirm("Xóa hết nhân sự?")) { await supabase.from('nhansu').delete().neq('stt', '-1'); dongBoDuLieuTuSupabase(); } }
 
     // PHÂN HỆ 2: CẤP PHÁT TÀI SẢN
@@ -621,7 +637,7 @@
         try {
             if(editId) { await supabase.from('capphat').update(payload).eq('id', editId); huySuaCapPhat(); }
             else { await supabase.from('capphat').insert([payload]); }
-        } catch(e) { alert("Lỗi kết nối bảng 'capphat' trên Supabase."); }
+        } catch(e) { alert("Lỗi kết nối bảng 'capphat'."); }
         document.getElementById('cp-input-ten').value = ""; document.getElementById('cp-select-nhansu-input').value = ""; document.getElementById('cp-input-nhansu-ten').value = ""; document.getElementById('cp-input-giatri').value = "";
         dongBoDuLieuTuSupabase(); sinhMaTaiSanTuDong(); capNhatLivePreviewQR();
     }
@@ -641,15 +657,21 @@
     function renderCapPhatTable() {
         let tbody = document.getElementById('cp-table-body'); if(!tbody) return;
         if(databaseCapPhat.length === 0) { tbody.innerHTML = '<tr><td colspan="8" class="text-center italic">Chưa có tài sản.</td></tr>'; return; }
-        tbody.innerHTML = databaseCapPhat.map((c, idx) => `
-            <tr>
-                <td class="text-center font-bold">${idx+1}</td><td class="text-center font-mono font-bold">${c.maThietBi}</td><td class="font-bold">${c.tenThietBi}</td><td>${c.canBoNhan}</td>
-                <td class="text-center flex justify-center p-1"><img src="${taoUrlQRCodeNhanh(c.textQr)}" class="w-12 h-12 border"></td>
-                <td class="text-center"><button onclick="inDocLapTemQR('TAI SAN', '${c.maThietBi}', '${c.tenThietBi}', '${c.canBoNhan}', '${c.textQr}')" class="bg-blue-600 text-white text-xs px-2 py-1 rounded cursor-pointer">In Tem</button></td>
-                <td class="text-center"><button onclick="suaCapPhat(${c.id})" class="text-amber-600 cursor-pointer"><i class="fa-solid fa-pen-to-square"></i></button></td>
-                <td class="text-center"><button onclick="xoaCapPhat(${c.id})" class="text-rose-600 cursor-pointer"><i class="fa-solid fa-trash"></i></button></td>
-            </tr>
-        `).join('');
+        let codeHtml = "";
+        for(let i=0; i<databaseCapPhat.length; i++) {
+            let c = databaseCapPhat[i];
+            codeHtml += "<tr>";
+            codeHtml += "<td class='text-center font-bold'>" + (i+1) + "</td>";
+            codeHtml += "<td class='text-center font-mono font-bold'>" + c.maThietBi + "</td>";
+            codeHtml += "<td class='font-bold'>" + c.tenThietBi + "</td>";
+            codeHtml += "<td>" + c.canBoNhan + "</td>";
+            codeHtml += "<td class='text-center flex justify-center p-1'><img src='" + taoUrlQRCodeNhanh(c.textQr) + "' class='w-12 h-12 border'></td>";
+            codeHtml += "<td class='text-center'><button onclick=\"inDocLapTemQR('TAI SAN', '" + c.maThietBi + "', '" + c.tenThietBi + "', '" + c.canBoNhan + "', '" + c.textQr + "')\" class='bg-blue-600 text-white text-xs px-2 py-1 rounded cursor-pointer'>In Tem</button></td>";
+            codeHtml += "<td class='text-center'><button onclick='suaCapPhat(" + c.id + ")' class='text-amber-600 cursor-pointer'><i class='fa-solid fa-pen-to-square'></i></button></td>";
+            codeHtml += "<td class='text-center'><button onclick='xoaCapPhat(" + c.id + ")' class='text-rose-600 cursor-pointer'><i class='fa-solid fa-trash'></i></button></td>";
+            codeHtml += "</tr>";
+        }
+        tbody.innerHTML = codeHtml;
     }
     function inDocLapTemQR(loaiTem, ma, ten, doiTuong, codeText) {
         let area = document.getElementById('print-area');
@@ -670,7 +692,7 @@
         try {
             if(editId) { await supabase.from('baotri').update(payload).eq('id', editId); huySuaSuachua(); }
             else { await supabase.from('baotri').insert([payload]); }
-        } catch(e) { alert("Lỗi lưu bảo trì lên Supabase."); }
+        } catch(e) { alert("Lỗi lưu bảo trì."); }
         document.getElementById('sc-input-noidung').value = ""; dongBoDuLieuTuSupabase();
     }
     function suaSuachua(id) {
@@ -682,13 +704,20 @@
     function renderSuachuaTable() {
         let tbody = document.getElementById('sc-table-body'); if(!tbody) return;
         if(databaseSuachua.length === 0) { tbody.innerHTML = '<tr><td colspan="7" class="text-center italic">Không có nhật ký bảo trì.</td></tr>'; return; }
-        tbody.innerHTML = databaseSuachua.map((s, idx) => `
-            <tr>
-                <td class="text-center">${idx+1}</td><td>${s.maThietBi}</td><td class="font-bold">${s.tenThietBi}</td><td>${s.noiDung}</td><td class="font-bold text-amber-600">${s.trangThai}</td>
-                <td class="text-center"><button onclick="suaSuachua(${s.id})" class="text-amber-600 cursor-pointer"><i class="fa-solid fa-pen-to-square"></i></button></td>
-                <td class="text-center"><button onclick="xoaSuachua(${s.id})" class="text-rose-600 cursor-pointer"><i class="fa-solid fa-trash"></i></button></td>
-            </tr>
-        `).join('');
+        let codeHtml = "";
+        for(let i=0; i<databaseSuachua.length; i++) {
+            let s = databaseSuachua[i];
+            codeHtml += "<tr>";
+            codeHtml += "<td class='text-center'>" + (i+1) + "</td>";
+            codeHtml += "<td>" + s.maThietBi + "</td>";
+            codeHtml += "<td class='font-bold'>" + s.tenThietBi + "</td>";
+            codeHtml += "<td>" + s.noiDung + "</td>";
+            codeHtml += "<td class='font-bold text-amber-600'>" + s.trangThai + "</td>";
+            codeHtml += "<td class='text-center'><button onclick='suaSuachua(" + s.id + ")' class='text-amber-600 cursor-pointer'><i class='fa-solid fa-pen-to-square'></i></button></td>";
+            codeHtml += "<td class='text-center'><button onclick='xoaSuachua(" + s.id + ")' class='text-rose-600 cursor-pointer'><i class='fa-solid fa-trash'></i></button></td>";
+            codeHtml += "</tr>";
+        }
+        tbody.innerHTML = codeHtml;
     }
     async function xoaSuachua(id) { await supabase.from('baotri').delete().eq('id', id); dongBoDuLieuTuSupabase(); }
     async function xoaSachSuachua() { await supabase.from('baotri').delete().neq('id', 0); dongBoDuLieuTuSupabase(); }
@@ -733,7 +762,7 @@
             
             try {
                 let { data, error } = await supabase.storage.from('chung-tu').upload(fileNameClean, file);
-                if (error) { alert("Lỗi tải file lên Server: " + error.message); continue; }
+                if (error) { alert("Lỗi tải file: " + error.message); continue; }
                 let { data: resUrl } = supabase.storage.from('chung-tu').getPublicUrl(fileNameClean);
                 mangFileThucTeDangCho.push({
                     tenFile: file.name,
@@ -767,7 +796,7 @@
             } else {
                 await supabase.from('ketoan').insert([payload]);
             }
-        } catch(e) { alert("Lỗi bảng 'ketoan' trên Supabase."); }
+        } catch(e) { alert("Lỗi bảng 'ketoan'."); }
         
         document.getElementById('tt-input-ten').value = ""; document.getElementById('tt-input-goc').value = ""; document.getElementById('tt-input-donvi').value = "";
         mangFileThucTeDangCho = []; document.getElementById('tt-list-files-waiting').innerHTML = "";
@@ -789,16 +818,24 @@
     function renderThanhToanTable() {
         let tbody = document.getElementById('tt-table-body'); if(!tbody) return;
         if(databaseThanhToan.length === 0) { tbody.innerHTML = '<tr><td colspan="10" class="text-center italic">Chưa phát sinh chứng từ.</td></tr>'; return; }
-        tbody.innerHTML = databaseThanhToan.map((t, idx) => `
-            <tr>
-                <td class="text-center font-bold">${idx+1}</td><td class="font-mono font-bold text-center">${t.maChungTu}</td><td>${t.donViDeXuat}</td><td>${t.noiDung}</td><td class="text-right font-black bg-emerald-50">${parseFloat(t.tienSauThue).toLocaleString()} đ</td>
-                <td class="text-center flex justify-center p-1"><img src="${taoUrlQRCodeNhanh(t.textQr)}" class="w-12 h-12 border"></td>
-                <td class="text-center"><button onclick="inDocLapTemQR('CHUNG TU', '${t.maChungTu}', '${t.noiDung}', '${t.donViDeXuat}', '${t.textQr}')" class="bg-amber-500 text-white font-bold text-xs p-1 px-2 rounded cursor-pointer"><i class="fa-solid fa-print"></i></button></td>
-                <td class="text-center"><button onclick="moTrinhXemChungTuGoc(${t.id})" class="bg-slate-800 text-white font-bold px-2 py-1 rounded text-xs hover:bg-slate-700 transition cursor-pointer"><i class="fa-solid fa-eye"></i> Xem (${t.danhSachFile?t.danhSachFile.length:0})</button></td>
-                <td class="text-center"><button onclick="suaThanhToan(${t.id})" class="text-amber-600 cursor-pointer"><i class="fa-solid fa-pen-to-square"></i></button></td>
-                <td class="text-center"><button onclick="xoaChungTuTaiChinh(${t.id})" class="text-rose-600 cursor-pointer"><i class="fa-solid fa-trash"></i></button></td>
-            </tr>
-        `).join('');
+        let codeHtml = "";
+        for(let i=0; i<databaseThanhToan.length; i++) {
+            let t = databaseThanhToan[i];
+            let fileCount = t.danhSachFile ? t.danhSachFile.length : 0;
+            codeHtml += "<tr>";
+            codeHtml += "<td class='text-center font-bold'>" + (i+1) + "</td>";
+            codeHtml += "<td class='font-mono font-bold text-center'>" + t.maChungTu + "</td>";
+            codeHtml += "<td>" + t.donViDeXuat + "</td>";
+            codeHtml += "<td>" + t.noiDung + "</td>";
+            codeHtml += "<td class='text-right font-black bg-emerald-50'>" + parseFloat(t.tienSauThue).toLocaleString() + " đ</td>";
+            codeHtml += "<td class='text-center flex justify-center p-1'><img src='" + taoUrlQRCodeNhanh(t.textQr) + "' class='w-12 h-12 border'></td>";
+            codeHtml += "<td class='text-center'><button onclick=\"inDocLapTemQR('CHUNG TU', '" + t.maChungTu + "', '" + t.noiDung + "', '" + t.donViDeXuat + "', '" + t.textQr + "')\" class='bg-amber-500 text-white font-bold text-xs p-1 px-2 rounded cursor-pointer'><i class='fa-solid fa-print'></i></button></td>";
+            codeHtml += "<td class='text-center'><button onclick='moTrinhXemChungTuGoc(" + t.id + ")' class='bg-slate-800 text-white font-bold px-2 py-1 rounded text-xs hover:bg-slate-700 transition cursor-pointer'><i class='fa-solid fa-eye'></i> Xem (" + fileCount + ")</button></td>";
+            codeHtml += "<td class='text-center'><button onclick='suaThanhToan(" + t.id + ")' class='text-amber-600 cursor-pointer'><i class='fa-solid fa-pen-to-square'></i></button></td>";
+            codeHtml += "<td class='text-center'><button onclick='xoaChungTuTaiChinh(" + t.id + ")' class='text-rose-600 cursor-pointer'><i class='fa-solid fa-trash'></i></button></td>";
+            codeHtml += "</tr>";
+        }
+        tbody.innerHTML = codeHtml;
     }
     async function xoaChungTuTaiChinh(id) { if(confirm("Xóa chứng từ này?")) { await supabase.from('ketoan').delete().eq('id', id); dongBoDuLieuTuSupabase(); } }
     async function xoaSachThanhToan() { if(confirm("Xóa toàn bộ chứng từ?")) { await supabase.from('ketoan').delete().neq('id', 0); dongBoDuLieuTuSupabase(); } }
@@ -830,7 +867,7 @@
         } else if(kieu === 'application/pdf' || fileGoc.tenFile.endsWith('.pdf')) {
             container.innerHTML = '<iframe src="' + fileGoc.fileUrl + '" class="w-full h-[65vh] border rounded shadow-inner bg-white"></iframe>';
         } else {
-            container.innerHTML = '<div class="p-6 text-slate-700 bg-white rounded-xl text-center shadow"><i class="fa-solid fa-file-excel text-4xl text-emerald-600 mb-2"></i><br>Tệp Excel/Word không hỗ trợ đọc trực tiếp trên trình duyệt.<br><span class="text-xs text-slate-400 font-mono">' + fileGoc.tenFile + '</span><br><span class="text-xs text-blue-600 font-bold block mt-2">Bấm nút "Tải file gốc" màu xanh ở góc trên để mở file mượt mà.</span></div>';
+            container.innerHTML = '<div class="p-6 text-slate-700 bg-white rounded-xl text-center shadow"><i class="fa-solid fa-file-excel text-4xl text-emerald-600 mb-2"></i><br>Tệp không hỗ trợ xem trực tiếp.<br><span class="text-xs text-slate-400 font-mono">' + fileGoc.tenFile + '</span><br><span class="text-xs text-blue-600 font-bold block mt-2">Bấm nút "Tải file gốc" ở góc trên để mở.</span></div>';
         }
         modal.classList.remove('hidden');
     }
@@ -839,7 +876,11 @@
 
     function xuatBaoCaoTaiChinhNghiDinh30() {
         let now = new Date(); let t2 = 0; databaseThanhToan.forEach(x => { t2 += parseFloat(x.tienSauThue||0); });
-        let htmlRows = databaseThanhToan.map((t, idx) => '<tr><td style="border:1px solid #000; text-align:center;">' + (idx+1) + '</td><td style="border:1px solid #000; text-align:center; font-weight:bold;">' + t.maChungTu + '</td><td style="border:1px solid #000; padding:6px;">' + t.donViDeXuat + '</td><td style="border:1px solid #000; padding:6px;">' + t.noiDung + '</td><td style="border:1px solid #000; text-align:right; font-weight:bold; padding:6px;">' + Math.round(t.tienSauThue).toLocaleString() + '</td></tr>').join('');
+        let htmlRows = "";
+        for(let i=0; i<databaseThanhToan.length; i++){
+            let t = databaseThanhToan[i];
+            htmlRows += '<tr><td style="border:1px solid #000; text-align:center;">' + (i+1) + '</td><td style="border:1px solid #000; text-align:center; font-weight:bold;">' + t.maChungTu + '</td><td style="border:1px solid #000; padding:6px;">' + t.donViDeXuat + '</td><td style="border:1px solid #000; padding:6px;">' + t.noiDung + '</td><td style="border:1px solid #000; text-align:right; font-weight:bold; padding:6px;">' + Math.round(t.tienSauThue).toLocaleString() + '</td></tr>';
+        }
         let area = document.getElementById('print-area');
         area.innerHTML = '<div style="background:#fff; padding:20mm 15mm; width:210mm; font-family:\'Times New Roman\'; font-size:14px; margin:0 auto;"><table style="width:100%;"><tr><td style="text-align:center; font-weight:bold; font-size:13px;">TỔNG CÔNG TY GIẤY VIỆT NAM<br><u>PHÒNG KẾ TOÁN</u></td><td style="text-align:center; font-weight:bold; font-size:13px;">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM<br><u>Độc lập - Tự do - Hạnh phúc</u><br><span style="font-style:italic; font-weight:normal;">ngày ' + now.getDate() + ' tháng ' + (now.getMonth()+1) + ' năm 2026</span></td></tr></table><h2 style="text-align:center; margin-top:30px;">BÁO CÁO TỔNG HỢP GIẢI NGÂN CHỨNG TỪ</h2><table style="width:100%; border:1px solid #000; border-collapse:collapse; margin-top:10px;"><thead><tr style="background:#e6e6e6;"><th style="border:1px solid #000; padding:5px;">STT</th><th style="border:1px solid #000; padding:5px;">MÃ</th><th style="border:1px solid #000; padding:5px;">THỤ HƯỞNG</th><th style="border:1px solid #000; padding:5px;">NỘI DUNG</th><th style="border:1px solid #000; padding:5px;">TIỀN (VNĐ)</th></tr></thead><tbody>' + htmlRows + '</tbody></table></div>';
         area.style.display = 'block'; setTimeout(() => { window.print(); area.style.display = 'none'; }, 350);
