@@ -259,7 +259,7 @@
                             <label class="block font-bold text-slate-600 mb-1">Trạng thái</label>
                             <select id="sc-select-trangthai" class="w-full border p-2 rounded focus:outline-blue-500 bg-slate-50 font-bold">
                                 <option value="ĐANG CHỜ SỬA CHỮA">⚠️ ĐANG CHỜ SỬA CHỮA</option>
-                                <option value="ĐÃ HOÀN THÀNH - CHỜ QUYẾT TOÁN">🔄 ĐÃ HOÀN THÀNH - CHỜ QUYẾT TOÁN</option>
+                                <option value="ĐÃ HOÀN THÀNH - CHỜ QUYẾT TOÁN">🔄 ĐÃ HOÀN THÀNH - CHỜ QUYẾT TOÁN</option>
                             </select>
                         </div>
                         <div class="flex gap-2 pt-2">
@@ -545,7 +545,7 @@
         }
     }
 
-    // --- HÀM ĐỌC FILE ĐÃ ĐƯỢC TỐI ƯU TOÀN DIỆN CHO FILE CỦA BẠN ---
+    // --- SỬA LỖI ĐỌC FILE: BỎ QUA DÒNG TRỐNG & PHÂN TÍCH TIÊU ĐỀ KHÔNG CÒN SỢ KÝ TỰ XUỐNG DÒNG \n ---
     async function xuLyDocFileNhanSu() {
         let input = document.getElementById('ns-file-input'); 
         if (!input || input.files.length === 0) return;
@@ -555,19 +555,19 @@
             let wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
             let rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1 });
             
-            // 1. TÌM DÒNG TIÊU ĐỀ CHÍNH XÁC (Quét bỏ qua dòng rác rỗng)
+            // 1. Tự động quét tìm dòng tiêu đề thực thụ (Bỏ qua dòng rỗng đầu tiên)
             let headerIdx = 0;
             for (let i = 0; i < rows.length; i++) {
                 if (rows[i] && rows[i].some(cell => {
                     let cellStr = String(cell || '').toLowerCase();
-                    return cellStr.includes('họ và tên') || cellStr.includes('stt') || cellStr.includes('bhxh');
+                    return cellStr.includes('họ và tên') || cellStr.includes('stt') || cellStr.includes('bhxh') || cellStr.includes('cccd');
                 })) {
                     headerIdx = i;
                     break;
                 }
             }
 
-            // 2. LÀM SẠCH KÝ TỰ XUỐNG DÒNG (\n) TRONG TIÊU ĐỀ EXCEL
+            // 2. Làm sạch hoàn toàn ký tự xuống dòng (\n) và khoảng trắng thừa trong tiêu đề
             let headers = rows[headerIdx].map(c => String(c||'').trim().toLowerCase().replace(/[\r\n\t]+/g, ' ').replace(/\s+/g, ''));
             let findCol = (keys) => headers.findIndex(h => keys.some(k => h.includes(k)));
 
@@ -577,11 +577,11 @@
             let idxBhxh = findCol(['bhxh', 'baohiem', 'sosobuoi']);
             let idxCccd = findCol(['cccd', 'cmnd', 'cancuoc']);
             let idxAtv = findCol(['antoanvien', 'atv']);
-            let idxDh = findCol(['dochai', 'nndh']);
+            let idxDh = findCol(['dochai', 'nndh', 'ndh']);
             let idxDv = findCol(['madonvi', 'madv', 'donvi']);
-            let idxTd = findCol(['namtuyendung', 'theodoi', 'nam']);
+            let idxTd = findCol(['namtuyendung', 'theodoi', 'namtuyen', 'ngaytd']);
             let idxNs = findCol(['ngaysinh', 'namsinh']);
-            let idxHc = findCol(['huugoc', 'huucu']);
+            let idxHc = findCol(['huugoc', 'huucu', 'namvehuu']);
             let idxCd = findCol(['chucdanh', 'congviec']);
             let idxNu = findCol(['nữ', 'nu']);
 
@@ -591,7 +591,7 @@
                 let cell = (idx) => idx !== -1 && r[idx] !== undefined && r[idx] !== null ? String(r[idx]).trim() : '';
                 
                 let hoTenThuc = cell(idxHoTen); 
-                if(!hoTenThuc || hoTenThuc.toLowerCase().includes('tổng cộng')) continue; // Bỏ qua dòng rác
+                if(!hoTenThuc || hoTenThuc.toLowerCase().includes('tổng cộng') || hoTenThuc === 'Họ và tên') continue; 
 
                 let chuoiNgaySinh = dinhDangNgayExcelMoi(cell(idxNs));
                 let chuoiNgayTD = dinhDangNgayExcelMoi(cell(idxTd));
@@ -631,6 +631,7 @@
                     chucDanh: chucDanhGoc
                 });
             }
+            
             if(parsed.length > 0) {
                 // Xóa dữ liệu tạm cũ và lưu bộ dữ liệu mới chuẩn hóa
                 await supabaseClient.from('nhansu').delete().neq('stt', '-1');
