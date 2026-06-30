@@ -116,7 +116,7 @@
                     </div>
                     <div>
                         <h1 class="text-2xl font-black tracking-wider bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">VINAPACO INTERCONNECTED ERP V98</h1>
-                        <p class="text-xs text-slate-400 font-medium">Cloud Realtime Connected | Đã sửa dứt điểm lỗi Cache và Ràng buộc Dữ liệu</p>
+                        <p class="text-xs text-slate-400 font-medium">Cloud Realtime Connected | Đã sửa đổi định dạng ngày và khớp cột dữ liệu</p>
                     </div>
                 </div>
                 <div class="flex items-center gap-3">
@@ -278,6 +278,24 @@
         }
     }
 
+    // HÀM CHUYỂN ĐỔI SỐ EXCEL THÀNH NGÀY THÁNG CHUẨN YYYY-MM-DD
+    function parseExcelDate(excelDate) {
+        if (!excelDate) return "";
+        if (!isNaN(excelDate) && Number(excelDate) > 0) {
+            let date = new Date(Math.round((Number(excelDate) - 25569) * 86400 * 1000));
+            let y = date.getFullYear();
+            let m = String(date.getMonth() + 1).padStart(2, '0');
+            let d = String(date.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+        let t = String(excelDate).trim();
+        if (t.includes('/')) {
+            let p = t.split('/');
+            if (p.length === 3) return p[2] + "-" + p[1].padStart(2, '0') + "-" + p[0].padStart(2, '0');
+        }
+        return t;
+    }
+
     // ================= THUẬT TOÁN ĐỌC FILE CHUẨN HOÁ CHÍNH XÁC =================
     async function xuLyDocFileNhanSuCốĐịnh() {
         let input = document.getElementById('ns-file-input');
@@ -299,14 +317,14 @@
                     let cells = rawRows[i].map(x => String(x).trim().toLowerCase().replace(/\s+/g, ' '));
                     cells.forEach((cell, idx) => {
                         if(cell.includes("họ và tên")) colMap.hoTen = idx;
-                        else if(cell.includes("số sổ bhxh") || cell.includes("số sổ")) colMap.soSo = idx;
+                        else if(cell.includes("số sổ")) colMap.soSo = idx;
                         else if(cell.includes("cccd") || cell.includes("chứng minh")) colMap.cccd = idx;
                         else if(cell.includes("an toàn viên") || cell.includes("atv")) colMap.atv = idx;
-                        else if(cell.includes("nndh") || cell.includes("độc hại")) colMap.nndh = idx;
+                        else if(cell.includes("nndh") || cell.includes("độc hại") || cell.includes("nghề nghiệp")) colMap.nndh = idx;
                         else if(cell.includes("về hưu")) colMap.namHuu = idx;
                         else if(cell.includes("mã đơn vị") || cell.includes("mã đv")) colMap.madv = idx;
-                        else if(cell.includes("sinh") || cell.includes("ngày sinh") || cell.includes("năm sinh")) colMap.ngaySinh = idx;
-                        else if(cell.includes("nữ")) colMap.nu = idx;
+                        else if(cell.includes("sinh") || cell.includes("ngày sinh")) colMap.ngaySinh = idx;
+                        else if(cell.includes("nữ") || cell.includes("giới tính")) colMap.nu = idx;
                         else if(cell.includes("chức danh") || cell.includes("công việc")) colMap.chucDanh = idx;
                     });
                     break;
@@ -325,16 +343,17 @@
                 
                 let hoTenVal = colMap.hoTen !== -1 ? String(row[colMap.hoTen] || "").trim() : "";
                 
-                // LỌC DÒNG TRỐNG NGHIÊM NGẶT ĐỂ TRÁNH LỖI NOT-NULL CONSTRAINT
                 if(!hoTenVal || hoTenVal.toLowerCase().includes("tổng cộng") || hoTenVal.toLowerCase() === "stt" || hoTenVal === "undefined") {
                     continue; 
                 }
 
-                let chuoiNgaySinh = dinhDangNgayExcelSua(colMap.ngaySinh !== -1 ? row[colMap.ngaySinh] : "");
+                // Xử lý chuyển đổi format ngày từ dạng số Excel sang chuỗi ngày chuẩn
+                let chuoiNgaySinh = parseExcelDate(colMap.ngaySinh !== -1 ? row[colMap.ngaySinh] : "");
+                let chuoiNamHuu = parseExcelDate(colMap.namHuu !== -1 ? row[colMap.namHuu] : "");
+                
                 let checkNu = String(colMap.nu !== -1 ? row[colMap.nu] : "").toLowerCase().includes("nữ") || String(colMap.nu !== -1 ? row[colMap.nu] : "") === "x";
                 let tuoiTinh = chuoiNgaySinh.includes('-') ? (2026 - parseInt(chuoiNgaySinh.split('-')[0])) : 40;
 
-                // Đồng bộ 100% snake_case, hoàn toàn KHÔNG gửi trường id (để database tự sinh)
                 parsed.push({
                     ho_ten: hoTenVal.toUpperCase(),
                     so_so: colMap.soSo !== -1 ? String(row[colMap.soSo] || "").trim() : "",
@@ -345,7 +364,7 @@
                     nam_sinh: chuoiNgaySinh,
                     tuoi_hien_tai: parseInt(tuoiTinh) || 0,
                     gioi_tinh: checkNu ? "Nữ" : "Nam",
-                    nam_ve_huu_luat_moi: dinhDangNgayExcelSua(colMap.namHuu !== -1 ? row[colMap.namHuu] : ""),
+                    nam_ve_huu_luat_moi: chuoiNamHuu,
                     chuc_danh: colMap.chucDanh !== -1 ? String(row[colMap.chucDanh] || "").trim() : ""
                 });
             }
@@ -385,8 +404,8 @@
                 <td class="font-black text-slate-900 px-2 py-3">${n.ho_ten || ''}</td>
                 <td class="text-center font-mono text-blue-700 font-bold">${n.so_so || '-'}</td>
                 <td class="text-center font-mono text-indigo-700 font-bold">${n.cccd || '-'}</td>
-                <td class="text-center font-bold">${n.atv || '-'}</td>
-                <td class="text-center font-bold">${n.nndh || '-'}</td>
+                <td class="text-center font-bold text-amber-600">${n.atv || '-'}</td>
+                <td class="text-center font-bold text-red-600">${n.nndh || '-'}</td>
                 <td class="text-center font-bold text-slate-500">${n.ma_dv || 'VP'}</td>
                 <td class="text-center font-bold text-rose-600">${convertToVnDateFormat(n.nam_ve_huu_luat_moi) || '-'}</td>
                 <td class="text-center font-mono">${convertToVnDateFormat(n.nam_sinh)}</td>
@@ -418,8 +437,8 @@
         document.getElementById('db-ns-nam-so').innerText = nam;
         document.getElementById('db-ns-nu-so').innerText = nu;
         
-        let atv = dataNhanSuHienTai.filter(x => x.atv && x.atv.trim() !== "").length;
-        let nndh = dataNhanSuHienTai.filter(x => x.nndh && x.nndh.trim() !== "").length;
+        let atv = dataNhanSuHienTai.filter(x => x.atv && x.atv.trim() !== "" && x.atv.trim() !== "-").length;
+        let nndh = dataNhanSuHienTai.filter(x => x.nndh && x.nndh.trim() !== "" && x.nndh.trim() !== "-").length;
         document.getElementById('db-ns-atv').innerText = atv;
         document.getElementById('db-ns-dochai').innerText = nndh;
     }
@@ -430,16 +449,6 @@
         if (t.includes('-')) {
             let p = t.split('-');
             if(p.length >= 3) return p[2].substring(0,2) + "/" + p[1] + "/" + p[0];
-        }
-        return t;
-    }
-
-    function dinhDangNgayExcelSua(val) {
-        if (!val) return ""; 
-        let t = String(val).trim();
-        if (t.includes('/')) { 
-            let p = t.split('/'); 
-            if(p.length === 3) return p[2] + "-" + p[1].padStart(2,'0') + "-" + p[0].padStart(2,'0');
         }
         return t;
     }
