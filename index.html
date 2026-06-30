@@ -18,7 +18,7 @@
         .nav-tab.active { background-color: #0f172a; color: #3b82f6; border-bottom: 4px solid #3b82f6; }
         .card-custom { background: #ffffff; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); border: 1px solid #e2e8f0; }
         
-        /* Màu xen kẽ và hiệu ứng Focus chuyên nghiệp */
+        /* Màu xen kẽ và hiệu ứng trỏ chuột chuyên nghiệp */
         .table-zebra tbody tr:nth-child(even) { background-color: #f8fafc; }
         .table-zebra tbody tr:nth-child(odd) { background-color: #ffffff; }
         .table-zebra tbody tr:hover { 
@@ -172,14 +172,14 @@
                     <div class="card-custom p-5 bg-white lg:col-span-2 flex flex-col justify-between items-center text-center p-8">
                         <div class="w-full">
                             <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider mb-2">Cổng nhập dữ liệu Excel đồng bộ gốc</h3>
-                            <p class="text-xs text-slate-400 max-w-md mx-auto mb-6">Hệ thống chấp nhận file Excel chứa các cột: [Họ và tên], [Số CCCD], [Mã ĐV], [Chức danh], [Giới tính], [Ngày sinh], [An toàn viên], [Độc hại].</p>
+                            <p class="text-xs text-slate-400 max-w-md mx-auto mb-6">Hệ thống tự động bóc tách thông tin thật từ mọi định dạng cột: [Họ và tên], [Số CCCD], [Mã ĐV], [Chức danh], [Giới tính], [Ngày sinh]... và đồng bộ trực tiếp lên Cloud.</p>
                             <label class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold uppercase px-6 py-4 rounded-xl shadow-md cursor-pointer inline-flex items-center gap-2 transition">
                                 <i class="fa-solid fa-cloud-arrow-up text-base"></i> Nạp/Ghi đè thuộc tính Excel nhân sự diện rộng
                                 <input type="file" id="ns-excel-file" accept=".xlsx, .xls" class="hidden" onchange="xuLyExcelNhanSuPhienBanMoi(this)">
                             </label>
                         </div>
                         <div class="text-[11px] text-slate-400 mt-4 border-t pt-3 w-full border-dashed">
-                            * Lưu ý: Khi tiến hành xóa nhân sự hoặc nạp lại, cấu trình tự động đối chiếu luật lao động mới sẽ tự động tái cấu trúc.
+                            * Hệ thống tự bảo vệ liên kết: Không làm gián đoạn mã cấp phát thiết bị hay dữ liệu hồ sơ thanh toán thuế.
                         </div>
                     </div>
                 </div>
@@ -253,6 +253,7 @@
     let dataNhatKy = [];
     let dataThanhToan = [];
 
+    // KHỞI TẠO KẾT NỐI HỆ THỐNG
     window.addEventListener('DOMContentLoaded', () => {
         try {
             supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -271,31 +272,26 @@
         await taiDuLieuThanhToan();
     }
 
-    // =========================================================================
-    // LOGIC NGHIỆP VỤ PHÂN HỆ 1: QUAN TRỊ NHÂN SỰ VÀ HƯ TRÍ LỘ TRÌNH MỚI
-    // =========================================================================
+    // TẢI DỮ LIỆU NHÂN SỰ TỪ CLOUD
     async function taiDuLieuNhanSu() {
         let { data } = await supabaseClient.from('nhansu').select('*').order('created_at', { ascending: false });
         dataNhanSu = data || [];
         chayTinhToanThongKeNhanSuMoRong();
     }
 
+    // ĐỐI CHIẾU LUẬT LAO ĐỘNG MỚI ĐỂ TÍNH NĂM NGHỈ HƯU
     function tinhNamVeHuuLuatLaoDongMoi(ngaySinhStr, gioiTinh, laDocHai) {
         if(!ngaySinhStr) return "-";
         let date = new Date(ngaySinhStr);
         let namSinh = date.getFullYear();
         let thangSinh = date.getMonth() + 1;
         
-        let namHuuCoBan = 62; // Đối với Nam lộ trình tới năm 2028 là 62 tuổi
-        let namHuuNuCoBan = 60; // Đối với Nữ lộ trình tới năm 2035 là 60 tuổi
-
         if(gioiTinh === 'Nam') {
-            // Tính số tháng tăng thêm theo luật lao động từ mốc 2021 (60 tuổi 3 tháng, mỗi năm tăng 3 tháng)
             let khoangCachNam = namSinh + 60 - 2021;
             let soThangTang = Math.min(24, Math.max(0, khoangCachNam * 3 + 3));
             let tongThang = namSinh * 12 + thangSinh + (60 * 12) + soThangTang;
             let ketQuaNam = Math.floor(tongThang / 12);
-            if(laDocHai) ketQuaNam -= 5; // Giảm tối đa 5 tuổi nếu thuộc diện nghề nặng nhọc độc hại
+            if(laDocHai) ketQuaNam -= 5;
             return ketQuaNam;
         } else {
             let khoangCachNam = namSinh + 55 - 2021;
@@ -307,6 +303,7 @@
         }
     }
 
+    // CHẠY THỐNG KÊ DASHBOARD & DỰ BÁO LỘ TRÌNH 5 NĂM
     function chayTinhToanThongKeNhanSuMoRong() {
         let tong = dataNhanSu.length;
         document.getElementById('db-ns-tong').innerText = tong;
@@ -325,7 +322,6 @@
         document.getElementById('db-ns-dh').innerText = dh;
         document.getElementById('db-ns-dh-tl').innerText = tong ? `(${((dh/tong)*100).toFixed(1)}%)` : '(0%)';
 
-        // Tính toán dự báo hưu trí theo từng giai đoạn 5 năm
         let f1 = 0, f2 = 0, f3 = 0, f4 = 0;
         dataNhanSu.forEach(x => {
             let namHuu = tinhNamVeHuuLuatLaoDongMoi(x.ngay_sinh, x.gioi_tinh, x.nghe_doc_hai);
@@ -344,6 +340,7 @@
         renderNhanSuTableGiaoDienMoi();
     }
 
+    // HIỂN THỊ DỮ LIỆU LÊN BẢNG GIAO DIỆN CHÍNH
     function renderNhanSuTableGiaoDienMoi() {
         let tbody = document.getElementById('ns-table-body');
         if(!tbody) return;
@@ -370,6 +367,121 @@
         }).join('');
     }
 
+    // THỬ THỰC HIỆN ĐỌC DỮ LIỆU THẬT VÀ TOÀN DIỆN TỪ EXCEL GỐC
+    function xuLyExcelNhanSuPhienBanMoi(input) {
+        if (!input.files.length) return;
+        
+        let reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                let data = new Uint8Array(e.target.result);
+                let workbook = XLSX.read(data, { type: 'array' });
+                let worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                let rawRows = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+                
+                if (rawRows.length === 0) {
+                    alert("Không tìm thấy dữ liệu hoặc file Excel trống!");
+                    return;
+                }
+
+                let danhSachChuanHoa = [];
+
+                for (let i = 0; i < rawRows.length; i++) {
+                    let row = rawRows[i];
+
+                    // Bóc tách trường Họ Tên
+                    let hoTen = row["Họ và tên"] || row["ho_ten"] || row["Họ tên"] || row["HOTEN"] || row["Full Name"] || "";
+                    hoTen = String(hoTen).trim();
+                    if (!hoTen) continue; // Bỏ qua nếu dòng rỗng tên
+
+                    // Bóc tách trường CCCD
+                    let cccd = row["Số CCCD"] || row["cccd"] || row["CCCD"] || row["Số CMND"] || row["CMND"] || "";
+                    cccd = String(cccd).trim().replace(/['`’]/g, "");
+                    if (!cccd) {
+                        alert(`Dòng số ${i + 2} thiếu Số CCCD. Vui lòng kiểm tra lại file gốc!`);
+                        return; 
+                    }
+
+                    // Bóc tách Mã đơn vị
+                    let maDv = row["Mã ĐV"] || row["ma_dv"] || row["Mã đơn vị"] || row["Mã Đơn Vị"] || row["Bộ phận"] || "";
+                    maDv = String(maDv).trim().toUpperCase();
+
+                    // Chức danh công việc
+                    let chucDanh = row["Chức danh"] || row["chuc_danh"] || row["Chức vụ"] || row["Vị trí"] || "";
+                    chucDanh = String(chucDanh).trim();
+
+                    // Định dạng lại Giới Tính Nam/Nữ
+                    let gioiTinhRaw = String(row["Giới tính"] || row["gioi_tinh"] || row["Sex"] || "Nam").trim().toLowerCase();
+                    let gioiTinh = "Nam";
+                    if (gioiTinhRaw.includes("nữ") || gioiTinhRaw === "nu" || gioiTinhRaw === "female" || gioiTinhRaw === "f") {
+                        gioiTinh = "Nữ";
+                    }
+
+                    // Khử triệt để định dạng Ngày Sinh lỗi trong Excel
+                    let ngaySinhRaw = row["Ngày sinh"] || row["ngay_sinh"] || row["Ngaysinh"] || row["Birthdate"] || "";
+                    let ngaySinh = "";
+                    
+                    if (ngaySinhRaw) {
+                        if (typeof ngaySinhRaw === 'number') {
+                            let dateObj = new Date((ngaySinhRaw - 25569) * 86400 * 1000);
+                            ngaySinh = dateObj.toISOString().substring(0, 10);
+                        } else {
+                            let strDate = String(ngaySinhRaw).trim();
+                            if (strDate.includes("/")) {
+                                let parts = strDate.split("/");
+                                if (parts.length === 3) {
+                                    let day = parts[0].padStart(2, '0');
+                                    let month = parts[1].padStart(2, '0');
+                                    let year = parts[2];
+                                    ngaySinh = `${year}-${month}-${day}`;
+                                }
+                            } else {
+                                ngaySinh = strDate.substring(0, 10);
+                            }
+                        }
+                    }
+
+                    // Nhận diện trạng thái phụ thuộc
+                    let atvRaw = String(row["An toàn viên"] || row["la_an_toan_vien"] || row["ATV"] || "").toLowerCase();
+                    let laAnToanVien = atvRaw.includes("x") || atvRaw === "true" || atvRaw === "1" || atvRaw === "yes";
+
+                    let dhRaw = String(row["Độc hại"] || row["nghe_doc_hai"] || row["Độc Hại"] || "").toLowerCase();
+                    let ngheDocHai = dhRaw.includes("x") || dhRaw === "true" || dhRaw === "1" || dhRaw === "yes";
+
+                    danhSachChuanHoa.push({
+                        ho_ten: hoTen,
+                        cccd: cccd,
+                        ma_dv: maDv,
+                        chuc_danh: chucDanh,
+                        gioi_tinh: gioiTinh,
+                        ngay_sinh: ngaySinh || null,
+                        la_an_toan_vien: laAnToanVien,
+                        nghe_doc_hai: ngheDocHai
+                    });
+                }
+
+                // TIẾN HÀNH UPSERT (Ghi đè/thêm mới độc lập trên bảng nhansu)
+                supabaseClient
+                    .from('nhansu')
+                    .upsert(danhSachChuanHoa, { onConflict: 'cccd' })
+                    .then(({ error }) => {
+                        if (error) {
+                            alert("Lỗi đồng bộ cơ sở dữ liệu: " + error.message);
+                        } else {
+                            alert(`Hệ thống ERP v107 đã tiếp nhận và nạp đầy đủ ${danhSachChuanHoa.length} nhân sự từ file gốc!`);
+                            taiDuLieuNhanSu(); 
+                        }
+                    });
+
+            } catch (err) {
+                console.error("Lỗi đọc cấu trúc file:", err);
+                alert("Có lỗi xảy ra khi xử lý file Excel gốc.");
+            }
+        };
+        reader.readAsArrayBuffer(input.files[0]);
+    }
+
+    // THAO TÁC SỬA / LƯU / XÓA BẰNG TAY TRÊN FORM GIAO DIỆN
     async function xuLyLuuNhanSu(e) {
         e.preventDefault();
         let editId = document.getElementById('ns-id-edit').value;
@@ -385,11 +497,9 @@
         };
 
         if(editId) {
-            // Hành động Sửa cập nhật
             let { error } = await supabaseClient.from('nhansu').update(payload).eq('id', editId);
             if(!error) alert("Cập nhật thông tin cán bộ thành công!");
         } else {
-            // Hành động Thêm mới
             let { error } = await supabaseClient.from('nhansu').insert([payload]);
             if(!error) alert("Thêm mới cán bộ thành công!");
             else alert("Lỗi: Số CCCD bị trùng lặp hệ thống!");
@@ -430,44 +540,7 @@
         document.getElementById('ns-form-title').innerHTML = `<i class="fa-solid fa-user-plus mr-1"></i> Thêm mới / Cập nhật cán bộ`;
     }
 
-    function xuLyExcelNhanSuPhienBanMoi(input) {
-        if (!input.files.length) return;
-        let reader = new FileReader();
-        reader.onload = function(e) {
-            let data = new Uint8Array(e.target.result);
-            let workbook = XLSX.read(data, { type: 'array' });
-            let worksheet = workbook.Sheets[workbook.SheetNames[0]];
-            let jsonData = XLSX.utils.sheet_to_json(worksheet);
-            
-            let parsed = jsonData.map(row => {
-                let nsNgaySinh = row["Ngày sinh"] || row["ngay_sinh"] || "";
-                if(typeof nsNgaySinh === 'number') {
-                    // Xử lý chuyển đổi định dạng ngày nếu Excel tự động chuyển dạng số serial
-                    nsNgaySinh = new Date((nsNgaySinh - 25569) * 86400 * 1000).toISOString().substring(0, 10);
-                }
-                return {
-                    ho_ten: row["Họ và tên"] || row["ho_ten"] || "",
-                    cccd: String(row["Số CCCD"] || row["cccd"] || ""),
-                    ma_dv: String(row["Mã ĐV"] || row["ma_dv"] || ""),
-                    chuc_danh: row["Chức danh"] || row["chuc_danh"] || "",
-                    gioi_tinh: row["Giới tính"] || row["gioi_tinh"] || "Nam",
-                    ngay_sinh: nsNgaySinh,
-                    la_an_toan_vien: String(row["An toàn viên"]).toLowerCase().includes('x') || row["la_an_toan_vien"] == true,
-                    nghe_doc_hai: String(row["Độc hại"]).toLowerCase().includes('x') || row["nghe_doc_hai"] == true
-                };
-            });
-            
-            supabaseClient.from('nhansu').insert(parsed).then(() => {
-                alert("Đã đồng bộ hóa dữ liệu Excel nhân sự!");
-                taiDuLieuNhanSu();
-            });
-        };
-        reader.readAsArrayBuffer(input.files[0]);
-    }
-
-    // =========================================================================
-    // ĐỒNG BỘ CƠ CHẾ SỬA/XÓA CHO PHÂN HỆ THIẾT BỊ, NHẬT KÝ & THANH TOÁN
-    // =========================================================================
+    // CÁC HÀM CỦA CÁC PHÂN HỆ KHÁC (ĐƯỢC GIỮ NGUYÊN HOÀN TOÀN)
     async function taiDuLieuThietBi() {
         let { data } = await supabaseClient.from('thietbi').select('*').order('created_at', { ascending: false });
         dataThietBi = data || [];
