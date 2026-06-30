@@ -116,7 +116,7 @@
                     </div>
                     <div>
                         <h1 class="text-2xl font-black tracking-wider bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">VINAPACO INTERCONNECTED ERP V98</h1>
-                        <p class="text-xs text-slate-400 font-medium">Cloud Realtime Connected | Đã sửa lỗi quét cột ATV - Độc hại & Giới tính</p>
+                        <p class="text-xs text-slate-400 font-medium">Cloud Realtime Connected | Đã sửa triệt để nút Xóa & Thuật toán quét cột</p>
                     </div>
                 </div>
                 <div class="flex items-center gap-3">
@@ -177,7 +177,9 @@
                             <i class="fa-solid fa-file-excel text-sm"></i> Nạp File Excel Nhân Sự Gốc
                             <input type="file" id="ns-file-input" accept=".xlsx, .xls, .csv" class="hidden" onchange="xuLyDocFileNhanSuCốĐịnh()">
                         </label>
-                        <button onclick="xoaSachNhanSu()" class="bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 text-xs font-bold px-4 py-3 rounded-xl border transition cursor-pointer">Xóa toàn bộ hồ sơ</button>
+                        <button onclick="xoaSachNhanSu()" class="bg-rose-100 hover:bg-rose-200 text-rose-700 text-xs font-black px-5 py-3 rounded-xl border border-rose-300 transition cursor-pointer shadow-sm">
+                            <i class="fa-solid fa-trash-can mr-1"></i> XÓA SẠCH ĐỂ NẠP LẠI
+                        </button>
                     </div>
                     <div class="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
                         <input type="text" id="ns-search-input" placeholder="Tìm tên cán bộ, CCCD..." oninput="locBoLocDuLieuNhanSu()" class="border border-slate-300 rounded-xl p-2.5 text-xs w-full sm:w-64 focus:outline-blue-500 bg-slate-50 font-medium">
@@ -278,7 +280,6 @@
         }
     }
 
-    // HÀM CHUYỂN ĐỔI SỐ EXCEL THÀNH NGÀY THÁNG CHUẨN YYYY-MM-DD
     function parseExcelDate(excelDate) {
         if (!excelDate) return "";
         if (!isNaN(excelDate) && Number(excelDate) > 0) {
@@ -296,7 +297,7 @@
         return t;
     }
 
-    // ================= THUẬT TOÁN ĐỌC FILE CHUẨN HOÁ CHÍNH XÁC TUYỆT ĐỐI =================
+    // ================= THUẬT TOÁN ĐỌC FILE CHUẨN HOÁ PHÂN TÍCH QUÉT Ô TOÀN DIỆN =================
     async function xuLyDocFileNhanSuCốĐịnh() {
         let input = document.getElementById('ns-file-input');
         if (!input || input.files.length === 0) return;
@@ -309,23 +310,20 @@
             let headerIdx = -1;
             let colMap = { hoTen: -1, soSo: -1, cccd: -1, atv: -1, nndh: -1, namHuu: -1, madv: -1, ngaySinh: -1, gioitinh: -1, chucDanh: -1 };
 
-            // Bước 1: Quét tìm dòng tiêu đề chuẩn xác
+            // Bước 1: Quét tìm dòng chứa từ khoá cốt lõi độc lập với khoảng trắng ẩn
             for(let i = 0; i < rawRows.length; i++) {
                 if (!rawRows[i] || rawRows[i].length === 0) continue;
                 
-                // Xoá mọi dấu cách thừa để tránh lỗi lệch ký tự viết dài/ngắn trong file gốc
                 let cells = rawRows[i].map(x => String(x).trim().toLowerCase().replace(/\s+/g, ''));
                 let rowStr = cells.join(" ");
                 
-                if(rowStr.includes("họvàtên") || rowStr.includes("sốsổbhxh") || rowStr.includes("cccd") || rowStr.includes("chứcdanh")) {
+                if(rowStr.includes("họvàtên") || rowStr.includes("sốsổbhxh") || rowStr.includes("cccd")) {
                     headerIdx = i;
                     cells.forEach((cell, idx) => {
                         if(cell.includes("họvàtên") || cell.includes("hoten")) colMap.hoTen = idx;
                         else if(cell.includes("sốsổ") || cell.includes("soso")) colMap.soSo = idx;
                         else if(cell.includes("cccd") || cell.includes("chứngminh") || cell.includes("cmnd")) colMap.cccd = idx;
-                        // Hỗ trợ từ khoá mở rộng cho tiêu đề cột An Toàn Viên dài
                         else if(cell.includes("antoàn") || cell.includes("vệsinhviên") || cell.includes("atv") || cell.includes("mạnglưới")) colMap.atv = idx;
-                        // Hỗ trợ từ khoá mở rộng cho tiêu đề cột Nghề nghiệp độc hại dài
                         else if(cell.includes("nặngnhọc") || cell.includes("độchại") || cell.includes("nndh") || cell.includes("nghềnghiệp")) colMap.nndh = idx;
                         else if(cell.includes("vềhưu") || cell.includes("namhuu")) colMap.namHuu = idx;
                         else if(cell.includes("mãđơnvị") || cell.includes("mãđv") || cell.includes("madonvi")) colMap.madv = idx;
@@ -338,7 +336,7 @@
             }
 
             if(headerIdx === -1 || colMap.hoTen === -1) {
-                alert("Không định vị được dòng tiêu đề chứa cột 'Họ và Tên'!");
+                alert("Không định vị được dòng tiêu đề hợp lệ trong file Excel!");
                 return;
             }
 
@@ -348,7 +346,6 @@
                 if(!row || row.length === 0) continue;
                 
                 let hoTenVal = colMap.hoTen !== -1 ? String(row[colMap.hoTen] || "").trim() : "";
-                
                 if(!hoTenVal || hoTenVal.toLowerCase().includes("tổng cộng") || hoTenVal.toLowerCase() === "stt" || hoTenVal === "undefined") {
                     continue; 
                 }
@@ -356,7 +353,7 @@
                 let chuoiNgaySinh = parseExcelDate(colMap.ngaySinh !== -1 ? row[colMap.ngaySinh] : "");
                 let chuoiNamHuu = parseExcelDate(colMap.namHuu !== -1 ? row[colMap.namHuu] : "");
                 
-                // Nhận diện chuẩn xác giá trị cột Giới tính ghép Nam/Nữ
+                // Nhận diện cột giới tính Nam / Nữ
                 let gtText = colMap.gioitinh !== -1 ? String(row[colMap.gioitinh]).trim().toLowerCase() : "";
                 let gioiTinhFinal = "Nam";
                 if(gtText.includes("nữ") || gtText === "x" || gtText === "nu") {
@@ -382,19 +379,21 @@
             }
 
             if(parsed.length > 0) {
-                await supabaseClient.from('nhansu').delete().neq('ma_dv', 'ÉP KHÔNG TRÙNG ĐỂ XÓA HẾT');
+                // Ép xóa sạch dữ liệu cũ triệt để qua API Supabase RPC / Force query
+                await supabaseClient.from('nhansu').delete().like('ma_dv', '%');
+                
                 const response = await supabaseClient.from('nhansu').insert(parsed).select();
                 if (response.error) {
-                    alert("Lỗi đám mây khi nạp: " + response.error.message);
+                    alert("Lỗi đám mây khi lưu dữ liệu: " + response.error.message);
                 } else {
                     dataNhanSuHienTai = response.data || parsed;
-                    alert(`Đã đồng bộ thành công ${dataNhanSuHienTai.length} hồ sơ lên hệ thống đám mây.`);
+                    alert(`Đã đồng bộ thành công ${dataNhanSuHienTai.length} hồ sơ lên hệ thống.`);
                     chayDashboardNhanSuCapCao();
                     buildDropdownDonViFilter();
                     renderNhanSuTable(dataNhanSuHienTai);
                 }
             } else {
-                alert("Không tìm thấy dữ liệu hợp lệ để nhập!");
+                alert("Không trích xuất được bản ghi nào hợp lệ!");
             }
         };
         reader.readAsArrayBuffer(input.files[0]);
@@ -462,15 +461,17 @@
         return t;
     }
 
+    // HÀM XÓA SẠCH SỬA ĐỔI TOÀN DIỆN FIX LỖI BYPASS POLICY
     async function xoaSachNhanSu() { 
-        if(confirm("Xóa sạch toàn bộ dữ liệu nhân sự trên đám mây?")) { 
-            const { error } = await supabaseClient.from('nhansu').delete().neq('ma_dv', 'ÉP KHÔNG TRÙNG'); 
+        if(confirm("Bạn có chắc chắn muốn xóa sạch toàn bộ dữ liệu nhân sự trên đám mây để nạp lại mới không?")) { 
+            const { error } = await supabaseClient.from('nhansu').delete().like('ma_dv', '%'); 
             if(!error) {
                 dataNhanSuHienTai = [];
                 renderNhanSuTable([]);
                 chayDashboardNhanSuCapCao();
+                alert("Đã xóa sạch bộ nhớ hệ thống đám mây. Trạng thái sẵn sàng nạp file mới!");
             } else {
-                alert("Lỗi khi xóa: " + error.message);
+                alert("Lỗi phân quyền hệ thống khi xóa: " + error.message);
             }
         } 
     }
