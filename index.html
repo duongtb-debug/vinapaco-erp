@@ -154,7 +154,7 @@
             <div class="card-custom p-4 bg-white space-y-3">
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-2">
                     <div class="text-slate-800 font-bold text-sm uppercase tracking-wider flex items-center gap-2">
-                        <i class="fa-solid fa-database text-indigo-600"></i> Cơ sở dữ liệu nhân sự gốc liên thông (Tự động tính Tuổi, Hưu trí & Độc hại)
+                        <i class="fa-solid fa-database text-indigo-600"></i> Cơ sở dữ liệu nhân sự gốc liên thông (Đã tối ưu nhận diện Ngày sinh & Mã Đơn vị)
                     </div>
                     <div class="flex items-center gap-2">
                         <label class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold uppercase px-4 py-2 rounded shadow cursor-pointer inline-flex items-center gap-1.5 transition">
@@ -169,8 +169,8 @@
                 <div class="bg-slate-50 p-3 rounded border border-slate-200 text-xs text-slate-600 space-y-1">
                     <p>💡 <strong>Quy tắc xử lý tự động của Hệ thống ERP:</strong></p>
                     <ul class="list-disc pl-5 space-y-0.5">
-                        <li><strong>Tuổi & Năm hưu trí:</strong> Tính theo lộ trình Nghị định 135/2020/NĐ-CP (Năm 2026: Nam nghỉ hưu ở mốc 61 tuổi 6 tháng, Nữ ở mốc 57 tuổi).</li>
-                        <li><strong>Diện độc hại (ĐH-NH):</strong> Hệ thống quét tự động các chức danh sản xuất nguy hiểm để đánh dấu kiểm soát chế độ bảo hộ lao động đặc thù.</li>
+                        <li><strong>Tuổi & Năm hưu trí:</strong> Tự động bóc tách năm sinh từ file gốc. Tính theo lộ trình Nghị định 135/2020/NĐ-CP (Năm 2026: Nam nghỉ hưu ở mốc 61 tuổi 6 tháng, Nữ ở mốc 57 tuổi).</li>
+                        <li><strong>Diện độc hại (ĐH-NH):</strong> Hệ thống tự động phân loại dựa trên "Chức danh nghề nghiệp" trong file Excel nạp vào.</li>
                     </ul>
                 </div>
             </div>
@@ -544,7 +544,6 @@
             });
         });
 
-        // HÀM RE-CALCULATE ENGINE: QUÉT VÀ BIÊN DỊCH DỮ LIỆU SANG DASHBOARD TRỰC QUYẾT
         function reCalculateDashboardKPIs() {
             document.getElementById('dash-total-ns').innerText = danhSachNhanSuGoc.length;
             document.getElementById('dash-total-cp').innerText = dbCapPhat.length;
@@ -614,11 +613,10 @@
             }
         }
 
-        // ======================= PHÂN HỆ LIÊN THÔNG NHÂN SỰ GỐC NÂNG CẤP =======================
         function xoaToanBoNhanSu() {
             if(confirm("XÁC NHẬN CHẮC CHẮN: Bạn muốn xóa toàn bộ danh sách nhân sự hiện tại để thực hiện nạp lại dữ liệu mới?")) {
                 danhSachNhanSuGoc = [];
-                document.getElementById('ns-excel-file').value = ""; // Clear file input
+                document.getElementById('ns-excel-file').value = "";
                 const tbody = document.getElementById('ns-table-body');
                 tbody.innerHTML = `<tr><td colspan="11" class="p-8 italic text-slate-400 text-center">Hệ thống chưa ghi nhận cơ sở dữ liệu. Vui lòng nhấn nút "Nạp Excel Nhân Sự Gốc".</td></tr>`;
                 reCalculateDashboardKPIs();
@@ -626,6 +624,18 @@
             }
         }
 
+        // Hàm tiện ích chuyển chữ có dấu thành không dấu để quét thông minh
+        function boDauTiengViet(str) {
+            return String(str)
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/đ/g, 'd')
+                .replace(/Đ/g, 'D')
+                .toLowerCase()
+                .replace(/\s+/g, '');
+        }
+
+        // ======================= ENGINE ĐỌC EXCEL TOÀN DIỆN MỚI SỬA LỖI =======================
         function xuLyExcelNhanSuGoc(input) {
             if (!input.files || input.files.length === 0) return;
             const file = input.files[0];
@@ -639,14 +649,24 @@
                 if(json.length <= 1) return;
                 let headers = json[0];
                 
-                // Thuật toán ánh xạ linh hoạt tiêu đề cột từ file Excel
-                const idxTen = headers.findIndex(h => String(h).includes("Họ và tên"));
-                const idxCccd = headers.findIndex(h => String(h).includes("CCCD"));
-                const idxMaDv = headers.findIndex(h => String(h).includes("Mã") && String(h).includes("đơn vị"));
-                const idxBhxh = headers.findIndex(h => String(h).includes("BHXH"));
-                const idxChucDanh = headers.findIndex(h => String(h).includes("Chức danh"));
-                const idxGioiTinh = headers.findIndex(h => String(h).includes("Nữ") || String(h).includes("Giới tính"));
-                const idxNgaySinh = headers.findIndex(h => String(h).includes("Ngày Sinh") || String(h).includes("năm sinh"));
+                // Thuật toán ánh xạ thông minh dựa trên chuỗi đã lọc bỏ dấu
+                let idxTen = -1, idxCccd = -1, idxMaDv = -1, idxBhxh = -1, idxChucDanh = -1, idxGioiTinh = -1, idxNgaySinh = -1;
+
+                headers.forEach((h, index) => {
+                    let text = boDauTiengViet(h);
+                    if(text.includes("hovaten") || text.includes("hoten") || text.includes("ten")) idxTen = index;
+                    else if(text.includes("cccd") || text.includes("cmnd") || text.includes("cancuoc")) idxCccd = index;
+                    else if(text.includes("madv") || text.includes("madonvi") || text.includes("bophan") || text.includes("mabophan")) idxMaDv = index;
+                    else if(text.includes("bhxh") || text.includes("sosobhxh") || text.includes("baohiem")) idxBhxh = index;
+                    else if(text.includes("chucdanh") || text.includes("ngheghenhiep") || text.includes("congviec")) idxChucDanh = index;
+                    else if(text.includes("gioitinh") || text.includes("namnu") || text.includes("nu")) idxGioiTinh = index;
+                    else if(text.includes("ngaysinh") || text.includes("namsinh") || text.includes("ngaythangnamsinh")) idxNgaySinh = index;
+                });
+
+                // Dự phòng (fallback) nếu vẫn không tìm thấy cột bằng thuật toán bỏ dấu
+                if(idxTen === -1) idxTen = 1;
+                if(idxNgaySinh === -1) idxNgaySinh = 3;
+                if(idxMaDv === -1) idxMaDv = 9;
 
                 danhSachNhanSuGoc = [];
                 let rowCount = 1;
@@ -654,57 +674,51 @@
 
                 for(let i = 1; i < json.length; i++) {
                     const row = json[i];
-                    if(!row[idxTen]) continue;
+                    if(!row[idxTen] || String(row[idxTen]).trim() === "") continue;
 
                     let hoTenRaw = String(row[idxTen]).trim();
-                    let gioiTinhRaw = "Nam";
                     
-                    // Nhận biết giới tính linh hoạt
+                    // Xác định giới tính
+                    let gioiTinhRaw = "Nam";
                     if(idxGioiTinh !== -1 && row[idxGioiTinh]) {
                         let gtText = String(row[idxGioiTinh]).toLowerCase();
-                        if(gtText.includes("nữ") || gtText === "x" || gtText === "true" || gtText === "1") {
+                        if(gtText.includes("nữ") || gtText === "x" || gtText === "true" || gtText === "1" || gtText.includes("nu")) {
                             gioiTinhRaw = "Nữ";
                         }
                     }
 
-                    // Chuẩn hóa định dạng ngày sinh & Tính tuổi điện tử
-                    let ngaySinhRaw = row[idxNgaySinh] ? String(row[idxNgaySinh]).trim() : "";
-                    let tinhTuoi = 0;
-                    let namSinhGoc = 1985; // Default fallback
-
-                    if(ngaySinhRaw) {
-                        // Trường hợp Excel trả về số Serial định dạng ngày của Microsoft Excel
-                        if(!isNaN(ngaySinhRaw) && Number(ngaySinhRaw) > 20000) {
-                            let dateObj = new Date((Number(ngaySinhRaw) - 25569) * 86400 * 1000);
-                            namSinhGoc = dateObj.getFullYear();
-                            ngaySinhRaw = dateObj.toLocaleDateString('vi-VN');
+                    // XỬ LÝ TRIỆT ĐỂ NGÀY SINH & NĂM SINH
+                    let ngaySinhRaw = "";
+                    let namSinhGoc = 1985; // Mặc định nếu lỗi hoàn toàn
+                    
+                    if(idxNgaySinh !== -1 && row[idxNgaySinh]) {
+                        let val = row[idxNgaySinh];
+                        // Nếu Excel trả về định dạng số ngày (Serial Date)
+                        if(!isNaN(val) && Number(val) > 20000) {
+                            let dateObj = XLSX.SSF.parse_date_code(Number(val));
+                            namSinhGoc = dateObj.y;
+                            ngaySinhRaw = `${String(dateObj.d).padStart(2,'0')}/${String(dateObj.m).padStart(2,'0')}/${dateObj.y}`;
                         } else {
-                            // Xử lý chuỗi ngày tháng chuẩn Việt Nam hoặc ISO
-                            let phanDoan = ngaySinhRaw.match(/\d{4}/);
-                            if(phanDoan) {
-                                namSinhGoc = parseInt(phanDoan[0]);
-                            } else {
-                                let phanTu = ngaySinhRaw.split(/[-/]/);
-                                if(phanTu.length === 3) {
-                                    if(phanTu[2].length === 4) namSinhGoc = parseInt(phanTu[2]);
-                                    else if(phanTu[0].length === 4) namSinhGoc = parseInt(phanTu[0]);
-                                }
+                            // Nếu là Chuỗi (Text)
+                            ngaySinhRaw = String(val).trim();
+                            let MatchNam = ngaySinhRaw.match(/\d{4}/); // Tìm 4 số liên tiếp làm năm sinh
+                            if(MatchNam) {
+                                namSinhGoc = parseInt(MatchNam[0]);
                             }
                         }
-                        tinhTuoi = namHienTai - namSinhGoc;
                     }
 
-                    // LUẬT LAO ĐỘNG MỚI NHẤT (Nghị định 135/2020/NĐ-CP áp mốc cho năm 2026)
-                    // Lộ trình: Nam tăng lên 62 tuổi vào năm 2028, Nữ tăng lên 60 tuổi vào năm 2035.
-                    // Tại năm 2026: Tuổi nghỉ hưu chuẩn của Nam là 61 tuổi 6 tháng, Nữ là 57 tuổi.
+                    let tinhTuoi = namHienTai - namSinhGoc;
+                    if(tinhTuoi < 0 || tinhTuoi > 100) tinhTuoi = "N/A";
+
+                    // LUẬT LAO ĐỘNG MỚI NHẤT (Năm 2026: Nam nghỉ hưu ở mốc 61 tuổi 6 tháng, Nữ ở mốc 57 tuổi).
                     let namNghiHuu = namSinhGoc + (gioiTinhRaw === "Nam" ? 61 : 57);
 
-                    // THUẬT TOÁN AI QUÉT CHỨC DANH ĐỂ PHÂN LOẠI LAO ĐỘNG ĐỘC HẠI
+                    // Phân loại độc hại tự động dựa trên Chức danh
                     let chucDanhText = idxChucDanh !== -1 && row[idxChucDanh] ? String(row[idxChucDanh]).trim() : "Cán bộ nhân viên";
                     let chucDanhLower = chucDanhText.toLowerCase();
                     let dienDocHai = "Bình thường";
                     
-                    // Quét bộ từ khóa ngành giấy/gỗ độc hại đặc thù
                     if(chucDanhLower.includes("bóc") || chucDanhLower.includes("máy") || chucDanhLower.includes("vận hành") || 
                        chucDanhLower.includes("hóa chất") || chucDanhLower.includes("cơ khí") || chucDanhLower.includes("sửa chữa") || 
                        chucDanhLower.includes("đứng") || chucDanhLower.includes("lò") || chucDanhLower.includes("xút") || 
@@ -712,23 +726,29 @@
                         dienDocHai = "ĐH-NH (Nhóm IV/V)";
                     }
 
+                    // Đọc chính xác Mã Đơn Vị từ dòng
+                    let maDonViRaw = "10"; // Giá trị mặc định phòng hờ
+                    if(idxMaDv !== -1 && row[idxMaDv] !== undefined && row[idxMaDv] !== null) {
+                        maDonViRaw = String(row[idxMaDv]).trim();
+                    }
+
                     danhSachNhanSuGoc.push({
                         stt: rowCount++,
                         hoTen: hoTenRaw,
                         gioiTinh: gioiTinhRaw,
-                        ngaySinh: ngaySinhRaw,
-                        tuoi: tinhTuoi > 0 ? tinhTuoi : "N/A",
+                        ngaySinh: ngaySinhRaw || "N/A",
+                        tuoi: tinhTuoi,
                         namHuu: namNghiHuu,
                         docHai: dienDocHai,
                         bhxh: idxBhxh !== -1 && row[idxBhxh] ? String(row[idxBhxh]).trim() : "N/A",
                         cccd: idxCccd !== -1 && row[idxCccd] ? String(row[idxCccd]).trim() : "N/A",
-                        maDonVi: idxMaDv !== -1 && row[idxMaDv] ? String(row[idxMaDv]).trim() : "10",
+                        maDonVi: maDonViRaw,
                         chucDanh: chucDanhText
                     });
                 }
                 veBangNhanSuGoc();
                 reCalculateDashboardKPIs();
-                alert(`HỆ THỐNG: Đã đồng bộ liên thông kết xuất tự động ${danhSachNhanSuGoc.length} hồ sơ nhân sự gốc thành công.`);
+                alert(`HỆ THỐNG: Đã liên thông bóc tách dữ liệu và đồng bộ ${danhSachNhanSuGoc.length} cán bộ.`);
             };
             reader.readAsArrayBuffer(file);
         }
@@ -741,7 +761,7 @@
                     <td>${ns.stt}</td>
                     <td class="col-text-left font-bold text-slate-900">${ns.hoTen}</td>
                     <td><span class="${ns.gioiTinh === 'Nữ' ? 'text-rose-600 bg-rose-50' : 'text-blue-600 bg-blue-50'} px-2 py-0.5 rounded font-bold text-xs">${ns.gioiTinh}</span></td>
-                    <td>${ns.ngaySinh}</td>
+                    <td class="font-mono">${ns.ngaySinh}</td>
                     <td class="font-bold text-slate-900 font-mono">${ns.tuoi}</td>
                     <td class="font-bold font-mono text-indigo-700 bg-indigo-50/70">${ns.namHuu}</td>
                     <td>
@@ -751,7 +771,7 @@
                     </td>
                     <td class="font-mono text-xs">${ns.bhxh}</td>
                     <td class="font-mono text-xs font-bold text-slate-800">${ns.cccd}</td>
-                    <td class="bg-slate-50 font-bold text-slate-700">${ns.maDonVi}</td>
+                    <td class="bg-amber-50 font-black text-slate-900 font-mono border-amber-200">${ns.maDonVi}</td>
                     <td class="col-text-left text-xs text-slate-500">${ns.chucDanh}</td>
                 </tr>
             `).join('');
@@ -767,7 +787,7 @@
             const keyClean = tukhoa.toLowerCase().trim();
 
             if (danhSachNhanSuGoc.length === 0) {
-                listZone.innerHTML = `<div class="p-3 text-xs italic text-rose-600 font-bold bg-rose-50">Cảnh báo liên thông: Bạn chưa nạp Excel Nhân sự gốc ở Tab 2!</div>`;
+                listZone.innerHTML = `<div class="p-3 text-xs italic text-rose-600 font-bold bg-rose-50">Cảnh báo: Hãy nạp Excel Nhân sự trước!</div>`;
                 return;
             }
 
@@ -810,7 +830,6 @@
             if(document.getElementById('cp-matb-auto')) document.getElementById('cp-matb-auto').value = gen;
         }
 
-        // ======================= CÁC PHÂN HỆ KHÁC ĐƯỢC GIỮ NGUYÊN KHÔNG THAY ĐỔI =======================
         function executeLuuCapPhat() {
             const hoTen = document.getElementById('cp-search-input').value;
             const madv = document.getElementById('cp-madv').value;
@@ -822,7 +841,7 @@
             const editIndex = parseInt(document.getElementById('cp-edit-index').value);
 
             if(!hoTen || !tentb || !ngay) {
-                alert("Lỗi nhập liệu: Vui lòng chọn hồ sơ nhân sự liên thông và điền đầy đủ trường (*)!");
+                alert("Vui lòng chọn hồ sơ nhân sự liên thông và điền đầy đủ trường (*)!");
                 return;
             }
 
@@ -830,7 +849,7 @@
             if(editIndex === -1) { dbCapPhat.unshift(dataObj); } else { dbCapPhat[editIndex] = dataObj; }
 
             veBangCapPhat(); clearFormCapPhat(); reCalculateDashboardKPIs();
-            alert("Sổ cấp phát tài sản đã được đồng bộ thành công!");
+            alert("Sổ cấp phát tài sản đã được cập nhật!");
         }
 
         function veBangCapPhat() {
@@ -873,7 +892,7 @@
         }
 
         function deleteCapPhat(idx) {
-            if(confirm("Xác nhận: Xóa vĩnh viễn dữ liệu cấp phát thiết bị này?")) {
+            if(confirm("Xác nhận: Xóa vĩnh viễn dữ liệu cấp phát này?")) {
                 dbCapPhat.splice(idx, 1); veBangCapPhat(); reCalculateDashboardKPIs();
             }
         }
@@ -897,7 +916,7 @@
             const editIndex = parseInt(document.getElementById('sc-edit-index').value);
 
             if(!nguoiYeuCau || !noidung || !ngay) {
-                alert("Lỗi nghiệp vụ kỹ thuật: Vui lòng không để trống thông tin báo sửa chữa.");
+                alert("Vui lòng điền đầy đủ thông tin báo sửa chữa.");
                 return;
             }
 
@@ -905,7 +924,7 @@
             if(editIndex === -1) { dbSuaChua.unshift(dataObj); } else { dbSuaChua[editIndex] = dataObj; }
 
             veBangSuaChua(); clearFormSuaChua(); reCalculateDashboardKPIs();
-            alert("Cập nhật phiếu kỹ thuật bảo dưỡng thành công!");
+            alert("Cập nhật phiếu sửa chữa thành công!");
         }
 
         function veBangSuaChua() {
@@ -943,7 +962,7 @@
         }
 
         function deleteSuaChua(idx) {
-            if(confirm("Xác nhận: Hủy bỏ phiếu yêu cầu sửa chữa kỹ thuật này?")) {
+            if(confirm("Xác nhận hủy phiếu yêu cầu này?")) {
                 dbSuaChua.splice(idx, 1); veBangSuaChua(); reCalculateDashboardKPIs();
             }
         }
@@ -970,13 +989,12 @@
             document.getElementById('tt-sotien').value = Math.round(total);
         }
 
-        // Mã hóa file hóa đơn sang base64
         function processChungTuFile(input) {
             if (input.files && input.files[0]) {
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     stringBase64ChungTuTam = e.target.result;
-                    document.getElementById('file-upload-status').innerText = `✓ Đã mã hóa bảo mật File thành công`;
+                    document.getElementById('file-upload-status').innerText = `✓ Đã đính kèm ảnh thành công`;
                     document.getElementById('file-upload-status').className = "text-xs text-emerald-600 font-bold text-center";
                 };
                 reader.readAsDataURL(input.files[0]);
@@ -994,7 +1012,7 @@
             const editIndex = parseInt(document.getElementById('tt-edit-index').value);
 
             if(!madv || !noidung || !thuhuong || !stk || sotien <= 0) {
-                alert("Lỗi Kế toán: Vui lòng kiểm tra đầy đủ số tài khoản ngân hàng và số tiền sau thuế.");
+                alert("Vui lòng kiểm tra đầy đủ thông tin kế toán thụ hưởng.");
                 return;
             }
 
@@ -1005,13 +1023,13 @@
             }
 
             veBangThanhToan(); clearFormThanhToan(); reCalculateDashboardKPIs();
-            alert("Ghi sổ kế toán chứng từ quyết toán chi phí thành công!");
+            alert("Ghi sổ chứng từ quyết toán thành công!");
         }
 
         function veBangThanhToan() {
             const tbody = document.getElementById('table-body-thanh-toan');
             if(dbThanhToan.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="p-8 italic text-slate-400 text-center">Chưa có chứng từ quyết toán chi phí nào được tạo.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" class="p-8 italic text-slate-400 text-center">Chưa có chứng từ nào.</td></tr>`;
                 return;
             }
             tbody.innerHTML = dbThanhToan.map((item, idx) => `
@@ -1048,9 +1066,8 @@
             document.getElementById('tt-form-title').innerHTML = `<i class="fa-solid fa-edit text-amber-500"></i> Chế Độ Sửa Phiếu Quyết Toán Chi Phí`;
         }
 
-        // Xóa quyết toán
         function deleteThanhToan(idx) {
-            if(confirm("Xác nhận: Xóa vĩnh viễn biểu mẫu chứng từ thanh toán này?")) {
+            if(confirm("Xác nhận xóa vĩnh viễn chứng từ này?")) {
                 dbThanhToan.splice(idx, 1); veBangThanhToan(); reCalculateDashboardKPIs();
             }
         }
@@ -1070,7 +1087,6 @@
             document.getElementById('tt-form-title').innerHTML = `<i class="fa-solid fa-file-invoice-dollar text-emerald-600"></i> Đề Nghị Quyết Toán & Ngân Hàng`;
         }
 
-        // ======================= ENGINE QR ĐỘNG KHÉP KÍN VÀ XEM TRƯỚC KHI IN =======================
         function previewPrintInvoice(loai, idx) {
             let stringMaHoaDuLieu = ""; let htmlNoidungIn = "";
 
