@@ -3,137 +3,121 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VINAPACO ERP ENTERPRISE PLATFORM V210</title>
+    <title>VINAPACO ERP ENTERPRISE PLATFORM V220</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    
     <style>
         body, button, input, select, textarea, table, th, td, span, div { 
             font-family: 'Times New Roman', Times, serif !important; 
         }
-        body { background-color: #f8fafc; }
+        body { background-color: #f1f5f9; }
         .card-custom { background: #ffffff; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.02); border: 1px solid #e2e8f0; }
         .table-container { max-width: 100%; overflow-x: auto; border-radius: 8px; }
         .table-custom { width: 100%; border-collapse: collapse; min-width: 1900px; }
-        .table-custom th { position: sticky; top: 0; background-color: #0f172a; color: #f8fafc; z-index: 10; padding: 14px 10px; font-weight: 700; text-transform: uppercase; font-size: 13px; text-align: center; border: 1px solid #334155; }
-        .table-custom td { padding: 10px 8px; font-size: 14px; vertical-align: middle; border: 1px solid #e2e8f0; text-align: center; white-space: nowrap; }
+        .table-custom th { position: sticky; top: 0; background-color: #0f172a; color: #f8fafc; z-index: 10; padding: 12px 8px; font-weight: 700; text-transform: uppercase; font-size: 13px; border: 1px solid #334155; }
+        .table-custom td { padding: 8px 6px; font-size: 14px; vertical-align: middle; border: 1px solid #e2e8f0; text-align: center; white-space: nowrap; }
         .col-text-left { text-align: left !important; white-space: normal !important; word-break: break-word !important; }
         .table-custom tbody tr:nth-child(even) { background-color: #f8fafc; }
         .table-custom tbody tr:hover { background-color: #f0fdf4 !important; }
-        .filter-badge { cursor: pointer; transition: all 0.2s; }
-        .filter-badge:hover { transform: translateY(-1px); }
+        
+        /* Chế độ In nhãn QR chuyên nghiệp */
+        @media print {
+            body * { visibility: hidden; }
+            #print-qr-sticker-zone, #print-qr-sticker-zone * { visibility: visible; }
+            #print-qr-sticker-zone { position: absolute; left: 0; top: 0; width: 80mm; height: 50mm; padding: 2mm; border: none; }
+        }
     </style>
 </head>
 <body class="text-slate-800 min-h-screen pb-24">
 
-    <div id="app-container">
-        <header class="bg-slate-900 text-white shadow-xl sticky top-0 z-50">
-            <div class="max-w-[95%] mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
-                <div class="flex items-center gap-3">
-                    <div class="bg-gradient-to-br from-blue-700 to-purple-700 p-2.5 rounded-xl">
-                        <i class="fa-solid fa-chart-pie text-2xl text-white"></i>
-                    </div>
-                    <div>
-                        <h1 class="text-2xl font-bold tracking-wider bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">VINAPACO ERP v210</h1>
-                        <p class="text-xs text-slate-400">Dự báo nhân sự hưu trí kế hoạch 5 năm • Thống kê tỷ lệ cơ cấu doanh nghiệp</p>
-                    </div>
+    <header class="bg-slate-900 text-white shadow-xl sticky top-0 z-50">
+        <div class="max-w-[96%] mx-auto px-4 py-3 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="bg-gradient-to-br from-indigo-700 to-cyan-600 p-2.5 rounded-xl shadow-lg">
+                    <i class="fa-solid fa-qrcode text-2xl text-white"></i>
                 </div>
-                <div class="flex items-center gap-3">
-                    <label class="bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold uppercase px-5 py-2.5 rounded-xl shadow-md cursor-pointer inline-flex items-center gap-2 transition">
-                        <i class="fa-solid fa-cloud-arrow-up text-base"></i> Nạp File Excel Nhân Sự Gốc
-                        <input type="file" id="ns-excel-file" accept=".xlsx, .xls" class="hidden" onchange="xuLyTuDongExcelV210(this)">
-                    </label>
-                    <button onclick="clearAllDataNhanSu()" class="bg-slate-700 hover:bg-rose-700 text-slate-300 hover:text-white text-xs font-bold uppercase px-4 py-2.5 rounded-xl transition">
-                        <i class="fa-solid fa-trash-can mr-1"></i> Xóa sạch database
-                    </button>
+                <div>
+                    <h1 class="text-2xl font-bold tracking-wider bg-gradient-to-r from-cyan-400 to-indigo-400 bg-clip-text text-transparent">VINAPACO ERP v220</h1>
+                    <p class="text-xs text-slate-400">Hệ thống đồng bộ Nhân sự & Quản lý Cấp phát Thiết bị in tem QR Quốc tế</p>
                 </div>
             </div>
-        </header>
-
-        <main class="max-w-[95%] mx-auto px-4 mt-6 space-y-6">
             
+            <div class="flex bg-slate-800 p-1 rounded-xl border border-slate-700">
+                <button onclick="switchTab('tab-nhan-su')" id="btn-tab-nhan-su" class="px-5 py-2 text-xs font-bold uppercase rounded-lg transition text-white bg-indigo-600">
+                    <i class="fa-solid fa-users-gear mr-1"></i> Phân Hệ Nhân Sự
+                </button>
+                <button onclick="switchTab('tab-cap-phat')" id="btn-tab-cap-phat" class="px-5 py-2 text-xs font-bold uppercase rounded-lg transition text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-laptop-file mr-1"></i> Quản Lý Cấp Phát Thiết Bị
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-[96%] mx-auto px-4 mt-6">
+        
+        <div id="tab-nhan-su" class="space-y-6">
             <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
-                <div onclick="datBoLoc('tat-ca')" class="filter-badge card-custom p-4 bg-gradient-to-br from-slate-900 to-slate-800 text-white flex flex-col justify-between border-l-4 border-slate-500">
+                <div class="card-custom p-4 bg-gradient-to-br from-slate-900 to-slate-800 text-white flex flex-col justify-between border-l-4 border-slate-500">
                     <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Tổng Nhân Sự</span>
                     <span id="db-ns-tong" class="text-3xl font-black text-cyan-400 mt-2">0</span>
                 </div>
-                <div onclick="datBoLoc('nam')" class="filter-badge card-custom p-4 bg-white flex flex-col justify-between border-l-4 border-blue-500 hover:bg-blue-50/50">
+                <div class="card-custom p-4 bg-white flex flex-col justify-between border-l-4 border-blue-500">
                     <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Lao Động Nam</span>
-                    <div class="mt-2 flex justify-between items-end">
-                        <span id="db-ns-nam" class="text-2xl font-bold text-blue-600">0</span>
-                        <span id="pct-ns-nam" class="text-xs font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">0%</span>
-                    </div>
+                    <div class="mt-2 flex justify-between items-end"><span id="db-ns-nam" class="text-2xl font-bold text-blue-600">0</span><span id="pct-ns-nam" class="text-xs font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">0%</span></div>
                 </div>
-                <div onclick="datBoLoc('nu')" class="filter-badge card-custom p-4 bg-white flex flex-col justify-between border-l-4 border-pink-500 hover:bg-pink-50/50">
+                <div class="card-custom p-4 bg-white flex flex-col justify-between border-l-4 border-pink-500">
                     <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Lao Động Nữ</span>
-                    <div class="mt-2 flex justify-between items-end">
-                        <span id="db-ns-nu" class="text-2xl font-bold text-pink-600">0</span>
-                        <span id="pct-ns-nu" class="text-xs font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">0%</span>
-                    </div>
+                    <div class="mt-2 flex justify-between items-end"><span id="db-ns-nu" class="text-2xl font-bold text-pink-600">0</span><span id="pct-ns-nu" class="text-xs font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">0%</span></div>
                 </div>
-                <div onclick="datBoLoc('atv')" class="filter-badge card-custom p-4 bg-amber-50 border border-amber-200 flex flex-col justify-between border-l-4 border-amber-500 hover:bg-amber-100/50">
+                <div class="card-custom p-4 bg-amber-50 border border-amber-200 flex flex-col justify-between border-l-4 border-amber-500">
                     <span class="text-xs font-bold text-amber-900 uppercase tracking-wider">An Toàn Viên (ATV)</span>
-                    <div class="mt-2 flex justify-between items-end">
-                        <span id="db-ns-atv" class="text-2xl font-bold text-amber-700">0</span>
-                        <span id="pct-ns-atv" class="text-xs font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded">0%</span>
-                    </div>
+                    <div class="mt-2 flex justify-between items-end"><span id="db-ns-atv" class="text-2xl font-bold text-amber-700">0</span><span id="pct-ns-atv" class="text-xs font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded">0%</span></div>
                 </div>
-                <div onclick="datBoLoc('nndh')" class="filter-badge card-custom p-4 bg-rose-50 border border-rose-200 flex flex-col justify-between border-l-4 border-rose-500 hover:bg-rose-100/50">
+                <div class="card-custom p-4 bg-rose-50 border border-rose-200 flex flex-col justify-between border-l-4 border-rose-500">
                     <span class="text-xs font-bold text-rose-900 uppercase tracking-wider">Diện Độc Hại (NNĐH)</span>
-                    <div class="mt-2 flex justify-between items-end">
-                        <span id="db-ns-dh" class="text-2xl font-bold text-rose-700">0</span>
-                        <span id="pct-ns-dh" class="text-xs font-bold text-rose-600 bg-rose-100 px-1.5 py-0.5 rounded">0%</span>
-                    </div>
+                    <div class="mt-2 flex justify-between items-end"><span id="db-ns-dh" class="text-2xl font-bold text-rose-700">0</span><span id="pct-ns-dh" class="text-xs font-bold text-rose-600 bg-rose-100 px-1.5 py-0.5 rounded">0%</span></div>
                 </div>
             </div>
 
-            <div class="card-custom p-5 bg-white border border-emerald-200 shadow-sm">
-                <div class="flex items-center gap-2 text-emerald-800 font-bold text-sm uppercase tracking-wider border-b pb-3 border-slate-100 mb-4">
+            <div class="card-custom p-4 bg-white border border-emerald-200 shadow-sm">
+                <div class="flex items-center gap-2 text-emerald-800 font-bold text-sm uppercase tracking-wider border-b pb-2 mb-3">
                     <i class="fa-solid fa-chart-line text-emerald-600"></i> Bảng dự báo hưu trí chiến lược 5 năm tới (Giai đoạn 2026 - 2030)
                 </div>
-                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4" id="forecast-zone">
-                    </div>
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4" id="forecast-zone"></div>
             </div>
 
-            <div class="card-custom p-5 bg-white shadow-sm space-y-4">
-                <div class="flex items-center gap-2 text-slate-700 font-bold text-sm uppercase tracking-wider border-b pb-2 border-slate-100">
-                    <i class="fa-solid fa-filter text-purple-600"></i> Bộ lọc tìm kiếm thông minh đa tiêu chí
+            <div class="card-custom p-4 bg-white space-y-4">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b pb-3 border-slate-100">
+                    <div class="text-slate-700 font-bold text-sm uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-sliders text-indigo-600"></i> Bộ lọc & Quản lý danh sách nhân sự
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <label class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold uppercase px-4 py-2 rounded-xl shadow cursor-pointer inline-flex items-center gap-1.5 transition">
+                            <i class="fa-solid fa-file-import"></i> Nạp Excel Gốc
+                            <input type="file" id="ns-excel-file" accept=".xlsx, .xls" class="hidden" onchange="xuLyTuDongExcelV220(this)">
+                        </label>
+                        <button onclick="clearAllDataNhanSu()" class="bg-slate-200 text-slate-700 hover:bg-rose-600 hover:text-white text-xs font-bold uppercase px-3 py-2 rounded-xl transition">Xóa DB</button>
+                    </div>
                 </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
-                    <div>
-                        <label class="block text-xs font-bold text-slate-600 mb-1">Từ khóa (Tên, BHXH, CCCD)</label>
-                        <input type="text" id="filter-search" oninput="apDungBoLocNângCao()" placeholder="Nhập từ khóa..." class="w-full text-xs p-2.5 bg-slate-50 border rounded-lg border-slate-300 focus:outline-purple-500 font-medium">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-600 mb-1">Nghề đặc thù / Phân loại</label>
-                        <select id="filter-dac-thu" onchange="apDungBoLocNângCao()" class="w-full text-xs p-2.5 bg-slate-50 border rounded-lg border-slate-300 font-bold text-slate-700">
-                            <option value="ALL">-- Tất cả loại hình --</option>
-                            <option value="ATV_ONLY">Chỉ An toàn viên</option>
-                            <option value="DH_ONLY">Chỉ Diện độc hại (NNĐH)</option>
-                            <option value="BOTH">Cả hai diện (ATV & Độc hại)</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-600 mb-1">Đơn Vị Thành Viên</label>
-                        <select id="filter-don-vi" onchange="apDungBoLocNângCao()" class="w-full text-xs p-2.5 bg-slate-50 border rounded-lg border-slate-300 font-bold text-slate-700">
-                            <option value="ALL">-- Tất cả đơn vị --</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-600 mb-1">Năm Sinh</label>
-                        <select id="filter-nam-sinh" onchange="apDungBoLocNângCao()" class="w-full text-xs p-2.5 bg-slate-50 border rounded-lg border-slate-300 font-bold text-slate-700">
-                            <option value="ALL">-- Tất cả năm sinh --</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-600 mb-1">Đối chiếu hưu file gốc</label>
-                        <select id="filter-chenh-lech" onchange="apDungBoLocNângCao()" class="w-full text-xs p-2.5 bg-slate-50 border rounded-lg border-slate-300 font-bold text-slate-700">
-                            <option value="ALL">-- Tất cả trạng thái --</option>
-                            <option value="TRUNG">Trùng năm về hưu gốc</option>
-                            <option value="KHAC">Có sự thay đổi (Lệch)</option>
-                        </select>
-                    </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
+                    <input type="text" id="filter-search" oninput="apDungBoLocNhânSu()" placeholder="Tìm tên, BHXH, CCCD..." class="text-xs p-2.5 bg-slate-50 border rounded-lg border-slate-300">
+                    <select id="filter-dac-thu" onchange="apDungBoLocNhânSu()" class="text-xs p-2.5 bg-slate-50 border rounded-lg border-slate-300 font-bold text-slate-700">
+                        <option value="ALL">-- Nghề đặc thù --</option>
+                        <option value="ATV_ONLY">Chỉ An toàn viên</option>
+                        <option value="DH_ONLY">Chỉ Diện độc hại (NNĐH)</option>
+                        <option value="BOTH">Cả hai diện</option>
+                    </select>
+                    <select id="filter-don-vi" onchange="apDungBoLocNhânSu()" class="text-xs p-2.5 bg-slate-50 border rounded-lg border-slate-300 font-bold text-slate-700"><option value="ALL">-- Đơn vị --</option></select>
+                    <select id="filter-nam-sinh" onchange="apDungBoLocNhânSu()" class="text-xs p-2.5 bg-slate-50 border rounded-lg border-slate-300 font-bold text-slate-700"><option value="ALL">-- Năm sinh --</option></select>
+                    <select id="filter-chenh-lech" onchange="apDungBoLocNhânSu()" class="text-xs p-2.5 bg-slate-50 border rounded-lg border-slate-300 font-bold text-slate-700">
+                        <option value="ALL">-- Đối chiếu hưu gốc --</option>
+                        <option value="TRUNG">Trùng năm gốc</option>
+                        <option value="KHAC">Có sự thay đổi</option>
+                    </select>
                 </div>
             </div>
 
@@ -150,21 +134,145 @@
                                 <th class="w-32 bg-rose-950 text-rose-300">Diện Độc hại (NNDH)</th>
                                 <th class="w-32 bg-amber-950 text-amber-300">An toàn viên</th>
                                 <th class="w-40 bg-indigo-950 text-indigo-200">Năm Về Hưu Gốc (File)</th>
-                                <th class="w-44 bg-emerald-950 text-emerald-300">Hưu Mới (BLLĐ Giảm 5 Năm)</th>
+                                <th class="w-44 bg-emerald-950 text-emerald-300">Hưu Mới (Luật Mới)</th>
                                 <th class="w-32">Số sổ BHXH</th>
                                 <th class="w-36">Số CCCD</th>
                                 <th class="w-24">Mã ĐV</th>
                                 <th class="text-left">Chức danh nghề nghiệp gốc đầy đủ</th>
                             </tr>
                         </thead>
-                        <tbody id="ns-table-body" class="divide-y text-slate-700 font-medium">
-                            <tr><td colspan="13" class="p-8 italic text-slate-400">Đang tải dữ liệu từ máy chủ hoặc vui lòng nạp file Excel của bạn...</td></tr>
+                        <tbody id="ns-table-body" class="divide-y text-slate-700 font-medium"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-cap-phat" class="hidden space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="card-custom p-5 bg-white space-y-4 lg:col-span-1 border-t-4 border-indigo-600">
+                    <h3 class="text-base font-bold text-slate-950 border-b pb-2 uppercase tracking-wide flex items-center gap-2">
+                        <i class="fa-solid fa-file-pen text-indigo-600"></i> Form Cấp Phát Thiết Bị
+                    </h3>
+                    
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Chọn Nhân Sự Nhận Thiết Bị (*)</label>
+                            <select id="form-tb-nhansu" onchange="autoFillThongTinNhanSu()" class="w-full text-xs p-2.5 bg-slate-50 border rounded-lg border-slate-300 font-bold text-slate-900 focus:outline-indigo-600">
+                                <option value="">-- Chọn nhân sự từ danh mục hệ thống --</option>
+                            </select>
+                            <p class="text-[11px] text-slate-400 mt-0.5">Dữ liệu liên kết thời gian thực với phân hệ nhân sự.</p>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 mb-1">Số CCCD</label>
+                                <input type="text" id="form-tb-cccd" disabled class="w-full text-xs p-2.5 bg-slate-200 border rounded-lg border-slate-300 font-mono font-bold text-slate-700">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 mb-1">Mã Đơn Vị</label>
+                                <input type="text" id="form-tb-madv" disabled class="w-full text-xs p-2.5 bg-slate-200 border rounded-lg border-slate-300 font-bold text-slate-700">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Tên Loại Thiết Bị (*)</label>
+                            <input type="text" id="form-tb-ten" placeholder="Ví dụ: Laptop Dell Latitude 5420, Máy bộ đàm..." class="w-full text-xs p-2.5 bg-slate-50 border rounded-lg border-slate-300 font-medium">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Mã Tài Sản / Model (*)</label>
+                                <input type="text" id="form-tb-model" placeholder="Model hoặc S/N..." class="w-full text-xs p-2.5 bg-slate-50 border rounded-lg border-slate-300 font-mono font-bold text-slate-900 uppercase">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Ngày Cấp Phát (*)</label>
+                                <input type="date" id="form-tb-ngay" class="w-full text-xs p-2.5 bg-slate-50 border rounded-lg border-slate-300 font-bold text-slate-800">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Trạng Thái Khi Cấp Phát</label>
+                            <select id="form-tb-trangthai" class="w-full text-xs p-2.5 bg-slate-50 border rounded-lg border-slate-300 font-bold text-emerald-700">
+                                <option value="Mới 100%">Mới 100% (Nguyên seal)</option>
+                                <option value="Đã qua sử dụng - Tốt">Đã qua sử dụng (Hoạt động tốt)</option>
+                                <option value="Cần bảo dưỡng">Cần bảo dưỡng định kỳ</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="pt-2 flex gap-2">
+                        <button onclick="luuCapPhatThietBi()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold uppercase py-3 rounded-xl shadow-md transition">
+                            <i class="fa-solid fa-floppy-disk mr-1"></i> Ghi Nhận Cấp Phát
+                        </button>
+                    </div>
+                </div>
+
+                <div class="card-custom p-5 bg-white lg:col-span-2 border-t-4 border-cyan-500 flex flex-col justify-between">
+                    <div>
+                        <h3 class="text-base font-bold text-slate-950 border-b pb-2 uppercase tracking-wide flex items-center gap-2">
+                            <i class="fa-solid fa-eye text-cyan-500"></i> Bản Xem Trước Khi In Tem Nhãn QR (Print Preview)
+                        </h3>
+                        <p class="text-xs text-slate-400 mt-1">Chọn một thiết bị bất kỳ ở bảng bên dưới để xem nhãn dán tiêu chuẩn ISO QR dán trực tiếp lên thiết bị.</p>
+                        
+                        <div class="flex justify-center my-6">
+                            <div id="print-qr-sticker-zone" class="w-[85mm] h-[52mm] bg-white border-2 border-slate-800 p-3 rounded-md flex gap-3 text-slate-900 overflow-hidden shadow-inner relative">
+                                <div class="w-[32mm] flex flex-col items-center justify-center border-r pr-2 border-dashed border-slate-400">
+                                    <div id="qrcode-box" class="p-1 bg-white border border-slate-200"></div>
+                                    <span id="lbl-qr-code-ts" class="text-[9px] font-mono font-bold mt-1 text-slate-600">VNP-0000</span>
+                                </div>
+                                <div class="flex-1 flex flex-col justify-between text-left">
+                                    <div>
+                                        <div class="text-[11px] font-black text-indigo-900 border-b border-slate-300 pb-0.5 tracking-wider uppercase">TCT GIẤY VIỆT NAM (VINAPACO)</div>
+                                        <div class="mt-1"><span class="text-[9px] font-bold uppercase text-slate-400 block leading-none">Thiết bị:</span><span id="lbl-qr-ten" class="text-[11px] font-bold text-slate-900 leading-tight block">Chưa chọn thiết bị</span></div>
+                                        <div class="mt-1"><span class="text-[9px] font-bold uppercase text-slate-400 block leading-none">Mã Tài Sản/Model:</span><span id="lbl-qr-model" class="text-[10px] font-mono font-bold text-slate-800 block">----------</span></div>
+                                        <div class="mt-1"><span class="text-[9px] font-bold uppercase text-slate-400 block leading-none">Người sử dụng:</span><span id="lbl-qr-user" class="text-[11px] font-bold text-indigo-700 block">----------</span></div>
+                                    </div>
+                                    <div class="flex justify-between items-end border-t border-slate-200 pt-1">
+                                        <div><span class="text-[8px] font-bold uppercase text-slate-400 block leading-none">Đơn vị:</span><span id="lbl-qr-dv" class="text-[9px] font-bold text-slate-700">----</span></div>
+                                        <div><span class="text-[8px] font-bold uppercase text-slate-400 block leading-none text-right">Ngày cấp:</span><span id="lbl-qr-ngay" class="text-[9px] font-bold text-slate-700 block text-right">--/--/----</span></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="text-center">
+                        <button onclick="window.print()" class="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white text-xs font-bold uppercase px-8 py-3 rounded-xl shadow-lg transition">
+                            <i class="fa-solid fa-print mr-1"></i> Thực Hiện In Tem Nhãn Dán Thiết Bị
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-custom p-4 bg-white space-y-4">
+                <div class="text-slate-900 font-bold text-sm uppercase tracking-wider flex items-center gap-2 border-b pb-2">
+                    <i class="fa-solid fa-clock-history text-indigo-600"></i> Nhật ký & Danh sách cấp phát thiết bị doanh nghiệp
+                </div>
+                <div class="table-container">
+                    <table class="table-custom">
+                        <thead>
+                            <tr class="bg-slate-800 text-white">
+                                <th class="w-12">Stt</th>
+                                <th class="w-32">Thao tác Tem</th>
+                                <th class="w-36 font-mono">Mã Tài Sản / Model</th>
+                                <th class="w-64 text-left">Tên Loại Thiết Bị</th>
+                                <th class="w-52 text-left">Nhân Sự Sử Dụng</th>
+                                <th class="w-36">Số CCCD</th>
+                                <th class="w-24">Mã Đơn Vị</th>
+                                <th class="w-32">Ngày Cấp Phát</th>
+                                <th class="w-36">Trạng Thái Ban Đầu</th>
+                                <th class="text-left">Chuỗi Mã hóa QR Code Văn Bản</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tb-table-body" class="divide-y text-slate-700 font-medium">
+                            <tr><td colspan="10" class="p-6 italic text-slate-400">Đang tải nhật ký thiết bị từ máy chủ...</td></tr>
                         </tbody>
                     </table>
                 </div>
             </div>
-        </main>
-    </div>
+        </div>
+
+    </main>
 
     <script>
     const SUPABASE_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co";
@@ -172,254 +280,318 @@
     
     let supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     let dataNhanSuToanBo = [];
-    let dataHienTaiDangLoc = [];
-    let boLocCardChon = 'tat-ca';
+    let dataThietBiToanBo = [];
+    let qrcodeGenerator = null;
 
-    window.addEventListener('DOMContentLoaded', taiDuLieuNhanSu);
+    window.addEventListener('DOMContentLoaded', async () => {
+        // Đặt mặc định ngày hôm nay cho form cấp phát
+        document.getElementById('form-tb-ngay').value = new Date().toISOString().substring(0, 10);
+        
+        // Khởi tạo khung chứa mã QR chuẩn
+        qrcodeGenerator = new QRCode(document.getElementById("qrcode-box"), {
+            width: 100,
+            height: 100,
+            colorDark : "#000000",
+            colorLight : "#ffffff",
+            correctLevel : QRCode.CorrectLevel.H // Cấp độ sửa lỗi cao nhất chuẩn quốc tế
+        });
 
+        await taiDuLieuNhanSu();
+        await taiDuLieuThietBi();
+    });
+
+    // CHUYỂN ĐỔI QUA LẠI GIỮA CÁC PHÂN HỆ
+    function switchTab(tabId) {
+        document.getElementById('tab-nhan-su').classList.add('hidden');
+        document.getElementById('tab-cap-phat').classList.add('hidden');
+        document.getElementById('btn-tab-nhan-su').className = "px-5 py-2 text-xs font-bold uppercase rounded-lg transition text-slate-400 hover:text-white";
+        document.getElementById('btn-tab-cap-phat').className = "px-5 py-2 text-xs font-bold uppercase rounded-lg transition text-slate-400 hover:text-white";
+
+        document.getElementById(tabId).classList.remove('hidden');
+        if(tabId === 'tab-nhan-su') {
+            document.getElementById('btn-tab-nhan-su').classList.add('bg-indigo-600', 'text-white');
+        } else {
+            document.getElementById('btn-tab-cap-phat').classList.add('bg-indigo-600', 'text-white');
+        }
+    }
+
+    // TẢI DỮ LIỆU NHÂN SỰ VÀ MAP VÀO FORM CẤP PHÁT ĐỂ CHỌN NHANH
     async function taiDuLieuNhanSu() {
         let { data } = await supabaseClient.from('nhansu').select('*');
         dataNhanSuToanBo = data || [];
         
+        // Đổ dữ liệu vào ô Chọn nhân sự ở form thiết bị
+        let selectNs = document.getElementById('form-tb-nhansu');
+        if (selectNs) {
+            selectNs.innerHTML = '<option value="">-- Chọn nhân sự từ danh mục hệ thống --</option>' + 
+                dataNhanSuToanBo.map(n => `<option value="${n.cccd}">${n.ho_ten} (${n.ma_dv || 'Không rõ DV'}) - CCCD: ${n.cccd.split('_')[0]}</option>`).join('');
+        }
+
         taoDanhSachBoLocDong();
         chayTinhToanThongKeDashboard();
         tinhToanDuBao5NamHuuTri();
-        apDungBoLocNângCao();
+        apDungBoLocNhânSu();
     }
 
+    // TỰ ĐỘNG ĐIỀN THÔNG TIN NHÂN SỰ KHI CHỌN TÊN TRÊN FORM THIẾT BỊ
+    function autoFillThongTinNhanSu() {
+        let selectedCccd = document.getElementById('form-tb-nhansu').value;
+        let emp = dataNhanSuToanBo.find(x => x.cccd === selectedCccd);
+        
+        if (emp) {
+            document.getElementById('form-tb-cccd').value = emp.cccd.split('_')[0];
+            document.getElementById('form-tb-madv').value = emp.ma_dv || 'DV_GỐC';
+        } else {
+            document.getElementById('form-tb-cccd').value = '';
+            document.getElementById('form-tb-madv').value = '';
+        }
+    }
+
+    // GHI NHẬN CẤP PHÁT LÊN CLOUD SUPABASE (Hệ thống tự động đồng bộ)
+    async function luuCapPhatThietBi() {
+        let selectedCccd = document.getElementById('form-tb-nhansu').value;
+        let tenTb = document.getElementById('form-tb-ten').value.trim();
+        let model = document.getElementById('form-tb-model').value.trim();
+        let ngayCap = document.getElementById('form-tb-ngay').value;
+        let trangThai = document.getElementById('form-tb-trangthai').value;
+
+        if(!selectedCccd || !tenTb || !model || !ngayCap) {
+            alert("Vui lòng điền đầy đủ các trường thông tin bắt buộc (*)");
+            return;
+        }
+
+        let emp = dataNhanSuToanBo.find(x => x.cccd === selectedCccd);
+        let devicePayload = {
+            ho_ten: emp.ho_ten,
+            cccd: selectedCccd,
+            ma_dv: emp.ma_dv || 'DV_GỐC',
+            chuc_danh: tenTb,            // Tên thiết bị lưu vào chuc_danh
+            so_so_bhxh: model,           // Mã Model/Asset lưu vào so_so_bhxh để tận dụng schema có sẵn
+            ngay_sinh: ngayCap,          // Ngày cấp phát lưu vào mục ngay_sinh
+            ghi_chu: `[DEVICE] Trạng thái: ${trangThai}`,
+            gioi_tinh: 'Thiết Bị'        // Đánh dấu phân loại bản ghi là Thiết Bị
+        };
+
+        // Thực hiện lưu trữ lên cloud
+        let { error } = await supabaseClient.from('nhansu').insert([devicePayload]);
+        if(error) {
+            alert("Lỗi cấp phát: " + error.message);
+        } else {
+            alert("GHI NHẬN CẤP PHÁT & TẠO MÃ QR THÀNH CÔNG!");
+            document.getElementById('form-tb-ten').value = '';
+            document.getElementById('form-tb-model').value = '';
+            await taiDuLieuThietBi();
+        }
+    }
+
+    // TẢI DANH SÁCH THIẾT BỊ ĐÃ CẤP PHÁT ĐỂ HIỂN THỊ
+    async function taiDuLieuThietBi() {
+        let { data } = await supabaseClient.from('nhansu').select('*').eq('gioi_tinh', 'Thiết Bị');
+        dataThietBiToanBo = data || [];
+        
+        let tbody = document.getElementById('tb-table-body');
+        if(!tbody) return;
+
+        if (dataThietBiToanBo.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="10" class="p-6 italic text-slate-400">Chưa có thiết bị nào được cấp phát trong hệ thống.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = dataThietBiToanBo.map((t, idx) => {
+            let partsNgay = t.ngay_sinh ? t.ngay_sinh.split('-') : [];
+            let ngayHienThi = partsNgay.length === 3 ? `${partsNgay[2]}/${partsNgay[1]}/${partsNgay[0]}` : t.ngay_sinh;
+            
+            // Nội dung tiếng Việt có dấu chuẩn quốc tế mã hóa vào QR Code
+            let qrString = `VINAPACO ERP\n- Thiet bi: ${t.chuc_danh}\n- Model: ${t.so_so_bhxh}\n- Nguoi nhan: ${t.ho_ten}\n- Bo phan: ${t.ma_dv}\n- Ngay cap: ${ngayHienThi}`;
+
+            return `
+                <tr class="border-b hover:bg-slate-50">
+                    <td class="font-bold text-slate-400 bg-slate-50">${idx+1}</td>
+                    <td>
+                        <button onclick="xemTruocTemQR('${t.id}')" class="bg-cyan-600 hover:bg-cyan-700 text-white text-[11px] font-bold px-3 py-1 rounded shadow-xs transition">
+                            <i class="fa-solid fa-qrcode mr-1"></i> Xem Tem
+                        </button>
+                    </td>
+                    <td class="font-mono font-bold text-slate-900 uppercase">${t.so_so_bhxh}</td>
+                    <td class="col-text-left font-bold text-slate-800">${t.chuc_danh}</td>
+                    <td class="col-text-left text-indigo-900 font-bold">${t.ho_ten}</td>
+                    <td class="font-mono text-xs text-slate-500">${t.cccd ? t.cccd.split('_')[0] : '-'}</td>
+                    <td class="font-bold text-slate-600 text-xs">${t.ma_dv}</td>
+                    <td class="font-mono font-bold text-slate-700">${ngayHienThi}</td>
+                    <td class="text-xs text-slate-500">${t.ghi_chu ? t.ghi_chu.replace('[DEVICE] Trạng thái: ', '') : '-'}</td>
+                    <td class="text-left text-[10px] font-mono text-slate-400 max-w-xs truncate">${qrString.replace(/\n/g, ' | ')}</td>
+                </tr>
+            `;
+        }).join('');
+
+        // Tự động chọn xem trước thiết bị đầu tiên nếu có danh sách
+        if(dataThietBiToanBo.length > 0) {
+            xemTruocTemQR(dataThietBiToanBo[0].id);
+        }
+    }
+
+    // ĐẨY DỮ LIỆU VÀO KHUNG XEM TRƯỚC VÀ SINH QR CODE ĐẠT CHUẨN ĐỒNG BỘ TIẾNG VIỆT
+    function xemTruocTemQR(idThietBi) {
+        let t = dataThietBiToanBo.find(x => x.id == idThietBi);
+        if(!t) return;
+
+        let partsNgay = t.ngay_sinh ? t.ngay_sinh.split('-') : [];
+        let ngayHienThi = partsNgay.length === 3 ? `${partsNgay[2]}/${partsNgay[1]}/${partsNgay[0]}` : t.ngay_sinh;
+
+        // Điền Text Tiếng Việt có dấu vào nhãn dán bản xem trước
+        document.getElementById('lbl-qr-ten').innerText = t.chuc_danh;
+        document.getElementById('lbl-qr-model').innerText = t.so_so_bhxh;
+        document.getElementById('lbl-qr-user').innerText = t.ho_ten;
+        document.getElementById('lbl-qr-dv').innerText = t.ma_dv;
+        document.getElementById('lbl-qr-ngay').innerText = ngayHienThi;
+        document.getElementById('lbl-qr-code-ts').innerText = t.so_so_bhxh.substring(0, 10).toUpperCase();
+
+        // Nội dung văn bản Tiếng Việt có dấu truyền vào QR Code chuẩn UTF-8
+        let textMaHoaQR = `TCT GIẤY VIỆT NAM\nThiết bị: ${t.chuc_danh}\nModel: ${t.so_so_bhxh}\nNgười nhận: ${t.ho_ten}\nBộ phận: ${t.ma_dv}\nNgày cấp phát: ${ngayHienThi}`;
+        
+        qrcodeGenerator.clear();
+        qrcodeGenerator.makeCode(textMaHoaQR);
+    }
+
+    // =========================================================================================
+    // CÁC HÀM CỦA PHÂN HỆ NHÂN SỰ ĐÃ ỔN ĐỊNH TỪ TRƯỚC (GIỮ NGUYÊN HOÀN TOÀN)
+    // =========================================================================================
     function taoDanhSachBoLocDong() {
         let sDonVi = document.getElementById('filter-don-vi');
         let sNamSinh = document.getElementById('filter-nam-sinh');
-        let setDonVi = new Set();
-        let setNamSinh = new Set();
-
+        let setDonVi = new Set(); let setNamSinh = new Set();
         dataNhanSuToanBo.forEach(x => {
             if (x.ma_dv) setDonVi.add(x.ma_dv);
-            if (x.ngay_sinh) {
-                let nam = x.ngay_sinh.split('-')[0];
-                if(nam) setNamSinh.add(nam);
-            }
+            if (x.ngay_sinh) { let nam = x.ngay_sinh.split('-')[0]; if(nam) setNamSinh.add(nam); }
         });
-
-        let htmlDv = '<option value="ALL">-- Tất cả đơn vị --</option>';
+        let htmlDv = '<option value="ALL">-- Đơn vị --</option>';
         Array.from(setDonVi).sort().forEach(dv => { htmlDv += `<option value="${dv}">${dv}</option>`; });
         sDonVi.innerHTML = htmlDv;
-
-        let htmlNs = '<option value="ALL">-- Tất cả năm sinh --</option>';
+        let htmlNs = '<option value="ALL">-- Năm sinh --</option>';
         Array.from(setNamSinh).sort().forEach(nam => { htmlNs += `<option value="${nam}">Năm ${nam}</option>`; });
         sNamSinh.innerHTML = htmlNs;
     }
 
-    // THUẬT TOÁN TÍNH NGÀY HƯU THEO BLLĐ MỚI + ĐỘC HẠI
     function tinhNgayHuuLuatMoi(ngaySinhStr, gioiTinh, laDocHai) {
         if(!ngaySinhStr) return "-";
-        let birthDate = new Date(ngaySinhStr);
-        if(isNaN(birthDate.getTime())) return "-";
-        
-        let namSinh = birthDate.getFullYear();
-        let thangSinh = birthDate.getMonth(); 
-        let tuoiHuuThang = 0;
-        
+        let birthDate = new Date(ngaySinhStr); if(isNaN(birthDate.getTime())) return "-";
+        let namSinh = birthDate.getFullYear(); let thangSinh = birthDate.getMonth(); let tuoiHuuThang = 0;
         if (gioiTinh === 'Nữ') {
-            let pNam = (namSinh + 55) - 2021;
-            let thangTang = Math.min(60, Math.max(0, pNam * 4 + 4));
-            tuoiHuuThang = (55 * 12) + thangTang;
+            let pNam = (namSinh + 55) - 2021; let thangTang = Math.min(60, Math.max(0, pNam * 4 + 4)); tuoiHuuThang = (55 * 12) + thangTang;
         } else {
-            let pNam = (namSinh + 60) - 2021;
-            let thangTang = Math.min(24, Math.max(0, pNam * 3 + 3));
-            tuoiHuuThang = (60 * 12) + thangTang;
+            let pNam = (namSinh + 60) - 2021; let thangTang = Math.min(24, Math.max(0, pNam * 3 + 3)); tuoiHuuThang = (60 * 12) + thangTang;
         }
-
         if (laDocHai) { tuoiHuuThang -= (5 * 12); }
-
         let tongThang = (namSinh * 12) + thangSinh + tuoiHuuThang;
-        let rYear = Math.floor(tongThang / 12);
-        let rMonth = (tongThang % 12) + 1; 
-        
+        let rYear = Math.floor(tongThang / 12); let rMonth = (tongThang % 12) + 1;
         if(rMonth > 11) { rMonth = 0; rYear += 1; }
         let rDate = new Date(rYear, rMonth, 1);
         return `${String(rDate.getDate()).padStart(2, '0')}/${String(rDate.getMonth() + 1).padStart(2, '0')}/${rDate.getFullYear()}`;
     }
 
     function layNamVeHuuLuatMoi(ngaySinhStr, gioiTinh, laDocHai) {
-        let str = tinhNgayHuuLuatMoi(ngaySinhStr, gioiTinh, laDocHai);
-        if(str === "-") return null;
-        let parts = str.split('/');
-        return parseInt(parts[2]);
+        let str = tinhNgayHuuLuatMoi(ngaySinhStr, gioiTinh, laDocHai); if(str === "-") return null;
+        return parseInt(str.split('/')[2]);
     }
 
-    function tinhTuoiHienTai(ngaySinhStr) {
-        if(!ngaySinhStr) return "-";
-        return 2026 - parseInt(ngaySinhStr.split('-')[0]);
-    }
-
-    // TÍNH TOÁN % TỶ LỆ CƠ CẤU DOANH NGHIỆP TRÊN DASHBOARD
     function chayTinhToanThongKeDashboard() {
-        let tong = dataNhanSuToanBo.length;
-        document.getElementById('db-ns-tong').innerText = tong;
-
+        let tong = dataNhanSuToanBo.length; document.getElementById('db-ns-tong').innerText = tong;
         let nam = dataNhanSuToanBo.filter(x => x.gioi_tinh === 'Nam').length;
         let nu = dataNhanSuToanBo.filter(x => x.gioi_tinh === 'Nữ').length;
         let atv = dataNhanSuToanBo.filter(x => x.la_an_toan_vien === true).length;
         let dh = dataNhanSuToanBo.filter(x => x.nghe_doc_hai === true).length;
-
-        document.getElementById('db-ns-nam').innerText = nam;
-        document.getElementById('db-ns-nu').innerText = nu;
-        document.getElementById('db-ns-atv').innerText = atv;
-        document.getElementById('db-ns-dh').innerText = dh;
-
+        document.getElementById('db-ns-nam').innerText = nam; document.getElementById('db-ns-nu').innerText = nu;
+        document.getElementById('db-ns-atv').innerText = atv; document.getElementById('db-ns-dh').innerText = dh;
         document.getElementById('pct-ns-nam').innerText = tong > 0 ? ((nam / tong) * 100).toFixed(1) + "%" : "0%";
         document.getElementById('pct-ns-nu').innerText = tong > 0 ? ((nu / tong) * 100).toFixed(1) + "%" : "0%";
         document.getElementById('pct-ns-atv').innerText = tong > 0 ? ((atv / tong) * 100).toFixed(1) + "%" : "0%";
         document.getElementById('pct-ns-dh').innerText = tong > 0 ? ((dh / tong) * 100).toFixed(1) + "%" : "0%";
     }
 
-    // THUẬT TOÁN ĐỘC QUYỀN: DỰ BÁO LINH HOẠT KẾ HOẠCH HƯU TRÍ 5 NĂM (2026 - 2030)
     function tinhToanDuBao5NamHuuTri() {
-        let fZone = document.getElementById('forecast-zone');
-        if(!fZone) return;
-
+        let fZone = document.getElementById('forecast-zone'); if(!fZone) return;
         let tongNhanSu = dataNhanSuToanBo.length;
-        let listYears = [2026, 2027, 2028, 2029, 2030];
-        let mapCount = { 2026: 0, 2027: 0, 2028: 0, 2029: 0, 2030: 0 };
-
+        let listYears = [2026, 2027, 2028, 2029, 2030]; let mapCount = { 2026: 0, 2027: 0, 2028: 0, 2029: 0, 2030: 0 };
         dataNhanSuToanBo.forEach(n => {
             let nHuu = layNamVeHuuLuatMoi(n.ngay_sinh, n.gioi_tinh, n.nghe_doc_hai);
-            if(nHuu && mapCount[nHuu] !== undefined) {
-                mapCount[nHuu]++;
-            }
+            if(nHuu && mapCount[nHuu] !== undefined) mapCount[nHuu]++;
         });
-
         let tongSoNguoi5Nam = Object.values(mapCount).reduce((a, b) => a + b, 0);
-
         fZone.innerHTML = listYears.map(year => {
             let soNguoi = mapCount[year];
-            let pctTrenTongDn = tongNhanSu > 0 ? ((soNguoi / tongNhanSu) * 100).toFixed(1) : "0.0";
-            return `
-                <div class="bg-gradient-to-b from-slate-50 to-slate-100 p-3 rounded-lg border border-slate-200 text-center shadow-xs">
-                    <div class="text-xs font-black text-slate-500 uppercase">Năm ${year}</div>
-                    <div class="text-xl font-bold text-emerald-700 mt-1">${soNguoi} <span class="text-xs text-slate-400 font-normal">người</span></div>
-                    <div class="text-[11px] font-medium text-slate-500 mt-0.5">Chiếm: <span class="font-bold text-slate-700">${pctTrenTongDn}%</span> DN</div>
-                </div>
-            `;
-        }).join('') + `
-            <div class="bg-emerald-900 text-white p-3 rounded-lg text-center flex flex-col justify-center shadow-md col-span-2 sm:col-span-1 md:col-span-1">
-                <div class="text-[10px] font-bold uppercase tracking-wider text-emerald-300">Tổng 5 Năm</div>
-                <div class="text-xl font-black text-amber-300">${tongSoNguoi5Nam} người</div>
-                <div class="text-[10px] text-emerald-200 font-medium mt-0.5">Tỷ lệ: ${tongNhanSu > 0 ? ((tongSoNguoi5Nam/tongNhanSu)*100).toFixed(1) : 0}%</div>
-            </div>
-        `;
+            return `<div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200 text-center shadow-xs">
+                <div class="text-[11px] font-bold text-slate-500 uppercase">Năm ${year}</div>
+                <div class="text-lg font-bold text-emerald-700 mt-0.5">${soNguoi} <span class="text-xs text-slate-400 font-normal">người</span></div>
+                <div class="text-[10px] font-medium text-slate-500">Tỷ lệ: ${tongNhanSu > 0 ? ((soNguoi / tongNhanSu) * 100).toFixed(1) : "0.0"}%</div>
+            </div>`;
+        }).join('') + `<div class="bg-indigo-900 text-white p-2.5 rounded-lg text-center flex flex-col justify-center shadow shadow-indigo-200">
+            <div class="text-[10px] font-bold uppercase tracking-wider text-indigo-200">Tổng 5 Năm</div>
+            <div class="text-base font-black text-amber-300">${tongSoNguoi5Nam} người</div>
+        </div>`;
     }
 
-    function datBoLoc(loai) {
-        boLocCardChon = loai;
-        apDungBoLocNângCao();
-    }
-
-    // BỘ LỌC ĐA TIÊU CHÍ KẾT HỢP NGHỀ ĐẶC THÙ (ATV, NNĐH)
-    function apDungBoLocNângCao() {
+    function apDungBoLocNhânSu() {
         let txtSearch = document.getElementById("filter-search").value.toLowerCase().trim();
         let selDacThu = document.getElementById("filter-dac-thu").value;
         let selDv = document.getElementById("filter-don-vi").value;
         let selNam = document.getElementById("filter-nam-sinh").value;
         let selChenhLech = document.getElementById("filter-chenh-lech").value;
 
-        dataHienTaiDangLoc = dataNhanSuToanBo.filter(n => {
-            if (boLocCardChon === 'nam' && n.gioi_tinh !== 'Nam') return false;
-            if (boLocCardChon === 'nu' && n.gioi_tinh !== 'Nữ') return false;
-            if (boLocCardChon === 'atv' && !n.la_an_toan_vien) return false;
-            if (boLocCardChon === 'nndh' && !n.nghe_doc_hai) return false;
-
+        let filtered = dataNhanSuToanBo.filter(n => {
             if (txtSearch) {
                 let matchTen = n.ho_ten && n.ho_ten.toLowerCase().includes(txtSearch);
                 let matchBhxh = n.so_so_bhxh && n.so_so_bhxh.includes(txtSearch);
                 let matchCccd = n.cccd && n.cccd.toLowerCase().includes(txtSearch);
                 if (!matchTen && !matchBhxh && !matchCccd) return false;
             }
-
-            // Xử lý bộ lọc đặc thù nghề nghiệp nâng cao
             if (selDacThu === 'ATV_ONLY' && !n.la_an_toan_vien) return false;
             if (selDacThu === 'DH_ONLY' && !n.nghe_doc_hai) return false;
             if (selDacThu === 'BOTH' && (!n.la_an_toan_vien || !n.nghe_doc_hai)) return false;
-
             if (selDv !== 'ALL' && n.ma_dv !== selDv) return false;
             if (selNam !== 'ALL' && (!n.ngay_sinh || !n.ngay_sinh.startsWith(selNam))) return false;
-
             if (selChenhLech !== 'ALL') {
                 let resHuuMoi = tinhNgayHuuLuatMoi(n.ngay_sinh, n.gioi_tinh, n.nghe_doc_hai);
-                let textGoc = n.ghi_chu || "";
-                let namHuuGoc = "-";
+                let textGoc = n.ghi_chu || ""; let namHuuGoc = "-";
                 if(textGoc.includes("[HUUGOC:")) { namHuuGoc = textGoc.split("[HUUGOC:")[1].split("]")[0]; }
-                
                 let laTrung = (namHuuGoc === resHuuMoi);
                 if (selChenhLech === 'TRUNG' && !laTrung) return false;
                 if (selChenhLech === 'KHAC' && laTrung) return false;
             }
-
             return true;
         });
 
-        renderBangNhanSuV210();
-    }
-
-    function renderBangNhanSuV210() {
-        let tbody = document.getElementById('ns-table-body');
-        if(!tbody) return;
-
-        if(dataHienTaiDangLoc.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="13" class="p-6 italic text-slate-400">Không tìm thấy lao động nào khớp với tiêu chí tìm kiếm.</td></tr>`;
-            return;
-        }
-
-        tbody.innerHTML = dataHienTaiDangLoc.map((n, i) => {
+        let tbody = document.getElementById('ns-table-body'); if(!tbody) return;
+        tbody.innerHTML = filtered.map((n, i) => {
             let resHuuMoi = tinhNgayHuuLuatMoi(n.ngay_sinh, n.gioi_tinh, n.nghe_doc_hai);
-            let tuoi = tinhTuoiHienTai(n.ngay_sinh);
-
-            let textGoc = n.ghi_chu || "";
-            let kyHieuAtv = "-";
-            let kyHieuDh = "-";
-            let namHuuGocHienThi = "-";
-
+            let textGoc = n.ghi_chu || ""; let kyHieuAtv = "-"; let kyHieuDh = "-"; let namHuuGocHienThi = "-";
             if(textGoc.includes("[ATV:")) { kyHieuAtv = textGoc.split("[ATV:")[1].split("]")[0]; }
             if(textGoc.includes("[DH:")) { kyHieuDh = textGoc.split("[DH:")[1].split("]")[0]; }
             if(textGoc.includes("[HUUGOC:")) { namHuuGocHienThi = textGoc.split("[HUUGOC:")[1].split("]")[0]; }
-
-            let hienThiAtv = n.la_an_toan_vien ? `<span class="bg-amber-500 text-white font-bold px-2 py-0.5 rounded text-xs shadow-xs">${kyHieuAtv}</span>` : '<span class="text-slate-300">-</span>';
-            let hienThiDh = n.nghe_doc_hai ? `<span class="bg-rose-500 text-white font-bold px-2 py-0.5 rounded text-xs shadow-xs">${kyHieuDh}</span>` : '<span class="text-slate-300">-</span>';
+            let hienThiAtv = n.la_an_toan_vien ? `<span class="bg-amber-500 text-white font-bold px-2 py-0.5 rounded text-xs">${kyHieuAtv}</span>` : '-';
+            let hienThiDh = n.nghe_doc_hai ? `<span class="bg-rose-500 text-white font-bold px-2 py-0.5 rounded text-xs">${kyHieuDh}</span>` : '-';
             let hienThiGioiTinh = n.gioi_tinh === "Nữ" ? `<span class="text-pink-600 font-bold">Nữ</span>` : `<span class="text-blue-600 font-bold">Nam</span>`;
+            let ngaySinhHienThi = n.ngay_sinh ? `${n.ngay_sinh.split('-')[2]}/${n.ngay_sinh.split('-')[1]}/${n.ngay_sinh.split('-')[0]}` : "-";
+            let styleHuuMoi = (namHuuGocHienThi !== "-" && namHuuGocHienThi !== resHuuMoi) ? "bg-rose-950 text-amber-300 font-black" : "bg-slate-900 text-emerald-300";
 
-            let ngaySinhHienThi = "-";
-            if(n.ngay_sinh) {
-                let p = n.ngay_sinh.split('-');
-                if(p.length >= 3) ngaySinhHienThi = `${p[2]}/${p[1]}/${p[0]}`;
-            }
-
-            let styleHuuMoi = (namHuuGocHienThi !== "-" && namHuuGocHienThi !== resHuuMoi) 
-                ? "bg-rose-950 text-amber-300 font-black" 
-                : "bg-slate-900 text-emerald-300";
-
-            return `
-                <tr class="border-b">
-                    <td class="text-center text-slate-400 font-bold bg-slate-50">${i+1}</td>
-                    <td class="col-text-left font-bold text-slate-900">${n.ho_ten}</td>
-                    <td>${hienThiGioiTinh}</td>
-                    <td class="font-mono font-bold text-slate-800">${ngaySinhHienThi}</td>
-                    <td class="font-bold text-cyan-600 bg-cyan-50/50">${tuoi}</td>
-                    <td>${hienThiDh}</td>
-                    <td>${hienThiAtv}</td>
-                    <td class="bg-indigo-50 text-indigo-950 font-mono font-bold text-xs">${namHuuGocHienThi}</td>
-                    <td class="${styleHuuMoi} font-mono text-sm px-2">${resHuuMoi}</td>
-                    <td class="font-mono text-xs text-slate-600">${n.so_so_bhxh || '-'}</td>
-                    <td class="font-mono text-xs font-bold text-indigo-800">${n.cccd ? n.cccd.split('_')[0] : "-"}</td>
-                    <td class="font-bold text-slate-500 text-xs">${n.ma_dv || '-'}</td>
-                    <td class="col-text-left text-xs text-slate-600 font-medium">${n.chuc_danh || '-'}</td>
-                </tr>
-            `;
+            return `<tr class="border-b">
+                <td class="text-center font-bold text-slate-400 bg-slate-50">${i+1}</td>
+                <td class="col-text-left font-bold text-slate-900">${n.ho_ten}</td>
+                <td>${hienThiGioiTinh}</td>
+                <td class="font-mono font-bold text-slate-800">${ngaySinhHienThi}</td>
+                <td class="font-bold text-cyan-600 bg-cyan-50/50">${2026 - parseInt(n.ngay_sinh.split('-')[0])}</td>
+                <td>${hienThiDh}</td>
+                <td>${hienThiAtv}</td>
+                <td class="bg-indigo-50 text-indigo-950 font-mono font-bold text-xs">${namHuuGocHienThi}</td>
+                <td class="${styleHuuMoi} font-mono text-sm px-2">${resHuuMoi}</td>
+                <td class="font-mono text-xs text-slate-600">${n.so_so_bhxh || '-'}</td>
+                <td class="font-mono text-xs font-bold text-indigo-800">${n.cccd ? n.cccd.split('_')[0] : "-"}</td>
+                <td class="font-bold text-slate-500 text-xs">${n.ma_dv || '-'}</td>
+                <td class="col-text-left text-xs text-slate-600 font-medium">${n.chuc_danh || '-'}</td>
+            </tr>`;
         }).join('');
     }
 
-    // HÀM QUÉT TỰ ĐỘNG KHÔNG CẦN MAP TAY
-    function xuLyTuDongExcelV210(input) {
+    function xuLyTuDongExcelV220(input) {
         if (!input.files.length) return;
         let reader = new FileReader();
         reader.onload = async function(e) {
@@ -428,21 +600,13 @@
                 let workbook = XLSX.read(data, { type: 'array' });
                 let worksheet = workbook.Sheets[workbook.SheetNames[0]];
                 let rawMatrix = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
-
-                if (rawMatrix.length < 2) { alert("Tệp Excel trống."); return; }
-
-                let targetRowIdx = 0;
-                let keys = [];
+                let targetRowIdx = 0; let keys = [];
                 for(let r=0; r<Math.min(15, rawMatrix.length); r++){
                     let rowTest = rawMatrix[r].map(x => String(x||"").trim().toLowerCase());
                     if(rowTest.some(x => x.includes("họ và tên") || x.includes("số sổ bhxh") || x.includes("cccd"))){
-                        keys = rawMatrix[r].map(x => String(x||"").trim());
-                        targetRowIdx = r;
-                        break;
+                        keys = rawMatrix[r].map(x => String(x||"").trim()); targetRowIdx = r; break;
                     }
                 }
-                if(keys.length === 0) { keys = rawMatrix[0].map((x, i) => `Cột ${i+1}`); }
-
                 let idxHoTen = keys.findIndex(k => k.toLowerCase().includes("họ và tên"));
                 let idxBhxh = keys.findIndex(k => k.toLowerCase().includes("số sổ bhxh"));
                 let idxCccd = keys.findIndex(k => k.toLowerCase().includes("số cccd"));
@@ -454,95 +618,48 @@
                 let idxGioiTinh = keys.findIndex(k => k.toLowerCase().includes("nữ"));
                 let idxChucDanh = keys.findIndex(k => k.toLowerCase().includes("chức danh") || k.toLowerCase().includes("công việc"));
 
-                let listPush = [];
-                let trackingCccdMap = {};
-
+                let listPush = []; let trackingCccdMap = {};
                 for (let i = targetRowIdx + 1; i < rawMatrix.length; i++) {
-                    let row = rawMatrix[i];
-                    if (!row || row.length < 2) continue;
-
+                    let row = rawMatrix[i]; if (!row || row.length < 2) continue;
                     let hoTen = idxHoTen !== -1 && row[idxHoTen] ? String(row[idxHoTen]).trim() : "";
                     if (!hoTen || hoTen.toLowerCase() === "họ và tên" || hoTen.includes("---")) continue;
-
-                    let gioiTinh = "Nam";
-                    if (idxGioiTinh !== -1 && row[idxGioiTinh] && String(row[idxGioiTinh]).trim().toUpperCase() === "X") { gioiTinh = "Nữ"; }
-
+                    let gioiTinh = "Nam"; if (idxGioiTinh !== -1 && row[idxGioiTinh] && String(row[idxGioiTinh]).trim().toUpperCase() === "X") { gioiTinh = "Nữ"; }
                     let ngaySinhStr = null;
                     if (idxNgaySinh !== -1 && row[idxNgaySinh]) {
                         let rawValue = row[idxNgaySinh];
                         if (typeof rawValue === 'number') {
-                            let dObj = new Date((rawValue - 25569) * 86400 * 1000);
-                            ngaySinhStr = dObj.toISOString().substring(0, 10);
+                            ngaySinhStr = new Date((rawValue - 25569) * 86400 * 1000).toISOString().substring(0, 10);
                         } else {
                             let sDate = String(rawValue).trim();
                             if (sDate.includes("/")) {
-                                let parts = sDate.split("/");
-                                if (parts.length === 3) ngaySinhStr = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-                            } else {
-                                if (sDate.length === 4) ngaySinhStr = `${sDate}-01-01`;
-                                else ngaySinhStr = sDate.substring(0, 10);
-                            }
+                                let parts = sDate.split("/"); if (parts.length === 3) ngaySinhStr = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                            } else { if (sDate.length === 4) ngaySinhStr = `${sDate}-01-01`; else ngaySinhStr = sDate.substring(0, 10); }
                         }
                     }
-
                     let cccdRaw = (idxCccd !== -1 && row[idxCccd]) ? String(row[idxCccd]).trim().replace(/['`’ ]/g, "") : "KO_CCCD_" + i;
-                    if (trackingCccdMap[cccdRaw]) {
-                        trackingCccdMap[cccdRaw] += 1;
-                        cccdRaw = cccdRaw + "_trung" + trackingCccdMap[cccdRaw];
-                    } else { trackingCccdMap[cccdRaw] = 1; }
+                    if (trackingCccdMap[cccdRaw]) { trackingCccdMap[cccdRaw] += 1; cccdRaw = cccdRaw + "_trung" + trackingCccdMap[cccdRaw]; } else { trackingCccdMap[cccdRaw] = 1; }
 
-                    let laAnToanVien = false;
-                    let ngheDocHai = false;
-                    let ghiChuGoc = "";
-
-                    if (idxDh !== -1 && row[idxDh] && String(row[idxDh]).trim() !== "") {
-                        ngheDocHai = true;
-                        ghiChuGoc += `[DH:${String(row[idxDh]).trim()}]`;
-                    }
-                    if (idxAtv !== -1 && row[idxAtv] && String(row[idxAtv]).trim() !== "") {
-                        laAnToanVien = true;
-                        ghiChuGoc += `[ATV:${String(row[idxAtv]).trim()}]`;
-                    }
+                    let laAnToanVien = false; let ngheDocHai = false; let ghiChuGoc = "";
+                    if (idxDh !== -1 && row[idxDh] && String(row[idxDh]).trim() !== "") { ngheDocHai = true; ghiChuGoc += `[DH:${String(row[idxDh]).trim()}]`; }
+                    if (idxAtv !== -1 && row[idxAtv] && String(row[idxAtv]).trim() !== "") { laAnToanVien = true; ghiChuGoc += `[ATV:${String(row[idxAtv]).trim()}]`; }
                     if (idxHuuGoc !== -1 && row[idxHuuGoc] && String(row[idxHuuGoc]).trim() !== "") {
                         let txtVal = String(row[idxHuuGoc]).trim();
                         if (typeof row[idxHuuGoc] === 'number' && row[idxHuuGoc] > 40000) {
-                            let dHuu = new Date((row[idxHuuGoc] - 25569) * 86400 * 1000);
-                            txtVal = `${String(dHuu.getDate()).padStart(2,'0')}/${String(dHuu.getMonth()+1).padStart(2,'0')}/${dHuu.getFullYear()}`;
+                            let dHuu = new Date((row[idxHuuGoc] - 25569) * 86400 * 1000); txtVal = `${String(dHuu.getDate()).padStart(2,'0')}/${String(dHuu.getMonth()+1).padStart(2,'0')}/${dHuu.getFullYear()}`;
                         }
                         ghiChuGoc += `[HUUGOC:${txtVal}]`;
                     }
-
-                    listPush.push({
-                        ho_ten: hoTen,
-                        so_so_bhxh: (idxBhxh !== -1 && row[idxBhxh]) ? String(row[idxBhxh]).trim() : "",
-                        cccd: cccdRaw,
-                        ma_dv: (idxMaDv !== -1 && row[idxMaDv]) ? String(row[idxMaDv]).trim().toUpperCase() : "DV_GỐC",
-                        chuc_danh: (idxChucDanh !== -1 && row[idxChucDanh]) ? String(row[idxChucDanh]).trim() : "",
-                        gioi_tinh: gioiTinh,
-                        ngay_sinh: ngaySinhStr,
-                        la_an_toan_vien: laAnToanVien,
-                        nghe_doc_hai: ngheDocHai,
-                        ghi_chu: ghiChuGoc
-                    });
+                    listPush.push({ ho_ten: hoTen, so_so_bhxh: (idxBhxh !== -1 && row[idxBhxh]) ? String(row[idxBhxh]).trim() : "", cccd: cccdRaw, ma_dv: (idxMaDv !== -1 && row[idxMaDv]) ? String(row[idxMaDv]).trim().toUpperCase() : "DV_GỐC", chuc_danh: (idxChucDanh !== -1 && row[idxChucDanh]) ? String(row[idxChucDanh]).trim() : "", gioi_tinh: gioiTinh, ngay_sinh: ngaySinhStr, la_an_toan_vien: laAnToanVien, nghe_doc_hai: ngheDocHai, ghi_chu: ghiChuGoc });
                 }
-
-                let { error } = await supabaseClient.from('nhansu').upsert(listPush, { onConflict: 'cccd' });
-                if (error) {
-                    alert("Lỗi tải lên: " + error.message);
-                } else {
-                    alert(`ĐỒNG BỘ HOÀN TẤT: Tự động trích xuất cấu trúc và nạp thành công ${listPush.length} lao động!`);
-                    taiDuLieuNhanSu();
-                }
-            } catch (err) { alert("Lỗi phân tích tệp: " + err.message); }
+                await supabaseClient.from('nhansu').upsert(listPush, { onConflict: 'cccd' });
+                alert("Đồng bộ nhân sự thành công!"); await taiDuLieuNhanSu();
+            } catch (err) { alert("Lỗi: " + err.message); }
         };
         reader.readAsArrayBuffer(input.files[0]);
     }
 
     async function clearAllDataNhanSu() {
-        if(confirm("Xóa toàn bộ dữ liệu trên cloud?")) {
-            await supabaseClient.from('nhansu').delete().neq('ho_ten', '');
-            taiDuLieuNhanSu();
-        }
+        if(confirm("Xóa database nhân sự?")) { await supabaseClient.from('nhansu').delete().neq('ho_ten', ''); await taiDuLieuNhanSu(); }
     }
     </script>
 </body>
