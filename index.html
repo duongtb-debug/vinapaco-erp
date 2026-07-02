@@ -3,830 +3,383 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VINAPACO ERP ENTERPRISE v3.9.1 - CHỐNG LỖI ĐỊNH DẠNG</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        slate: { 950: '#070a13' }
-                    }
-                }
-            }
-        }
-    </script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <title>Hệ Thống ERP Liên Thông Dữ Liệu Doanh Nghiệp</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
-        body, button, input, select, textarea, table, th, td, span, div { 
-            font-family: 'Times New Roman', Times, serif !important; 
-        }
-        body { background-color: #f1f5f9; }
-        .card-custom { background: #ffffff; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border: 1px solid #cbd5e1; }
-        .table-container { max-width: 100%; overflow-x: auto; border: 1px solid #cbd5e1; }
-        .table-custom { width: 100%; border-collapse: collapse; min-width: 1600px; }
-        .table-custom th { position: sticky; top: 0; background-color: #0f172a; color: #ffffff; z-index: 10; padding: 10px 8px; font-weight: 700; text-transform: uppercase; font-size: 13px; border: 1px solid #334155; text-align: center; }
-        .table-custom td { padding: 8px 6px; font-size: 13.5px; vertical-align: middle; border: 1px solid #cbd5e1; text-align: center; white-space: nowrap; }
-        .col-text-left { text-align: left !important; white-space: normal !important; word-break: break-word !important; }
-        .table-custom tbody tr:nth-child(even) { background-color: #f8fafc; }
-        .table-custom tbody tr:hover { background-color: #f0fdf4 !important; }
-        
-        .dropdown-search-wrapper { position: relative; }
-        .dropdown-search-list { position: absolute; top: 100%; left: 0; right: 0; max-height: 220px; overflow-y: auto; background: white; border: 1px solid #94a3b8; border-radius: 4px; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        .dropdown-search-item { padding: 6px 10px; cursor: pointer; border-bottom: 1px solid #e2e8f0; font-size: 13px; text-align: left; }
-        .dropdown-search-item:hover { background-color: #e2e8f0; color: #0f172a; }
+        *, *::before, *::after { box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background-color: #f4f6f9; color: #333; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        header { background: linear-gradient(135deg, #1e3c72, #2a5298); color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; text-align: center; }
+        .dashboard { display: block; margin-bottom: 20px; }
+        .grid-stats { display: table; width: 100%; table-layout: fixed; margin-bottom: 20px; border-collapse: separate; border-spacing: 15px 0; }
+        .stat-card { display: table-cell; background: white; padding: 20px; border-radius: 8px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border-left: 5px solid #2a5298; }
+        .stat-card.accent { border-left-color: #e67e22; }
+        .stat-card h3 { margin: 0 0 10px 0; font-size: 11pt; color: #7f8c8d; text-transform: uppercase; }
+        .stat-card .value { font-size: 20pt; font-weight: bold; color: #2c3e50; }
+        .actions-bar { background: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .btn { background-color: #2980b9; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 10pt; margin-right: 10px; }
+        .btn:hover { background-color: #3498db; }
+        .btn-danger { background-color: #c0392b; }
+        .btn-danger:hover { background-color: #e74c3c; }
+        .file-input-wrapper { display: inline-block; position: relative; overflow: hidden; margin-right: 10px; }
+        .file-input-wrapper input[type=file] { position: absolute; left: 0; top: 0; opacity: 0; font-size: 100px; cursor: pointer; }
+        .tabs { margin-bottom: 15px; border-bottom: 2px solid #bdc3c7; }
+        .tab-btn { background: none; border: none; padding: 10px 20px; font-size: 11pt; cursor: pointer; border-bottom: 3px solid transparent; font-weight: bold; color: #7f8c8d; }
+        .tab-btn.active { border-bottom-color: #2a5298; color: #2a5298; }
+        .tab-content { display: none; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .tab-content.active { display: block; }
+        .table-responsive { width: 100%; overflow-x: auto; margin-top: 15px; }
+        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 10pt; }
+        th { background-color: #f8f9fa; color: #34495e; font-weight: bold; padding: 12px; border-bottom: 2px solid #dee2e6; }
+        td { padding: 12px; border-bottom: 1px solid #dee2e6; color: #555; }
+        tr:nth-child(even) { background-color: #fdfdfd; }
+        .loading { display: none; color: #e67e22; font-weight: bold; margin-top: 10px; text-align: center; }
     </style>
 </head>
-<body class="text-slate-900 min-h-screen pb-16">
+<body>
 
-    <header class="bg-slate-950 text-white shadow-md sticky top-0 z-50 border-b border-slate-800">
-        <div class="max-w-[99%] mx-auto px-4 py-3 flex flex-col lg:flex-row justify-between items-center gap-4">
-            <div class="flex items-center gap-2">
-                <i class="fa-solid fa-layer-group text-2xl text-emerald-400"></i>
-                <div>
-                    <h1 class="text-base font-bold tracking-wide text-slate-100">VINAPACO ERP ENTERPRISE PLATFORM v3.9.1</h1>
-                    <p class="text-[11px] text-emerald-400 font-mono"><i class="fa-solid fa-cloud-sun"></i> Quy trình liên thông: Nhân sự -> Cấp phát -> Bảo dưỡng -> Quyết toán Thuế</p>
-                </div>
-            </div>
-            
-            <div class="flex bg-slate-900 p-1 rounded border border-slate-800 gap-1 overflow-x-auto w-full lg:w-auto">
-                <button onclick="switchTab('tab-dashboard')" id="btn-tab-dashboard" class="px-3 py-1.5 text-xs font-bold uppercase rounded bg-indigo-600 text-white whitespace-nowrap">
-                    <i class="fa-solid fa-chart-line mr-1"></i> Dashboard
-                </button>
-                <button onclick="switchTab('tab-nhan-su')" id="btn-tab-nhan-su" class="px-3 py-1.5 text-xs font-bold uppercase rounded text-slate-400 hover:text-white whitespace-nowrap">
-                    <i class="fa-solid fa-users mr-1"></i> 1. Cơ Sở Nhân Sự
-                </button>
-                <button onclick="switchTab('tab-cap-phat')" id="btn-tab-cap-phat" class="px-3 py-1.5 text-xs font-bold uppercase rounded text-slate-400 hover:text-white whitespace-nowrap">
-                    <i class="fa-solid fa-share-nodes mr-1"></i> 2. Quản Lý Cấp Phát
-                </button>
-                <button onclick="switchTab('tab-sua-chua')" id="btn-tab-sua-chua" class="px-3 py-1.5 text-xs font-bold uppercase rounded text-slate-400 hover:text-white whitespace-nowrap">
-                    <i class="fa-solid fa-wrench mr-1"></i> 3. Đăng Ký Sửa Chữa (Cloud)
-                </button>
-                <button onclick="switchTab('tab-thanh-toan')" id="btn-tab-thanh-toan" class="px-3 py-1.5 text-xs font-bold uppercase rounded text-slate-400 hover:text-white whitespace-nowrap">
-                    <i class="fa-solid fa-calculator mr-1"></i> 4. Quyết Toán & Thuế VAT
-                </button>
-            </div>
-        </div>
+<div class="container">
+    <header>
+        <h1 style="margin: 0; font-size: 18pt;">HỆ THỐNG QUẢN LÝ ERP LIÊN THÔNG DOANH NGHIỆP</h1>
+        <p style="margin: 5px 0 0 0; font-size: 10pt; opacity: 0.9;">Dữ liệu đồng bộ đám mây và liên thông nghiệp vụ tự động</p>
     </header>
 
-    <main class="max-w-[99%] mx-auto px-2 mt-4 space-y-4">
-        
-        <div id="tab-dashboard" class="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div class="card-custom p-4 border-l-4 border-indigo-600 flex justify-between items-center bg-white">
-                <div>
-                    <span class="block text-xs font-bold text-slate-500 uppercase">Tổng Nhân Sự Gốc Cloud</span>
-                    <span id="dash-total-ns" class="text-xl font-bold font-mono text-slate-900 block mt-1">0</span>
-                </div>
-                <div class="text-2xl text-slate-300"><i class="fa-solid fa-user-group"></i></div>
+    <div class="dashboard">
+        <div class="grid-stats">
+            <div class="stat-card">
+                <h3>Tổng Số Nhân Sự Gốc</h3>
+                <div id="lbl-tong-nhansu" class="value">0</div>
             </div>
-            <div class="card-custom p-4 border-l-4 border-emerald-600 flex justify-between items-center bg-white">
-                <div>
-                    <span class="block text-xs font-bold text-slate-500 uppercase">Tài Sản Đã Cấp Phát</span>
-                    <span id="dash-total-cp" class="text-xl font-bold font-mono text-slate-900 block mt-1">0</span>
-                </div>
-                <div class="text-2xl text-slate-300"><i class="fa-solid fa-laptop-house"></i></div>
+            <div class="stat-card accent">
+                <h3>Thiết Bị Đang Sửa Chữa</h3>
+                <div id="lbl-tong-suachua" class="value">0</div>
             </div>
-            <div class="card-custom p-4 border-l-4 border-blue-600 flex justify-between items-center bg-white">
-                <div>
-                    <span class="block text-xs font-bold text-slate-500 uppercase">Yêu Cầu Bảo Dưỡng Sửa Chữa</span>
-                    <span id="dash-total-sc" class="text-xl font-bold font-mono text-blue-600 block mt-1">0</span>
-                </div>
-                <div class="text-2xl text-slate-300"><i class="fa-solid fa-screwdriver-wrench"></i></div>
+            <div class="stat-card">
+                <h3>Cấp Phát Công Cụ Dung Cụ</h3>
+                <div id="lbl-tong-capphat" class="value">0</div>
             </div>
-            <div class="card-custom p-4 border-l-4 border-amber-500 flex justify-between items-center bg-white">
-                <div>
-                    <span class="block text-xs font-bold text-slate-500 uppercase">Tổng Quyết Toán Toàn Bộ</span>
-                    <span id="dash-total-money" class="text-xl font-bold font-mono text-emerald-700 block mt-1">0 đ</span>
-                </div>
-                <div class="text-2xl text-slate-300"><i class="fa-solid fa-file-invoice-dollar"></i></div>
+            <div class="stat-card accent">
+                <h3>Kinh Phí Quyết Toán (VND)</h3>
+                <div id="lbl-tong-quyettoan" class="value">0</div>
             </div>
         </div>
-        
-        <div id="tab-nhan-su" class="space-y-3 hidden">
-            <div class="card-custom p-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 bg-white">
-                <div class="text-slate-800 font-bold text-sm uppercase tracking-wide flex items-center gap-2">
-                    <i class="fa-solid fa-database text-indigo-600"></i> Cơ sơ dữ liệu hồ sơ nhân sự gốc (Supabase Cloud Sync)
-                </div>
-                
-                <div class="flex items-center gap-2">
-                    <label class="bg-indigo-700 hover:bg-indigo-800 text-white text-xs font-bold uppercase px-3 py-2 rounded shadow cursor-pointer flex items-center gap-1.5">
-                        <i class="fa-solid fa-file-excel"></i> Tải Lên Excel Nhân Sự Gốc
-                        <input type="file" id="ns-excel-file" accept=".xlsx, .xls" class="hidden" onchange="xuLyExcelNhanSuGoc(this)">
-                    </label>
-                    <button onclick="xoaSachNhanSuCloud()" class="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold uppercase px-3 py-2 rounded shadow">
-                        <i class="fa-solid fa-trash-can"></i> Xóa Hết Dữ Liệu Cũ
-                    </button>
-                </div>
-            </div>
-            <div class="card-custom p-1 bg-white overflow-hidden">
-                <div class="table-container max-h-[600px] overflow-y-auto">
-                    <table class="table-custom">
-                        <thead>
-                            <tr>
-                                <th style="width:50px">Stt</th>
-                                <th>Họ và tên</th>
-                                <th>Tên</th>
-                                <th>Số sổ BHXH</th>
-                                <th>Số CCCD</th>
-                                <th>An Toàn Viên</th>
-                                <th>Nghề Độc Hại (NNĐH)</th>
-                                <th>Năm Về Hưu</th>
-                                <th>Mã Đơn Vị</th>
-                                <th>Năm</th>
-                                <th>Năm Sinh</th>
-                                <th>Nữ (x)</th>
-                                <th class="text-left">Chức danh công việc / Vị trí vị trí công tác chi tiết</th>
-                            </tr>
-                        </thead>
-                        <tbody id="ns-table-body">
-                            <tr><td colspan="13" class="p-8 italic text-slate-400">Đang đồng bộ dữ liệu đám mây nhân sự...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+    </div>
+
+    <div class="actions-bar">
+        <div class="file-input-wrapper">
+            <button class="btn" style="background-color: #27ae60;">📂 Chọn File Excel Nhân Sự Gốc</button>
+            <input type="file" id="excel-file-input" accept=".xlsx, .xls" onchange="xuLyExcelNhanSuGoc(event)">
         </div>
+        <button class="btn btn-danger" onclick="xoaSachNhanSuCloud()">🗑️ Xóa Sạch Dữ Liệu Nhân Sự</button>
+        <button class="btn" style="background-color: #8e44ad;" onclick="taiTatCaDuLieuTuCloud()">🔄 Làm Mới Dữ Liệu</button>
+        <div id="loading-text" class="loading">⏳ Hệ thống đang xử lý dữ liệu đám mây, vui lòng đợi...</div>
+    </div>
 
-        <div id="tab-cap-phat" class="grid grid-cols-1 lg:grid-cols-4 gap-4 hidden">
-            <div class="card-custom p-4 bg-white space-y-3 lg:col-span-1">
-                <h3 class="text-xs font-bold text-slate-900 border-b pb-2 uppercase tracking-wide"><i class="fa-solid fa-square-plus text-indigo-600"></i> Khởi tạo cấp phát tài sản</h3>
-                <div class="space-y-2.5">
-                    <div class="dropdown-search-wrapper">
-                        <label class="block text-xs font-bold text-slate-700 mb-0.5">Tìm Kiếm Nhân Sự Tiếp Nhận (*)</label>
-                        <input type="text" id="cp-search-input" oninput="locDropdownNhanSu(this.value, 'cp')" onfocus="hienDropdownNhanSu('cp')" placeholder="Gõ tìm kiếm tên nhân viên..." class="w-full text-xs p-2 bg-slate-50 border rounded border-slate-300 font-bold outline-none focus:border-indigo-600">
-                        <div id="cp-search-list" class="dropdown-search-list hidden"></div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-2">
-                        <div>
-                            <label class="block text-[11px] font-bold text-slate-600">Mã Đơn Vị</label>
-                            <input type="text" id="cp-madv" readonly class="w-full text-xs p-2 bg-slate-100 border rounded font-mono font-bold text-slate-700">
-                        </div>
-                        <div>
-                            <label class="block text-[11px] font-bold text-slate-600">Số CCCD</label>
-                            <input type="text" id="cp-cccd" readonly class="w-full text-xs p-2 bg-slate-100 border rounded font-mono text-slate-700">
-                        </div>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-700 mb-0.5">Mã Thiết Bị (Hệ thống tự sinh)</label>
-                        <input type="text" id="cp-matb-auto" readonly class="w-full text-xs p-2 bg-slate-100 border rounded font-mono font-bold text-indigo-600">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-700 mb-0.5">Tên Tài Sản / Thiết Bị Cấp Phát (*)</label>
-                        <input type="text" id="cp-tentb" placeholder="Ví dụ: Máy bóc vỏ gỗ, Máy nạp nguyên liệu..." class="w-full text-xs p-2 bg-slate-50 border rounded font-bold">
-                    </div>
-                    <div class="grid grid-cols-2 gap-2">
-                        <div>
-                            <label class="block text-xs font-bold text-slate-700 mb-0.5">Model / Serial</label>
-                            <input type="text" id="cp-model" placeholder="Model S/N..." class="w-full text-xs p-2 bg-slate-50 border rounded uppercase font-mono">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-700 mb-0.5">Ngày Cấp Phát</label>
-                            <input type="date" id="cp-ngay" class="w-full text-xs p-2 bg-slate-50 border rounded font-mono font-bold">
-                        </div>
-                    </div>
-                    <div class="pt-2 flex gap-2">
-                        <button onclick="executeLuuCapPhat()" class="w-full bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold uppercase py-2 rounded shadow">Ghi Sổ Cấp Phát</button>
-                        <button onclick="clearFormCapPhat()" class="px-3 bg-slate-100 text-slate-600 text-xs border rounded">Hủy</button>
-                    </div>
-                </div>
-            </div>
-            <div class="card-custom p-3 bg-white lg:col-span-3 space-y-2">
-                <h3 class="text-xs font-bold text-slate-900 uppercase border-b pb-1.5">Sổ chi tiết theo dõi tài sản thiết bị đã cấp phát</h3>
-                <div class="table-container">
-                    <table class="table-custom">
-                        <thead>
-                            <tr>
-                                <th style="width:40px">Stt</th>
-                                <th>Mã Đơn Vị</th>
-                                <th>Người Tiếp Nhận</th>
-                                <th>Số CCCD</th>
-                                <th>Mã Thiết Bị</th>
-                                <th>Tên Loại Tài Sản Thiết Bị</th>
-                                <th>Model / Serial</th>
-                                <th>Ngày Cấp Phát</th>
-                                <th style="width:60px">Hành động</th>
-                            </tr>
-                        </thead>
-                        <tbody id="table-body-cap-phat"></tbody>
-                    </table>
-                </div>
-            </div>
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('tab-nhansu', this)">👥 Danh Sách Nhân Sự Gốc</button>
+        <button class="tab-btn" onclick="switchTab('tab-suachua', this)">🔧 Theo Dõi Sửa Chữa Thiết Bị</button>
+        <button class="tab-btn" onclick="switchTab('tab-capphat', this)">📦 Cấp Phát Trang Thiết Bị</button>
+        <button class="tab-btn" onclick="switchTab('tab-thanhtoan', this)">💰 Quyết Toán Chi Phí</button>
+    </div>
+
+    <div id="tab-nhansu" class="tab-content active">
+        <h2 style="font-size: 13pt; margin-top: 0; color: #2a5298;">Cơ Sở Dữ Liệu Nhân Sự Toàn Công Ty</h2>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>STT</th>
+                        <th>Số CCCD</th>
+                        <th>Họ Và Tên</th>
+                        <th>Giới Tính</th>
+                        <th>Ngày Sinh</th>
+                        <th>Tuổi</th>
+                        <th>Mã Đơn Vị</th>
+                        <th>Chức Danh Nghiệp Vụ</th>
+                        <th>Số Sổ BHXH</th>
+                    </tr>
+                </thead>
+                <tbody id="tbl-nhansu-body">
+                    <tr><td colspan="9" style="text-align: center; color: #999;">Không có dữ liệu. Vui lòng nạp tệp Excel.</td></tr>
+                </tbody>
+            </table>
         </div>
+    </div>
 
-        <div id="tab-sua-chua" class="grid grid-cols-1 lg:grid-cols-4 gap-4 hidden">
-            <div class="card-custom p-4 bg-blue-50/50 border-blue-200 space-y-3 lg:col-span-1">
-                <h3 class="text-xs font-bold text-blue-950 border-b pb-2 uppercase tracking-wide flex items-center gap-1">
-                    <i class="fa-solid fa-link text-blue-600"></i> Phiếu Yêu Cầu Sửa Chữa
-                </h3>
-                <input type="hidden" id="sc-edit-id" value="">
-                <div class="space-y-2.5">
-                    <div class="dropdown-search-wrapper">
-                        <label class="block text-xs font-bold text-slate-700 mb-0.5">1. Chọn Mã Thiết Bị Cần Sửa (*)</label>
-                        <input type="text" id="sc-matb-input" oninput="locDropdownThietBiCapPhat(this.value)" onfocus="hienDropdownThietBiCapPhat()" placeholder="Gõ tìm kiếm Mã thiết bị (TB-...)" class="w-full text-xs p-2 bg-yellow-50 border-2 border-yellow-400 rounded font-mono font-bold text-blue-900 outline-none">
-                        <div id="sc-tb-search-list" class="dropdown-search-list hidden"></div>
-                    </div>
-
-                    <div class="p-2.5 bg-white border border-slate-300 rounded space-y-2">
-                        <span class="block text-[10px] font-bold text-slate-500 uppercase"><i class="fa-solid fa-database"></i> Dữ liệu liên thông từ mục Cấp Phát</span>
-                        <div>
-                            <label class="block text-[11px] font-bold text-slate-600">Tên Thiết Bị / Tài Sản</label>
-                            <input type="text" id="sc-tentb-display" readonly class="w-full text-xs p-1.5 bg-slate-100 border rounded text-slate-800 font-bold">
-                        </div>
-                        <div class="grid grid-cols-2 gap-2">
-                            <div>
-                                <label class="block text-[11px] font-bold text-slate-600">Người Đang Giữ</label>
-                                <input type="text" id="sc-nguoi-display" readonly class="w-full text-xs p-1.5 bg-slate-100 border rounded text-slate-800">
-                            </div>
-                            <div>
-                                <label class="block text-[11px] font-bold text-slate-600">Mã Bộ Phận (ĐV)</label>
-                                <input type="text" id="sc-mabophan" readonly class="w-full text-xs p-1.5 bg-slate-100 border rounded text-slate-800 font-mono font-bold">
-                            </div>
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-bold text-slate-700 mb-0.5">Ngày Phát Sinh Yêu Cầu (*)</label>
-                        <input type="date" id="sc-ngay" class="w-full text-xs p-2 bg-slate-50 border rounded font-mono font-bold">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-700 mb-0.5">Hiện Trạng Hư Hỏng & Linh Kiện Cần Sửa (*)</label>
-                        <textarea id="sc-noidung" rows="3" placeholder="Mô tả chi tiết sự cố bộ phận máy móc..." class="w-full text-xs p-2 bg-slate-50 border rounded"></textarea>
-                    </div>
-                    <div class="pt-2 flex gap-2">
-                        <button onclick="executeLuuSuaChua()" class="w-full bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold uppercase py-2 rounded shadow">
-                            <i class="fa-solid fa-cloud-arrow-up"></i> Đẩy Lên Cloud
-                        </button>
-                        <button onclick="clearFormSuaChua()" class="px-3 bg-slate-100 text-slate-600 text-xs border rounded">Hủy</button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card-custom p-3 bg-white lg:col-span-3 space-y-2">
-                <h3 class="text-xs font-bold text-slate-900 uppercase border-b pb-1.5">Nhật ký bảo dưỡng sửa chữa thiết bị (Hiển thị đồng bộ dữ liệu Cloud)</h3>
-                <div class="table-container">
-                    <table class="table-custom">
-                        <thead>
-                            <tr>
-                                <th style="width:40px">Stt</th>
-                                <th>Mã Bộ Phận</th>
-                                <th>Mã Thiết Bị Liên Thông</th>
-                                <th>Tên Tài Sản Thiết Bị</th>
-                                <th>Cán Bộ Đang Sử Dụng</th>
-                                <th>Ngày Ghi Nhận</th>
-                                <th class="text-left">Nội Dung Hiện Trạng Hư Hỏng / Phương Án Khắc Phục</th>
-                                <th style="width:180px">Công cụ chuyển tiếp</th>
-                            </tr>
-                        </thead>
-                        <tbody id="table-body-sua-chua"></tbody>
-                    </table>
-                </div>
-            </div>
+    <div id="tab-suachua" class="tab-content">
+        <h2 style="font-size: 13pt; margin-top: 0; color: #2a5298;">Phân Hệ Liên Thông Sửa Chữa Máy Móc</h2>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Mã Thiết Bị</th>
+                        <th>Tên Thiết Bị Thầu</th>
+                        <th>Mã Bộ Phận</th>
+                        <th>Nội Dung Hỏng / Sửa Chữa</th>
+                        <th>Chi Phí Dự Kiến</th>
+                    </tr>
+                </thead>
+                <tbody id="tbl-suachua-body">
+                    <tr><td colspan="5" style="text-align: center; color: #999;">Không có lịch sử sửa chữa thiết bị.</td></tr>
+                </tbody>
+            </table>
         </div>
+    </div>
 
-        <div id="tab-thanh-toan" class="space-y-4 hidden">
-            <div class="card-custom p-4 bg-gradient-to-r from-slate-900 to-slate-800 text-white shadow border-l-4 border-emerald-500">
-                <div class="text-emerald-400 font-bold text-xs uppercase tracking-wider mb-2">
-                    <i class="fa-solid fa-calculator"></i> Máy tính trích xuất thuế VAT nhanh cho Kế toán doanh nghiệp
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
-                    <div>
-                        <label class="block text-[11px] uppercase font-bold text-slate-300 mb-0.5">Số tiền gốc trước thuế (VNĐ)</label>
-                        <input type="number" id="tax-amount-input" oninput="calculateTaxTool()" placeholder="Nhập giá linh kiện sửa..." class="w-full text-xs p-2 bg-slate-800 text-white border border-slate-700 rounded font-mono font-bold focus:border-emerald-400 outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-[11px] uppercase font-bold text-slate-300 mb-0.5">Thuế suất VAT (%)</label>
-                        <select id="tax-rate-select" onchange="calculateTaxTool()" class="w-full text-xs p-2 bg-slate-800 text-white border border-slate-700 rounded font-bold">
-                            <option value="0.10" selected>10% (Thuế tiêu chuẩn)</option>
-                            <option value="0.08">8% (Nghị định giảm thuế)</option>
-                            <option value="0.05">5%</option>
-                            <option value="0">0% (Không chịu thuế)</option>
-                        </select>
-                    </div>
-                    <div class="bg-slate-950 p-1.5 rounded border border-slate-700 text-center">
-                        <span class="block text-[10px] text-slate-400 uppercase">Tiền Thuế VAT</span>
-                        <span id="tax-computed-vat" class="text-xs font-bold text-amber-400 font-mono">0 đ</span>
-                    </div>
-                    <div class="bg-slate-950 p-1.5 rounded border border-slate-700 text-center">
-                        <span class="block text-[10px] text-slate-400 uppercase">Tổng Chi Phí Sau Thuế</span>
-                        <span id="tax-computed-total" class="text-sm font-bold text-emerald-400 font-mono">0 đ</span>
-                    </div>
-                    <div>
-                        <button onclick="applyTaxToForm()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold uppercase py-2 rounded shadow">
-                            Điền Tiền Sau Thuế Vào Form
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <div class="card-custom p-4 bg-white space-y-3 lg:col-span-1 border-t-4 border-emerald-600">
-                    <h3 class="text-xs font-bold text-slate-950 border-b pb-2 uppercase tracking-wide">Lập Đề Nghị Quyết Toán Kế Toán</h3>
-                    <div class="space-y-2.5">
-                        <div>
-                            <label class="block text-xs font-bold text-slate-700 mb-0.5">Mã Đơn Vị Đề Nghị (*)</label>
-                            <input type="text" id="tt-madv" placeholder="Mã bộ phận..." class="w-full text-xs p-2 bg-slate-50 border rounded font-bold font-mono">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-700 mb-0.5">Nội Dung Quyết Toán Chi Phí (*)</label>
-                            <textarea id="tt-noidung" rows="2" placeholder="Nội dung chi phí thanh toán bảo dưỡng..." class="w-full text-xs p-2 bg-slate-50 border rounded font-bold"></textarea>
-                        </div>
-                        <div class="p-2.5 bg-slate-50 border border-dashed border-slate-300 rounded space-y-2">
-                            <span class="block text-[11px] font-bold text-slate-900 uppercase">Thông Tin Đối Tác Thụ Hưởng</span>
-                            <div>
-                                <label class="block text-[10px] font-bold text-slate-600 mb-0.5">Đơn Vị Thụ Hưởng / Nhà Cung Cấp Vật Tư (*)</label>
-                                <input type="text" id="tt-thuhuong" placeholder="CÔNG TY TNHH CƠ KHÍ / ĐƠN VỊ SỬA CHỮA..." class="w-full text-[11px] p-1.5 bg-white border rounded font-bold uppercase">
-                            </div>
-                            <div class="grid grid-cols-2 gap-2">
-                                <div>
-                                    <label class="block text-[10px] font-bold text-slate-600 mb-0.5">Số Tài Khoản (*)</label>
-                                    <input type="text" id="tt-stk" placeholder="Số TK ngân hàng..." class="w-full text-[11px] p-1.5 bg-white border rounded font-mono font-bold">
-                                </div>
-                                <div>
-                                    <label class="block text-[10px] font-bold text-slate-600 mb-0.5">Tại Ngân Hàng (*)</label>
-                                    <input type="text" id="tt-tennganhang" placeholder="Vietcombank, Agribank..." class="w-full text-[11px] p-1.5 bg-white border rounded font-bold">
-                                </div>
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-2 gap-2">
-                            <div>
-                                <label class="block text-xs font-bold text-slate-700 mb-0.5">Số Tiền Quyết Toán (VND) (*)</label>
-                                <input type="number" id="tt-sotien" class="w-full text-xs p-2 bg-slate-50 border rounded font-bold font-mono text-emerald-700">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-slate-700 mb-0.5">Hình Thức</label>
-                                <select id="tt-phuongthuc" class="w-full text-xs p-2 bg-slate-50 border rounded font-bold">
-                                    <option value="Chuyển khoản">Chuyển khoản</option>
-                                    <option value="Tiền mặt">Tiền mặt</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="pt-2 flex gap-2">
-                            <button onclick="executeLuuThanhToan()" class="w-full bg-emerald-700 text-white text-xs font-bold uppercase py-2 rounded shadow">
-                                <i class="fa-solid fa-paper-plane"></i> Gửi Kế Toán Cloud
-                            </button>
-                            <button onclick="clearFormThanhToan()" class="px-3 bg-slate-100 text-slate-600 text-xs border rounded">Xóa</button>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card-custom p-3 bg-white lg:col-span-2 space-y-2">
-                    <h3 class="text-xs font-bold text-slate-950 uppercase border-b pb-1.5">Sổ theo dõi chứng từ quyết toán chi phí sửa chữa tài sản</h3>
-                    <div class="table-container">
-                        <table class="table-custom">
-                            <thead>
-                                <tr>
-                                    <th style="width:40px">Stt</th>
-                                    <th>Mã ĐV</th>
-                                    <th>Đơn Vị Thụ Hưởng / Tài Khoản Đối Tác</th>
-                                    <th>Nội Dung Quyết Toán Chi Phí Chi Tiết</th>
-                                    <th>Số Tiền (VND)</th>
-                                    <th style="width:50px">Xóa</th>
-                                </tr>
-                            </thead>
-                            <tbody id="table-body-thanh-toan"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
+    <div id="tab-capphat" class="tab-content">
+        <h2 style="font-size: 13pt; margin-top: 0; color: #2a5298;">Phân Hệ Liên Thông Cấp Phát Công Cụ</h2>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Số CCCD Người Nhận</th>
+                        <th>Họ Tên Nhân Viên</th>
+                        <th>Mã Đơn Vị</th>
+                        <th>Tên Trang Thiết Bị Cấp Phát</th>
+                        <th>Ngày Bàn Giao</th>
+                    </tr>
+                </thead>
+                <tbody id="tbl-capphat-body">
+                    <tr><td colspan="5" style="text-align: center; color: #999;">Không có dữ liệu cấp phát.</td></tr>
+                </tbody>
+            </table>
         </div>
+    </div>
 
-    </main>
+    <div id="tab-thanhtoan" class="tab-content">
+        <h2 style="font-size: 13pt; margin-top: 0; color: #2a5298;">Phân Hệ Quyết Toán & Thanh Lý Kinh Phí</h2>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Mã Chứng Từ</th>
+                        <th>Mã Đơn Vị Đề Xuất</th>
+                        <th>Nội Dung Quyết Toán</th>
+                        <th>Số Tiền (VND)</th>
+                        <th>Trạng Thái Phê Duyệt</th>
+                    </tr>
+                </thead>
+                <tbody id="tbl-thanhtoan-body">
+                    <tr><td colspan="5" style="text-align: center; color: #999;">Không có dữ liệu tài chính quyết toán.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 
-    <script>
-        const SUPABASE_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co";
-        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ";
-        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+<script>
+    // --- 1. CẤU HÌNH LIÊN KẾT SUPABASE CLOUD ---
+    // Đã đồng bộ chuẩn xác với cấu trúc bảng viết liền: 'nhansu'
+    const SUPABASE_URL = "https://your-project-id.supabase.co"; // Thay thế bằng URL dự án của bạn
+    const SUPABASE_KEY = "your-anon-key"; // Thay thế bằng API Key của bạn
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        let danhSachNhanSuGoc = [];
-        let dbCapPhat = [];
-        let dbSuaChua = [];
-        let dbThanhToan = [];
+    // --- Khởi động hệ thống khi nạp trang ---
+    window.addEventListener('DOMContentLoaded', () => {
+        taiTatCaDuLieuTuCloud();
+    });
 
-        window.addEventListener('DOMContentLoaded', async () => {
-            const today = new Date().toISOString().split('T')[0];
-            if(document.getElementById('cp-ngay')) document.getElementById('cp-ngay').value = today;
-            if(document.getElementById('sc-ngay')) document.getElementById('sc-ngay').value = today;
+    // --- Hàm chuyển đổi Tab giao diện mượt mà ---
+    function switchTab(tabId, element) {
+        document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+        element.classList.add('active');
+    }
+
+    // --- 2. HÀM TẢI LIÊN THÔNG TẤT CẢ DỮ LIỆU TỪ CLOUD ---
+    async function taiTatCaDuLieuTuCloud() {
+        document.getElementById('loading-text').style.display = 'block';
+        try {
+            // Tải dữ liệu bảng nhân sự gốc (nhansu)
+            const resNS = await supabaseClient.from('nhansu').select('*');
+            if (resNS.error) throw resNS.error;
+            renderBangNhanSu(resNS.data || []);
+
+            // Tải dữ liệu bảng sửa chữa máy móc thiết bị
+            const resSC = await supabaseClient.from('sua_chua').select('*');
+            const dataSC = resSC.data || [];
+            renderBangSuaChua(dataSC);
+
+            // Tải dữ liệu bảng cấp phát CCDC cho nhân sự
+            const resCP = await supabaseClient.from('cap_phat').select('*');
+            const dataCP = resCP.data || [];
+            renderBangCapPhat(dataCP);
+
+            // Tải dữ liệu bảng quyết toán tài chính doanh nghiệp
+            const resTT = await supabaseClient.from('thanh_toan').select('*');
+            const dataTT = resTT.data || [];
+            renderBangQuyetToan(dataTT);
+
+            // Cập nhật số liệu hiển thị lên Dashboard tổng quan
+            document.getElementById('lbl-tong-nhansu').innerText = (resNS.data || []).length;
+            document.getElementById('lbl-tong-suachua').innerText = dataSC.length;
+            document.getElementById('lbl-tong-capphat').innerText = dataCP.length;
             
-            sinhMaThietBiTuDong();
-            await taiTatCaDuLieuTuCloud();
+            let tongTien = dataTT.reduce((sum, item) => sum + Number(item.sotien || 0), 0);
+            document.getElementById('lbl-tong-quyettoan').innerText = tongTien.toLocaleString('vi-VN');
 
-            document.addEventListener('click', function(e) {
-                if (!e.target.closest('.dropdown-search-wrapper')) {
-                    document.getElementById('cp-search-list').classList.add('hidden');
-                    document.getElementById('sc-tb-search-list').classList.add('hidden');
-                }
-            });
-        });
-
-        async function taiTatCaDuLieuTuCloud() {
-            try {
-                const resNS = await supabaseClient.from('nhan_su').select('*');
-                if(!resNS.error) danhSachNhanSuGoc = resNS.data || [];
-
-                const resCP = await supabaseClient.from('cap_phat').select('*').order('created_at', { ascending: false });
-                if(!resCP.error) dbCapPhat = resCP.data || [];
-
-                const resSC = await supabaseClient.from('sua_chua').select('*').order('created_at', { ascending: false });
-                if(!resSC.error) dbSuaChua = resSC.data || [];
-
-                const resTT = await supabaseClient.from('thanh_toan').select('*').order('created_at', { ascending: false });
-                if(!resTT.error) dbThanhToan = resTT.data || [];
-
-                veBangNhanSuGoc();
-                veBangCapPhat();
-                veBangSuaChua();
-                veBangThanhToan();
-                reCalculateDashboardKPIs();
-            } catch (err) {
-                console.error("Lỗi liên thông dữ liệu đám mây: ", err);
-            }
+        } catch (err) {
+            console.error("Lỗi đồng bộ dữ liệu đám mây:", err);
+            alert("Không thể tải dữ liệu tự động từ Cloud: " + (err.message || err));
+        } finally {
+            document.getElementById('loading-text').style.display = 'none';
         }
+    }
 
-        // BỘ ENGINE PHÂN TÍCH EXCEL - TUYỆT ĐỐI CHỐNG LỖI "INVALID INPUT SYNTAX FOR TYPE INTEGER"
-        function xuLyExcelNhanSuGoc(input) {
-            const file = input.files[0];
-            if(!file) return;
-            const reader = new FileReader();
-            reader.onload = async function(e) {
-                const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, {type: 'array'});
-                const sheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[sheetName];
-                const jsonData = XLSX.utils.sheet_to_json(worksheet, {defval: ""});
+    // --- 3. HÀM XỬ LÝ ĐỌC FILE EXCEL NHÂN SỰ GỐC VÀ ĐẨY LÊN DATABASE ---
+    function xuLyExcelNhanSuGoc(event) {
+        const file = event.target.files[0];
+        if (!file) return;
 
-                if(jsonData.length === 0) { alert("File Excel trống!"); return; }
+        document.getElementById('loading-text').style.display = 'block';
+        const reader = new FileReader();
+        
+        reader.onload = async function(e) {
+            try {
+                const dataBytes = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(dataBytes, { type: 'array' });
+                const firstSheetName = workbook.SheetNames[0];
+                const excelRows = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheetName]);
 
-                // HÀM QUAN TRỌNG: Lọc sạch ký tự chữ, bóc tách chuỗi rỗng thành số 0 để phục vụ các cột dạng INT trên DB.
-                const epVeKieuSoNguyenAnToan = (val) => {
-                    if (val === undefined || val === null) return 0;
-                    let cleanStr = String(val).replace(/[^0-9\-]/g, '').trim();
-                    if (cleanStr === "" || cleanStr === "-") return 0;
-                    const parsed = parseInt(cleanStr, 10);
-                    return isNaN(parsed) ? 0 : parsed;
-                };
+                if (excelRows.length === 0) {
+                    alert("File Excel này rỗng dữ liệu hoặc sai định dạng mẫu!");
+                    return;
+                }
 
-                const mappedData = jsonData.map(row => {
+                // Chuyển đổi dữ liệu và ép cứng sang định dạng chuỗi chữ (TEXT)
+                // Đảm bảo không dính lỗi ép kiểu Integer khi gặp ô trống ""
+                const mappedData = excelRows.map(row => {
                     return {
-                        hoten: String(row["Họ và tên"] || row["hoten"] || "").trim(),
-                        tenchitiet: String(row["Tên"] || row["tenchitiet"] || "").trim(),
-                        
-                        // Áp dụng hàm chống lỗi ép kiểu rỗng sang Số nguyên:
-                        bhxh: epVeKieuSoNguyenAnToan(row["Số sổ BHXH"] || row["bhxh"]), 
-                        cccd: epVeKieuSoNguyenAnToan(row["Số CCCD"] || row["cccd"]),
-                        madonvi: epVeKieuSoNguyenAnToan(row["Mã Đơn Vị"] || row["madonvi"]),
-                        
-                        isantoanvien: (row["An Toàn Viên"] === "X" || row["An Toàn Viên"] === "x" || row["isantoanvien"] === true),
-                        isdochai: (row["Nghề Độc Hại (NNĐH)"] === "X" || row["Nghề Độc Hại (NNĐH)"] === "x" || row["isdochai"] === true),
-                        namhuugoc: String(row["Năm Về Hưu"] || row["namhuugoc"] || "").trim(),
-                        nam_baocao: String(row["Năm"] || row["nam_baocao"] || "2026").trim(),
-                        ngaysinh: String(row["Năm Sinh"] || row["ngaysinh"] || "").trim(),
-                        nu_x: String(row["Nữ (x)"] || row["nu_x"] || "").trim(),
-                        chucdanh: String(row["Chức danh công việc / Vị trí vị trí công tác chi tiết"] || row["chucdanh"] || "").trim()
+                        stt: row["STT"] ? Number(row["STT"]) : null,
+                        cccd: row["Số CCCD"] ? String(row["Số CCCD"]).trim() : "",
+                        hoten: row["Họ và Tên"] ? String(row["Họ và Tên"]).trim() : String(row["Họ tên"] || "").trim(),
+                        gioitinh: row["Giới tính"] ? String(row["Giới tính"]).trim() : "",
+                        ngaysinh: row["Ngày sinh"] ? String(row["Ngày sinh"]).trim() : "",
+                        tuoi: row["Tuổi"] ? String(row["Tuổi"]).trim() : "",
+                        madonvi: row["Mã Đơn Vị"] ? String(row["Mã Đơn Vị"]).trim() : String(row["Mã đơn vị"] || "").trim(),
+                        chuc_danh: row["Chức Danh"] ? String(row["Chức Danh"]).trim() : String(row["Chức danh"] || "").trim(),
+                        bhxh: row["Số sổ BHXH"] ? String(row["Số sổ BHXH"]).trim() : "",
+                        tenchitiet: row["Tên chi tiết"] ? String(row["Tên chi tiết"]).trim() : "",
+                        isantoanvien: row["An toàn viên"] ? String(row["An toàn viên"]).trim() : "",
+                        isdochai: row["Độc hại"] ? String(row["Độc hại"]).trim() : "",
+                        namhuugoc: row["Năm về hưu gốc"] ? String(row["Năm về hưu gốc"]).trim() : "",
+                        ngayhuufull: row["Ngày về hưu cụ thể"] ? String(row["Ngày về hưu cụ thể"]).trim() : ""
                     };
                 });
 
-                alert("Đang đẩy dữ liệu an toàn lên Cloud Supabase, vui lòng đợi vài giây...");
-                const { error } = await supabaseClient.from('nhan_su').insert(mappedData);
-                if(error) {
-                    alert("Lỗi đẩy dữ liệu: " + error.message + "\nHướng dẫn: Nếu vẫn lỗi kiểu dữ liệu, hãy mở SQL Editor chạy lệnh chuyển đổi cột sang Text.");
-                    console.error(error);
-                } else {
-                    alert("Đã nạp thành công " + mappedData.length + " nhân sự gốc lên đám mây!");
-                    await taiTatCaDuLieuTuCloud();
-                }
-            };
-            reader.readAsArrayBuffer(file);
-        }
+                // Đẩy khối dữ liệu lớn lên bảng 'nhansu' trên Supabase Cloud
+                const { error } = await supabaseClient.from('nhansu').insert(mappedData);
+                if (error) throw error;
 
-        async function xoaSachNhanSuCloud() {
-            if(confirm("Bạn có chắc muốn xóa sạch dữ liệu nhân sự cũ trên Cloud để nạp lại mới không?")) {
-                const { error } = await supabaseClient.from('nhan_su').delete().neq('hoten', 'RỖNG_KHÔNG_XÓA');
-                if(!error) { alert("Đã xóa sạch!"); await taiTatCaDuLieuTuCloud(); }
+                alert("Tải lên Excel nhân sự gốc thành công rực rỡ!");
+                await taiTatCaDuLieuTuCloud(); // Đồng bộ và nạp lại Dashboard tự động
+
+            } catch (err) {
+                console.error("Lỗi xử lý file hoặc đẩy dữ liệu:", err);
+                alert("Lỗi đẩy dữ liệu: " + (err.message || "Kiểm tra cấu trúc hoặc ký tự trống trong bảng!"));
+            } finally {
+                document.getElementById('loading-text').style.display = 'none';
+                document.getElementById('excel-file-input').value = ''; // Làm sạch ô nhập file
             }
-        }
+        };
 
-        function reCalculateDashboardKPIs() {
-            document.getElementById('dash-total-ns').innerText = danhSachNhanSuGoc.length;
-            document.getElementById('dash-total-cp').innerText = dbCapPhat.length;
-            document.getElementById('dash-total-sc').innerText = dbSuaChua.length;
-            let totalBudget = dbThanhToan.reduce((acc, curr) => acc + parseFloat(curr.sotien || 0), 0);
-            document.getElementById('dash-total-money').innerText = totalBudget.toLocaleString('vi-VN') + " đ";
-        }
+        reader.readAsArrayBuffer(file);
+    }
 
-        function switchTab(tabId) {
-            const tabs = ['tab-dashboard', 'tab-nhan-su', 'tab-cap-phat', 'tab-sua-chua', 'tab-thanh-toan'];
-            tabs.forEach(t => document.getElementById(t).classList.add('hidden'));
-            document.getElementById(tabId).classList.remove('hidden');
-
-            const buttons = ['btn-tab-dashboard', 'btn-tab-nhan-su', 'btn-tab-cap-phat', 'btn-tab-sua-chua', 'btn-tab-thanh-toan'];
-            buttons.forEach(b => {
-                const btn = document.getElementById(b);
-                if(btn) btn.className = "px-3 py-1.5 text-xs font-bold uppercase rounded text-slate-400 hover:text-white whitespace-nowrap";
-            });
-            const activeBtn = document.getElementById('btn-' + tabId);
-            if(activeBtn) activeBtn.className = "px-3 py-1.5 text-xs font-bold uppercase rounded bg-indigo-600 text-white whitespace-nowrap";
-        }
-
-        function dinhDangNgayVN(strDate) {
-            if (!strDate || strDate === "N/A" || strDate === "0") return "";
-            if (String(strDate).includes('/')) return strDate;
-            const parts = String(strDate).split('-');
-            if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
-            return strDate;
-        }
-
-        function veBangNhanSuGoc() {
-            const tbody = document.getElementById('ns-table-body');
-            if(!tbody) return;
-            if(danhSachNhanSuGoc.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="13" class="text-center text-slate-400 p-4">Không có dữ liệu nhân sự trên đám mây. Vui lòng bấm "Tải Lên Excel Nhân Sự Gốc" để nạp dữ liệu.</td></tr>`;
-                return;
-            }
-            tbody.innerHTML = danhSachNhanSuGoc.map((ns, i) => `
-                <tr>
-                    <td>${i+1}</td>
-                    <td class="font-bold text-left">${ns.hoten || ''}</td>
-                    <td>${ns.tenchitiet || ''}</td>
-                    <td class="font-mono">${ns.bhxh == 0 ? '' : (ns.bhxh || '')}</td>
-                    <td class="font-mono">${ns.cccd == 0 ? '' : (ns.cccd || '')}</td>
-                    <td class="font-bold text-emerald-600">${ns.isantoanvien ? 'X' : ''}</td>
-                    <td class="font-bold text-amber-600">${ns.isdochai ? 'X' : ''}</td>
-                    <td class="font-mono">${dinhDangNgayVN(ns.namhuugoc)}</td>
-                    <td class="font-bold bg-slate-100">${ns.madonvi || ''}</td>
-                    <td class="font-mono">${ns.nam_baocao || ''}</td>
-                    <td class="font-mono">${dinhDangNgayVN(ns.ngaysinh)}</td>
-                    <td>${ns.nu_x || ''}</td>
-                    <td class="col-text-left text-xs text-slate-700">${ns.chucdanh || ''}</td>
-                </tr>
-            `).join('');
-        }
-
-        function hienDropdownNhanSu(loai) { locDropdownNhanSu('', loai); }
-        function locDropdownNhanSu(tukhoa, loai) {
-            const listZone = document.getElementById('cp-search-list');
-            if(!listZone) return; 
-            listZone.classList.remove('hidden');
-            const keyClean = tukhoa.toLowerCase().trim();
+    // --- 4. HÀM XÓA SẠCH BẢNG NHÂN SỰ TRÊN CLOUD ĐỂ NẠP LẠI ---
+    async function xoaSachNhanSuCloud() {
+        if (!confirm("Cảnh báo! Bạn có chắc chắn muốn xóa toàn bộ danh sách nhân sự gốc trên Cloud để nạp lại?")) return;
+        
+        document.getElementById('loading-text').style.display = 'block';
+        try {
+            // Thực hiện xóa có điều kiện gối đầu (Bảo mật an toàn cấu trúc)
+            const { error } = await supabaseClient.from('nhansu').delete().neq('hoten', 'HỆ_THỐNG_BẢO_MẬT_KHÔNG_XÓA');
+            if (error) throw error;
             
-            const ketQua = danhSachNhanSuGoc.filter(ns => (ns.hoten || '').toLowerCase().includes(keyClean));
-            if (ketQua.length === 0) {
-                listZone.innerHTML = `<div class="p-2 text-xs italic text-slate-400">Không tìm thấy cán bộ nào...</div>`;
-                return;
-            }
-            listZone.innerHTML = ketQua.slice(0, 15).map(ns => `
-                <div class="dropdown-search-item flex justify-between items-center" onclick="chonNhanSuGocLienThong(${JSON.stringify(ns).replace(/"/g, '&quot;')})">
-                    <div>
-                        <div class="font-bold text-slate-900">${ns.hoten}</div>
-                        <div class="text-[11px] text-slate-500">${ns.chucdanh || ''}</div>
-                    </div>
-                    <span class="bg-indigo-600 text-white text-[10px] font-bold px-2 py-0.5 rounded">ĐV: ${ns.madonvi || 'N/A'}</span>
-                </div>
-            `).join('');
+            alert("Đã xóa sạch dữ liệu nhân sự trên đám mây!");
+            await taiTatCaDuLieuTuCloud(); // Làm mới màn hình về trạng thái rỗng
+        } catch (err) {
+            console.error("Lỗi xóa dữ liệu:", err);
+            alert("Không thể thực hiện xóa sạch: " + err.message);
+        } finally {
+            document.getElementById('loading-text').style.display = 'none';
         }
+    }
 
-        function chonNhanSuGocLienThong(ns) {
-            document.getElementById('cp-search-input').value = ns.hoten;
-            document.getElementById('cp-madv').value = ns.madonvi || '10';
-            document.getElementById('cp-cccd').value = ns.cccd == 0 ? '' : (ns.cccd || '');
-            document.getElementById('cp-search-list').classList.add('hidden');
+    // --- 5. CÁC HÀM HIỂN THỊ DỮ LIỆU LÊN GIAO DIỆN TABLES ---
+    function renderBangNhanSu(list) {
+        const tbody = document.getElementById('tbl-nhansu-body');
+        if (list.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: #999;">Không có dữ liệu nhân sự trên Cloud.</td></tr>`;
+            return;
         }
+        tbody.innerHTML = list.map(item => `
+            <tr>
+                <td>${item.stt || ''}</td>
+                <td style="font-weight:bold; color:#2c3e50;">${item.cccd || ''}</td>
+                <td>${item.hoten || ''}</td>
+                <td>${item.gioitinh || ''}</td>
+                <td>${item.ngaysinh || ''}</td>
+                <td>${item.tuoi || ''}</td>
+                <td><span style="background:#ecf0f1; padding:3px 8px; border-radius:4px;">${item.madonvi || ''}</span></td>
+                <td>${item.chuc_danh || ''}</td>
+                <td>${item.bhxh || ''}</td>
+            </tr>
+        `).join('');
+    }
 
-        function sinhMaThietBiTuDong() {
-            const d = new Date();
-            document.getElementById('cp-matb-auto').value = `TB-${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}-${Math.floor(100+Math.random()*900)}`;
+    function renderBangSuaChua(list) {
+        const tbody = document.getElementById('tbl-suachua-body');
+        if (list.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #999;">Không có dữ liệu sửa chữa máy móc.</td></tr>`;
+            return;
         }
+        tbody.innerHTML = list.map(item => `
+            <tr>
+                <td>${item.matb || ''}</td>
+                <td>${item.tentb || ''}</td>
+                <td>${item.mabophan || ''}</td>
+                <td>${item.noidung || ''}</td>
+                <td>${item.chiphi ? Number(item.chiphi).toLocaleString('vi-VN') : '0'}</td>
+            </tr>
+        `).join('');
+    }
 
-        async function executeLuuCapPhat() {
-            const hoTen = document.getElementById('cp-search-input').value.trim();
-            const madv = document.getElementById('cp-madv').value.trim();
-            const cccd = document.getElementById('cp-cccd').value.trim();
-            const matb = document.getElementById('cp-matb-auto').value;
-            const tentb = document.getElementById('cp-tentb').value.trim();
-            const model = document.getElementById('cp-model').value.trim() || "N/A";
-            const ngay = document.getElementById('cp-ngay').value;
-
-            if(!hoTen || !tentb || !ngay) { alert("Vui lòng nhập chọn Nhân sự và điền Tên tài sản thiết bị!"); return; }
-            await supabaseClient.from('cap_phat').insert([{ hoTen, madv, cccd, matb, tentb, model, ngay }]);
-            alert("Cấp phát tài sản thiết bị thành công!");
-            await taiTatCaDuLieuTuCloud();
-            clearFormCapPhat();
+    function renderBangCapPhat(list) {
+        const tbody = document.getElementById('tbl-capphat-body');
+        if (list.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #999;">Không có lịch sử cấp phát công cụ.</td></tr>`;
+            return;
         }
+        tbody.innerHTML = list.map(item => `
+            <tr>
+                <td>${item.cccd || ''}</td>
+                <td>${item.hoten || ''}</td>
+                <td>${item.madv || ''}</td>
+                <td>${item.tentb || ''}</td>
+                <td>${item.ngaybangiao || ''}</td>
+            </tr>
+        `).join('');
+    }
 
-        function veBangCapPhat() {
-            const tbody = document.getElementById('table-body-cap-phat');
-            if(!tbody) return;
-            if(dbCapPhat.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="9" class="p-4 italic text-slate-400">Chưa cấp phát tài sản nào.</td></tr>`;
-                return;
-            }
-            tbody.innerHTML = dbCapPhat.map((item, idx) => `
-                <tr>
-                    <td>${idx + 1}</td>
-                    <td class="font-mono font-bold text-indigo-900">${item.madv}</td>
-                    <td class="font-bold text-slate-800 text-left">${item.hoTen}</td>
-                    <td class="font-mono text-slate-600">${item.cccd || ''}</td>
-                    <td class="font-mono font-bold text-indigo-700 bg-indigo-50">${item.matb}</td>
-                    <td class="text-left font-bold">${item.tentb}</td>
-                    <td class="font-mono text-xs">${item.model}</td>
-                    <td class="font-mono">${dinhDangNgayVN(item.ngay)}</td>
-                    <td><button onclick="deleteCapPhat('${item.id}')" class="bg-rose-600 text-white text-xs px-1.5 py-0.5 rounded">Xóa</button></td>
-                </tr>
-            `).join('');
+    function renderBangQuyetToan(list) {
+        const tbody = document.getElementById('tbl-thanhtoan-body');
+        if (list.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #999;">Không có hồ sơ quyết toán tài chính.</td></tr>`;
+            return;
         }
-
-        async function deleteCapPhat(id) {
-            if(confirm("Xóa bản ghi cấp phát này?")) {
-                await supabaseClient.from('cap_phat').delete().eq('id', id);
-                await taiTatCaDuLieuTuCloud();
-            }
-        }
-
-        function clearFormCapPhat() {
-            document.getElementById('cp-search-input').value = "";
-            document.getElementById('cp-madv').value = "";
-            document.getElementById('cp-cccd').value = "";
-            document.getElementById('cp-tentb').value = "";
-            document.getElementById('cp-model').value = "";
-            sinhMaThietBiTuDong();
-        }
-
-        function hienDropdownThietBiCapPhat() { locDropdownThietBiCapPhat(''); }
-        function locDropdownThietBiCapPhat(tukhoa) {
-            const listZone = document.getElementById('sc-tb-search-list');
-            if(!listZone) return;
-            listZone.classList.remove('hidden');
-            const keyClean = tukhoa.toLowerCase().trim();
-
-            if (dbCapPhat.length === 0) {
-                listZone.innerHTML = `<div class="p-3 text-xs font-bold text-rose-600 bg-rose-50">Sổ cấp phát trống! Hãy tạo cấp phát trước ở mục 2.</div>`;
-                return;
-            }
-
-            const ketQua = dbCapPhat.filter(cp => cp.matb.toLowerCase().includes(keyClean) || cp.tentb.toLowerCase().includes(keyClean) || cp.hoTen.toLowerCase().includes(keyClean));
-            if (ketQua.length === 0) {
-                listZone.innerHTML = `<div class="p-2 text-xs italic text-slate-400">Không tìm thấy mã thiết bị...</div>`;
-                return;
-            }
-
-            listZone.innerHTML = ketQua.map(cp => `
-                <div class="dropdown-search-item flex justify-between items-center" onclick="chonThietBiLienThongSuaChua(${JSON.stringify(cp).replace(/"/g, '&quot;')})">
-                    <div>
-                        <div class="font-bold text-blue-700 font-mono">${cp.matb}</div>
-                        <div class="text-[12px] font-bold text-slate-900">${cp.tentb}</div>
-                        <div class="text-[11px] text-slate-500">Người phụ trách: ${cp.hoTen}</div>
-                    </div>
-                    <span class="bg-amber-600 text-white text-xs font-bold px-2 py-0.5 rounded">ĐV: ${cp.madv}</span>
-                </div>
-            `).join('');
-        }
-
-        function chonThietBiLienThongSuaChua(cp) {
-            document.getElementById('sc-matb-input').value = cp.matb;
-            document.getElementById('sc-tentb-display').value = cp.tentb;
-            document.getElementById('sc-nguoi-display').value = cp.hoTen;
-            document.getElementById('sc-mabophan').value = cp.madv || '10';
-            document.getElementById('sc-tb-search-list').classList.add('hidden');
-        }
-
-        async function executeLuuSuaChua() {
-            const matb = document.getElementById('sc-matb-input').value.trim();
-            const tentb = document.getElementById('sc-tentb-display').value;
-            const nguoiYeuCau = document.getElementById('sc-nguoi-display').value;
-            const mabophan = document.getElementById('sc-mabophan').value;
-            const ngay = document.getElementById('sc-ngay').value;
-            const noidung = document.getElementById('sc-noidung').value.trim();
-            const idForm = document.getElementById('sc-edit-id').value;
-
-            if(!matb || !noidung || !ngay) { alert("Vui lòng nhập/chọn Mã thiết bị và mô tả hiện trạng lỗi!"); return; }
-            const dataObj = { matb, tentb, nguoiYeuCau, mabophan, ngay, noidung };
-
-            if(!idForm) {
-                await supabaseClient.from('sua_chua').insert([dataObj]);
-            } else {
-                await supabaseClient.from('sua_chua').update(dataObj).eq('id', idForm);
-            }
-            alert("Đã đẩy phiếu yêu cầu sửa chữa lên Cloud thành công!");
-            await taiTatCaDuLieuTuCloud();
-            clearFormSuaChua();
-        }
-
-        function veBangSuaChua() {
-            const tbody = document.getElementById('table-body-sua-chua');
-            if(!tbody) return;
-            if(dbSuaChua.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="8" class="p-4 italic text-slate-400">Chưa có nhật ký ghi nhận sửa chữa bảo dưỡng.</td></tr>`;
-                return;
-            }
-            tbody.innerHTML = dbSuaChua.map((item, idx) => `
-                <tr>
-                    <td>${idx + 1}</td>
-                    <td class="font-mono font-bold text-amber-800 bg-amber-50">${item.mabophan || '10'}</td>
-                    <td class="font-mono font-bold text-blue-700 bg-blue-50">${item.matb}</td>
-                    <td class="font-bold text-slate-900 text-left">${item.tentb || ''}</td>
-                    <td class="text-left">${item.nguoiYeuCau || ''}</td>
-                    <td class="font-mono">${dinhDangNgayVN(item.ngay)}</td>
-                    <td class="col-text-left text-xs text-slate-600 font-bold">${item.noidung}</td>
-                    <td>
-                        <div class="flex items-center justify-center gap-1">
-                            <button onclick="chuyenChuyenTiepSangQuyetToan(${JSON.stringify(item).replace(/"/g, '&quot;')})" class="bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] px-2 py-1 rounded font-bold shadow flex items-center gap-1">
-                                <i class="fa-solid fa-calculator"></i> Trích Quyết Toán
-                            </button>
-                            <button onclick="deleteSuaChua('${item.id}')" class="bg-rose-600 text-white text-xs px-1.5 py-0.5 rounded"><i class="fa-solid fa-trash"></i></button>
-                        </div>
-                    </td>
-                </tr>
-            `).join('');
-        }
-
-        function clearFormSuaChua() {
-            document.getElementById('sc-matb-input').value = "";
-            document.getElementById('sc-tentb-display').value = "";
-            document.getElementById('sc-nguoi-display').value = "";
-            document.getElementById('sc-mabophan').value = "";
-            document.getElementById('sc-noidung').value = "";
-            document.getElementById('sc-edit-id').value = "";
-        }
-
-        async function deleteSuaChua(id) {
-            if(confirm("Xóa phiếu sửa chữa này khỏi Cloud?")) {
-                await supabaseClient.from('sua_chua').delete().eq('id', id);
-                await taiTatCaDuLieuTuCloud();
-            }
-        }
-
-        function chuyenChuyenTiepSangQuyetToan(scData) {
-            switchTab('tab-thanh-toan');
-            document.getElementById('tt-madv').value = scData.mabophan || '10';
-            document.getElementById('tt-noidung').value = `Chi phí bảo dưỡng sửa chữa, khắc phục sự cố hư hỏng cho thiết bị mã ${scData.matb} (${scData.tentb || 'Tài sản cố định'}) theo đăng ký ngày ${dinhDangNgayVN(scData.ngay)}.`;
-            document.getElementById('tax-amount-input').value = "";
-            document.getElementById('tax-computed-vat').innerText = "0 đ";
-            document.getElementById('tax-computed-total').innerText = "0 đ";
-            document.getElementById('tt-sotien').value = "";
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-
-        function calculateTaxTool() {
-            const amount = parseFloat(document.getElementById('tax-amount-input').value) || 0;
-            const rate = parseFloat(document.getElementById('tax-rate-select').value) || 0;
-            const vat = amount * rate; const total = amount + vat;
-            document.getElementById('tax-computed-vat').innerText = vat.toLocaleString('vi-VN') + " đ";
-            document.getElementById('tax-computed-total').innerText = total.toLocaleString('vi-VN') + " đ";
-            return total;
-        }
-
-        function applyTaxToForm() {
-            const total = calculateTaxTool();
-            if(total <= 0) { alert("Vui lòng điền số tiền gốc hợp lệ trước!"); return; }
-            document.getElementById('tt-sotien').value = Math.round(total);
-        }
-
-        async function executeLuuThanhToan() {
-            const madv = document.getElementById('tt-madv').value.trim();
-            const noidung = document.getElementById('tt-noidung').value.trim();
-            const thuhuong = document.getElementById('tt-thuhuong').value.trim();
-            const stk = document.getElementById('tt-stk').value.trim();
-            const tennganhang = document.getElementById('tt-tennganhang').value.trim();
-            const sotien = parseFloat(document.getElementById('tt-sotien').value) || 0;
-            const phuongthuc = document.getElementById('tt-phuongthuc').value;
-
-            if(!madv || !noidung || !thuhuong || sotien <= 0) { alert("Vui lòng điền đầy đủ thông tin đề nghị quyết toán chi phí!"); return; }
-            await supabaseClient.from('thanh_toan').insert([{ madv, noidung, thuhuong, stk, tennganhang, sotien, phuongthuc }]);
-            alert("Đã lập chứng từ và lưu thông tin quyết toán thuế lên Cloud thành công!");
-            await taiTatCaDuLieuTuCloud();
-            clearFormThanhToan();
-        }
-
-        function veBangThanhToan() {
-            const tbody = document.getElementById('table-body-thanh-toan');
-            if(!tbody) return;
-            if(dbThanhToan.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="p-4 italic text-slate-400">Chưa có chứng từ đề nghị quyết toán chi phí nào.</td></tr>`;
-                return;
-            }
-            tbody.innerHTML = dbThanhToan.map((item, idx) => `
-                <tr>
-                    <td>${idx + 1}</td>
-                    <td class="font-mono font-bold text-slate-900 bg-slate-50">${item.madv}</td>
-                    <td class="text-left font-bold text-xs">
-                        <div class="text-indigo-900 uppercase">${item.thuhuong}</div>
-                        <div class="text-[11px] text-slate-500 font-mono">TK: ${item.stk} - tại: ${item.tennganhang}</div>
-                    </td>
-                    <td class="text-left text-xs col-text-left">${item.noidung}</td>
-                    <td class="font-mono font-bold text-emerald-700 text-right bg-emerald-50/50">${parseFloat(item.sotien).toLocaleString('vi-VN')} đ</td>
-                    <td><button onclick="deleteThanhToan('${item.id}')" class="bg-rose-600 text-white text-xs px-2 py-0.5 rounded">Xóa</button></td>
-                </tr>
-            `).join('');
-        }
-
-        function clearFormThanhToan() {
-            document.getElementById('tt-madv').value = ""; document.getElementById('tt-noidung').value = "";
-            document.getElementById('tt-thuhuong').value = ""; document.getElementById('tt-stk').value = "";
-            document.getElementById('tt-tennganhang').value = ""; document.getElementById('tt-sotien').value = "";
-            document.getElementById('tax-amount-input').value = ""; document.getElementById('tax-computed-vat').innerText = "0 đ";
-            document.getElementById('tax-computed-total').innerText = "0 đ";
-        }
-    </script>
+        tbody.innerHTML = list.map(item => `
+            <tr>
+                <td>${item.machungtu || ''}</td>
+                <td>${item.madv || ''}</td>
+                <td>${item.noidung || ''}</td>
+                <td style="font-weight:bold; color:#16a085;">${item.sotien ? Number(item.sotien).toLocaleString('vi-VN') : '0'}</td>
+                <td><span style="color:green; font-weight:bold;">✓ Đã Duyệt</span></td>
+            </tr>
+        `).join('');
+    }
+</script>
 </body>
 </html>
