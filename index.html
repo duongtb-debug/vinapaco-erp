@@ -64,12 +64,12 @@
         .tab-content.active { display: block; }
         .table-responsive { width: 100%; overflow-x: auto; border-radius: 8px; border: 1px solid var(--border); }
         
-        /* Grid Tables Professional View */
+        /* Grid Tables Professional View With Zebra & Hover Focus */
         table { width: 100%; border-collapse: collapse; text-align: left; font-size: 10pt; min-width: 1000px; }
         th { background-color: #f1f5f9; color: #1e293b; font-weight: 700; padding: 14px 16px; border-bottom: 2px solid var(--border); text-transform: uppercase; font-size: 8.5pt; }
         td { padding: 12px 16px; border-bottom: 1px solid #f1f5f9; color: #334155; }
         
-        /* HIỆU ỨNG MÀU XEN KẼ VÀ FOCUS NỔI BẬT DÒNG */
+        /* MÀU XEN KẼ & HIỆU ỨNG FOCUS NỔI BẬT DÒNG */
         table tbody tr:nth-child(even) { background-color: #f8fafc; }
         table tbody tr:hover { background-color: #e2e8f0 !important; cursor: pointer; transition: background-color 0.1s ease; }
         
@@ -85,7 +85,7 @@
 <div class="container">
     <header>
         <h1>TRUNG TÂM ĐIỀU HÀNH ERP PHÂN HỆ NHÂN SỰ TOÀN DIỆN</h1>
-        <p>Hệ thống tự động liên thông Cơ sở dữ liệu và Dự báo phân tích biến động nhân sự thông minh</p>
+        <p>Tự động thích ứng cấu trúc cột và phân tích dự báo biến động nhân sự thông minh</p>
     </header>
 
     <div class="grid-stats">
@@ -116,12 +116,12 @@
             <div class="btn-group">
                 <div class="file-input-wrapper">
                     <button class="btn" style="background-color: var(--success);">📂 Nạp File Excel Nhân Sự Gốc</button>
-                    <input type="file" id="excel-file-input" accept=".xlsx, .xls" onchange="xuLyExcelNângCao(event)">
+                    <input type="file" id="excel-file-input" accept=".xlsx, .xls" onchange="xuLyExcelLinhHoat(event)">
                 </div>
                 <button class="btn btn-danger" onclick="xoaSachNhanSuCloud()">🗑️ Xóa Toàn Bộ Dữ Liệu</button>
                 <button class="btn" style="background-color: #64748b;" onclick="taiTatCaDuLieuTuCloud()">🔄 Đồng Bộ Lại</button>
             </div>
-            <div id="loading-text" class="loading">⏳ Đang kết nối xử lý dữ liệu đám mây, vui lòng đợi...</div>
+            <div id="loading-text" class="loading">⏳ Đang kết nối dữ liệu đám mây, vui lòng đợi...</div>
         </div>
         
         <div class="filter-grid">
@@ -260,11 +260,9 @@
         element.classList.add('active');
     }
 
-    // --- CƠ CHẾ TRY-CATCH ĐỘC LẬP TỪNG BẢNG TRÁNH SẬP APP NGẦM ---
     async function taiTatCaDuLieuTuCloud() {
         document.getElementById('loading-text').style.display = 'block';
         
-        // 1. Nạp bảng nhân sự gốc (nhansu)
         try {
             const resNS = await _supabase.from('nhansu').select('*');
             if (!resNS.error) {
@@ -273,25 +271,22 @@
                 apDungBoLocThongMinh();
                 tinhToanDashboardVaDuBao(DU_LIEU_NHAN_SU_GOC);
             }
-        } catch(e) { console.error("Lỗi nạp bảng nhân sự:", e); }
+        } catch(e) { console.error(e); }
 
-        // 2. Nạp phân hệ Sửa chữa
         try {
             const resSC = await _supabase.from('sua_chua').select('*');
             if (!resSC.error) renderBangSuaChua(resSC.data || []);
-        } catch(e) { console.error("Lỗi nạp bảng sửa chữa:", e); }
+        } catch(e) { console.error(e); }
 
-        // 3. Nạp phân hệ Cấp phát
         try {
             const resCP = await _supabase.from('cap_phat').select('*');
             if (!resCP.error) renderBangCapPhat(resCP.data || []);
-        } catch(e) { console.error("Lỗi nạp bảng cấp phát:", e); }
+        } catch(e) { console.error(e); }
 
-        // 4. Nạp phân hệ Quyết toán
         try {
             const resTT = await _supabase.from('thanh_toan').select('*');
             if (!resTT.error) renderBangQuyetToan(resTT.data || []);
-        } catch(e) { console.error("Lỗi nạp bảng quyết toán:", e); }
+        } catch(e) { console.error(e); }
 
         document.getElementById('loading-text').style.display = 'none';
     }
@@ -344,7 +339,8 @@
         renderBangNhanSu(ketQuaLoc);
     }
 
-    function xuLyExcelNângCao(event) {
+    // --- CƠ CHẾ DYNAMIC KEY MAPPING: CHỐNG LỖI CACHE SCHEMA CỘT TUYỆT ĐỐI ---
+    async function xuLyExcelLinhHoat(event) {
         const file = event.target.files[0];
         if (!file) return;
 
@@ -360,6 +356,20 @@
 
                 if (rows.length === 0) { alert("Tệp tin Excel trống dữ liệu!"); return; }
 
+                // 1. Lấy một bản ghi mẫu từ DB để check các cột thực sự tồn tại
+                const testFetch = await _supabase.from('nhansu').select('*').limit(1);
+                if (testFetch.error) throw testFetch.error;
+                
+                // Mảng chứa các cột hợp pháp được phép đẩy lên
+                let columnsInDB = [];
+                if (testFetch.data && testFetch.data.length > 0) {
+                    columnsInDB = Object.keys(testFetch.data[0]);
+                } else {
+                    // Nếu bảng trống chưa có dòng nào, lấy mặc định các cột lõi chắc chắn có
+                    columnsInDB = ['stt', 'cccd', 'hoten', 'gioitinh', 'ngaysinh', 'tuoi', 'madonvi', 'chuc_danh'];
+                }
+
+                // 2. Chuẩn hóa dữ liệu Excel
                 const mangChuanHoa = rows.map(r => {
                     return {
                         stt: r["STT"] ? Number(r["STT"]) : null,
@@ -379,21 +389,26 @@
                     };
                 });
 
-                const mangAnToan = mangChuanHoa.map(item => {
-                    let cleaned = {};
+                // 3. Tiến hành lọc loại bỏ: Chỉ giữ lại thuộc tính nào tồn tại trong columnsInDB
+                const mangAnToanTuyetDoi = mangChuanHoa.map(item => {
+                    let filteredObj = {};
                     Object.keys(item).forEach(key => {
-                        if (item[key] !== undefined && item[key] !== "") { cleaned[key] = item[key]; }
+                        if (columnsInDB.includes(key) && item[key] !== undefined && item[key] !== "") {
+                            filteredObj[key] = item[key];
+                        }
                     });
-                    return cleaned;
+                    return filteredObj;
                 });
 
-                const { error } = await _supabase.from('nhansu').insert(mangAnToan);
+                // 4. Đẩy lên Supabase
+                const { error } = await _supabase.from('nhansu').insert(mangAnToanTuyetDoi);
                 if (error) throw error;
 
-                alert("Nạp hồ sơ nhân sự thành công!");
+                alert("Đồng bộ liên thông hồ sơ nhân sự thành công rực rỡ!");
                 await taiTatCaDuLieuTuCloud();
 
             } catch (err) {
+                console.error(err);
                 alert("Lỗi tải lên dữ liệu: " + err.message);
             } finally {
                 document.getElementById('loading-text').style.display = 'none';
@@ -433,7 +448,7 @@
                     <td><span class="badge ${badgeAgeStyle}">${i.tuoi || ''} Tuổi</span></td>
                     <td><span class="badge badge-primary">${i.madonvi || ''}</span></td>
                     <td>${i.chuc_danh || ''}</td>
-                    <td>${i.bhxh || ''}</td>
+                    <td>${i.bhxh || i.so_so_bhxh || ''}</td>
                 </tr>
             `;
         }).join('');
@@ -441,7 +456,7 @@
 
     function renderBangSuaChua(list) {
         const body = document.getElementById('tbl-suachua-body');
-        if (list.length === 0) { return; }
+        if (list.length === 0) return;
         body.innerHTML = list.map(i => `
             <tr>
                 <td style="font-weight: 600; color: var(--danger);">${i.matb || ''}</td>
@@ -455,7 +470,7 @@
 
     function renderBangCapPhat(list) {
         const body = document.getElementById('tbl-capphat-body');
-        if (list.length === 0) { return; }
+        if (list.length === 0) return;
         body.innerHTML = list.map(i => `
             <tr>
                 <td>${i.cccd || ''}</td>
@@ -469,7 +484,7 @@
 
     function renderBangQuyetToan(list) {
         const body = document.getElementById('tbl-thanhtoan-body');
-        if (list.length === 0) { return; }
+        if (list.length === 0) return;
         body.innerHTML = list.map(i => `
             <tr>
                 <td style="font-weight: 600;">${i.machungtu || ''}</td>
