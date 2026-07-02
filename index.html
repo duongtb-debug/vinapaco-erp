@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VINAPACO ERP ENTERPRISE v3.8 - FULL INTEGRATION</title>
+    <title>VINAPACO ERP ENTERPRISE v3.9 - FULL CLOUD SYNC</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -17,6 +17,7 @@
         }
     </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <style>
@@ -46,8 +47,8 @@
             <div class="flex items-center gap-2">
                 <i class="fa-solid fa-layer-group text-2xl text-emerald-400"></i>
                 <div>
-                    <h1 class="text-base font-bold tracking-wide text-slate-100">VINAPACO ERP ENTERPRISE PLATFORM v3.8</h1>
-                    <p class="text-[11px] text-emerald-400 font-mono"><i class="fa-solid fa-cloud-sun"></i> Hệ thống liên thông Nhân sự - Cấp phát - Sửa chữa - Quyết toán Thuế</p>
+                    <h1 class="text-base font-bold tracking-wide text-slate-100">VINAPACO ERP ENTERPRISE PLATFORM v3.9</h1>
+                    <p class="text-[11px] text-emerald-400 font-mono"><i class="fa-solid fa-cloud-sun"></i> Quy trình liên thông: Nhân sự -> Cấp phát -> Bảo dưỡng -> Quyết toán Thuế</p>
                 </div>
             </div>
             
@@ -105,13 +106,20 @@
         </div>
         
         <div id="tab-nhan-su" class="space-y-3 hidden">
-            <div class="card-custom p-3 flex justify-between items-center bg-white">
+            <div class="card-custom p-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 bg-white">
                 <div class="text-slate-800 font-bold text-sm uppercase tracking-wide flex items-center gap-2">
                     <i class="fa-solid fa-database text-indigo-600"></i> Cơ sở dữ liệu hồ sơ nhân sự gốc (Supabase Cloud Sync)
                 </div>
-                <span class="text-xs bg-slate-100 text-slate-700 px-3 py-1 font-mono rounded border border-slate-300">
-                    Bảng thực tế: 14 cột nghiệp vụ chuẩn
-                </span>
+                
+                <div class="flex items-center gap-2">
+                    <label class="bg-indigo-700 hover:bg-indigo-800 text-white text-xs font-bold uppercase px-3 py-2 rounded shadow cursor-pointer flex items-center gap-1.5">
+                        <i class="fa-solid fa-file-excel"></i> Tải Lên Excel Nhân Sự Gốc
+                        <input type="file" id="ns-excel-file" accept=".xlsx, .xls" class="hidden" onchange="xuLyExcelNhanSuGoc(this)">
+                    </label>
+                    <button onclick="xoaSachNhanSuCloud()" class="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold uppercase px-3 py-2 rounded shadow">
+                        <i class="fa-solid fa-trash-can"></i> Xóa Hết Dữ Liệu Cũ
+                    </button>
+                </div>
             </div>
             <div class="card-custom p-1 bg-white overflow-hidden">
                 <div class="table-container max-h-[600px] overflow-y-auto">
@@ -404,7 +412,6 @@
             sinhMaThietBiTuDong();
             await taiTatCaDuLieuTuCloud();
 
-            // Đóng danh sách tìm kiếm thông minh khi bấm ra ngoài
             document.addEventListener('click', function(e) {
                 if (!e.target.closest('.dropdown-search-wrapper')) {
                     document.getElementById('cp-search-list').classList.add('hidden');
@@ -415,19 +422,15 @@
 
         async function taiTatCaDuLieuTuCloud() {
             try {
-                // Tải nhân sự gốc đồng bộ
                 const resNS = await supabaseClient.from('nhan_su').select('*');
                 if(!resNS.error) danhSachNhanSuGoc = resNS.data || [];
 
-                // Tải danh sách cấp phát tài sản
                 const resCP = await supabaseClient.from('cap_phat').select('*').order('created_at', { ascending: false });
                 if(!resCP.error) dbCapPhat = resCP.data || [];
 
-                // Tải nhật ký sửa chữa bảo dưỡng đám mây
                 const resSC = await supabaseClient.from('sua_chua').select('*').order('created_at', { ascending: false });
                 if(!resSC.error) dbSuaChua = resSC.data || [];
 
-                // Tải dữ liệu quyết toán kế toán
                 const resTT = await supabaseClient.from('thanh_toan').select('*').order('created_at', { ascending: false });
                 if(!resTT.error) dbThanhToan = resTT.data || [];
 
@@ -438,6 +441,58 @@
                 reCalculateDashboardKPIs();
             } catch (err) {
                 console.error("Lỗi liên thông dữ liệu đám mây: ", err);
+            }
+        }
+
+        // CHỨC NĂNG PHÂN TÍCH EXCEL VÀ ĐẨY TRỰC TIẾP LÊN CLOUD (GIỮ NGUYÊN 14 CỘT)
+        function xuLyExcelNhanSuGoc(input) {
+            const file = input.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, {type: 'array'});
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+                // Chuyển thành JSON dạng mảng đối tượng
+                const jsonData = XLSX.utils.sheet_to_json(worksheet, {defval: ""});
+
+                if(jsonData.length === 0) { alert("File Excel trống!"); return; }
+
+                // Ánh xạ chuẩn hóa tiêu đề cột thực tế từ file Excel của bạn vào Database Cloud
+                const mappedData = jsonData.map(row => {
+                    return {
+                        hoten: row["Họ và tên"] || row["hoten"] || "",
+                        tenchitiet: row["Tên"] || row["tenchitiet"] || "",
+                        bhxh: String(row["Số sổ BHXH"] || row["bhxh"] || ""),
+                        cccd: String(row["Số CCCD"] || row["cccd"] || ""),
+                        isantoanvien: (row["An Toàn Viên"] === "X" || row["An Toàn Viên"] === "x" || row["isantoanvien"] === true),
+                        isdochai: (row["Nghề Độc Hại (NNĐH)"] === "X" || row["Nghề Độc Hại (NNĐH)"] === "x" || row["isdochai"] === true),
+                        namhuugoc: row["Năm Về Hưu"] || row["namhuugoc"] || "",
+                        madonvi: String(row["Mã Đơn Vị"] || row["madonvi"] || "10"),
+                        nam_baocao: row["Năm"] || row["nam_baocao"] || "2026",
+                        ngaysinh: row["Năm Sinh"] || row["ngaysinh"] || "",
+                        nu_x: row["Nữ (x)"] || row["nu_x"] || "",
+                        chucdanh: row["Chức danh công việc / Vị trí vị trí công tác chi tiết"] || row["chucdanh"] || ""
+                    };
+                });
+
+                alert("Đang đẩy dữ liệu hàng loạt lên Cloud Supabase, vui lòng đợi vài giây...");
+                const { error } = await supabaseClient.from('nhan_su').insert(mappedData);
+                if(error) {
+                    alert("Lỗi đẩy dữ liệu: " + error.message);
+                } else {
+                    alert("Đã nạp thành công " + mappedData.length + " nhân sự gốc lên đám mây!");
+                    await taiTatCaDuLieuTuCloud();
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        async function xoaSachNhanSuCloud() {
+            if(confirm("Bạn có chắc muốn xóa sạch dữ liệu nhân sự cũ trên Cloud để nạp lại mới không?")) {
+                const { error } = await supabaseClient.from('nhan_su').delete().neq('hoten', 'RỖNG_KHÔNG_XÓA');
+                if(!error) { alert("Đã xóa sạch!"); await taiTatCaDuLieuTuCloud(); }
             }
         }
 
@@ -471,12 +526,11 @@
             return strDate;
         }
 
-        // ======================= XỬ LÝ NHÂN SỰ GỐC (14 CỘT CHUẨN FILE) =======================
         function veBangNhanSuGoc() {
             const tbody = document.getElementById('ns-table-body');
             if(!tbody) return;
             if(danhSachNhanSuGoc.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="13" class="text-center text-slate-400 p-4">Không có dữ liệu nhân sự trên đám mây.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="13" class="text-center text-slate-400 p-4">Không có dữ liệu nhân sự trên đám mây. Vui lòng bấm "Tải Lên Excel Nhân Sự Gốc" để nạp dữ liệu.</td></tr>`;
                 return;
             }
             tbody.innerHTML = danhSachNhanSuGoc.map((ns, i) => `
@@ -498,7 +552,6 @@
             `).join('');
         }
 
-        // ======================= QUẢN LÝ CẤP PHÁT LIÊN THÔNG TỪ NHÂN SỰ =======================
         function hienDropdownNhanSu(loai) { locDropdownNhanSu('', loai); }
         function locDropdownNhanSu(tukhoa, loai) {
             const listZone = document.getElementById('cp-search-list');
@@ -544,7 +597,6 @@
             const ngay = document.getElementById('cp-ngay').value;
 
             if(!hoTen || !tentb || !ngay) { alert("Vui lòng nhập chọn Nhân sự và điền Tên tài sản thiết bị!"); return; }
-            
             await supabaseClient.from('cap_phat').insert([{ hoTen, madv, cccd, matb, tentb, model, ngay }]);
             alert("Cấp phát tài sản thiết bị thành công!");
             await taiTatCaDuLieuTuCloud();
@@ -589,7 +641,6 @@
             sinhMaThietBiTuDong();
         }
 
-        // ======================= LIÊN THÔNG MẠNH MẼ SANG BẢO DƯỠNG SỬA CHỮA =======================
         function hienDropdownThietBiCapPhat() { locDropdownThietBiCapPhat(''); }
         function locDropdownThietBiCapPhat(tukhoa) {
             const listZone = document.getElementById('sc-tb-search-list');
@@ -638,7 +689,6 @@
             const idForm = document.getElementById('sc-edit-id').value;
 
             if(!matb || !noidung || !ngay) { alert("Vui lòng nhập/chọn Mã thiết bị và mô tả hiện trạng lỗi!"); return; }
-            
             const dataObj = { matb, tentb, nguoiYeuCau, mabophan, ngay, noidung };
 
             if(!idForm) {
@@ -695,31 +745,21 @@
             }
         }
 
-        // ======================= CHUYỂN TIẾP TRÍCH XUẤT SANG QUYẾT TOÁN THUẾ =======================
         function chuyenChuyenTiepSangQuyetToan(scData) {
-            // Chuyển Tab thông minh
             switchTab('tab-thanh-toan');
-            
-            // Kế thừa thông tin liên thông trực tiếp từ phiếu bảo dưỡng sửa chữa
             document.getElementById('tt-madv').value = scData.mabophan || '10';
             document.getElementById('tt-noidung').value = `Chi phí bảo dưỡng sửa chữa, khắc phục sự cố hư hỏng cho thiết bị mã ${scData.matb} (${scData.tentb || 'Tài sản cố định'}) theo đăng ký ngày ${dinhDangNgayVN(scData.ngay)}.`;
-            
-            // Reset bộ gõ máy tính thuế để kế toán nhập mới số tiền gốc
             document.getElementById('tax-amount-input').value = "";
             document.getElementById('tax-computed-vat').innerText = "0 đ";
             document.getElementById('tax-computed-total').innerText = "0 đ";
             document.getElementById('tt-sotien').value = "";
-            
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        // ======================= BỘ TÍNH TOÁN VÀ QUYẾT TOÁN THUẾ VAT =======================
         function calculateTaxTool() {
             const amount = parseFloat(document.getElementById('tax-amount-input').value) || 0;
             const rate = parseFloat(document.getElementById('tax-rate-select').value) || 0;
-            const vat = amount * rate;
-            const total = amount + vat;
-            
+            const vat = amount * rate; const total = amount + vat;
             document.getElementById('tax-computed-vat').innerText = vat.toLocaleString('vi-VN') + " đ";
             document.getElementById('tax-computed-total').innerText = total.toLocaleString('vi-VN') + " đ";
             return total;
@@ -740,11 +780,7 @@
             const sotien = parseFloat(document.getElementById('tt-sotien').value) || 0;
             const phuongthuc = document.getElementById('tt-phuongthuc').value;
 
-            if(!madv || !noidung || !thuhuong || sotien <= 0) {
-                alert("Vui lòng điền đầy đủ thông tin đề nghị quyết toán chi phí!");
-                return;
-            }
-
+            if(!madv || !noidung || !thuhuong || sotien <= 0) { alert("Vui lòng điền đầy đủ thông tin đề nghị quyết toán chi phí!"); return; }
             await supabaseClient.from('thanh_toan').insert([{ madv, noidung, thuhuong, stk, tennganhang, sotien, phuongthuc }]);
             alert("Đã lập chứng từ và lưu thông tin quyết toán thuế lên Cloud thành công!");
             await taiTatCaDuLieuTuCloud();
@@ -781,14 +817,10 @@
         }
 
         function clearFormThanhToan() {
-            document.getElementById('tt-madv').value = "";
-            document.getElementById('tt-noidung').value = "";
-            document.getElementById('tt-thuhuong').value = "";
-            document.getElementById('tt-stk').value = "";
-            document.getElementById('tt-tennganhang').value = "";
-            document.getElementById('tt-sotien').value = "";
-            document.getElementById('tax-amount-input').value = "";
-            document.getElementById('tax-computed-vat').innerText = "0 đ";
+            document.getElementById('tt-madv').value = ""; document.getElementById('tt-noidung').value = "";
+            document.getElementById('tt-thuhuong').value = ""; document.getElementById('tt-stk').value = "";
+            document.getElementById('tt-tennganhang').value = ""; document.getElementById('tt-sotien').value = "";
+            document.getElementById('tax-amount-input').value = ""; document.getElementById('tax-computed-vat').innerText = "0 đ";
             document.getElementById('tax-computed-total').innerText = "0 đ";
         }
     </script>
