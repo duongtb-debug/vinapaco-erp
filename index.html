@@ -444,7 +444,7 @@
             }
         }
 
-        // CHỨC NĂNG PHÂN TÍCH EXCEL VÀ ĐẨY TRỰC TIẾP LÊN CLOUD (GIỮ NGUYÊN 14 CỘT)
+        // CHỨC NĂNG XỬ LÝ EXCEL - ĐÃ BỔ SUNG KHỬ LỖI PHÂN TÍCH CHUỖI RỖNG CHỐNG LỖI INTEGER
         function xuLyExcelNhanSuGoc(input) {
             const file = input.files[0];
             if(!file) return;
@@ -454,22 +454,26 @@
                 const workbook = XLSX.read(data, {type: 'array'});
                 const sheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[sheetName];
-                // Chuyển thành JSON dạng mảng đối tượng
                 const jsonData = XLSX.utils.sheet_to_json(worksheet, {defval: ""});
 
                 if(jsonData.length === 0) { alert("File Excel trống!"); return; }
 
-                // Ánh xạ chuẩn hóa tiêu đề cột thực tế từ file Excel của bạn vào Database Cloud
+                // Hàm an toàn biến đổi giá trị, tránh gửi chuỗi rỗng lên cột Integer
+                const xulyChuoiSo = (val) => {
+                    if (!val || String(val).trim() === "") return null; 
+                    return String(val).trim();
+                };
+
                 const mappedData = jsonData.map(row => {
                     return {
                         hoten: row["Họ và tên"] || row["hoten"] || "",
                         tenchitiet: row["Tên"] || row["tenchitiet"] || "",
-                        bhxh: String(row["Số sổ BHXH"] || row["bhxh"] || ""),
-                        cccd: String(row["Số CCCD"] || row["cccd"] || ""),
+                        bhxh: xulyChuoiSo(row["Số sổ BHXH"] || row["bhxh"]), 
+                        cccd: xulyChuoiSo(row["Số CCCD"] || row["cccd"]),
                         isantoanvien: (row["An Toàn Viên"] === "X" || row["An Toàn Viên"] === "x" || row["isantoanvien"] === true),
                         isdochai: (row["Nghề Độc Hại (NNĐH)"] === "X" || row["Nghề Độc Hại (NNĐH)"] === "x" || row["isdochai"] === true),
                         namhuugoc: row["Năm Về Hưu"] || row["namhuugoc"] || "",
-                        madonvi: String(row["Mã Đơn Vị"] || row["madonvi"] || "10"),
+                        madonvi: xulyChuoiSo(row["Mã Đơn Vị"] || row["madonvi"]) || "10",
                         nam_baocao: row["Năm"] || row["nam_baocao"] || "2026",
                         ngaysinh: row["Năm Sinh"] || row["ngaysinh"] || "",
                         nu_x: row["Nữ (x)"] || row["nu_x"] || "",
