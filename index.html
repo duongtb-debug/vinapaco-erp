@@ -161,7 +161,7 @@
                     <div class="flex items-center gap-2">
                         <label class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold uppercase px-4 py-2 rounded shadow cursor-pointer inline-flex items-center gap-1.5 transition">
                             <i class="fa-solid fa-file-import"></i> Nạp Excel Đồng Bộ Lên Mạng
-                            <input type="file" id="ns-excel-file" accept=".xlsx, .xls" class="hidden" onchange="xuLyExcelNhanSuGoc(this)">
+                            <input type="file" id="ns-excel-file" accept=".xlsx, .xls, .csv" class="hidden" onchange="xuLyExcelNhanSuGoc(this)">
                         </label>
                         <button onclick="xoaToanBoNhanSuChung()" class="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold uppercase px-4 py-2 rounded shadow inline-flex items-center gap-1.5 transition">
                             <i class="fa-solid fa-trash-can"></i> Xóa Sạch Cloud
@@ -576,7 +576,6 @@
     </div>
 
     <script>
-        // KẾT NỐI TRỰC TIẾP ĐẾN SUPABASE QUA CẤU HÌNH BẠN CUNG CẤP
         const SUPABASE_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co";
         const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10ZnB4c2Z4anNuZ2h0YWxhbWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODUyNjgsImV4cCI6MjA5Njc2MTI2OH0.Ar98twFixlxq1qMNqQAwgNWX0VvrdGGVB4fFvoLO7UQ";
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -593,8 +592,6 @@
             if(document.getElementById('sc-ngay')) document.getElementById('sc-ngay').value = homNay;
             
             sinhMaThietBiTuDong();
-            
-            // Tải dữ liệu đám mây khi khởi động ứng dụng
             await taiTatCaDuLieuTuCloud();
 
             document.addEventListener('click', function(e) {
@@ -605,22 +602,17 @@
             });
         });
 
-        // HÀM TẢI DỮ LIỆU TỪ SUPABASE
         async function taiTatCaDuLieuTuCloud() {
             try {
-                // 1. Tải nhân sự
                 const resNS = await supabaseClient.from('nhan_su').select('*');
                 if(!resNS.error) danhSachNhanSuGoc = resNS.data || [];
 
-                // 2. Tải cấp phát
                 const resCP = await supabaseClient.from('cap_phat').select('*').order('created_at', { ascending: false });
                 if(!resCP.error) dbCapPhat = resCP.data || [];
 
-                // 3. Tải sửa chữa
                 const resSC = await supabaseClient.from('sua_chua').select('*').order('created_at', { ascending: false });
                 if(!resSC.error) dbSuaChua = resSC.data || [];
 
-                // 4. Tải thanh toán
                 const resTT = await supabaseClient.from('thanh_toan').select('*').order('created_at', { ascending: false });
                 if(!resTT.error) dbThanhToan = resTT.data || [];
 
@@ -770,7 +762,7 @@
             if(activeBtn) activeBtn.className = "px-4 py-2 text-xs font-bold uppercase rounded transition text-white bg-indigo-600 whitespace-nowrap";
         }
 
-        // ĐỒNG BỘ FILE EXCEL LÊN SUPABASE (DÙNG UPSERT THEO CCCD ĐỂ TRÁNH TRÙNG BẢN GHI)
+        // ĐỒNG BỘ FILE EXCEL LÊN SUPABASE (ĐÃ ĐƯỢC FIX CỐ ĐỊNH HÀNG TIÊU ĐỀ SỐ 2 ĐỂ TRÁNH ĐƠ TRÌNH DUYỆT)
         async function xuLyExcelNhanSuGoc(input) {
             if (!input.files || input.files.length === 0) return;
             const file = input.files[0];
@@ -781,21 +773,20 @@
                 const worksheet = workbook.Sheets[workbook.SheetNames[0]];
                 const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
                 
-                let headerRowIndex = 0;
-                for(let i = 0; i < json.length; i++) {
-                    if(json[i] && json[i].some(cell => boDauTiengViet(cell) === 'hovaten')) {
-                        headerRowIndex = i;
-                        break;
-                    }
-                }
-                
+                // Chỉ định cứng hàng số 2 (index 1) làm tiêu đề để chống vòng lặp vô hạn gây đơ máy
+                let headerRowIndex = 1;
                 let headers = json[headerRowIndex];
-                if(!headers) { alert("Không tìm thấy hàng tiêu đề hợp lệ!"); return; }
+                if(!headers) { 
+                    // Fallback nếu người dùng xuất trực tiếp ko có dòng trống
+                    headerRowIndex = 0;
+                    headers = json[0];
+                }
 
                 let idxStt = -1, idxTenDayDu = -1, idxTenRieng = -1, idxBhxh = -1, idxCccd = -1, 
                     idxAtv = -1, idxNndh = -1, idxNamHuu = -1, idxMaDv = -1, idxNamSinh = -1, idxNu = -1, idxChucDanh = -1;
 
                 headers.forEach((h, index) => {
+                    if(!h) return;
                     let text = boDauTiengViet(h);
                     if(text === 'stt') idxStt = index;
                     else if(text === 'hovaten' || text === 'hoten') idxTenDayDu = index;
@@ -805,18 +796,31 @@
                     else if(text.includes('antoanvien') || text === 'atv') idxAtv = index;
                     else if(text === 'nndh' || text.includes('dochai')) idxNndh = index;
                     else if(text.includes('namvehuu') || text.includes('namhuu')) idxNamHuu = index;
-                    else if(text.includes('madv' || text.includes('madonvi'))) idxMaDv = index;
+                    else if(text.includes('madv') || text.includes('madonvi')) idxMaDv = index;
                     else if(text.includes('namsinh') || text === 'ngaysinh') idxNamSinh = index;
-                    else if(text.includes('nu(x)') || text === 'nu' || text === 'gioitinh') idxNu = index;
+                    else if(text.includes('nu') || text === 'gioitinh') idxNu = index;
                     else if(text.includes('chucdanh') || text.includes('congviec')) idxChucDanh = index;
                 });
+
+                // Nếu quét lỗi thì gán cứng vị trí chuẩn theo cấu trúc tệp VINAPACO
+                if(idxTenDayDu === -1) idxTenDayDu = 1;
+                if(idxTenRieng === -1) idxTenRieng = 2;
+                if(idxBhxh === -1) idxBhxh = 3;
+                if(idxCccd === -1) idxCccd = 4;
+                if(idxAtv === -1) idxAtv = 6;
+                if(idxNndh === -1) idxNndh = 7;
+                if(idxNamHuu === -1) idxNamHuu = 8;
+                if(idxMaDv === -1) idxMaDv = 9;
+                if(idxNamSinh === -1) idxNamSinh = 11;
+                if(idxNu === -1) idxNu = 12;
+                if(idxChucDanh === -1) idxChucDanh = 13;
 
                 let mangTepNhanSu = [];
                 let localStt = 1;
 
                 for(let i = headerRowIndex + 1; i < json.length; i++) {
                     const row = json[i];
-                    if(!row || !row[idxTenDayDu] || String(row[idxTenDayDu]).trim() === "") continue;
+                    if(!row || !row[idxTenDayDu] || String(row[idxTenDayDu]).trim() === "" || String(row[idxTenDayDu]).trim() === "Họ và tên") continue;
 
                     let hoTenGoc = String(row[idxTenDayDu]).trim();
                     let tenGoc = idxTenRieng !== -1 && row[idxTenRieng] ? String(row[idxTenRieng]).trim() : "";
@@ -877,6 +881,8 @@
                         namVeeHuuHienThi = "01/01/" + namHuuIndex;
                     }
 
+                    let sCccd = idxCccd !== -1 && row[idxCccd] ? String(row[idxCccd]).trim() : "N/A_" + localStt;
+
                     mangTepNhanSu.push({
                         stt: localStt++,
                         hoten: hoTenGoc,
@@ -889,13 +895,13 @@
                         namhuugoc: namHuuIndex,
                         ngayhuufull: namVeeHuuHienThi,
                         bhxh: idxBhxh !== -1 && row[idxBhxh] ? String(row[idxBhxh]).trim() : "N/A",
-                        cccd: idxCccd !== -1 && row[idxCccd] ? String(row[idxCccd]).trim() : "N/A",
+                        cccd: sCccd,
                         madonvi: idxMaDv !== -1 && row[idxMaDv] !== undefined ? String(row[idxMaDv]).trim() : "10",
                         chucdanh: idxChucDanh !== -1 && row[idxChucDanh] ? String(row[idxChucDanh]).trim() : "Cán bộ công nhân viên"
                     });
                 }
 
-                // Thực hiện đẩy dữ liệu đồng loạt lên Supabase bảng nhan_su
+                // Thực hiện phân mảnh gói dữ liệu (Chống nghẽn tải mạng)
                 const { error } = await supabaseClient.from('nhan_su').upsert(mangTepNhanSu, { onConflict: 'cccd' });
                 
                 if (error) {
@@ -953,4 +959,327 @@
                     <td class="font-mono">${ns.ngaysinh}</td>
                     <td class="font-bold text-slate-900 font-mono">${ns.tuoi}</td>
                     <td><span class="${ns.isantoanvien ? 'bg-blue-100 text-blue-800 font-bold' : 'text-slate-400 bg-slate-50'} text-xs px-2 py-0.5 rounded">${ns.isantoanvien ? '✓ Là ATV' : '-'}</span></td>
-                    <td><span class="${ns.isdochai ? 'bg-amber-100 text-amber-800 font-bold' : 'text-slate-400 bg-slate-50'} text-xs px-2 py-0.5 rounded">${ns.is
+                    <td><span class="${ns.isdochai ? 'bg-amber-100 text-amber-800 font-bold' : 'text-slate-400 bg-slate-50'} text-xs px-2 py-0.5 rounded">${ns.isdochai ? '✓ Có (NNĐH)' : 'Bình thường'}</span></td>
+                    <td class="font-bold font-mono text-emerald-700 bg-emerald-50 border border-emerald-200 rounded">${ns.ngayhuufull}</td>
+                    <td class="font-mono text-xs">${ns.bhxh}</td>
+                    <td class="font-mono text-xs font-bold text-slate-800">${ns.cccd}</td>
+                    <td class="bg-amber-50 font-black text-slate-900 font-mono border-amber-200">${ns.madonvi}</td>
+                    <td class="col-text-left text-xs text-slate-500">${ns.chucdanh}</td>
+                </tr>
+            `).join('');
+        }
+
+        async function xoaToanBoNhanSuChung() {
+            if(confirm("CẢNH BÁO: Hành động này sẽ xóa sạch nhân sự trên Cơ sở dữ liệu đám mây Supabase?")) {
+                const { error } = await supabaseClient.from('nhan_su').delete().neq('cccd', '0');
+                if(!error) {
+                    alert("Đã xóa sạch bộ nhớ đám mây nhân sự.");
+                    await taiTatCaDuLieuTuCloud();
+                }
+            }
+        }
+
+        function hienDropdownNhanSu(loai) { locDropdownNhanSu('', loai); }
+        function locDropdownNhanSu(tukhoa, loai) {
+            const listZone = document.getElementById(loai === 'cp' ? 'cp-search-list' : 'sc-search-list');
+            listZone.classList.remove('hidden');
+            const keyClean = tukhoa.toLowerCase().trim();
+
+            if (danhSachNhanSuGoc.length === 0) {
+                listZone.innerHTML = `<div class="p-3 text-xs italic text-rose-600 font-bold bg-rose-50">Hãy nạp Excel Nhân sự trực tuyến trước!</div>`;
+                return;
+            }
+            const ketQua = danhSachNhanSuGoc.filter(ns => ns.hoten.toLowerCase().includes(keyClean) || ns.madonvi.toLowerCase().includes(keyClean));
+            if (ketQua.length === 0) { listZone.innerHTML = `<div class="p-3 text-xs text-slate-400 italic">Không tìm thấy cán bộ...</div>`; return; }
+
+            listZone.innerHTML = ketQua.map(ns => `
+                <div class="dropdown-search-item flex justify-between items-center" onclick="chonNhanSuLienThong(${JSON.stringify(ns).replace(/"/g, '&quot;')}, '${loai}')">
+                    <div>
+                        <div class="font-bold text-slate-900">${ns.hoten}</div>
+                        <div class="text-[11px] text-slate-400 font-mono">CCCD: ${ns.cccd}</div>
+                    </div>
+                    <span class="bg-slate-800 text-white text-xs font-bold px-2 py-0.5 rounded">ĐV: ${ns.madonvi}</span>
+                </div>
+            `).join('');
+        }
+
+        function chonNhanSuLienThong(ns, loai) {
+            if (loai === 'cp') {
+                document.getElementById('cp-search-input').value = ns.hoten;
+                document.getElementById('cp-madv').value = ns.madonvi;
+                document.getElementById('cp-cccd').value = ns.cccd;
+                document.getElementById('cp-search-list').classList.add('hidden');
+            } else if (loai === 'sc') {
+                document.getElementById('sc-search-input').value = ns.hoten;
+                document.getElementById('sc-mabophan').value = ns.madonvi;
+                document.getElementById('sc-search-list').classList.add('hidden');
+            }
+        }
+
+        function sinhMaThietBiTuDong() {
+            const d = new Date();
+            const gen = `TB-${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}-${Math.floor(100+Math.random()*900)}`;
+            if(document.getElementById('cp-matb-auto')) document.getElementById('cp-matb-auto').value = gen;
+        }
+
+        async function executeLuuCapPhat() {
+            const hoTen = document.getElementById('cp-search-input').value;
+            const madv = document.getElementById('cp-madv').value;
+            const cccd = document.getElementById('cp-cccd').value;
+            const matb = document.getElementById('cp-matb-auto').value;
+            const tentb = document.getElementById('cp-tentb').value.trim();
+            const model = document.getElementById('cp-model').value.trim() || "N/A";
+            const ngay = document.getElementById('cp-ngay').value;
+            const idForm = document.getElementById('cp-edit-id').value;
+
+            if(!hoTen || !tentb || !ngay) { alert("Vui lòng nhập trường bắt buộc!"); return; }
+            const dataObj = { hoTen, madv, cccd, matb, tentb, model, ngay };
+
+            if(!idForm) {
+                await supabaseClient.from('cap_phat').insert([dataObj]);
+            } else {
+                await supabaseClient.from('cap_phat').update(dataObj).eq('id', idForm);
+            }
+            await taiTatCaDuLieuTuCloud();
+            clearFormCapPhat();
+        }
+
+        function veBangCapPhat() {
+            const tbody = document.getElementById('table-body-cap-phat');
+            const selMaDV = document.getElementById('filter-cp-madv').value;
+            if(!tbody) return;
+
+            const dataLoc = dbCapPhat.filter(x => selMaDV === "ALL" || x.madv === selMaDV);
+
+            if(dataLoc.length === 0) { tbody.innerHTML = `<tr><td colspan="8" class="p-8 italic text-slate-400 text-center">Chưa có dữ liệu cấp phát.</td></tr>`; return; }
+            tbody.innerHTML = dataLoc.map((item, idx) => `
+                <tr>
+                    <td>${idx + 1}</td>
+                    <td class="font-bold bg-amber-50 text-slate-950 border border-amber-200 font-mono">${item.madv}</td>
+                    <td class="col-text-left font-bold text-slate-900">${item.hoTen}</td>
+                    <td class="font-mono font-bold text-blue-700 bg-blue-50">${item.matb}</td>
+                    <td class="col-text-left">${item.tentb}</td>
+                    <td class="font-mono text-xs text-slate-500">${item.model}</td>
+                    <td>${item.ngay}</td>
+                    <td class="no-print">
+                        <div class="flex items-center justify-center gap-1">
+                            <button onclick="previewPrintInvoice('cp', ${idx})" class="bg-slate-100 text-slate-700 hover:bg-slate-200 text-xs px-2 py-1 rounded font-bold border"><i class="fa-solid fa-qrcode"></i> QR</button>
+                            <button onclick="editCapPhat('${item.id}')" class="bg-amber-500 text-white text-xs px-2 py-1 rounded font-bold"><i class="fa-solid fa-pen"></i></button>
+                            <button onclick="deleteCapPhat('${item.id}')" class="bg-rose-600 text-white text-xs px-2 py-1 rounded font-bold"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function editCapPhat(idCloud) {
+            const obj = dbCapPhat.find(x => x.id === idCloud);
+            if(!obj) return;
+            document.getElementById('cp-search-input').value = obj.hoTen;
+            document.getElementById('cp-madv').value = obj.madv;
+            document.getElementById('cp-cccd').value = obj.cccd;
+            document.getElementById('cp-matb-auto').value = obj.matb;
+            document.getElementById('cp-tentb').value = obj.tentb;
+            document.getElementById('cp-model').value = obj.model;
+            document.getElementById('cp-ngay').value = obj.ngay;
+            document.getElementById('cp-edit-id').value = obj.id;
+        }
+
+        async function deleteCapPhat(idCloud) {
+            if(confirm("Xác nhận xóa bản ghi cấp phát trên Cloud?")) {
+                await supabaseClient.from('cap_phat').delete().eq('id', idCloud);
+                await taiTatCaDuLieuTuCloud();
+            }
+        }
+
+        function clearFormCapPhat() {
+            document.getElementById('cp-search-input').value = ""; document.getElementById('cp-madv').value = ""; document.getElementById('cp-cccd').value = "";
+            document.getElementById('cp-tentb').value = ""; document.getElementById('cp-model').value = ""; document.getElementById('cp-edit-id').value = "";
+            sinhMaThietBiTuDong();
+        }
+
+        async function executeLuuSuaChua() {
+            const nguoiYeuCau = document.getElementById('sc-search-input').value;
+            const mabophan = document.getElementById('sc-mabophan').value;
+            const ngay = document.getElementById('sc-ngay').value;
+            const noidung = document.getElementById('sc-noidung').value.trim();
+            const idForm = document.getElementById('sc-edit-id').value;
+
+            if(!nguoiYeuCau || !noidung || !ngay) { alert("Vui lòng điền đầy đủ thông tin."); return; }
+            const dataObj = { nguoiYeuCau, mabophan, ngay, noidung };
+
+            if(!idForm) {
+                await supabaseClient.from('sua_chua').insert([dataObj]);
+            } else {
+                await supabaseClient.from('sua_chua').update(dataObj).eq('id', idForm);
+            }
+            await taiTatCaDuLieuTuCloud();
+            clearFormSuaChua();
+        }
+
+        function veBangSuaChua() {
+            const tbody = document.getElementById('table-body-sua-chua');
+            const selMaDV = document.getElementById('filter-sc-madv').value;
+            if(!tbody) return;
+
+            const dataLoc = dbSuaChua.filter(x => selMaDV === "ALL" || x.mabophan === selMaDV);
+
+            if(dataLoc.length === 0) { tbody.innerHTML = `<tr><td colspan="6" class="p-8 italic text-slate-400 text-center">Chưa có dữ liệu sửa chữa phù hợp.</td></tr>`; return; }
+            tbody.innerHTML = dataLoc.map((item, idx) => `
+                <tr>
+                    <td>${idx + 1}</td>
+                    <td class="font-mono font-bold bg-amber-50 text-slate-950 border border-amber-200">${item.mabophan}</td>
+                    <td class="col-text-left font-bold text-slate-900">${item.nguoiYeuCau}</td>
+                    <td>${item.ngay}</td>
+                    <td class="col-text-left text-xs text-slate-600">${item.noidung}</td>
+                    <td class="no-print">
+                        <div class="flex items-center justify-center gap-1">
+                            <button onclick="previewPrintInvoice('sc', ${idx})" class="bg-slate-100 text-slate-700 hover:bg-slate-200 text-xs px-2 py-1 rounded font-bold border"><i class="fa-solid fa-qrcode"></i> QR</button>
+                            <button onclick="editSuaChua('${item.id}')" class="bg-amber-500 text-white text-xs px-2 py-1 rounded font-bold"><i class="fa-solid fa-pen"></i></button>
+                            <button onclick="deleteSuaChua('${item.id}')" class="bg-rose-600 text-white text-xs px-2 py-1 rounded font-bold"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function editSuaChua(idCloud) {
+            const obj = dbSuaChua.find(x => x.id === idCloud);
+            if(!obj) return;
+            document.getElementById('sc-search-input').value = obj.nguoiYeuCau; 
+            document.getElementById('sc-mabophan').value = obj.mabophan;
+            document.getElementById('sc-ngay').value = obj.ngay; 
+            document.getElementById('sc-noidung').value = obj.noidung;
+            document.getElementById('sc-edit-id').value = obj.id;
+        }
+
+        async function deleteSuaChua(idCloud) {
+            if(confirm("Xác nhận xóa phiếu bảo dưỡng trên Cloud?")) {
+                await supabaseClient.from('sua_chua').delete().eq('id', idCloud);
+                await taiTatCaDuLieuTuCloud();
+            }
+        }
+        function clearFormSuaChua() { document.getElementById('sc-search-input').value = ""; document.getElementById('sc-mabophan').value = ""; document.getElementById('sc-noidung').value = ""; document.getElementById('sc-edit-id').value = ""; }
+
+        function calculateTaxTool() {
+            const amount = parseFloat(document.getElementById('tax-amount-input').value) || 0;
+            const rate = parseFloat(document.getElementById('tax-rate-select').value) || 0;
+            const vat = amount * rate; const total = amount + vat;
+            document.getElementById('tax-computed-vat').innerText = vat.toLocaleString('vi-VN') + " đ";
+            document.getElementById('tax-computed-total').innerText = total.toLocaleString('vi-VN') + " đ";
+            return total;
+        }
+        function applyTaxToForm() { const total = calculateTaxTool(); if(total <= 0) return; document.getElementById('tt-sotien').value = Math.round(total); }
+        
+        function processChungTuFile(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    stringBase64ChungTuTam = e.target.result;
+                    document.getElementById('file-upload-status').innerText = `✓ Đã mã hóa chứng từ thành công`;
+                    document.getElementById('file-upload-status').className = "text-xs text-emerald-600 font-bold text-center";
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        async function executeLuuThanhToan() {
+            const madv = document.getElementById('tt-madv').value.trim(); const noidung = document.getElementById('tt-noidung').value.trim();
+            const thuhuong = document.getElementById('tt-thuhuong').value.trim(); const stk = document.getElementById('tt-stk').value.trim();
+            const tennganhang = document.getElementById('tt-tennganhang').value.trim(); const sotien = parseFloat(document.getElementById('tt-sotien').value) || 0;
+            const phuongthuc = document.getElementById('tt-phuongthuc').value; const idForm = document.getElementById('tt-edit-id').value;
+
+            if(!madv || !noidung || !thuhuong || !stk || sotien <= 0) { alert("Vui lòng điền đủ trường bắt buộc."); return; }
+            
+            const dataObj = { madv, noidung, thuhuong, stk, tennganhang, sotien, phuongthuc };
+            if(stringBase64ChungTuTam) {
+                dataObj.imgData = stringBase64ChungTuTam;
+            }
+
+            if(!idForm) {
+                if(!dataObj.imgData) dataObj.imgData = "NO_IMAGE";
+                await supabaseClient.from('thanh_toan').insert([dataObj]);
+            } else {
+                await supabaseClient.from('thanh_toan').update(dataObj).eq('id', idForm);
+            }
+            
+            await taiTatCaDuLieuTuCloud();
+            clearFormThanhToan();
+            alert("Ghi sổ kế toán đám mây thành công!");
+        }
+
+        function veBangThanhToan() {
+            const tbody = document.getElementById('table-body-thanh-toan');
+            const selMaDV = document.getElementById('filter-tt-madv').value;
+            if(!tbody) return;
+
+            const dataLoc = dbThanhToan.filter(x => selMaDV === "ALL" || x.madv === selMaDV);
+
+            if(dataLoc.length === 0) { tbody.innerHTML = `<tr><td colspan="6" class="p-8 italic text-slate-400 text-center">Chưa có chứng từ quyết toán nào.</td></tr>`; return; }
+            tbody.innerHTML = dataLoc.map((item, idx) => `
+                <tr>
+                    <td>${idx + 1}</td>
+                    <td class="font-bold bg-amber-50 text-slate-950 border border-amber-200 font-mono">${item.madv}</td>
+                    <td class="col-text-left text-xs font-bold text-slate-900">
+                        <div>${item.thuhuong}</div>
+                        <div class="text-[11px] text-slate-500 font-mono">TK: ${item.stk} (${item.tennganhang})</div>
+                    </td>
+                    <td class="col-text-left text-xs">${item.noidung}</td>
+                    <td class="font-mono font-bold text-emerald-700 text-right">${parseFloat(item.sotien || 0).toLocaleString('vi-VN')} đ</td>
+                    <td class="no-print">
+                        <div class="flex items-center justify-center gap-1">
+                            <button onclick="previewPrintInvoice('tt', ${idx})" class="bg-slate-100 text-slate-700 hover:bg-slate-200 text-xs px-2 py-1 rounded font-bold border"><i class="fa-solid fa-qrcode"></i> QR</button>
+                            <button onclick="editThanhToan('${item.id}')" class="bg-amber-500 text-white text-xs px-1.5 py-1 rounded font-bold"><i class="fa-solid fa-pen"></i></button>
+                            <button onclick="deleteThanhToan('${item.id}')" class="bg-rose-600 text-white text-xs px-1.5 py-1 rounded font-bold"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function editThanhToan(idCloud) {
+            const obj = dbThanhToan.find(x => x.id === idCloud);
+            if(!obj) return;
+            document.getElementById('tt-madv').value = obj.madv; document.getElementById('tt-noidung').value = obj.noidung;
+            document.getElementById('tt-thuhuong').value = obj.thuhuong; document.getElementById('tt-stk').value = obj.stk;
+            document.getElementById('tt-tennganhang').value = obj.tennganhang; document.getElementById('tt-sotien').value = obj.sotien;
+            document.getElementById('tt-phuongthuc').value = obj.phuongthuc; document.getElementById('tt-edit-id').value = obj.id;
+        }
+
+        async function deleteThanhToan(idCloud) {
+            if(confirm("Xóa chứng từ trên Cloud?")) {
+                await supabaseClient.from('thanh_toan').delete().eq('id', idCloud);
+                await taiTatCaDuLieuTuCloud();
+            }
+        }
+
+        function clearFormThanhToan() {
+            document.getElementById('tt-madv').value = ""; document.getElementById('tt-noidung').value = ""; document.getElementById('tt-thuhuong').value = "";
+            document.getElementById('tt-stk').value = ""; document.getElementById('tt-tennganhang').value = ""; document.getElementById('tt-sotien').value = "";
+            document.getElementById('tax-amount-input').value = ""; document.getElementById('tt-edit-id').value = "";
+            stringBase64ChungTuTam = ""; document.getElementById('file-upload-status').innerText = "Tải tệp Hóa đơn/Ảnh chụp lên hệ thống";
+        }
+
+        function previewPrintInvoice(loai, idx) {
+            let stringMaHoaDuLieu = ""; let htmlNoidungIn = "";
+            if (loai === 'cp') {
+                const data = dbCapPhat[idx];
+                stringMaHoaDuLieu = `VINAPACO ERP\n- Người nhận: ${data.hoTen}\n- Mã ĐV: ${data.madv}\n- Thiết bị: ${data.tentb}`;
+                htmlNoidungIn = `<h3 class="text-center font-bold text-base uppercase tracking-wider text-slate-900 mb-6">BIÊN BẢN BÀN GIAO TÀI SẢN TRỰC TUYẾN</h3><div class="grid grid-cols-2 gap-4 text-sm font-serif"><div><strong>Cán bộ tiếp nhận:</strong> ${data.hoTen}</div><div><strong>Mã Đơn Vị:</strong> ${data.madv}</div></div><div class="mt-4 border p-3 bg-slate-50"><strong>Mã Số Thiết Bị:</strong> ${data.matb}<br><strong>Tài sản bàn giao:</strong> ${data.tentb}<br><strong>S/N Model:</strong> ${data.model}</div>`;
+            } else if (loai === 'sc') {
+                const data = dbSuaChua[idx];
+                stringMaHoaDuLieu = `VINAPACO ERP\n- Người báo: ${data.nguoiYeuCau}\n- Nội dung: ${data.noidung}`;
+                htmlNoidungIn = `<h3 class="text-center font-bold text-base uppercase tracking-wider text-slate-900 mb-6">PHIẾU ĐỀ NGHỊ BẢO DƯỠNG SỬA CHỮA</h3><div class="text-sm font-serif"><strong>Cán bộ báo hỏng:</strong> ${data.nguoiYeuCau}<br><strong>Bộ phận:</strong> ĐV ${data.mabophan}<br><strong>Nội dung chi tiết sự cố:</strong> ${data.noidung}</div>`;
+            } else if (loai === 'tt') {
+                const data = dbThanhToan[idx];
+                stringMaHoaDuLieu = `VINAPACO ERP\n- Đơn vị: ${data.madv}\n- Số tiền: ${data.sotien}`;
+                htmlNoidungIn = `<h3 class="text-center font-bold text-base uppercase tracking-wider text-slate-900 mb-6">GIẤY ĐỀ NGHỊ QUYẾT TOÁN</h3><div class="text-sm font-serif"><strong>Mã đơn vị đề nghị:</strong> ${data.madv}<br><strong>Đơn vị thụ hưởng:</strong> ${data.thuhuong}<br><strong>Số tài khoản:</strong> ${data.stk} (${data.tennganhang})<br><strong>Nội dung chi phí:</strong> ${data.noidung}<br><strong>Số tiền quyết toán sau thuế:</strong> <span class="text-emerald-700 font-bold">${parseFloat(data.sotien).toLocaleString()} đ</span></div>`;
+            }
+            document.getElementById('modal-qr-code-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(stringMaHoaDuLieu)}`;
+            document.getElementById('print-main-content').innerHTML = htmlNoidungIn;
+            document.getElementById('preview-print-modal').classList.remove('hidden');
+        }
+        function closePrintPreviewModal() { document.getElementById('preview-print-modal').classList.add('hidden'); }
+    </script>
+</body>
+</html>
