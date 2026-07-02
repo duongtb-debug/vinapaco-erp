@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VINAPACO ERP ENTERPRISE v3.9 - FULL CLOUD SYNC</title>
+    <title>VINAPACO ERP ENTERPRISE v3.9.1 - CHỐNG LỖI ĐỊNH DẠNG</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -47,7 +47,7 @@
             <div class="flex items-center gap-2">
                 <i class="fa-solid fa-layer-group text-2xl text-emerald-400"></i>
                 <div>
-                    <h1 class="text-base font-bold tracking-wide text-slate-100">VINAPACO ERP ENTERPRISE PLATFORM v3.9</h1>
+                    <h1 class="text-base font-bold tracking-wide text-slate-100">VINAPACO ERP ENTERPRISE PLATFORM v3.9.1</h1>
                     <p class="text-[11px] text-emerald-400 font-mono"><i class="fa-solid fa-cloud-sun"></i> Quy trình liên thông: Nhân sự -> Cấp phát -> Bảo dưỡng -> Quyết toán Thuế</p>
                 </div>
             </div>
@@ -108,7 +108,7 @@
         <div id="tab-nhan-su" class="space-y-3 hidden">
             <div class="card-custom p-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 bg-white">
                 <div class="text-slate-800 font-bold text-sm uppercase tracking-wide flex items-center gap-2">
-                    <i class="fa-solid fa-database text-indigo-600"></i> Cơ sở dữ liệu hồ sơ nhân sự gốc (Supabase Cloud Sync)
+                    <i class="fa-solid fa-database text-indigo-600"></i> Cơ sơ dữ liệu hồ sơ nhân sự gốc (Supabase Cloud Sync)
                 </div>
                 
                 <div class="flex items-center gap-2">
@@ -444,7 +444,7 @@
             }
         }
 
-        // CHỨC NĂNG XỬ LÝ EXCEL - ĐÃ BỔ SUNG KHỬ LỖI PHÂN TÍCH CHUỖI RỖNG CHỐNG LỖI INTEGER
+        // BỘ ENGINE PHÂN TÍCH EXCEL - TUYỆT ĐỐI CHỐNG LỖI "INVALID INPUT SYNTAX FOR TYPE INTEGER"
         function xuLyExcelNhanSuGoc(input) {
             const file = input.files[0];
             if(!file) return;
@@ -458,33 +458,40 @@
 
                 if(jsonData.length === 0) { alert("File Excel trống!"); return; }
 
-                // Hàm an toàn biến đổi giá trị, tránh gửi chuỗi rỗng lên cột Integer
-                const xulyChuoiSo = (val) => {
-                    if (!val || String(val).trim() === "") return null; 
-                    return String(val).trim();
+                // HÀM QUAN TRỌNG: Lọc sạch ký tự chữ, bóc tách chuỗi rỗng thành số 0 để phục vụ các cột dạng INT trên DB.
+                const epVeKieuSoNguyenAnToan = (val) => {
+                    if (val === undefined || val === null) return 0;
+                    let cleanStr = String(val).replace(/[^0-9\-]/g, '').trim();
+                    if (cleanStr === "" || cleanStr === "-") return 0;
+                    const parsed = parseInt(cleanStr, 10);
+                    return isNaN(parsed) ? 0 : parsed;
                 };
 
                 const mappedData = jsonData.map(row => {
                     return {
-                        hoten: row["Họ và tên"] || row["hoten"] || "",
-                        tenchitiet: row["Tên"] || row["tenchitiet"] || "",
-                        bhxh: xulyChuoiSo(row["Số sổ BHXH"] || row["bhxh"]), 
-                        cccd: xulyChuoiSo(row["Số CCCD"] || row["cccd"]),
+                        hoten: String(row["Họ và tên"] || row["hoten"] || "").trim(),
+                        tenchitiet: String(row["Tên"] || row["tenchitiet"] || "").trim(),
+                        
+                        // Áp dụng hàm chống lỗi ép kiểu rỗng sang Số nguyên:
+                        bhxh: epVeKieuSoNguyenAnToan(row["Số sổ BHXH"] || row["bhxh"]), 
+                        cccd: epVeKieuSoNguyenAnToan(row["Số CCCD"] || row["cccd"]),
+                        madonvi: epVeKieuSoNguyenAnToan(row["Mã Đơn Vị"] || row["madonvi"]),
+                        
                         isantoanvien: (row["An Toàn Viên"] === "X" || row["An Toàn Viên"] === "x" || row["isantoanvien"] === true),
                         isdochai: (row["Nghề Độc Hại (NNĐH)"] === "X" || row["Nghề Độc Hại (NNĐH)"] === "x" || row["isdochai"] === true),
-                        namhuugoc: row["Năm Về Hưu"] || row["namhuugoc"] || "",
-                        madonvi: xulyChuoiSo(row["Mã Đơn Vị"] || row["madonvi"]) || "10",
-                        nam_baocao: row["Năm"] || row["nam_baocao"] || "2026",
-                        ngaysinh: row["Năm Sinh"] || row["ngaysinh"] || "",
-                        nu_x: row["Nữ (x)"] || row["nu_x"] || "",
-                        chucdanh: row["Chức danh công việc / Vị trí vị trí công tác chi tiết"] || row["chucdanh"] || ""
+                        namhuugoc: String(row["Năm Về Hưu"] || row["namhuugoc"] || "").trim(),
+                        nam_baocao: String(row["Năm"] || row["nam_baocao"] || "2026").trim(),
+                        ngaysinh: String(row["Năm Sinh"] || row["ngaysinh"] || "").trim(),
+                        nu_x: String(row["Nữ (x)"] || row["nu_x"] || "").trim(),
+                        chucdanh: String(row["Chức danh công việc / Vị trí vị trí công tác chi tiết"] || row["chucdanh"] || "").trim()
                     };
                 });
 
-                alert("Đang đẩy dữ liệu hàng loạt lên Cloud Supabase, vui lòng đợi vài giây...");
+                alert("Đang đẩy dữ liệu an toàn lên Cloud Supabase, vui lòng đợi vài giây...");
                 const { error } = await supabaseClient.from('nhan_su').insert(mappedData);
                 if(error) {
-                    alert("Lỗi đẩy dữ liệu: " + error.message);
+                    alert("Lỗi đẩy dữ liệu: " + error.message + "\nHướng dẫn: Nếu vẫn lỗi kiểu dữ liệu, hãy mở SQL Editor chạy lệnh chuyển đổi cột sang Text.");
+                    console.error(error);
                 } else {
                     alert("Đã nạp thành công " + mappedData.length + " nhân sự gốc lên đám mây!");
                     await taiTatCaDuLieuTuCloud();
@@ -523,9 +530,9 @@
         }
 
         function dinhDangNgayVN(strDate) {
-            if (!strDate || strDate === "N/A") return "";
-            if (strDate.includes('/')) return strDate;
-            const parts = strDate.split('-');
+            if (!strDate || strDate === "N/A" || strDate === "0") return "";
+            if (String(strDate).includes('/')) return strDate;
+            const parts = String(strDate).split('-');
             if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
             return strDate;
         }
@@ -542,8 +549,8 @@
                     <td>${i+1}</td>
                     <td class="font-bold text-left">${ns.hoten || ''}</td>
                     <td>${ns.tenchitiet || ''}</td>
-                    <td class="font-mono">${ns.bhxh || ''}</td>
-                    <td class="font-mono">${ns.cccd || ''}</td>
+                    <td class="font-mono">${ns.bhxh == 0 ? '' : (ns.bhxh || '')}</td>
+                    <td class="font-mono">${ns.cccd == 0 ? '' : (ns.cccd || '')}</td>
                     <td class="font-bold text-emerald-600">${ns.isantoanvien ? 'X' : ''}</td>
                     <td class="font-bold text-amber-600">${ns.isdochai ? 'X' : ''}</td>
                     <td class="font-mono">${dinhDangNgayVN(ns.namhuugoc)}</td>
@@ -582,7 +589,7 @@
         function chonNhanSuGocLienThong(ns) {
             document.getElementById('cp-search-input').value = ns.hoten;
             document.getElementById('cp-madv').value = ns.madonvi || '10';
-            document.getElementById('cp-cccd').value = ns.cccd || '';
+            document.getElementById('cp-cccd').value = ns.cccd == 0 ? '' : (ns.cccd || '');
             document.getElementById('cp-search-list').classList.add('hidden');
         }
 
@@ -617,7 +624,7 @@
             tbody.innerHTML = dbCapPhat.map((item, idx) => `
                 <tr>
                     <td>${idx + 1}</td>
-                    <td class="font-bold font-mono text-indigo-900">${item.madv}</td>
+                    <td class="font-mono font-bold text-indigo-900">${item.madv}</td>
                     <td class="font-bold text-slate-800 text-left">${item.hoTen}</td>
                     <td class="font-mono text-slate-600">${item.cccd || ''}</td>
                     <td class="font-mono font-bold text-indigo-700 bg-indigo-50">${item.matb}</td>
@@ -726,7 +733,7 @@
                             <button onclick="chuyenChuyenTiepSangQuyetToan(${JSON.stringify(item).replace(/"/g, '&quot;')})" class="bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] px-2 py-1 rounded font-bold shadow flex items-center gap-1">
                                 <i class="fa-solid fa-calculator"></i> Trích Quyết Toán
                             </button>
-                            <button onclick="deleteSuaChua('${item.id}')" class="bg-rose-600 text-white text-xs px-1 py-0.5 rounded"><i class="fa-solid fa-trash"></i></button>
+                            <button onclick="deleteSuaChua('${item.id}')" class="bg-rose-600 text-white text-xs px-1.5 py-0.5 rounded"><i class="fa-solid fa-trash"></i></button>
                         </div>
                     </td>
                 </tr>
@@ -811,13 +818,6 @@
                     <td><button onclick="deleteThanhToan('${item.id}')" class="bg-rose-600 text-white text-xs px-2 py-0.5 rounded">Xóa</button></td>
                 </tr>
             `).join('');
-        }
-
-        async function deleteThanhToan(id) {
-            if(confirm("Xóa chứng từ quyết toán kế toán này?")) {
-                await supabaseClient.from('thanh_toan').delete().eq('id', id);
-                await taiTatCaDuLieuTuCloud();
-            }
         }
 
         function clearFormThanhToan() {
