@@ -350,6 +350,34 @@
 
     window.addEventListener('DOMContentLoaded', async () => {
         await taiDuLieuTuSupabase();
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        const tabParam = urlParams.get('tab');       
+        const searchParam = urlParams.get('search'); 
+        
+        if (tabParam) {
+            chuyenPhanHe(tabParam);
+            if (searchParam) {
+                if (tabParam === 'nhan-su') {
+                    document.getElementById('ns-search').value = searchParam;
+                    locDuLieuDynamic();
+                } 
+                else if (tabParam === 'thiet-bi') {
+                    let filteredRow = DANH_SACH_CAP_PHAT.filter(item => (item.ma_tb || item.MA_TB || "") === searchParam);
+                    if(filteredRow.length > 0) {
+                        DANH_SACH_CAP_PHAT = filteredRow;
+                        lamMoiBangCapPhat();
+                    }
+                }
+                else if (tabParam === 'sua-chua') {
+                    let filteredRow = DANH_SACH_SUA_CHUA.filter(item => (item.ma_tb || item.MA_TB || "") === searchParam);
+                    if(filteredRow.length > 0) {
+                        DANH_SACH_SUA_CHUA = filteredRow;
+                        lamMoiBangSuaChua();
+                    }
+                }
+            }
+        }
     });
 
     function chuyenPhanHe(id) {
@@ -528,7 +556,7 @@
             napBoLocDonVi(new Set(DANH_SACH_MASTER.map(i => i.ma_don_vi)));
             renderBangNhanSu(DANH_SACH_MASTER); thongKeNhanSu(DANH_SACH_MASTER);
         }
-        let res2 = await _supabase.from('cap_phat').select('*');
+        let res2 = await _supabase.from('cap_phat').select('*').order('id', { ascending: true });
         if(res2.data) { DANH_SACH_CAP_PHAT = res2.data; lamMoiBangCapPhat(); }
         let res3 = await _supabase.from('bao_tri').select('*');
         if(res3.data) { DANH_SACH_SUA_CHUA = res3.data; lamMoiBangSuaChua(); dongBoSuaChuaSangKeToan(); }
@@ -536,7 +564,6 @@
         if(res4.data) { DANH_SACH_THANH_TOAN = res4.data; lamMoiBangThanhToan(); }
     }
 
-    // THUẬT TOÁN MỚI: TỰ ĐỘNG ĐIỀN MÃ THIẾT BỊ VÀ LẤP KHUYẾT SỐ NHỎ NHẤT KHI CÓ MÃ BỊ XÓA
     function tuDongSinhMaThietBi() {
         let textLoai = document.getElementById('form-loai-tb').value.trim();
         if (!textLoai) { 
@@ -559,12 +586,14 @@
         
         let soThuTuHienTai = 1;
         let danhSachSoDaDung = DANH_SACH_CAP_PHAT
-            .filter(item => item.ma_tb && item.ma_tb.startsWith(tienToMa))
             .map(item => {
-                let phanDuoi = item.ma_tb.replace(tienToMa, "");
-                return parseInt(phanDuoi, 10);
+                let code = item.ma_tb || item.MA_TB || "";
+                if(code.startsWith(tienToMa)) {
+                    return parseInt(code.replace(tienToMa, ""), 10);
+                }
+                return null;
             })
-            .filter(num => !isNaN(num));
+            .filter(num => num !== null && !isNaN(num));
 
         while (danhSachSoDaDung.includes(soThuTuHienTai)) {
             soThuTuHienTai++;
@@ -581,30 +610,120 @@
 
     async function themMoiCapPhat(e) {
         e.preventDefault();
-        let item = { ma_tb: document.getElementById('form-ma-tb').value, loai_tb: document.getElementById('form-loai-tb').value, bo_phan: document.getElementById('form-bophan').value, nguoi_dung: document.getElementById('form-nhansu').value, ngay_cap: new Date().toLocaleDateString('vi-VN') };
-        await _supabase.from('cap_phat').insert([item]); DANH_SACH_CAP_PHAT.push(item); lamMoiBangCapPhat(); document.getElementById('frm-cap-phat').reset(); document.getElementById('form-ma-tb').value = "";
+        let code = document.getElementById('form-ma-tb').value;
+        let item = { 
+            ma_tb: code, 
+            loai_tb: document.getElementById('form-loai-tb').value, 
+            bo_phan: document.getElementById('form-bophan').value, 
+            nguoi_dung: document.getElementById('form-nhansu').value, 
+            ngay_cap: new Date().toLocaleDateString('vi-VN') 
+        };
+        await _supabase.from('cap_phat').insert([item]); 
+        await taiDuLieuTuSupabase(); 
+        document.getElementById('frm-cap-phat').reset(); 
+        document.getElementById('form-ma-tb').value = "";
     }
 
     function lamMoiBangCapPhat() {
-        document.getElementById('tb-body-dynamic').innerHTML = DANH_SACH_CAP_PHAT.map((item, idx) => `<tr><td>${idx+1}</td><td><b>${item.ma_tb}</b></td><td>${item.loai_tb}</td><td><b>${item.bo_phan}</b></td><td>${item.nguoi_dung}</td><td>${item.ngay_cap}</td><td><div class="qr-zone" onclick="modalQR_CP(${idx})">📷 QR</div></td><td><button class="btn-action btn-delete" onclick="xoaCapPhat(${idx})">Xóa</button></td></tr>`).join('');
-        document.getElementById('repair-ma-tb').innerHTML = `<option value="">-- Chọn thiết bị --</option>` + DANH_SACH_CAP_PHAT.map(t => `<option value="${t.ma_tb}">${t.ma_tb}</option>`).join('');
+        document.getElementById('tb-body-dynamic').innerHTML = DANH_SACH_CAP_PHAT.map((item, idx) => {
+            let mTB = item.ma_tb || item.MA_TB || "";
+            let lTB = item.loai_tb || item.LOAI_TB || "";
+            let bP = item.bo_phan || item.BO_PHAN || "";
+            let nD = item.nguoi_dung || item.NGUOI_DUNG || "";
+            let nC = item.ngay_cap || item.NGAY_CAP || "";
+            return `<tr>
+                <td>${idx+1}</td>
+                <td><b>${mTB}</b></td>
+                <td>${lTB}</td>
+                <td><b>${bP}</b></td>
+                <td>${nD}</td>
+                <td>${nC}</td>
+                <td><div class="qr-zone" onclick="modalQR_CP(${idx})">📷 QR</div></td>
+                <td><button type="button" class="btn-action btn-delete" onclick="xoaCapPhat(${idx})">Xóa</button></td>
+            </tr>`;
+        }).join('');
+        
+        document.getElementById('repair-ma-tb').innerHTML = `<option value="">-- Chọn thiết bị --</option>` + DANH_SACH_CAP_PHAT.map(t => {
+            let code = t.ma_tb || t.MA_TB || "";
+            return `<option value="${code}">${code}</option>`;
+        }).join('');
     }
-    async function xoaCapPhat(idx) { await _supabase.from('cap_phat').delete().eq('ma_tb', DANH_SACH_CAP_PHAT[idx].ma_tb); DANH_SACH_CAP_PHAT.splice(idx,1); lamMoiBangCapPhat(); }
+    
+    async function xoaCapPhat(idx) { 
+        let item = DANH_SACH_CAP_PHAT[idx];
+        if(!item) return;
+        let code = item.ma_tb || item.MA_TB || "";
+        
+        if(confirm(`Bạn chắc chắn muốn xóa cấp phát thiết bị ${code}?`)) {
+            if(item.id) {
+                await _supabase.from('cap_phat').delete().eq('id', item.id);
+            } else {
+                await _supabase.from('cap_phat').delete().eq('ma_tb', code);
+            }
+            await taiDuLieuTuSupabase(); 
+        }
+    }
 
     function autoDienThongTinThietBi() {
-        let t = DANH_SACH_CAP_PHAT.find(i => i.ma_tb === document.getElementById('repair-ma-tb').value);
-        document.getElementById('repair-bophan').value = t ? t.bo_phan : ""; document.getElementById('repair-nhansu').value = t ? t.nguoi_dung : "";
+        let codeVal = document.getElementById('repair-ma-tb').value;
+        let t = DANH_SACH_CAP_PHAT.find(i => (i.ma_tb || i.MA_TB || "") === codeVal);
+        document.getElementById('repair-bophan').value = t ? (t.bo_phan || t.BO_PHAN || "") : ""; 
+        document.getElementById('repair-nhansu').value = t ? (t.nguoi_dung || t.NGUOI_DUNG || "") : "";
     }
+
     async function themMoiNhatKySuaChua(e) {
         e.preventDefault();
-        let item = { ma_tb: document.getElementById('repair-ma-tb').value, bo_phan: document.getElementById('repair-bophan').value, nguoi_dung: document.getElementById('repair-nhansu').value, phan_loai: document.getElementById('repair-phanloai').value, chi_phi: parseFloat(document.getElementById('repair-chiphi').value || 0), mo_ta: document.getElementById('repair-mota').value };
-        await _supabase.from('bao_tri').insert([item]); DANH_SACH_SUA_CHUA.push(item); lamMoiBangSuaChua(); dongBoSuaChuaSangKeToan(); document.getElementById('frm-repair').reset();
+        let item = { 
+            ma_tb: document.getElementById('repair-ma-tb').value, 
+            bo_phan: document.getElementById('repair-bophan').value, 
+            nguoi_dung: document.getElementById('repair-nhansu').value, 
+            phan_loai: document.getElementById('repair-phanloai').value, 
+            chi_phi: parseFloat(document.getElementById('repair-chiphi').value || 0), 
+            mo_ta: document.getElementById('repair-mota').value 
+        };
+        await _supabase.from('bao_tri').insert([item]); 
+        await taiDuLieuTuSupabase();
+        document.getElementById('frm-repair').reset();
     }
+
     function lamMoiBangSuaChua() {
-        document.getElementById('sc-body-dynamic').innerHTML = DANH_SACH_SUA_CHUA.map((item, idx) => `<tr><td>${idx+1}</td><td><b>${item.ma_tb}</b></td><td><b>${item.bo_phan}</b></td><td>${item.nguoi_dung}</td><td><span class="badge">${item.phan_loai}</span></td><td style="color:var(--danger-color); font-weight:bold;">${item.chi_phi.toLocaleString()} đ</td><td>${item.mo_ta}</td><td><div class="qr-zone" onclick="modalQR_SC(${idx})">📷 QR</div></td><td><button class="btn-action btn-delete" onclick="xoaSuaChua(${idx})">Xóa</button></td></tr>`).join('');
+        document.getElementById('sc-body-dynamic').innerHTML = DANH_SACH_SUA_CHUA.map((item, idx) => {
+            let mTB = item.ma_tb || item.MA_TB || "";
+            let bP = item.bo_phan || item.BO_PHAN || "";
+            let nD = item.nguoi_dung || item.NGUOI_DUNG || "";
+            let pL = item.phan_loai || item.PHAN_LOAI || "";
+            let cP = item.chi_phi || item.CHI_PHI || 0;
+            let mT = item.mo_ta || item.MO_TA || "";
+            return `<tr>
+                <td>${idx+1}</td><td><b>${mTB}</b></td><td><b>${bP}</b></td><td>${nD}</td>
+                <td><span class="badge">${pL}</span></td><td style="color:var(--danger-color); font-weight:bold;">${cP.toLocaleString()} đ</td>
+                <td>${mT}</td><td><div class="qr-zone" onclick="modalQR_SC(${idx})">📷 QR</div></td>
+                <td><button class="btn-action btn-delete" onclick="xoaSuaChua(${idx})">Xóa</button></td>
+            </tr>`;
+        }).join('');
     }
-    async function xoaSuaChua(idx) { await _supabase.from('bao_tri').delete().eq('ma_tb', DANH_SACH_SUA_CHUA[idx].ma_tb).eq('mo_ta', DANH_SACH_SUA_CHUA[idx].mo_ta); DANH_SACH_SUA_CHUA.splice(idx,1); lamMoiBangSuaChua(); dongBoSuaChuaSangKeToan(); }
-    function dongBoSuaChuaSangKeToan() { document.getElementById('tt-repair-index').innerHTML = `<option value="">-- Chọn hồ sơ liên thông --</option>` + DANH_SACH_SUA_CHUA.map((s, idx) => `<option value="${idx}">[${s.ma_tb}] - ${s.mo_ta.substring(0,15)}... (${s.chi_phi.toLocaleString()}đ)</option>`).join(''); }
+
+    async function xoaSuaChua(idx) { 
+        let item = DANH_SACH_SUA_CHUA[idx];
+        if(!item) return;
+        if(confirm("Xóa bản ghi nhật ký bảo trì này?")) {
+            if(item.id) {
+                await _supabase.from('bao_tri').delete().eq('id', item.id);
+            } else {
+                await _supabase.from('bao_tri').delete().eq('ma_tb', item.ma_tb || item.MA_TB).eq('mo_ta', item.mo_ta || item.MO_TA);
+            }
+            await taiDuLieuTuSupabase(); 
+        }
+    }
+
+    function dongBoSuaChuaSangKeToan() { 
+        document.getElementById('tt-repair-index').innerHTML = `<option value="">-- Chọn hồ sơ liên thông --</option>` + DANH_SACH_SUA_CHUA.map((s, idx) => {
+            let mTB = s.ma_tb || s.MA_TB || "";
+            let mT = s.mo_ta || s.MO_TA || "";
+            let cP = s.chi_phi || s.CHI_PHI || 0;
+            return `<option value="${idx}">[${mTB}] - ${mT.substring(0,15)}... (${cP.toLocaleString()}đ)</option>`;
+        }).join(''); 
+    }
 
     function layMucThueSuatHienTai() {
         let selectVal = document.getElementById('tt-vat-select').value;
@@ -632,9 +751,12 @@
 
     function autoFillTuNhatKySuaChua() {
         let sc = DANH_SACH_SUA_CHUA[document.getElementById('tt-repair-index').value]; if(!sc) return;
-        document.getElementById('tt-ma-tb').value = sc.ma_tb; document.getElementById('tt-bophan').value = sc.bo_phan;
-        document.getElementById('tt-nhansu').value = sc.nguoi_dung; document.getElementById('tt-noidung').value = sc.mo_ta;
-        document.getElementById('tt-chiphi').value = sc.chi_phi; document.getElementById('mode-goc').checked = true; tinhToanThueLinhHoat('GOC');
+        document.getElementById('tt-ma-tb').value = sc.ma_tb || sc.MA_TB || ""; 
+        document.getElementById('tt-bophan').value = sc.bo_phan || sc.BO_PHAN || "";
+        document.getElementById('tt-nhansu').value = sc.nguoi_dung || sc.NGUOI_DUNG || ""; 
+        document.getElementById('tt-noidung').value = sc.mo_ta || sc.MO_TA || "";
+        document.getElementById('tt-chiphi').value = sc.chi_phi || sc.CHI_PHI || 0; 
+        document.getElementById('mode-goc').checked = true; tinhToanThueLinhHoat('GOC');
     }
 
     function kichHoatUploadFolder(isFolder) {
@@ -642,20 +764,20 @@
         if(isFolder) { input.setAttribute('webkitdirectory', ''); input.setAttribute('directory', ''); } 
         else { input.removeAttribute('webkitdirectory'); input.removeAttribute('directory'); }
     }
+
     function xuLyDanhSachFileChon(event) {
         for(let file of event.target.files) { MANG_FILE_CHO_UPLOAD.push(file); }
         document.getElementById('ds-file-cho-upload').innerHTML = MANG_FILE_CHO_UPLOAD.map((f, idx) => `<div class="file-item"><span>📄 ${f.name} (${(f.size/1024/1024).toFixed(2)} MB)</span><span style="color:red; cursor:pointer; font-weight:bold;" onclick="MANG_FILE_CHO_UPLOAD.splice(${idx},1); xuLyDanhSachFileChon({target:{files:[]}})">Xóa</span></div>`).join('');
     }
     
-    // TỐI ƯU HÓA: BẨY LỖI KHI TẢI FILE STORAGE THẤT BẠI
     async function themMoiThanhToanNângCao(e) {
         e.preventDefault();
         if (MANG_FILE_CHO_UPLOAD.length === 0) {
-            alert("Vui lòng chọn ít nhất một chứng từ để tải lên!");
+            alert("Vui lòng đính kèm ít nhất một file chứng từ.");
             return;
         }
         
-        alert("Đang tải tài liệu lên Cloud và xử lý phê duyệt, vui lòng đợi giây lát...");
+        alert("Đang đẩy file lên Cloud Storage và phê duyệt hồ sơ, vui lòng đợi...");
         let urls = [];
         
         for(let file of MANG_FILE_CHO_UPLOAD) {
@@ -666,7 +788,7 @@
             
             if (error) {
                 console.error("Lỗi Storage:", error);
-                alert(`Lỗi tải file ${file.name}: ${error.message}\n(Hãy kiểm tra xem bạn đã tạo Bucket tên 'chung_tu' và phân quyền Public chưa)`);
+                alert(`Lỗi khi tải file ${file.name}. Hãy chắc chắn bạn đã tạo Bucket tên 'chung_tu' trên Supabase Storage.`);
                 return;
             }
             
@@ -676,11 +798,6 @@
                     urls.push(publicUrlObj.data.publicUrl);
                 }
             }
-        }
-        
-        if (urls.length === 0) {
-            alert("Lỗi: Không lấy được liên kết tệp từ Cloud Storage!");
-            return;
         }
 
         let rateText = document.getElementById('tt-vat-select').value === "CUSTOM" ? document.getElementById('tt-vat-custom-value').value + "%" : document.getElementById('tt-vat-select').value + "%";
@@ -701,9 +818,9 @@
         
         let { error: dbError } = await _supabase.from('ke_toan').insert([hoSo]);
         if (dbError) {
-            alert("Lỗi lưu database: " + dbError.message);
+            alert("Lỗi lưu DB: " + dbError.message);
         } else {
-            alert("Phê duyệt và tải chứng từ thành công!");
+            alert("Đã phê duyệt hồ sơ quyết toán tài chính thành công!");
             MANG_FILE_CHO_UPLOAD = []; 
             document.getElementById('ds-file-cho-upload').innerHTML = ""; 
             document.getElementById('frm-thanh-toan').reset(); 
@@ -711,11 +828,10 @@
         }
     }
 
-    // SỬA LỖI GIAO DIỆN KHUNG BUNG BÁO TRỐNG: ĐỌC MẢNG CHỨNG TỪ LIÊN KẾT ĐA HƯỚNG
     function lamMoiBangThanhToan() {
         document.getElementById('tt-body-dynamic').innerHTML = DANH_SACH_THANH_TOAN.map((item, idx) => {
             let arrFiles = []; 
-            let rawLink = item.link_ct;
+            let rawLink = item.link_ct || item.LINK_CT || "";
 
             if (rawLink) {
                 rawLink = String(rawLink).trim();
@@ -733,31 +849,45 @@
             let btnFiles = "";
             if (Array.isArray(arrFiles) && arrFiles.length > 0) {
                 arrFiles = arrFiles.filter(url => url && String(url).startsWith('http'));
-                
                 btnFiles = arrFiles.map((url, fIdx) => {
                     let tenFile = url.split('/').pop().split('?')[0];
-                    return `<button type="button" class="btn-action" style="background:#e0f2fe; color:#0369a1; border: 1px solid #7dd3fc; margin: 2px; padding: 4px 8px;" onclick="xemTruocChungTuOnline('${url}', '${tenFile}')">👁️ Xem Tệp ${fIdx+1}</button>`;
+                    return `<button type="button" class="btn-action" style="background:#e0f2fe; color:#0369a1; border: 1px solid #7dd3fc; margin: 2px; padding: 4px 8px;" onclick="xemTruocChungTuOnline('${url}', '${tenFile}')">👁️ Tệp ${fIdx+1}</button>`;
                 }).join('');
             }
 
             if (!btnFiles) {
-                btnFiles = `<span style="color:#dc2626; font-style:italic; font-size:9pt;">⚠️ Tệp đính kèm trống</span>`;
+                btnFiles = `<span style="color:#dc2626; font-style:italic; font-size:9pt;">⚠️ Trống chứng từ</span>`;
             }
 
-            let thueVat = (item.gross || 0) - (item.chi_phi_goc || 0);
+            let cGoc = item.chi_phi_goc || item.CHI_PHI_GOC || 0;
+            let gross = item.gross || item.GROSS || 0;
+            let thueVat = gross - cGoc;
+            
             return `<tr>
-                <td>${idx+1}</td><td><b>${item.ma_tb}</b></td><td>${item.bo_phan || '—'}</td><td>${item.nhan_vien || '—'}</td><td>${item.noi_dung || '—'}</td>
-                <td>${(item.chi_phi_goc || 0).toLocaleString()} đ</td>
+                <td>${idx+1}</td>
+                <td><b>${item.ma_tb || item.MA_TB || ''}</b></td>
+                <td>${item.bo_phan || item.BO_PHAN || '—'}</td>
+                <td>${item.nhan_vien || item.NHAN_VIEN || '—'}</td>
+                <td>${item.noi_dung || item.NOI_DUNG || '—'}</td>
+                <td>${cGoc.toLocaleString()} đ</td>
                 <td style="color:blue; font-weight:500;">${thueVat > 0 ? thueVat.toLocaleString() + ' đ' : '0 đ'}</td>
-                <td style="color:var(--success-color); font-weight:bold;">${item.gross.toLocaleString()} đ</td>
-                <td><code>${item.stk}</code></td><td>${item.ngan_hang}</td><td>${item.chu_tk || '—'}</td>
+                <td style="color:var(--success-color); font-weight:bold;">${gross.toLocaleString()} đ</td>
+                <td><code>${item.stk || item.STK || ''}</code></td>
+                <td>${item.ngan_hang || item.NGAN_HANG || ''}</td>
+                <td>${item.chu_tk || item.CHU_TK || '—'}</td>
                 <td>${btnFiles}</td>
                 <td><button class="btn-action btn-delete" onclick="xoaHoSoKếToan(${item.id})">Xóa</button></td>
             </tr>`;
         }).join('');
     }
 
-    async function xoaHoSoKếToan(id) { if(confirm("Bạn có chắc chắn muốn xóa hồ sơ quyết toán này trên Cloud?")) { await _supabase.from('ke_toan').delete().eq('id', id); await taiDuLieuTuSupabase(); dongKhuVucPreview(); } }
+    async function xoaHoSoKếToan(id) { 
+        if(confirm("Bạn có chắc chắn muốn xóa hồ sơ quyết toán này trên Cloud?")) { 
+            await _supabase.from('ke_toan').delete().eq('id', id); 
+            await taiDuLieuTuSupabase(); 
+            dongKhuVucPreview(); 
+        } 
+    }
 
     function xemTruocChungTuOnline(url, name) {
         const ext = name.split('.').pop().toLowerCase(); const body = document.getElementById('preview-content-render');
@@ -773,21 +903,42 @@
             fetch(url).then(res => res.arrayBuffer()).then(ab => {
                 let ws = XLSX.read(new Uint8Array(ab), {type: 'array'}).Sheets[XLSX.read(new Uint8Array(ab), {type: 'array'}).SheetNames[0]];
                 body.innerHTML = XLSX.utils.sheet_to_html(ws); if(body.querySelector('table')) body.querySelector('table').className = "excel-preview-table";
-            }).catch(err => { body.innerHTML = `<div style="padding:20px; color:red;">Không thể đọc dữ liệu File Excel này trực tuyến. Vui lòng bấm "Tải file về máy".</div>`; });
+            }).catch(err => { body.innerHTML = `<div style="padding:20px; color:red;">Không thể đọc file trực tuyến. Bấm "Tải file về máy" để xem.</div>`; });
         } else {
-            body.innerHTML = `<div style="padding:40px;text-align:center;font-weight:bold; color:var(--warning-color);">⚠️ Định dạng tệp (.${ext}) không được hỗ trợ chế độ xem nhanh trực tuyến.<br>Vui lòng nhấn nút "Tải file về máy" màu xanh ở góc phải để mở trực tiếp.</div>`;
+            body.innerHTML = `<div style="padding:40px;text-align:center;font-weight:bold; color:var(--warning-color);">⚠️ File định dạng .${ext} không hỗ trợ xem nhanh.<br>Vui lòng bấm nút "Tải file về máy".</div>`;
         }
     }
     
     function dongKhuVucPreview() { document.getElementById('khu-vuc-preview').style.display = 'none'; }
+    
     function showModalQR(code, text) {
         let qr = qrcode(0, 'M'); qr.addData(code); qr.make(); document.getElementById('modal-qr-holder').innerHTML = qr.createImgTag(5);
         document.getElementById('modal-qr-text').textContent = text; document.getElementById('overlay').style.display = 'block'; document.getElementById('modal-qr').style.display = 'block';
     }
     function dongModals() { document.getElementById('modal-qr').style.display = 'none'; document.getElementById('overlay').style.display = 'none'; }
-    function modalQR_NS(idx) { let i = DANH_SACH_MASTER[idx]; showModalQR(`NS-${i.ho_ten}`, `Họ Tên: ${i.ho_ten}\nNgày sinh: ${i.nam_sinh}\nCCCD: ${i.cccd}\nĐơn vị: ${i.ma_don_vi}\nNgày hưu trí mới: ${tinhNgayVeHuuLuatMoiFull(i.nam_sinh, i.gioi_tinh)}`); }
-    function modalQR_CP(idx) { let i = DANH_SACH_CAP_PHAT[idx]; showModalQR(`CP-${i.ma_tb}`, `Thiết bị: ${i.ma_tb}\nNgười dùng: ${i.nguoi_dung}`); }
-    function modalQR_SC(idx) { let i = DANH_SACH_SUA_CHUA[idx]; showModalQR(`SC-${i.ma_tb}`, `Sửa chữa: ${i.ma_tb}\nChi phí: ${i.chi_phi.toLocaleString()}đ`); }
+    
+    function modalQR_NS(idx) { 
+        let i = DANH_SACH_MASTER[idx]; 
+        let currentUrl = window.location.href.split('?')[0]; 
+        let qrUrl = `${currentUrl}?tab=nhan-su&search=${encodeURIComponent(i.ho_ten)}`;
+        showModalQR(qrUrl, `Họ Tên: ${i.ho_ten}\nNgày sinh: ${i.nam_sinh}\nCCCD: ${i.cccd}\nĐơn vị: ${i.ma_don_vi}`); 
+    }
+
+    function modalQR_CP(idx) { 
+        let i = DANH_SACH_CAP_PHAT[idx]; 
+        let code = i.ma_tb || i.MA_TB || "";
+        let currentUrl = window.location.href.split('?')[0]; 
+        let qrUrl = `${currentUrl}?tab=thiet-bi&search=${encodeURIComponent(code)}`;
+        showModalQR(qrUrl, `Thiết bị: ${code}\nLoại: ${i.loai_tb || i.LOAI_TB}\nNgười dùng: ${i.nguoi_dung || i.NGUOI_DUNG}`); 
+    }
+
+    function modalQR_SC(idx) { 
+        let i = DANH_SACH_SUA_CHUA[idx]; 
+        let code = i.ma_tb || i.MA_TB || "";
+        let currentUrl = window.location.href.split('?')[0]; 
+        let qrUrl = `${currentUrl}?tab=sua-chua&search=${encodeURIComponent(code)}`;
+        showModalQR(qrUrl, `Sửa chữa: ${code}\nHạng mục: ${i.phan_loai || i.PHAN_LOAI}\nChi phí: ${(i.chi_phi || i.CHI_PHI || 0).toLocaleString()}đ`); 
+    }
 </script>
 </body>
 </html>
