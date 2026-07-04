@@ -142,7 +142,7 @@
         <div style="font-size: 9.5pt; font-weight: bold; color: var(--purple-color); margin-bottom: 8px;">💳 CHỈ SỐ QUYẾT TOÁN GỐC & THUẾ LINH HOẠT:</div>
         <div class="stats-grid">
             <div class="stat-card" style="border-left-color: #64748b;"><div class="label">Tổng số hồ sơ</div><div class="value" id="dash-tt-hoso">0 hồ sơ</div><span class="percentage" id="dash-tt-hoso-ct">Chờ duyệt: 0 | Đã chi: 0</span></div>
-            <div class="stat-card" style="border-left-color: var(--secondary-color);"><div class="label">Tổng tiền trước thuế</div><div class="value" id="dash-tt-goc">0 đ</div><span class="percentage">Chi phí gốc tích lũy</span></div>
+            <div class="stat-card" style="border-left-color: var(--secondary-color);"><div class="label">Tổng tiền trước thuế</div><div class="value" id="dash-tt-goc">0 đ</div><span class="percentage">Chi phí gốc tích lưu lũy</span></div>
             <div class="stat-card" style="border-left-color: var(--success-color);"><div class="label">Tổng thanh toán sau thuế</div><div class="value" id="dash-tt-gross">0 đ</div><span class="percentage" style="color:var(--success-color); font-weight: bold;" id="dash-tt-vat-sum">Tiền thuế: 0 đ</span></div>
             <div class="stat-card" style="border-left-color: var(--warning-color);"><div class="label">Tình trạng dòng tiền</div><div class="value" id="dash-tt-status-paid">0 đ Đã chi</div><span class="percentage" style="color:var(--danger-color);" id="dash-tt-status-pending">Chờ duyệt: 0 đ</span></div>
         </div>
@@ -191,7 +191,7 @@
                     <label style="font-size:9pt; font-weight:bold;">Nghề Độc Hại:</label>
                     <select id="ns-filter-dochai" class="input-custom" onchange="locDuLieuDynamic()">
                         <option value="ALL">-- Tất cả --</option>
-                        <option value="YES">Nghề độc hại (Có sao/X)</option>
+                        <option value="YES">Nghề độc hại</option>
                     </select>
                 </div>
             </div>
@@ -423,40 +423,33 @@
         document.getElementById('form-bophan').innerHTML = `<option value="">-- Chọn bộ phận --</option>` + arr.map(d => `<option value="${d}">${d}</option>`).join('');
     }
 
+    /* ĐÃ BỔ SUNG: HIỂN THỊ KẾT HỢP KÝ HIỆU GỐC (X) VÀ CHỮ DIỄN GIẢI TRỰC QUAN */
     function renderBangNhanSu(list) {
         document.getElementById('dynamic-tbody').innerHTML = list.map((item, idx) => {
-            return `<tr><td>${idx+1}</td><td><b>${item.ho_ten}</b></td><td>${item.nam_sinh}</td><td><b>${tinhTuoiHienTai(item.nam_sinh)}</b></td><td>${item.so_bhxh}</td><td>${item.cccd}</td><td>${item.ma_don_vi}</td><td>${item.nam_ve_hưu || '—'}</td><td>${tinhNgayVeHuuLuatMoiFull(item.nam_sinh, item.gioi_tinh)}</td><td><span class="badge ${item.gioi_tinh==='Nữ'?'badge-female':'badge-male'}">${item.gioi_tinh}</span></td><td>${item.an_toan_vien?'<span class="badge badge-yes">ATV</span>':'—'}</td><td>${item.doc_hai?'<span class="badge" style="background:#fee2e2; color:#b91c1c;">Độc hại</span>':'—'}</td><td class="col-chuc-danh">${item.chuc_danh}</td><td><div class="qr-zone" onclick="modalQR_NS(${idx})">📷 QR</div></td></tr>`
+            let laATV = item.an_toan_vien === "X" || item.an_toan_vien === "YES" || item.an_toan_vien === true;
+            let laDH = item.doc_hai === "X" || item.doc_hai === "YES" || item.doc_hai === true;
+
+            let hienThiATV = laATV ? `<span class="badge badge-yes">(X) An Toàn Viên</span>` : "—";
+            let hienThiDH = laDH ? `<span class="badge" style="background:#fee2e2; color:#b91c1c;">(X) Nghề Độc Hại</span>` : "—";
+
+            return `<tr><td>${idx+1}</td><td><b>${item.ho_ten}</b></td><td>${item.nam_sinh}</td><td><b>${tinhTuoiHienTai(item.nam_sinh)}</b></td><td>${item.so_bhxh}</td><td>${item.cccd}</td><td>${item.ma_don_vi}</td><td>${item.nam_ve_hưu || '—'}</td><td>${tinhNgayVeHuuLuatMoiFull(item.nam_sinh, item.gioi_tinh)}</td><td><span class="badge ${item.gioi_tinh==='Nữ'?'badge-female':'badge-male'}">${item.gioi_tinh}</span></td><td>${hienThiATV}</td><td>${hienThiDH}</td><td class="col-chuc-danh">${item.chuc_danh}</td><td><div class="qr-zone" onclick="modalQR_NS(${idx})">📷 QR</div></td></tr>`
         }).join('');
     }
 
-    /* CHỨC NĂNG TỰ TĂNG MÃ THIẾT BỊ SAU KHI THIẾT BỊ SỐ 1 ĐƯỢC NHẬP */
     function tuDongSinhMaThietBi() {
         let textLoai = document.getElementById('form-loai-tb').value.trim(); 
-        if (!textLoai) { 
-            document.getElementById('form-ma-tb').value = ""; 
-            return; 
-        }
+        if (!textLoai) { document.getElementById('form-ma-tb').value = ""; return; }
         if(document.getElementById('edit-cp-id').value !== "") return;
-
         let chuCaiDau = cleanMark(textLoai).toUpperCase().split(/[^A-Z0-9]/).filter(w => w.length > 0).map(w => w[0]).join('').substring(0, 5);
-        let tienToMa = `TB-${chuCaiDau || "TB"}-${new Date().getFullYear()}-`; 
-        let maxSTT = 0;
-
-        // Quét toàn bộ danh sách để tìm Số thứ tự lớn nhất hiện tại của loại thiết bị này
+        let tienToMa = `TB-${chuCaiDau || "TB"}-${new Date().getFullYear()}-`; let maxSTT = 0;
         DANH_SACH_CAP_PHAT.forEach(item => {
             let code = item.ma_tb || item.MA_TB || "";
             if (code.startsWith(tienToMa)) {
-                let phanSo = code.replace(tienToMa, "");
-                let soHienTai = parseInt(phanSo, 10);
-                if (!isNaN(soHienTai) && soHienTai > maxSTT) {
-                    maxSTT = soHienTai;
-                }
+                let phanSo = code.replace(tienToMa, ""); let soHienTai = parseInt(phanSo, 10);
+                if (!isNaN(soHienTai) && soHienTai > maxSTT) { maxSTT = soHienTai; }
             }
         });
-
-        // Tự động cộng thêm 1 đơn vị
-        let soThuTuMoi = maxSTT + 1;
-        document.getElementById('form-ma-tb').value = tienToMa + String(soThuTuMoi).padStart(4, '0');
+        document.getElementById('form-ma-tb').value = tienToMa + String(maxSTT + 1).padStart(4, '0');
     }
 
     function capNhatNhanSuTheoBoPhan() {
@@ -464,22 +457,17 @@
         document.getElementById('form-nhansu').innerHTML = DANH_SACH_MASTER.filter(i => i.ma_don_vi === bp).map(i => `<option value="${i.ho_ten}">${i.ho_ten}</option>`).join('');
     }
 
-    /* PHÂN HỆ 2: CẤP PHÁT */
     async function themMoiCapPhat(e) {
-        e.preventDefault();
-        let editId = document.getElementById('edit-cp-id').value;
+        e.preventDefault(); let editId = document.getElementById('edit-cp-id').value;
         let item = { 
             ma_tb: document.getElementById('form-ma-tb').value, loai_tb: document.getElementById('form-loai-tb').value, 
             so_luong: parseInt(document.getElementById('form-soluong').value || 1, 10), don_vi: document.getElementById('form-donvi').value,
             bo_phan: document.getElementById('form-bophan').value, nguoi_dung: document.getElementById('form-nhansu').value, ngay_cap: new Date().toLocaleDateString('vi-VN') 
         };
-
         if(editId !== "") {
-            let { error } = await _supabase.from('cap_phat').update(item).eq('id', editId);
-            if(error) alert("Lỗi: " + error.message); else alert("Cập nhật cấp phát thành công!");
+            await _supabase.from('cap_phat').update(item).eq('id', editId);
         } else {
-            let { error } = await _supabase.from('cap_phat').insert([item]);
-            if(error) alert("Lỗi: " + error.message); else alert("Thêm cấp phát mới thành công!");
+            await _supabase.from('cap_phat').insert([item]);
         }
         huySuaCapPhat(); await taiDuLieuTuSupabase();
     }
@@ -518,45 +506,30 @@
 
     async function xoaCapPhat(idx) { let item = DANH_SACH_CAP_PHAT[idx]; if(confirm("Xóa thiết bị này?")) { await _supabase.from('cap_phat').delete().eq('id', item.id); await taiDuLieuTuSupabase(); } }
 
-    /* PHÂN HỆ 3: BẢO TRÌ SỬA CHỮA (LIÊN THÔNG SỐ LƯỢNG & ĐVT) */
     function autoDienThongTinThietBi() {
         let codeVal = document.getElementById('repair-ma-tb').value; 
         let t = DANH_SACH_CAP_PHAT.find(i => (i.ma_tb || i.MA_TB || "") === codeVal);
         if(t) {
-            let sl = t.so_luong || t.SO_LUONG || 1;
-            let dvt = t.don_vi || t.DON_VI || "Cái";
-            document.getElementById('repair-soluong-dvt').value = `${sl} ${dvt}`;
+            document.getElementById('repair-soluong-dvt').value = `${t.so_luong || t.SO_LUONG || 1} ${t.don_vi || t.DON_VI || "Cái"}`;
             document.getElementById('repair-bophan').value = t.bo_phan || t.BO_PHAN || ""; 
             document.getElementById('repair-nhansu').value = t.nguoi_dung || t.NGUOI_DUNG || "";
         } else {
-            document.getElementById('repair-soluong-dvt').value = "";
-            document.getElementById('repair-bophan').value = ""; 
-            document.getElementById('repair-nhansu').value = "";
+            document.getElementById('repair-soluong-dvt').value = ""; document.getElementById('repair-bophan').value = ""; document.getElementById('repair-nhansu').value = "";
         }
     }
 
     async function themMoiNhatKySuaChua(e) {
-        e.preventDefault();
-        let editId = document.getElementById('edit-sc-id').value;
-        let codeVal = document.getElementById('repair-ma-tb').value;
+        e.preventDefault(); let editId = document.getElementById('edit-sc-id').value; let codeVal = document.getElementById('repair-ma-tb').value;
         let t = DANH_SACH_CAP_PHAT.find(i => (i.ma_tb || i.MA_TB || "") === codeVal);
-        
         let item = { 
-            ma_tb: codeVal, 
-            bo_phan: document.getElementById('repair-bophan').value, 
-            nguoi_dung: document.getElementById('repair-nhansu').value, 
-            phan_loai: document.getElementById('repair-phanloai').value, 
-            chi_phi: parseFloat(document.getElementById('repair-chiphi').value || 0), 
-            mo_ta: document.getElementById('repair-mota').value,
+            ma_tb: codeVal, bo_phan: document.getElementById('repair-bophan').value, nguoi_dung: document.getElementById('repair-nhansu').value, 
+            phan_loai: document.getElementById('repair-phanloai').value, chi_phi: parseFloat(document.getElementById('repair-chiphi').value || 0), mo_ta: document.getElementById('repair-mota').value,
             ghi_chu: t ? JSON.stringify({ so_luong: t.so_luong || t.SO_LUONG || 1, don_vi: t.don_vi || t.DON_VI || "Cái" }) : "" 
         };
-        
         if(editId !== "") {
-            let { error } = await _supabase.from('bao_tri').update(item).eq('id', editId);
-            if(error) alert("Lỗi: " + error.message); else alert("Cập nhật nhật ký bảo trì thành công!");
+            await _supabase.from('bao_tri').update(item).eq('id', editId);
         } else {
-            let { error } = await _supabase.from('bao_tri').insert([item]);
-            if(error) alert("Lỗi: " + error.message); else alert("Thêm nhật ký bảo trì thành công!");
+            await _supabase.from('bao_tri').insert([item]);
         }
         huySuaSuaChua(); await taiDuLieuTuSupabase();
     }
@@ -566,14 +539,10 @@
         document.getElementById('edit-sc-id').value = item.id;
         document.getElementById('title-sua-chua').textContent = `📝 ĐANG SỬA NHẬT KÝ SỰ CỐ: ${item.ma_tb || item.MA_TB}`;
         document.getElementById('repair-ma-tb').value = item.ma_tb || item.MA_TB || "";
-        
         try {
             let dataGoc = JSON.parse(item.ghi_chu || item.GHI_CHU);
             document.getElementById('repair-soluong-dvt').value = `${dataGoc.so_luong} ${dataGoc.don_vi}`;
-        } catch(e) {
-            autoDienThongTinThietBi();
-        }
-        
+        } catch(e) { autoDienThongTinThietBi(); }
         document.getElementById('repair-bophan').value = item.bo_phan || item.BO_PHAN || "";
         document.getElementById('repair-nhansu').value = item.nguoi_dung || item.NGUOI_DUNG || "";
         document.getElementById('repair-phanloai').value = item.phan_loai || item.PHAN_LOAI || "";
@@ -595,91 +564,79 @@
 
     function lamMoiBangSuaChua() {
         document.getElementById('sc-body-dynamic').innerHTML = DANH_SACH_SUA_CHUA.map((item, idx) => {
-            let cP = item.chi_phi || item.CHI_PHI || 0;
             let strInfoGoc = "—";
-            try {
-                let dataGoc = JSON.parse(item.ghi_chu || item.GHI_CHU);
-                if(dataGoc.so_luong) strInfoGoc = `<span style='color:var(--warning-color); font-weight:bold;'>${dataGoc.so_luong}</span> ${dataGoc.don_vi}`;
-            } catch(e) {}
-            return `<tr><td>${idx+1}</td><td><b>${item.ma_tb || item.MA_TB || ""}</b></td><td>${strInfoGoc}</td><td><b>${item.bo_phan || item.BO_PHAN || ""}</b></td><td>${item.nguoi_dung || item.NGUOI_DUNG || ""}</td><td>${item.phan_loai || item.PHAN_LOAI || ""}</td><td style="color:var(--danger-color); font-weight:bold;">${cP.toLocaleString()} đ</td><td>${item.mo_ta || item.MO_TA || ""}</td><td><div class="qr-zone" onclick="modalQR_SC(${idx})">📷 QR</div></td><td><button type="button" class="btn-action btn-edit" onclick="kíchHoạtSửaSuaChua(${idx})">Sửa</button><button class="btn-action btn-delete" onclick="xoaSuaChua(${idx})">Xóa</button></td></tr>`;
+            try { let dataGoc = JSON.parse(item.ghi_chu || item.GHI_CHU); if(dataGoc.so_luong) strInfoGoc = `<span style='color:var(--warning-color); font-weight:bold;'>${dataGoc.so_luong}</span> ${dataGoc.don_vi}`; } catch(e) {}
+            return `<tr><td>${idx+1}</td><td><b>${item.ma_tb || item.MA_TB || ""}</b></td><td>${strInfoGoc}</td><td><b>${item.bo_phan || item.BO_PHAN || ""}</b></td><td>${item.nguoi_dung || item.NGUOI_DUNG || ""}</td><td>${item.phan_loai || item.PHAN_LOAI || ""}</td><td style="color:var(--danger-color); font-weight:bold;">${(item.chi_phi || item.CHI_PHI || 0).toLocaleString()} đ</td><td>${item.mo_ta || item.MO_TA || ""}</td><td><div class="qr-zone" onclick="modalQR_SC(${idx})">📷 QR</div></td><td><button type="button" class="btn-action btn-edit" onclick="kíchHoạtSửaSuaChua(${idx})">Sửa</button><button class="btn-action btn-delete" onclick="xoaSuaChua(${idx})">Xóa</button></td></tr>`;
         }).join('');
     }
 
     async function xoaSuaChua(idx) { let item = DANH_SACH_SUA_CHUA[idx]; if(confirm("Xóa bản ghi này?")) { await _supabase.from('bao_tri').delete().eq('id', item.id); await taiDuLieuTuSupabase(); } }
-    
     function dongBoSuaChuaSangKeToan() { 
         document.getElementById('tt-repair-index').innerHTML = `<option value="">-- Chọn hồ sơ liên thông --</option>` + DANH_SACH_SUA_CHUA.map((s, idx) => {
-            let prefixSpec = "";
-            try { let dataGoc = JSON.parse(s.ghi_chu || s.GHI_CHU); if(dataGoc.so_luong) prefixSpec = ` (${dataGoc.so_luong} ${dataGoc.don_vi})`; } catch(e){}
+            let prefixSpec = ""; try { let dataGoc = JSON.parse(s.ghi_chu || s.GHI_CHU); if(dataGoc.so_luong) prefixSpec = ` (${dataGoc.so_luong} ${dataGoc.don_vi})`; } catch(e){}
             return `[${s.ma_tb||s.MA_TB}]${prefixSpec} - ${(s.mo_ta||s.MO_TA||"").substring(0,15)}... (${(s.chi_phi||s.CHI_PHI||0).toLocaleString()}đ)`;
         }).map((str, idx) => `<option value="${idx}">${str}</option>`).join(''); 
     }
 
-    /* PHÂN HỆ 4: QUYẾT TOÁN TÀI CHÍNH */
+    /* ĐÃ SỬA LỖI ĐƠ: PHÂN HỆ 4 - QUYẾT TOÁN TÀI CHÍNH */
     function layMucThueSuatHienTai() { let selectVal = document.getElementById('tt-vat-select').value; return selectVal === "CUSTOM" ? parseFloat(document.getElementById('tt-vat-custom-value').value || 0) / 100 : parseFloat(selectVal) / 100; }
     function thayDoiLoaiThueSuat() { document.getElementById('custom-tax-input-group').style.display = document.getElementById('tt-vat-select').value === "CUSTOM" ? "block" : "none"; tinhToanThueLinhHoat('GOC'); }
-    function tinhToanThueLinhHoat(huongNhap Lieu) {
-        let rate = layMucThueSuatHienTai(); let inputGoc = document.getElementById('tt-chiphi'), inputGross = document.getElementById('tt-tong-sau-thue'), inputThue = document.getElementById('tt-tien-thue-vat');
+    
+    function tinhToanThueLinhHoat(huongNhapLieu) {
+        let rate = layMucThueSuatHienTai(); 
+        let inputGoc = document.getElementById('tt-chiphi');
+        let inputGross = document.getElementById('tt-tong-sau-thue');
+        let inputThue = document.getElementById('tt-tien-thue-vat');
+        
         if(huongNhapLieu === 'GOC' || document.getElementById('mode-goc').checked) {
             let goc = parseFloat(inputGoc.value || 0); let thue = goc * rate;
-            inputThue.value = Math.round(thue).toLocaleString() + " đ"; if(huongNhapLieu === 'GOC') inputGross.value = Math.round(goc + thue);
+            inputThue.value = Math.round(thue).toLocaleString() + " đ"; 
+            if(huongNhapLieu === 'GOC') inputGross.value = Math.round(goc + thue);
         } else {
             let gross = parseFloat(inputGross.value || 0); let goc = gross / (1 + rate);
-            inputThue.value = Math.round(gross - goc).toLocaleString() + " đ"; if(huongNhapLieu === 'GROSS') inputGoc.value = Math.round(goc);
+            inputThue.value = Math.round(gross - goc).toLocaleString() + " đ"; 
+            inputGoc.value = Math.round(goc);
         }
     }
-    
+
     function autoFillTuNhatKySuaChua() {
-        let sc = DANH_SACH_SUA_CHUA[document.getElementById('tt-repair-index').value]; if(!sc) return;
-        document.getElementById('tt-ma-tb').value = sc.ma_tb || sc.MA_TB || ""; 
-        document.getElementById('tt-bophan').value = sc.bo_phan || sc.BO_PHAN || "";
-        document.getElementById('tt-nhansu').value = sc.nguoi_dung || sc.NGUOI_DUNG || ""; 
-        document.getElementById('tt-noidung').value = sc.mo_ta || sc.MO_TA || "";
-        document.getElementById('tt-chiphi').value = sc.chi_phi || sc.CHI_PHI || 0; 
-        
-        try {
-            let dataGoc = JSON.parse(sc.ghi_chu || sc.GHI_CHU);
-            document.getElementById('tt-soluong-dvt').value = `${dataGoc.so_luong} ${dataGoc.don_vi}`;
-        } catch(e) {
-            document.getElementById('tt-soluong-dvt').value = "—";
-        }
-        
-        document.getElementById('mode-goc').checked = true; tinhToanThueLinhHoat('GOC');
+        let sIdx = document.getElementById('tt-repair-index').value; if(sIdx === "") return;
+        let s = DANH_SACH_SUA_CHUA[parseInt(sIdx)]; if(!s) return;
+        document.getElementById('tt-ma-tb').value = s.ma_tb || s.MA_TB || "";
+        document.getElementById('tt-bophan').value = s.bo_phan || s.BO_PHAN || "";
+        document.getElementById('tt-nhansu').value = s.nguoi_dung || s.NGUOI_DUNG || "";
+        document.getElementById('tt-noidung').value = s.mo_ta || s.MO_TA || "";
+        document.getElementById('tt-chiphi').value = s.chi_phi || s.CHI_PHI || 0;
+        try { let dataGoc = JSON.parse(s.ghi_chu || s.GHI_CHU); document.getElementById('tt-soluong-dvt').value = `${dataGoc.so_luong} ${dataGoc.don_vi}`; } catch(e){ document.getElementById('tt-soluong-dvt').value = "—"; }
+        tinhToanThueLinhHoat('GOC');
     }
-    
-    function xuLyDanhSachFileChon(event) { for(let file of event.target.files) { MANG_FILE_CHO_UPLOAD.push(file); } document.getElementById('ds-file-cho-upload').innerHTML = MANG_FILE_CHO_UPLOAD.map((f, idx) => `<div class="file-item"><span>📄 ${f.name}</span><span style="color:red; cursor:pointer;" onclick="MANG_FILE_CHO_UPLOAD.splice(${idx},1); xuLyDanhSachFileChon({target:{files:[]}})">Xóa</span></div>`).join(''); }
+
+    function xuLyDanhSachFileChon(e) { MANG_FILE_CHO_UPLOAD = Array.from(e.target.files); document.getElementById('ds-file-cho-upload').innerHTML = MANG_FILE_CHO_UPLOAD.map((f, i) => `<div class="file-item"><span>📄 ${f.name} (${(f.size/1024).toFixed(1)} KB)</span></div>`).join(''); }
 
     async function themMoiThanhToanNângCao(e) {
-        e.preventDefault();
-        let editId = document.getElementById('edit-tt-id').value;
-        let rateText = document.getElementById('tt-vat-select').value === "CUSTOM" ? document.getElementById('tt-vat-custom-value').value + "%" : document.getElementById('tt-vat-select').value + "%";
-        
-        let hoSo = { 
-            ma_tb: document.getElementById('tt-ma-tb').value, bo_phan: document.getElementById('tt-bophan').value, nhan_vien: document.getElementById('tt-nhansu').value, noi_dung: document.getElementById('tt-noidung').value,
-            chi_phi_goc: parseFloat(document.getElementById('tt-chiphi').value || 0), gross: parseFloat(document.getElementById('tt-tong-sau-thue').value || 0), stk: document.getElementById('tt-stk').value, 
-            ngan_hang: document.getElementById('tt-ngonhang').value, chu_tk: document.getElementById('tt-chutk').value, trang_thai: document.getElementById('tt-trangthai').value, 
-            ghi_chu: JSON.stringify({ vat_rate: rateText, thue_text: document.getElementById('tt-tien-thue-vat').value, spec_info: document.getElementById('tt-soluong-dvt').value })
+        e.preventDefault(); let editId = document.getElementById('edit-tt-id').value;
+        let item = {
+            ma_tb: document.getElementById('tt-ma-tb').value, bo_phan: document.getElementById('tt-bophan').value, nguoi_dung: document.getElementById('tt-nhansu').value,
+            noi_dung: document.getElementById('tt-noidung').value, chi_phi_goc: parseFloat(document.getElementById('tt-chiphi').value || 0),
+            vat_rate: layMucThueSuatHienTai() * 100, gross: parseFloat(document.getElementById('tt-tong-sau-thue').value || 0),
+            stk: document.getElementById('tt-stk').value, ngan_hang: document.getElementById('tt-ngonhang').value, chu_tk: document.getElementById('tt-chutk').value,
+            trang_thai: document.getElementById('tt-trangthai').value, thong_tin_goc: document.getElementById('tt-soluong-dvt').value
         };
-
-        if(editId === "" && MANG_FILE_CHO_UPLOAD.length === 0) { alert("Vui lòng tải lên tập tin chứng từ gốc."); return; }
-
-        if(MANG_FILE_CHO_UPLOAD.length > 0) {
-            let urls = [];
-            for(let file of MANG_FILE_CHO_UPLOAD) {
-                let cleanName = file.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9.\-_]/g, '_');
-                let pathName = `${Date.now()}_${cleanName}`;
-                let { data, error } = await _supabase.storage.from('chung_tu').upload(pathName, file, { upsert: true });
-                if (data) { let publicUrlObj = _supabase.storage.from('chung_tu').getPublicUrl(pathName); urls.push(publicUrlObj.data.publicUrl); }
+        
+        if (MANG_FILE_CHO_UPLOAD.length > 0) {
+            let fileListUrls = [];
+            for(let f of MANG_FILE_CHO_UPLOAD) {
+                let fName = Date.now() + "_" + cleanMark(f.name);
+                let { data, error } = await _supabase.storage.from('documents').upload(fName, f);
+                if(!error) fileListUrls.push(SUPABASE_URL + "/storage/v1/object/public/documents/" + fName);
             }
-            hoSo.link_ct = JSON.stringify(urls);
+            if(fileListUrls.length > 0) item.tep_đinh_kem = JSON.stringify(fileListUrls);
         }
 
         if(editId !== "") {
-            let { error } = await _supabase.from('ke_toan').update(hoSo).eq('id', editId);
-            if(error) alert("Lỗi: " + error.message); else alert("Cập nhật chứng từ quyết toán thành công!");
+            await _supabase.from('ke_toan').update(item).eq('id', editId);
         } else {
-            let { error } = await _supabase.from('ke_toan').insert([hoSo]);
-            if(error) alert("Lỗi: " + error.message); else alert("Ủy nhiệm chi và tạo mới chứng từ thành công!");
+            await _supabase.from('ke_toan').insert([item]);
         }
         huySuaThanhToan(); await taiDuLieuTuSupabase();
     }
@@ -687,11 +644,12 @@
     function kíchHoạtSửaThanhToan(idx) {
         let item = DANH_SACH_THANH_TOAN[idx]; if(!item) return;
         document.getElementById('edit-tt-id').value = item.id;
-        document.getElementById('title-thanh-toan').textContent = `📝 ĐANG CẬP NHẬT HỒ SƠ QUYẾT TOÁN CỦA THIẾT BỊ: ${item.ma_tb || item.MA_TB}`;
+        document.getElementById('title-thanh-toan').textContent = `📝 ĐANG CẬP NHẬT ỦY NHIỆM CHI: ${item.ma_tb || item.MA_TB}`;
         document.getElementById('tt-ma-tb').value = item.ma_tb || item.MA_TB || "";
         document.getElementById('tt-bophan').value = item.bo_phan || item.BO_PHAN || "";
-        document.getElementById('tt-nhansu').value = item.nhan_vien || item.NHAN_VIEN || "";
+        document.getElementById('tt-nhansu').value = item.nguoi_dung || item.NGUOI_DUNG || "";
         document.getElementById('tt-noidung').value = item.noi_dung || item.NOI_DUNG || "";
+        document.getElementById('tt-soluong-dvt').value = item.thong_tin_goc || item.THONG_TIN_GOC || "—";
         document.getElementById('tt-chiphi').value = item.chi_phi_goc || item.CHI_PHI_GOC || 0;
         document.getElementById('tt-tong-sau-thue').value = item.gross || item.GROSS || 0;
         document.getElementById('tt-stk').value = item.stk || item.STK || "";
@@ -699,15 +657,12 @@
         document.getElementById('tt-chutk').value = item.chu_tk || item.CHU_TK || "";
         document.getElementById('tt-trangthai').value = item.trang_thai || item.TRANG_THAI || "Chờ duyệt";
         
-        try {
-            let meta = JSON.parse(item.ghi_chu || item.GHI_CHU);
-            document.getElementById('tt-soluong-dvt').value = meta.spec_info || "—";
-        } catch(e){
-            document.getElementById('tt-soluong-dvt').value = "—";
-        }
-
-        document.getElementById('mode-goc').checked = true; tinhToanThueLinhHoat('GOC');
-        document.getElementById('btn-submit-tt').textContent = "⚡ Xác nhận Thay Đổi Chứng Từ";
+        let vR = item.vat_rate !== undefined ? item.vat_rate : 10;
+        if([0,5,8,10].includes(vR)) { document.getElementById('tt-vat-select').value = vR; document.getElementById('custom-tax-input-group').style.display = "none"; }
+        else { document.getElementById('tt-vat-select').value = "CUSTOM"; document.getElementById('tt-vat-custom-value').value = vR; document.getElementById('custom-tax-input-group').style.display = "block"; }
+        
+        tinhToanThueLinhHoat('GOC');
+        document.getElementById('btn-submit-tt').textContent = "⚡ Xác nhận Cập nhật Kế Toán";
         if(!document.getElementById('btn-cancel-tt')) {
             document.getElementById('action-tt-buttons').insertAdjacentHTML('beforeend', `<button type="button" id="btn-cancel-tt" class="btn-action btn-cancel" onclick="huySuaThanhToan()" style="height:38px; margin-left:5px;">Hủy</button>`);
         }
@@ -715,34 +670,75 @@
     }
 
     function huySuaThanhToan() {
-        document.getElementById('edit-tt-id').value = ""; document.getElementById('frm-thanh-toan').reset();
-        document.getElementById('title-thanh-toan').textContent = "💳 PHÂN HỆ QUYẾT TOÁN CHI PHÍ & THUẾ LINH HOẠT";
+        document.getElementById('edit-tt-id').value = ""; document.getElementById('frm-thanh-toan').reset(); MANG_FILE_CHO_UPLOAD = [];
+        document.getElementById('ds-file-cho-upload').innerHTML = ""; document.getElementById('title-thanh-toan').textContent = "💳 PHÂN HỆ QUYẾT TOÁN CHI PHÍ & THUẾ LINH HOẠT";
         document.getElementById('btn-submit-tt').textContent = "⚡ Phê Duyệt Ủy Nhiệm Chi";
         if(document.getElementById('btn-cancel-tt')) document.getElementById('btn-cancel-tt').remove();
-        MANG_FILE_CHO_UPLOAD = []; document.getElementById('ds-file-cho-upload').innerHTML = "";
     }
 
     function lamMoiBangThanhToan() {
         document.getElementById('tt-body-dynamic').innerHTML = DANH_SACH_THANH_TOAN.map((item, idx) => {
-            let arrFiles = []; let rawLink = item.link_ct || item.LINK_CT || "";
-            if (rawLink && String(rawLink).startsWith('[')) arrFiles = JSON.parse(rawLink); else if (rawLink) arrFiles = [rawLink];
-            let btnFiles = arrFiles.map((url, fIdx) => `<button type="button" class="btn-action" style="background:#e0f2fe; color:#0369a1; border:1px solid #7dd3fc; margin:2px;" onclick="window.open('${url}')">👁️ File ${fIdx+1}</button>`).join('');
-            
-            let txtSpec = "—";
-            try { let meta = JSON.parse(item.ghi_chu || item.GHI_CHU); if(meta.spec_info) txtSpec = meta.spec_info; } catch(e){}
-
-            let cGoc = item.chi_phi_goc || item.CHI_PHI_GOC || 0; let gross = item.gross || item.GROSS || 0; let status = item.trang_thai || item.TRANG_THAI || "Chờ duyệt";
-            return `<tr><td>${idx+1}</td><td><b>${item.ma_tb || item.MA_TB || ''}</b></td><td><b>${txtSpec}</b></td><td>${item.bo_phan || item.BO_PHAN || ''}</td><td>${item.nhan_vien || item.NHAN_VIEN || ''}</td><td>${item.noi_dung || item.NOI_DUNG || ''}</td><td>${cGoc.toLocaleString()} đ</td><td style="color:blue;">${(gross - cGoc).toLocaleString()} đ</td><td style="color:var(--success-color); font-weight:bold;">${gross.toLocaleString()} đ</td><td><code>${item.stk || item.STK || ''}</code></td><td>${item.ngan_hang || item.NGAN_HANG || ''}</td><td>${item.chu_tk || item.CHU_TK || ''}</td><td><span class="badge ${status==='Đã thanh toán'?'badge-paid':'badge-pending'}" style="cursor:pointer;" onclick="chuyenTrangThaiHoSoKetoan(${item.id}, '${status}')">${status} 🔄</span></td><td>${btnFiles || 'Trống'}</td><td><button type="button" class="btn-action btn-edit" onclick="kíchHoạtSửaThanhToan(${idx})">Sửa</button><button class="btn-action btn-delete" onclick="xoaHoSoKếToan(${item.id})">Xóa</button></td></tr>`;
+            let tK = "—"; try { let arr = JSON.parse(item.tep_đinh_kem || item.TEP_ĐINH_KEM); if(Array.isArray(arr)) tK = arr.map((url, i) => `<a href="${url}" target="_blank" style="color:var(--purple-color); font-weight:bold; text-decoration:underline;">Tệp ${i+1}</a>`).join(' | '); } catch(e){}
+            let stat = item.trang_thai || item.TRANG_THAI || "Chờ duyệt";
+            let bS = stat === "Đã thanh toán" ? "badge-paid" : "badge-pending";
+            return `<tr><td>${idx+1}</td><td><b>${item.ma_tb || item.MA_TB || ""}</b></td><td>${item.thong_tin_goc || "—"}</td><td><b>${item.bo_phan || item.BO_PHAN || ""}</b></td><td>${item.nguoi_dung || item.NGUOI_DUNG || ""}</td><td>${item.noi_dung || item.NOI_DUNG || ""}</td><td style="font-weight:bold;">${(item.chi_phi_goc || item.CHI_PHI_GOC || 0).toLocaleString()}đ</td><td style="color:blue;">${((item.gross||0)-(item.chi_phi_goc||0)).toLocaleString()}đ (${item.vat_rate||0}%)</td><td style="color:var(--success-color); font-weight:bold;">${(item.gross || item.GROSS || 0).toLocaleString()}đ</td><td>${item.stk || ""}</td><td>${item.ngan_hang || ""}</td><td>${item.chu_tk || ""}</td><td><span class="badge ${bS}">${stat}</span></td><td>${tK}</td><td><button class="btn-action btn-edit" onclick="kíchHoạtSửaThanhToan(${idx})">Sửa</button><button class="btn-action btn-delete" onclick="xoaThanhToan(${idx})">Xóa</button></td></tr>`;
         }).join('');
     }
 
-    async function chuyenTrangThaiHoSoKetoan(id, currentStatus) { let newStatus = currentStatus === "Chờ duyệt" ? "Đã thanh toán" : "Chờ duyệt"; if(confirm(`Đổi trạng thái thành [${newStatus}]?`)) { await _supabase.from('ke_toan').update({ trang_thai: newStatus }).eq('id', id); await taiDu LieuTuSupabase(); } }
-    async function xoaHoSoKếToan(id) { if(confirm("Xóa hồ sơ quyết toán này?")) { await _supabase.from('ke_toan').delete().eq('id', id); await taiDuLieuTuSupabase(); } }
-    function showModalQR(code, text) { let qr = qrcode(0, 'M'); qr.addData(code); qr.make(); document.getElementById('modal-qr-holder').innerHTML = qr.createImgTag(5); document.getElementById('modal-qr-text').textContent = text; document.getElementById('overlay').style.display = 'block'; document.getElementById('modal-qr').style.display = 'block'; }
-    function dongModals() { document.getElementById('modal-qr').style.display = 'none'; document.getElementById('overlay').style.display = 'none'; }
-    function modalQR_NS(idx) { let i = DANH_SACH_MASTER[idx]; showModalQR(window.location.href.split('?')[0]+`?tab=nhan-su&search=${encodeURIComponent(i.ho_ten)}`, `Họ Tên: ${i.ho_ten}\nĐơn vị: ${i.ma_don_vi}`); }
-    function modalQR_CP(idx) { let i = DANH_SACH_CAP_PHAT[idx]; let code = i.ma_tb || i.MA_TB || ""; showModalQR(window.location.href.split('?')[0]+`?tab=thiet-bi&search=${encodeURIComponent(code)}`, `Mã: ${code}\nLoại: ${i.loai_tb||i.LOAI_TB}`); }
-    function modalQR_SC(idx) { let i = DANH_SACH_SUA_CHUA[idx]; let code = i.ma_tb || i.MA_TB || ""; showModalQR(window.location.href.split('?')[0]+`?tab=sua-chua&search=${encodeURIComponent(code)}`, `Mã: ${code}\nChi phí: ${(i.chi_phi||i.CHI_PHI||0).toLocaleString()}đ`); }
+    async function xoaThanhToan(idx) { let item = DANH_SACH_THANH_TOAN[idx]; if(confirm("Xóa bản ghi này?")) { await _supabase.from('ke_toan').delete().eq('id', item.id); await taiDuLieuTuSupabase(); } }
+
+    /* CÁC TIỆN ÍCH DYNAMIC & QR CODE */
+    function locDuLieuDynamic() {
+        let s = cleanMark(document.getElementById('ns-search').value);
+        let dv = document.getElementById('ns-filter-donvi').value;
+        let gt = document.getElementById('ns-filter-gioitinh').value;
+        let atv = document.getElementById('ns-filter-atv').value;
+        let dh = document.getElementById('ns-filter-dochai').value;
+        
+        let filtered = DANH_SACH_MASTER.filter(item => {
+            if(s && !cleanMark(item.ho_ten).includes(s) && !cleanMark(item.cccd).includes(s)) return false;
+            if(dv !== "ALL" && item.ma_don_vi !== dv) return false;
+            if(gt !== "ALL" && item.gioi_tinh !== gt) return false;
+            if(atv === "YES" && !(item.an_toan_vien === "X" || item.an_toan_vien === "YES")) return false;
+            if(dh === "YES" && !(item.doc_hai === "X" || item.doc_hai === "YES")) return false;
+            return true;
+        });
+        renderBangNhanSu(filtered);
+    }
+
+    function xuLyFileExcelDynamic(e) {
+        let file = e.target.files[0]; if(!file) return;
+        let reader = new FileReader();
+        reader.onload = function(evt) {
+            let workbook = XLSX.read(evt.target.result, { type: 'binary' });
+            let sheet = workbook.Sheets[workbook.SheetNames[0]];
+            let rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+            DANH_SACH_MASTER = rows.map(r => ({
+                ho_ten: r["Họ và Tên"] || r["ho_ten"] || "", nam_sinh: r["Ngày Sinh"] || r["nam_sinh"] || "",
+                so_bhxh: r["Số sổ BHXH"] || r["so_bhxh"] || "", cccd: r["Số CCCD"] || r["cccd"] || "",
+                ma_don_vi: r["Mã Đơn Vị"] || r["ma_don_vi"] || "", nam_ve_hưu: r["Mốc Hưu Cũ"] || r["nam_ve_hưu"] || "",
+                gioi_tinh: r["Giới tính"] || r["gioi_tinh"] || "Nam",
+                an_toan_vien: r["An Toàn Viên"] || r["an_toan_vien"] || "", doc_hai: r["Nghề Độc Hại"] || r["doc_hai"] || "",
+                chuc_danh: r["Chức danh công việc"] || r["chuc_danh"] || ""
+            }));
+            napBoLocDonVi(new Set(DANH_SACH_MASTER.map(i => i.ma_don_vi))); renderBangNhanSu(DANH_SACH_MASTER); thongKeNhanSuCaiTien(DANH_SACH_MASTER);
+        };
+        reader.readAsBinaryString(file);
+    }
+
+    async function dongBoNhanSuLenSupabase() { if(DANH_SACH_MASTER.length===0){ alert("Không có dữ liệu!"); return;} await _supabase.from('nhan_su').delete().neq('id', 0); let { error } = await _supabase.from('nhan_su').insert(DANH_SACH_MASTER); if(error) alert(error.message); else alert("Đồng bộ Nhân sự thành công!"); await taiDuLieuTuSupabase(); }
+    
+    function kíchHoạtKhungHienThiQR(text, desc) {
+        let qr = qrcode(0, 'M'); qr.addData(text); qr.make();
+        document.getElementById('modal-qr-holder').innerHTML = qr.createImgTag(5);
+        document.getElementById('modal-qr-text').textContent = desc;
+        document.getElementById('overlay').style.display = "block"; document.getElementById('modal-qr').style.display = "block";
+    }
+    function dongModals() { document.getElementById('overlay').style.display = "none"; document.getElementById('modal-qr').style.display = "none"; }
+
+    function modalQR_NS(idx) { let i = DANH_SACH_MASTER[idx]; kíchHoạtKhungHienThiQR(`NV: ${i.ho_ten} | CCCD: ${i.cccd} | DV: ${i.ma_don_vi}`, `HỌ TÊN: ${i.ho_ten}\nCCCD: ${i.cccd}\nĐƠN VỊ: ${i.ma_don_vi}\nCHỨC DANH: ${i.chuc_danh}`); }
+    function modalQR_CP(idx) { let i = DANH_SACH_CAP_PHAT[idx]; kíchHoạtKhungHienThiQR(`MÃ: ${i.ma_tb||i.MA_TB} | LOẠI: ${i.loai_tb||i.LOAI_TB} | NGƯỜI DÙNG: ${i.nguoi_dung||i.NGUOI_DUNG}`, `MÃ HỆ THỐNG: ${i.ma_tb||i.MA_TB}\nLOẠI VẬT TƯ: ${i.loai_tb||i.LOAI_TB}\nSỐ LƯỢNG: ${i.so_luong||i.SO_LUONG} ${i.don_vi||i.DON_VI}\nBỘ PHẬN: ${i.bo_phan||i.BO_PHAN}\nNGƯỜI NHẬN: ${i.nguoi_dung||i.NGUOI_DUNG}`); }
+    function modalQR_SC(idx) { let i = DANH_SACH_SUA_CHUA[idx]; kíchHoạtKhungHienThiQR(`MÃ SỰ CỐ: ${i.ma_tb||i.MA_TB} | PHÂN LOẠI: ${i.phan_loai||i.PHAN_LOAI} | CP: ${i.chi_phi||i.CHI_PHI}`, `MÃ THIẾT BỊ: ${i.ma_tb||i.MA_TB}\nPHÂN HẠNG MỤC: ${i.phan_loai||i.PHAN_LOAI}\nCHI PHÍ SỬA: ${(i.chi_phi||i.CHI_PHI||0).toLocaleString()} đ\nNỘI DUNG: ${i.mo_ta||i.MO_TA}`); }
 </script>
 </body>
 </html>
