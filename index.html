@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hệ Thống ERP Enterprise - Tối Ưu Hiển Thị & Khớp Dữ Liệu Bộ Lọc</title>
+    <title>Hệ Thống ERP Enterprise Online - Supabase Integration</title>
     
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
         :root {
@@ -15,468 +16,542 @@
             --success-color: #16a34a;
             --danger-color: #dc2626;
             --warning-color: #ea580c;
+            --purple-color: #7c3aed;
             --bg-color: #f8fafc;
             --card-bg: #ffffff;
             --text-color: #111827;
-            --border-color: #94a3b8;
+            --border-color: #cbd5e1;
         }
 
         *, *::before, *::after { box-sizing: border-box; }
         body { 
-            font-family: 'Times New Roman', Times, serif; 
-            margin: 0; padding: 15px; 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Times New Roman", serif; 
+            margin: 0; padding: 12px; 
             background-color: var(--bg-color); color: var(--text-color);
-            font-size: 11.5pt; line-height: 1.4;
+            font-size: 11pt; line-height: 1.4;
         }
         .container { max-width: 100%; margin: 0 auto; }
         header { 
             background: linear-gradient(135deg, #0f172a, var(--primary-color)); 
             color: white; padding: 15px 20px; border-radius: 6px; margin-bottom: 15px; 
         }
-        header h1 { margin: 0; font-size: 18pt; text-transform: uppercase; }
+        header h1 { margin: 0; font-size: 15pt; text-transform: uppercase; text-align: center;}
         
-        .tab-navigation { display: flex; gap: 8px; margin-bottom: 15px; border-bottom: 3px solid var(--primary-color); }
+        .status-bar { background: #e2e8f0; padding: 6px 12px; border-radius: 4px; margin-bottom: 15px; font-size: 9.5pt; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
+        .dot-online { display: inline-block; width: 10px; height: 10px; background: var(--success-color); border-radius: 50%; margin-right: 5px; }
+
+        .tab-navigation { 
+            display: flex; gap: 4px; margin-bottom: 15px; 
+            border-bottom: 3px solid var(--primary-color);
+            overflow-x: auto; white-space: nowrap;
+        }
         .tab-btn { 
-            background-color: #e2e8f0; color: #334155; border: none; padding: 10px 18px; 
-            font-family: 'Times New Roman', serif; font-size: 11pt; font-weight: bold; 
-            cursor: pointer; border-radius: 4px 4px 0 0;
+            background-color: #e2e8f0; color: #334155; border: none; padding: 10px 15px; 
+            font-size: 10.5pt; font-weight: bold; cursor: pointer; 
+            border-radius: 4px 4px 0 0; flex-shrink: 0; transition: 0.2s;
         }
         .tab-btn.active { background-color: var(--primary-color); color: white; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
 
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 15px; }
-        .stat-card { background: var(--card-bg); border-radius: 4px; padding: 12px; border: 1px solid var(--border-color); }
-        .stat-card .label { font-size: 10.5pt; color: #4b5563; font-weight: bold; }
-        .stat-card .value { font-size: 18pt; font-weight: bold; color: var(--primary-color); }
+        .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 15px; }
+        @media (min-width: 768px) { .stats-grid { grid-template-columns: repeat(4, 1fr); } }
+        .stat-card { 
+            background: var(--card-bg); border-radius: 4px; padding: 10px; 
+            border: 1px solid var(--border-color); border-left: 4px solid var(--primary-color); 
+        }
+        .stat-card .label { font-size: 9pt; color: #4b5563; font-weight: bold; min-height: 28px; display: flex; align-items: center; }
+        .stat-card .value { font-size: 13pt; font-weight: bold; color: var(--primary-color); margin-top: 2px; }
+        .stat-card .sub-value { font-size: 8.5pt; color: #64748b; font-weight: normal; margin-top: 2px; }
         
         .panel-control { background: var(--card-bg); padding: 15px; border-radius: 6px; margin-bottom: 15px; border: 1px solid var(--border-color); }
-        .search-box-container { display: flex; flex-wrap: wrap; gap: 8px; background: #e2e8f0; padding: 8px; border-radius: 4px; margin-top: 10px; }
-        .input-custom { padding: 6px 10px; border-radius: 4px; border: 1px solid var(--border-color); font-size: 10.5pt; font-family: 'Times New Roman', serif; }
-        .search-input { flex: 2; min-width: 200px; }
-        .select-filter { flex: 1; min-width: 140px; background-color: white; }
+        
+        .filter-grid { display: grid; grid-template-columns: 1fr; gap: 8px; margin-top: 10px; background: #e2e8f0; padding: 10px; border-radius: 4px; }
+        @media (min-width: 600px) { .filter-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (min-width: 1024px) { .filter-grid { grid-template-columns: repeat(4, 1fr); } }
 
-        /* HỆ THỐNG GRID BẢNG CO GIÃN THÔNG MINH */
-        .table-responsive { width: 100%; overflow-x: auto; border: 1px solid var(--border-color); background: var(--card-bg); max-height: 520px; overflow-y: auto; }
+        .input-custom { padding: 6px 10px; border-radius: 4px; border: 1px solid var(--border-color); font-size: 10.5pt; width: 100%; background: #fff; }
+        
+        .allocation-form-grid { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 15px; }
+        @media (min-width: 600px) { .allocation-form-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (min-width: 1024px) { .allocation-form-grid { grid-template-columns: repeat(3, 1fr); } }
+        
+        .form-group { display: flex; flex-direction: column; gap: 4px; }
+        .form-group label { font-weight: bold; color: #334155; font-size: 10.5pt; }
+        .form-group.full-width { grid-column: 1 / -1; }
+        
+        .btn-submit { background-color: var(--success-color); color: white; border: none; padding: 8px 16px; font-size: 10.5pt; font-weight: bold; cursor: pointer; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; height: 38px; }
+        .btn-action { padding: 2px 6px; font-size: 9.5pt; font-weight: bold; cursor: pointer; border-radius: 3px; border: 1px solid transparent; margin-right: 2px; }
+        .btn-edit { background-color: #fef3c7; color: #d97706; border-color: #fcd34d; }
+        .btn-delete { background-color: #fef2f2; color: #dc2626; border-color: #fca5a5; }
+
+        .table-responsive { width: 100%; overflow-x: auto; border: 1px solid var(--border-color); background: var(--card-bg); max-height: 500px; overflow-y: auto; border-radius: 4px; }
         table { width: 100%; border-collapse: separate; border-spacing: 0; }
-        th { background-color: #cbd5e1; color: black; font-weight: bold; padding: 10px 12px; position: sticky; top: 0; z-index: 10; border-bottom: 2px solid var(--border-color); border-right: 1px solid var(--border-color); white-space: nowrap; }
-        td { padding: 8px 12px; border-bottom: 1px solid #cbd5e1; border-right: 1px solid #e2e8f0; white-space: nowrap; }
+        th { background-color: #cbd5e1; color: black; font-weight: bold; padding: 10px 12px; position: sticky; top: 0; z-index: 10; border-bottom: 2px solid var(--border-color); border-right: 1px solid var(--border-color); white-space: nowrap; text-align: center; font-size: 10pt; }
+        td { padding: 8px 12px; border-bottom: 1px solid #cbd5e1; border-right: 1px solid #e2e8f0; white-space: nowrap; color: black; font-size: 10pt; }
+        
+        .col-chuc-danh-work { white-space: normal !important; min-width: 220px; max-width: 360px; word-break: break-word; font-size: 9.5pt; }
+        .cell-flexible { white-space: normal !important; min-width: 160px; max-width: 300px; word-break: break-word; vertical-align: middle; }
         table tbody tr:nth-child(even) { background-color: #f8fafc; }
-        table tbody tr:hover { background-color: #1e3a8a !important; color: white !important; }
-        table tbody tr:hover td { color: white !important; }
         
-        /* ĐẶC TRỊ CO GIÃN CHO CỘT CHỨC DANH CÔNG VIỆC KHÔNG BỊ PHÌNH ĐÈ CỘT KHÁC */
-        .col-chucdanh { max-width: 180px; white-space: normal !important; word-break: break-word; font-style: italic; }
+        .badge { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 9.5pt; font-weight: bold; border: 1px solid transparent;}
+        .badge-danger { background-color: #fef2f2; color: #dc2626; border-color: #fca5a5; }
+        .badge-warning { background-color: #fff7ed; color: #ea580c; border-color: #ffedd5; }
+        .badge-info { background-color: #f0fdfa; color: #0d9488; border-color: #99f6e4; }
+        .badge-female { background-color: #fce7f3; color: #db2777; border-color: #fbcfe8; }
+        .badge-male { background-color: #eff6ff; color: #2563eb; border-color: #bfdbfe; }
         
-        .badge { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 9.5pt; font-weight: bold; }
-        .badge-atv { background-color: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
-        .badge-active { background-color: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
-        .badge-pending { background-color: #fff7ed; color: #ea580c; border: 1px solid #ffedd5; }
-        .badge-retired { background-color: #fef2f2; color: #dc2626; border: 1px solid #fca5a5; }
-        
-        .qr-zone { display: flex; justify-content: center; align-items: center; background: white; border-radius: 4px; width: 42px; height: 42px; border: 1px solid #cbd5e1; cursor: pointer; }
-        .modal-qr { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 6px; z-index: 1000; text-align: center; border: 2px solid var(--primary-color); }
+        .qr-zone { display: inline-flex; align-items: center; justify-content: center; gap: 5px; background: #f1f5f9; border-radius: 4px; padding: 2px 6px; border: 1px solid #cbd5e1; cursor: pointer; font-size: 9pt; font-weight: bold; color: var(--primary-color); }
+
+        .modal-qr { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 6px; z-index: 1000; text-align: center; border: 2px solid var(--primary-color); box-shadow: 0 10px 25px rgba(0,0,0,0.3); width: 90%; max-width: 400px; }
         .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 999; }
+        #doc-export-preview { display:none; background: #fff; border: 2px dashed #64748b; padding: 30px; margin-top: 20px; max-width: 800px; font-family: 'Times New Roman', serif; color: black; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <header>
-        <h1>HỆ THỐNG ERP ENTERPRISE - TỐI ƯU GIAO DIỆN CO GIÃN VÀ BỘ LỌC ĐA ĐIỂM</h1>
+        <h1>HỆ THỐNG ERP ENTERPRISE ONLINE - ĐỒNG BỘ SUPABASE</h1>
     </header>
 
+    <div class="status-bar">
+        <div><span class="dot-online"></span> Trạng thái: Kết nối Supabase Online Cloud thành công</div>
+        <div id="sync-time">Cập nhật: Vừa xong</div>
+    </div>
+
     <div class="tab-navigation">
-        <button class="tab-btn active" id="btn-tab-nhan-su" onclick="chuyenPhanHe('nhan-su')">👥 1. Nhân Sự & An Toàn Viên</button>
-        <button class="tab-btn" id="btn-tab-thiet-bi" onclick="chuyenPhanHe('thiet-bi')">💻 2. Cấp Phát & Mã QR</button>
-        <button class="tab-btn" id="btn-tab-sua-chua" onclick="chuyenPhanHe('sua-chua')">🔧 3. Nhật Ký Sửa Chữa</button>
-        <button class="tab-btn" id="btn-tab-thanh-toan" onclick="chuyenPhanHe('thanh-toan')">💳 4. Hồ Sơ Thanh Toán</button>
+        <button class="tab-btn active" id="btn-tab-nhan-su" onclick="chuyenPhanHe('nhan-su')">👥 1. Danh Sách Nhân Sự Nâng Cao</button>
+        <button class="tab-btn" id="btn-tab-thiet-bi" onclick="chuyenPhanHe('thiet-bi')">💻 2. Đăng Ký Cấp Phát Liên Thông</button>
+        <button class="tab-btn" id="btn-tab-sua-chua" onclick="chuyenPhanHe('sua-chua')">🔧 3. Nhật Ký Bảo Trì & QR Vòng Đời</button>
+        <button class="tab-btn" id="btn-tab-thanh-toan" onclick="chuyenPhanHe('thanh-toan')">💳 4. Quyết Toán Tài Chính & Chứng Từ</button>
     </div>
 
     <div id="nhan-su" class="tab-content active">
         <div class="stats-grid">
-            <div class="stat-card" style="border-left: 4px solid var(--primary-color);"><div class="label">Nhân Sự Theo Bộ Lọc</div><div class="value" id="ns-total">0 người</div></div>
-            <div class="stat-card" style="border-left: 4px solid var(--warning-color);"><div class="label">An Toàn Viên Đếm Khớp</div><div class="value" id="ns-atv">0 người</div></div>
+            <div class="stat-card"><div class="label">Tổng số nhân sự nạp</div><div class="value" id="dash-tong">0 người</div><div class="sub-value" id="dash-ti-le-hiendi">Hiển thị: 100%</div></div>
+            <div class="stat-card" style="border-left-color: var(--secondary-color);"><div class="label">An Toàn Viên</div><div class="value" id="dash-atv">0 người</div><div class="sub-value" id="dash-pct-atv">Tỷ lệ: 0%</div></div>
+            <div class="stat-card" style="border-left-color: var(--danger-color);"><div class="label">Nghề Độc Hại (NNĐH)</div><div class="value" id="dash-nndh">0 người</div><div class="sub-value" id="dash-pct-nndh">Tỷ lệ: 0%</div></div>
+            <div class="stat-card" style="border-left-color: var(--purple-color);"><div class="label">Cơ Cấu Nam / Nữ</div><div class="value" id="dash-nam-nu">0M / 0F</div><div class="sub-value" id="dash-pct-nam-nu">Tỷ lệ: 0% / 0%</div></div>
         </div>
-
         <div class="panel-control">
-            <div>
-                <input type="file" accept=".xlsx, .xls" onchange="xuLyExcelEnterprise(event)">
+            <div style="background: #f1f5f9; padding: 12px; border-radius: 6px; border-left: 5px solid var(--secondary-color);">
+                <label style="font-weight:bold; color: var(--primary-color);">Nạp Tập Tin Excel / CSV Nhân Sự:</label>
+                <input type="file" accept=".xlsx, .xls, .csv" onchange="xuLyFileExcelDynamic(event)" style="margin-left: 10px;">
+                <button onclick="dongBoNhanSuLenSupabase()" class="btn-submit" style="background: var(--primary-color); height: 30px; padding: 0 10px; font-size: 9.5pt; margin-left: 10px;">☁️ Đẩy lên Cloud</button>
             </div>
-            <div class="search-box-container">
-                <input type="text" id="ns-search" class="input-custom search-input" placeholder="🔍 Tìm nhanh theo Tên nhân viên hoặc thông tin..." oninput="locDuLieuDongBo()">
-                
-                <select id="ns-filter-donvi" class="input-custom select-filter" onchange="locDuLieuDongBo()">
-                    <option value="ALL">-- Tất cả Mã Đơn Vị --</option>
-                </select>
-
-                <select id="ns-filter-atv" class="input-custom select-filter" onchange="locDuLieuDongBo()">
-                    <option value="ALL">-- Bộ lọc An Toàn Viên --</option>
-                    <option value="ATV">Chỉ An Toàn Viên (ATV)</option>
-                    <option value="NORMAL">Lao động thông thường</option>
-                </select>
+            <div class="filter-grid">
+                <div><input type="text" id="ns-search" class="input-custom" placeholder="🔍 Tìm nhanh..." oninput="locDuLieuDynamic()"></div>
+                <div><select id="ns-filter-donvi" class="input-custom" onchange="locDuLieuDynamic()"><option value="ALL">-- Mã đơn vị (Tất cả) --</option></select></div>
+                <div><select id="ns-filter-dacthu" class="input-custom" onchange="locDuLieuDynamic()"><option value="ALL">-- Nhóm đối tượng (Tất cả) --</option><option value="ATV">Chỉ An Toàn Viên</option><option value="NNDH">Chỉ Nghề Độc Hại</option><option value="NAM">Chỉ Lao Động Nam</option><option value="NU">Chỉ Lao Động Nữ</option></select></div>
+                <div><select id="ns-filter-huutri" class="input-custom" onchange="locDuLieuDynamic()"><option value="ALL">-- Giai đoạn dự báo hưu trí --</option><option value="5NAM">Dự báo Giai đoạn 5 năm tới</option><option value="10NAM">Dự báo Giai đoạn 10 năm tới</option></select></div>
             </div>
         </div>
-
         <div class="table-responsive">
-            <table>
-                <thead><tr id="ns-header"><th>STT</th><th style="color:#64748b;">Hệ thống sẵn sàng. Vui lòng nạp file Excel nhân sự...</th></tr></thead>
-                <tbody id="ns-body"></tbody>
-            </table>
+            <table><thead><tr id="dynamic-thead"><th>STT</th><th>Họ và Tên</th><th>Số sổ BHXH</th><th>Số CCCD</th><th>Mã Đơn Vị</th><th>Năm</th><th>Năm về hưu</th><th>Giới tính</th><th>Chức danh</th><th>QR</th></tr></thead><tbody id="dynamic-tbody"></tbody></table>
         </div>
     </div>
 
     <div id="thiet-bi" class="tab-content">
-        <div class="panel-control"><strong>Mã đơn vị liên thông:</strong> <span id="lbl-donvi-tb" style="color:var(--secondary-color); font-weight:bold;">Tất cả đơn vị</span></div>
+        <div class="panel-control">
+            <h3 style="margin-top:0; color:var(--primary-color);">ĐĂNG KÝ PHÂN PHỐI CẤP PHÁT TÀI SẢN</h3>
+            <form id="frm-cap-phat" onsubmit="themMoiCapPhat(event)">
+                <div class="allocation-form-grid">
+                    <input type="hidden" id="edit-index-cp" value="-1">
+                    <div class="form-group"><label>Loại Thiết Bị</label><select id="form-loai-tb" class="input-custom" onchange="kiemTraLoaiThietBi()"><option value="PC">Máy Tính Xách Tay</option><option value="PHONE">Điện Thoại Di Động</option><option value="KHAC">Thiết bị khác</option></select></div>
+                    <div class="form-group" id="group-loai-khac" style="display:none;"><label>Tên Thiết Bị Khác</label><input type="text" id="form-loai-khac" class="input-custom" oninput="tuDongSinhMaThietBi()"></div>
+                    <div class="form-group"><label>Mã Thiết Bị Hệ Thống</label><input type="text" id="form-ma-tb" class="input-custom" style="background:#e2e8f0; font-weight:bold;" readonly></div>
+                    <div class="form-group"><label>Bộ Phận Thụ Hưởng</label><select id="form-bophan" class="input-custom" onchange="capNhatNhanSuTheoBoPhan()"><option value="">-- Chọn đơn vị --</option></select></div>
+                    <div class="form-group"><label>Nhân Viên Vận Hành</label><select id="form-nhansu" class="input-custom"><option value="">-- Chọn nhân viên --</option></select></div>
+                    <div class="form-group" style="justify-content: flex-end; padding-top:20px;"><button type="submit" id="btn-submit-cp" class="btn-submit">💾 Lưu Lên Cloud</button></div>
+                </div>
+            </form>
+        </div>
         <div class="table-responsive">
             <table>
-                <thead>
-                    <tr>
-                        <th>STT</th>
-                        <th>Mã Đơn Vị</th>
-                        <th>Nhân Viên Vận Hành</th>
-                        <th>Mã Thiết Bị Tài Sản</th>
-                        <th style="text-align: center;">Mã QR Smart</th>
-                    </tr>
-                </thead>
+                <thead><tr><th>STT</th><th>Mã Thiết Bị</th><th>Loại Thiết Bị</th><th>Bộ Phận</th><th>Người Vận Hành</th><th>Ngày Cấp</th><th>QR Code</th><th>Thao Tác</th></tr></thead>
                 <tbody id="tb-body-dynamic"></tbody>
             </table>
         </div>
     </div>
 
     <div id="sua-chua" class="tab-content">
-        <div class="panel-control"><strong>Mã đơn vị liên thông nhật ký:</strong> <span id="lbl-donvi-sc" style="color:var(--danger-color); font-weight:bold;">Tất cả đơn vị</span></div>
+        <div class="panel-control">
+            <h3 style="margin-top:0; color:var(--danger-color);">NHẬT KÝ BẢO TRÌ SỬA CHỮA TÀI SẢN</h3>
+            <form id="frm-repair" onsubmit="themMoiNhatKySuaChua(event)">
+                <div class="allocation-form-grid">
+                    <input type="hidden" id="edit-index-sc" value="-1">
+                    <div class="form-group"><label>Chọn Thiết Bị Báo Lỗi</label><select id="repair-ma-tb" class="input-custom" onchange="autoDienThongTinThietBi()"><option value="">-- Chọn thiết bị --</option></select></div>
+                    <div class="form-group"><label>Bộ Phận Quản Lý</label><input type="text" id="repair-bophan" class="input-custom" style="background:#f1f5f9;" readonly></div>
+                    <div class="form-group"><label>Nhân Viên Sử Dụng</label><input type="text" id="repair-nhansu" class="input-custom" style="background:#f1f5f9;" readonly></div>
+                    <div class="form-group"><label>Phân Loại Hạng Mục</label><select id="repair-phanloai" class="input-custom"><option value="Sự cố hỏng hóc">Sự cố hỏng hóc</option><option value="Bảo dưỡng định kỳ">Bảo dưỡng định kỳ</option></select></div>
+                    <div class="form-group"><label>Chi Phí Khắc Phục (VNĐ)</label><input type="number" id="repair-chiphi" class="input-custom" min="0"></div>
+                    <div class="form-group full-width"><label>Mô Tả Chi Tiết Nội Dung Khắc Phục</label><textarea id="repair-mota" class="input-custom" style="height:55px;"></textarea></div>
+                    <div class="form-group"><button type="submit" id="btn-submit-sc" class="btn-submit" style="background:var(--danger-color);">🔧 Ghi Nhật Ký Cloud</button></div>
+                </div>
+            </form>
+        </div>
         <div class="table-responsive">
             <table>
-                <thead>
-                    <tr>
-                        <th>STT</th>
-                        <th>Mã Đơn Vị</th>
-                        <th>Mã Tài Sản Lỗi</th>
-                        <th>Nhân Viên Báo Hỏng</th>
-                        <th>Nội Dung Chi Tiết Nhật Ký Sửa Chữa</th>
-                        <th>Tiến Độ</th>
-                    </tr>
-                </thead>
+                <thead><tr><th>STT</th><th>Mã Thiết Bị</th><th>Bộ Phận</th><th>Nhân Viên</th><th>Phân Loại</th><th>Chi Phí (Net)</th><th>Nội Dung Chi Tiết</th><th>QR Vòng Đời</th><th>Thao Tác</th></tr></thead>
                 <tbody id="sc-body-dynamic"></tbody>
             </table>
         </div>
     </div>
 
     <div id="thanh-toan" class="tab-content">
-        <div class="panel-control"><strong>Mã đơn vị liên thông hồ sơ kế toán:</strong> <span id="lbl-donvi-tt" style="color:#7c3aed; font-weight:bold;">Tất cả đơn vị</span></div>
+        <div class="stats-grid">
+            <div class="stat-card" style="border-left-color: var(--purple-color);"><div class="label">Hồ sơ kế toán</div><div class="value" id="tt-count">0 bộ</div></div>
+            <div class="stat-card" style="border-left-color: var(--warning-color);"><div class="label">Cộng tiền Net</div><div class="value" id="tt-sum-net">0 đ</div></div>
+            <div class="stat-card" style="border-left-color: var(--success-color);"><div class="label">Tổng số chi Gross</div><div class="value" id="tt-sum-gross">0 đ</div></div>
+        </div>
+        <div class="panel-control">
+            <h3 style="margin-top:0; color:var(--purple-color);">ỦY NHIỆM CHI & KHAI BÁO THÔNG TIN NGÂN HÀNG</h3>
+            <form id="frm-thanh-toan" onsubmit="themMoiThanhToan(event)">
+                <div class="allocation-form-grid">
+                    <input type="hidden" id="edit-index-tt" value="-1">
+                    <div class="form-group"><label>Chọn Hồ Sơ Bảo Trì</label><select id="tt-repair-index" class="input-custom" onchange="autoFillTuNhatKySuaChua()"><option value="">-- Chọn hồ sơ sửa chữa đẩy sang --</option></select></div>
+                    <div class="form-group"><label>Mã Thiết Bị</label><input type="text" id="tt-ma-tb" class="input-custom" style="background:#f1f5f9;" readonly></div>
+                    <div class="form-group"><label>Bộ Phận Đề Xuất</label><input type="text" id="tt-bophan" class="input-custom" style="background:#f1f5f9;" readonly></div>
+                    <div class="form-group"><label>Nguyên Giá Net</label><input type="number" id="tt-gia-goc" class="input-custom" style="background:#f1f5f9;" readonly></div>
+                    <div class="form-group"><label>Thuế Suất VAT</label><select id="tt-vat" class="input-custom" onchange="tinhToanThongSoThue()"><option value="0">0%</option><option value="5">5%</option><option value="8">8%</option><option value="10" selected>10%</option></select></div>
+                    <div class="form-group"><label>Tiền Thuế VAT</label><input type="text" id="tt-tien-thue" class="input-custom" style="background:#e2e8f0;" readonly value="0"></div>
+                    <div class="form-group"><label>Tổng Thanh Toán (Gross)</label><input type="text" id="tt-tong-sau-thue" class="input-custom" style="background:#bbf7d0; color:#16a34a; font-weight:bold;" readonly value="0"></div>
+                    <div class="form-group"><label>Số Tài Khoản Nhận</label><input type="text" id="tt-stk" class="input-custom"></div>
+                    <div class="form-group"><label>Ngân Hàng Thụ Hưởng</label><input type="text" id="tt-ngonhang" class="input-custom"></div>
+                    <div class="form-group"><label>Chủ Tài Khoản Đơn Vị</label><input type="text" id="tt-chutk" class="input-custom"></div>
+                    <div class="form-group full-width"><label>Đường Dẫn Chứng Từ Đám Mây</label><input type="url" id="tt-link-chungtu" class="input-custom"></div>
+                    <div class="form-group" style="justify-content: flex-end; padding-top:10px;"><button type="submit" id="btn-submit-tt" class="btn-submit" style="background:var(--purple-color);">💳 Duyệt Ủy Nhiệm Chi Cloud</button></div>
+                </div>
+            </form>
+        </div>
         <div class="table-responsive">
             <table>
-                <thead>
-                    <tr>
-                        <th>STT</th>
-                        <th>Mã Đơn Vị</th>
-                        <th>Số Hóa Đơn / Chứng Từ</th>
-                        <th>Nội Dung Thanh Toán</th>
-                        <th>Chi Phí Giải Ngân</th>
-                        <th>Trạng Thái Duyệt</th>
-                    </tr>
-                </thead>
+                <thead><tr><th>STT</th><th>Mã Thiết Bị</th><th>Đơn Vị Đề Xuất</th><th>Tổng Tiền (Gross)</th><th>Tài Khoản Nhận</th><th>Ngân Hàng</th><th>Chứng Từ</th><th>QR</th><th>Báo Cáo</th><th>Thao Tác</th></tr></thead>
                 <tbody id="tt-body-dynamic"></tbody>
             </table>
         </div>
+        <div id="doc-export-preview"></div>
     </div>
 </div>
 
-<div class="overlay" id="overlay" onclick="dongModalQR()"></div>
+<div class="overlay" id="overlay" onclick="dongModals()"></div>
 <div class="modal-qr" id="modal-qr">
     <div id="modal-qr-holder"></div>
-    <br>
-    <button style="padding:5px 15px; cursor:pointer;" onclick="dongModalQR()">Đóng</button>
+    <div id="modal-qr-text" style="font-weight:bold; margin-top:10px; text-align:left; font-size:10pt; font-family: monospace; white-space: pre-wrap; max-height:200px; overflow-y:auto;"></div>
+    <br><button class="btn-submit" style="background:#64748b; height:30px;" onclick="dongModals()">Đóng</button>
 </div>
 
 <script>
-    let MANG_TIEU_DE_GOC = [];
-    let DANH_SACH_MASTER = [];
-    const NAM_HIEN_TAI = 2026;
+    // CẤU HÌNH SUPABASE API CỦA BẠN
+    const SUPABASE_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_F9qfNlAUikQ-9pYHV8jL8g_xrBa8s5w";
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    function chuyenPhanHe(idPhanHe) {
+    let DANH_SACH_MASTER = []; 
+    let DANH_SACH_CAP_PHAT = []; 
+    let DANH_SACH_SUA_CHUA = [];
+    let DANH_SACH_THANH_TOAN = [];
+    let BIEN_DEM_MA = { PC: 1, PHONE: 1, CUSTOM: 1 }; 
+
+    // Tự động tải dữ liệu từ Cloud khi khởi động trang
+    window.addEventListener('DOMContentLoaded', async () => {
+        await taiDuLieuTuSupabase();
+    });
+
+    function chuyenPhanHe(id) {
         document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
         document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-        document.getElementById(idPhanHe).classList.add('active');
-        document.getElementById('btn-tab-' + idPhanHe).classList.add('active');
+        document.getElementById(id).classList.add('active');
+        document.getElementById('btn-tab-' + id).classList.add('active');
     }
 
-    // GIẢI MÃ CHUẨN ĐỊNH DẠNG NGÀY THÁNG NĂM VIỆT NAM (KHẮC PHỤC TRIỆT ĐỂ SỐ 46266)
-    function parseDateToVietNamFormat(cellValue, isOnlyYearMode = false) {
-        if (!cellValue || String(cellValue).trim() === "") return { bieuHien: "N/A", year: null };
-        let str = String(cellValue).trim();
+    function cleanString(str) { return String(str || "").replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim(); }
+    function cleanMark(str) { return cleanString(str).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/Đ/g, "D").replace(/đ/g, "d"); }
 
-        if (/^\d{4,5}$/.test(str)) {
-            let num = parseInt(str);
-            if (isOnlyYearMode && num > 1900 && num < 2100) return { bieuHien: String(num), year: num };
-            let p = XLSX.SSF.parse_date_code(num);
-            if (p && p.y) {
-                if (isOnlyYearMode) return { bieuHien: String(p.y), year: p.y };
-                return { 
-                    bieuHien: `${String(p.d).padStart(2,'0')}/${String(p.m).padStart(2,'0')}/${p.y}`, 
-                    year: p.y 
-                };
-            }
+    // SỬA ĐỊNH DẠNG NGÀY VỀ HƯU 46844
+    function parseExcelDate(val) {
+        if (!val) return "";
+        let sStr = String(val).trim();
+        if (sStr.includes('-')) {
+            let p = sStr.split('-');
+            return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : sStr;
         }
-
-        let matches = str.match(/(\d+)/g);
-        if (matches && matches.length >= 1) {
-            if (matches[0].length === 4) {
-                let y = parseInt(matches[0]);
-                if (isOnlyYearMode) return { bieuHien: String(y), year: y };
-                return { bieuHien: `${String(matches[2]||1).padStart(2,'0')}/${String(matches[1]||1).padStart(2,'0')}/${y}`, year: y };
-            } else if (matches[matches.length - 1].length === 4) {
-                let y = parseInt(matches[matches.length - 1]);
-                if (isOnlyYearMode) return { bieuHien: String(y), year: y };
-                return { bieuHien: `${String(matches[0]).padStart(2,'0')}/${String(matches[1]||1).padStart(2,'0')}/${y}`, year: y };
-            } else if (matches.length === 1 && matches[0].length === 4) {
-                let y = parseInt(matches[0]);
-                return { bieuHien: String(y), year: y };
-            }
-        }
-        return { bieuHien: str, year: null };
+        if (sStr.includes('/')) return sStr;
+        let num = parseFloat(val);
+        if (isNaN(num) || num < 1) return sStr;
+        let d = new Date((Math.floor(num - 25569)) * 86400 * 1000);
+        return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
     }
 
-    function xuLyExcelEnterprise(event) {
-        const file = event.target.files[0];
-        if (!file) return;
+    // SỬA ĐỊNH DẠNG NĂM ĐANG HIỂN THỊ 25425
+    function parseExcelYear(val) {
+        if (!val) return "";
+        let sStr = String(val).trim();
+        if (sStr.length === 4 && !isNaN(sStr)) return sStr;
+        if (sStr.includes('-')) return sStr.split('-')[0];
+        let num = parseFloat(val);
+        if (isNaN(num) || num < 1) return sStr;
+        return new Date((Math.floor(num - 25569)) * 86400 * 1000).getFullYear();
+    }
 
+    // SỬA ĐỊNH DẠNG GIỚI TÍNH X THÀNH NỮ
+    function parseGioiTinh(val) {
+        return String(val || "").trim().toUpperCase() === "X" ? "Nữ" : "Nam";
+    }
+
+    // ĐỌC VÀ CHUẨN HÓA FILE EXCEL TRƯỚC KHI LƯU CLOUD
+    function xuLyFileExcelDynamic(event) {
+        const file = event.target.files[0]; if (!file) return;
         const reader = new FileReader();
         reader.onload = function(e) {
-            const arrayBuffer = new Uint8Array(e.target.result);
-            const workbook = XLSX.read(arrayBuffer, { type: 'array', raw: true });
-            const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-            const mangGoc = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
-
-            if (mangGoc.length <= 1) return;
-
-            MANG_TIEU_DE_GOC = mangGoc[0].map(h => String(h || "").trim());
-
-            // Định vị thông minh các cột quan trọng
-            let idxNamSinh = MANG_TIEU_DE_GOC.findIndex(t => t.toUpperCase() === "NĂM SINH" || t.toUpperCase() === "NGÀY SINH" || t.toUpperCase().includes("NGÀY SINH"));
-            let idxNamThuan = MANG_TIEU_DE_GOC.findIndex(t => t.toUpperCase() === "NĂM");
-            let idxATV = MANG_TIEU_DE_GOC.findIndex(t => t.toUpperCase().includes("AN TOÀN VIÊN") || t.toUpperCase() === "ATV");
-            let idxDonVi = MANG_TIEU_DE_GOC.findIndex(t => t.toUpperCase().includes("ĐƠN VỊ") || t.toUpperCase().includes("MÃ"));
-            let idxTen = MANG_TIEU_DE_GOC.findIndex(t => t.toUpperCase().includes("TÊN") || t.toUpperCase().includes("HỌ TÊN") || t.toUpperCase() === "HỌ VÀ TÊN");
-            let idxNu = MANG_TIEU_DE_GOC.findIndex(t => t.toUpperCase() === "NỮ" || t.toUpperCase() === "NU" || t.toUpperCase().includes("GIỚI TÍNH"));
-            let idxDhai = MANG_TIEU_DE_GOC.findIndex(t => t.toUpperCase().includes("ĐỘC HẠI") || t.toUpperCase().includes("NNĐH"));
-            let idxNgayHuuGoc = MANG_TIEU_DE_GOC.findIndex(t => t.toUpperCase().includes("HƯU"));
+            const data = new Uint8Array(e.target.result);
+            const wb = XLSX.read(data, { type: 'array' });
+            const arr = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "" });
             
-            // Tìm kiếm chỉ mục cột Chức danh
-            let idxChucDanh = MANG_TIEU_DE_GOC.findIndex(t => t.toUpperCase().includes("CHỨC DANH") || t.toUpperCase().includes("CHỨC VỤ") || t.toUpperCase().includes("CÔNG VIỆC"));
+            let headIdx = arr.findIndex(row => row.some(c => cleanMark(c).toUpperCase().includes("HO TEN")));
+            if(headIdx === -1) headIdx = 0;
+            let heads = arr[headIdx].map(h => cleanString(h));
 
-            let tapHopDonVi = new Set();
+            let idxTen = heads.findIndex(h => cleanMark(h).toUpperCase().includes("HO TEN"));
+            let idxDonVi = heads.findIndex(h => cleanMark(h).toUpperCase().includes("DON VI") || cleanMark(h).toUpperCase().includes("MA DV"));
+            let idxNu = heads.findIndex(h => cleanMark(h).toUpperCase().includes("NU"));
+            let idxHuu = heads.findIndex(h => cleanMark(h).toUpperCase().includes("NAM VE HUU") || cleanMark(h).toUpperCase().includes("MOC VE HUU"));
+            let idxNam = heads.findIndex(h => cleanMark(h).toUpperCase() === "NAM");
+            let idxChuc = heads.findIndex(h => cleanMark(h).toUpperCase().includes("CHUC DANH"));
+            let idxSbhxh = heads.findIndex(h => cleanMark(h).toUpperCase().includes("SO SO BHXH"));
+            let idxCccd = heads.findIndex(h => cleanMark(h).toUpperCase().includes("CCCD"));
+
             DANH_SACH_MASTER = [];
+            let units = new Set();
 
-            for (let r = 1; r < mangGoc.length; r++) {
-                let row = mangGoc[r];
-                if (!row || row.every(o => String(o).trim() === "")) continue;
+            for(let i=headIdx+1; i<arr.length; i++) {
+                let r = arr[i];
+                if(!r || r.length===0 || (idxTen!==-1 && String(r[idxTen]).trim()==="")) continue;
 
-                let payloadSaoChep = [...row];
-                let namSinhThuc = null;
-
-                // Chuẩn hóa định dạng cột ngày sinh
-                if (idxNamSinh !== -1 && payloadSaoChep[idxNamSinh] !== "") {
-                    let dRes = parseDateToVietNamFormat(payloadSaoChep[idxNamSinh], false);
-                    payloadSaoChep[idxNamSinh] = dRes.bieuHien; 
-                    namSinhThuc = dRes.year;
-                }
-
-                // Chuẩn hóa cột "NĂM" độc lập
-                if (idxNamThuan !== -1 && payloadSaoChep[idxNamThuan] !== "") {
-                    let yRes = parseDateToVietNamFormat(payloadSaoChep[idxNamThuan], true);
-                    payloadSaoChep[idxNamThuan] = yRes.bieuHien;
-                    if (!namSinhThuc) namSinhThuc = yRes.year;
-                }
-
-                // Sửa lỗi hiển thị số 46266 ở cột ngày hưu gốc nếu có sẵn
-                if (idxNgayHuuGoc !== -1 && payloadSaoChep[idxNgayHuuGoc] !== "") {
-                    let hRes = parseDateToVietNamFormat(payloadSaoChep[idxNgayHuuGoc], false);
-                    payloadSaoChep[idxNgayHuuGoc] = hRes.bieuHien;
-                }
-
-                // Giới tính: Ô Nữ có dấu X hoặc ký tự -> Nữ, để trống hoặc giá trị khác -> Nam
-                let gioiTinhXacDinh = "Nam";
-                if (idxNu !== -1) {
-                    let valNu = String(payloadSaoChep[idxNu]).toUpperCase().trim();
-                    if (valNu === "X" || valNu === "1" || valNu.length > 0) {
-                        if (valNu !== "0" && valNu !== "NAM") gioiTinhXacDinh = "Nữ";
-                    }
-                    payloadSaoChep[idxNu] = gioiTinhXacDinh;
-                }
-
-                // THUẬT TOÁN ĐẶC TRỊ LỌC AN TOÀN VIÊN CHÍNH XÁC: Quét nếu ô chỉ định hoặc bất kỳ ô nào chứa từ khóa ATV có dữ liệu
-                let laAnToanVien = false;
-                if (idxATV !== -1 && payloadSaoChep[idxATV] !== undefined && String(payloadSaoChep[idxATV]).trim() !== "") {
-                    let checkVal = String(payloadSaoChep[idxATV]).toUpperCase().trim();
-                    if (checkVal !== "0" && checkVal !== "KHÔNG" && checkVal !== "KHONG") laAnToanVien = true;
-                }
-
-                // Lao động độc hại
-                let laDocHai = false;
-                if (idxDhai !== -1 && payloadSaoChep[idxDhai] !== undefined && String(payloadSaoChep[idxDhai]).trim() !== "") {
-                    let sDhai = String(payloadSaoChep[idxDhai]).toUpperCase().trim();
-                    if (sDhai !== "0" && sDhai !== "KHÔNG" && sDhai !== "KHONG") laDocHai = true;
-                }
-
-                let donViText = idxDonVi !== -1 && payloadSaoChep[idxDonVi] ? String(payloadSaoChep[idxDonVi]).toUpperCase().trim() : "DV-VĂN PHÒNG";
-                let tenNhanVien = idxTen !== -1 && payloadSaoChep[idxTen] ? String(payloadSaoChep[idxTen]).trim() : `Nhân sự hàng ${r}`;
-
-                tapHopDonVi.add(donViText);
+                let hoTen = idxTen !== -1 ? String(r[idxTen]).trim() : "Ẩn danh";
+                let maDonVi = idxDonVi !== -1 ? String(r[idxDonVi]).trim() : "VP-TCT";
+                if(!maDonVi) maDonVi = "TỔNG HỢP";
+                units.add(maDonVi);
 
                 DANH_SACH_MASTER.push({
-                    mangHienThi: payloadSaoChep,
-                    isATV: laAnToanVien,
-                    isDocHai: laDocHai,
-                    unitCode: donViText,
-                    employeeName: tenNhanVien,
-                    gender: gioiTinhXacDinh,
-                    birthYear: namSinhThuc,
-                    idxChucDanh: idxChucDanh
+                    ho_ten: hoTen,
+                    so_bhxh: idxSbhxh !== -1 ? String(r[idxSbhxh]).trim() : "",
+                    cccd: idxCccd !== -1 ? String(r[idxCccd]).trim() : "",
+                    ma_don_vi: maDonVi,
+                    nam: idxNam !== -1 ? parseExcelYear(r[idxNam]) : "2026",
+                    nam_ve_hưu: idxHuu !== -1 ? parseExcelDate(r[idxHuu]) : "",
+                    gioi_tinh: idxNu !== -1 ? parseGioiTinh(r[idxNu]) : "Nam",
+                    chuc_danh: idxChuc !== -1 ? String(r[idxChuc]).trim() : ""
                 });
             }
-
-            let cbo = document.getElementById('ns-filter-donvi');
-            cbo.innerHTML = `<option value="ALL">-- Tất cả Mã Đơn Vị --</option>`;
-            tapHopDonVi.forEach(dv => { cbo.innerHTML += `<option value="${dv}">Mã Đơn Vị: ${dv}</option>`; });
-
-            thựcThiHienThiNhanSu(DANH_SACH_MASTER);
+            napBoLocDonVi(units);
+            renderBangNhanSu(DANH_SACH_MASTER);
+            thongKeNhanSu(DANH_SACH_MASTER);
         };
         reader.readAsArrayBuffer(file);
     }
 
-    function thựcThiHienThiNhanSu(mangData) {
-        const headerTR = document.getElementById('ns-header');
-        const bodyTR = document.getElementById('ns-body');
-
-        // SẮP XẾP ƯU TIÊN: Đưa các cột phân tích thông minh lên đầu để dễ dàng quan sát ngay lập tức
-        let thHtml = `<th>STT</th>`;
-        thHtml += `<th>An Toàn Viên</th>`;
-        thHtml += `<th>Tuổi Hiện Tại (2026)</th>`;
-        thHtml += `<th>Tuổi Hưu Luật Mới</th>`;
-        thHtml += `<th>Ngày Về Hưu Dự Kiến</th>`;
-        
-        // Render tiếp các cột gốc từ file Excel
-        MANG_TIEU_DE_GOC.forEach(t => { thHtml += `<th>${t}</th>`; });
-        headerTR.innerHTML = thHtml;
-
-        let demATV = 0;
-        let bodyHtml = mangData.map((item, index) => {
-            if (item.isATV) demATV++;
-
-            // 1. Tính toán tuổi hưu luật mới năm 2026: Nam 61.5, Nữ 56.67. Độc hại giảm 5 tuổi
-            let tuoiHienTai = item.birthYear ? (NAM_HIEN_TAI - item.birthYear) : null;
-            let tuoiHuuLuatDinh = item.gender === "Nữ" ? 56.67 : 61.5; 
-            let chuoiTuoiHuuMoTa = item.gender === "Nữ" ? "56 tuổi 8 tháng" : "61 tuổi 6 tháng";
-            
-            if (item.isDocHai) {
-                tuoiHuuLuatDinh -= 5;
-                chuoiTuoiHuuMoTa = item.gender === "Nữ" ? "51 tuổi 8 tháng" : "56 tuổi 6 tháng";
-            }
-
-            let tdNgayVongHuu = "N/A";
-            if (item.birthYear) {
-                let namHuuTron = item.birthYear + Math.floor(tuoiHuuLuatDinh);
-                let thangPhuThem = (tuoiHuuLuatDinh % 1) > 0 ? 8 : 0; 
-                if (item.gender === "Nam" && item.isDocHai) thangPhuThem = 6; 
-                
-                let thangHuu = 1 + thangPhuThem;
-                if (thangHuu > 12) { thangHuu -= 12; namHuuTron += 1; }
-
-                let nhanTrangThai = tuoiHienTai >= tuoiHuuLuatDinh ? ` <span class="badge badge-retired">⚖️ Đủ tuổi hưu</span>` : "";
-                tdNgayVongHuu = `01/${String(thangHuu).padStart(2,'0')}/${namHuuTron}${nhanTrangThai}`;
-            }
-
-            // 2. Render chuỗi hàng
-            let tdHtml = `<td style="font-weight:bold; text-align:center;">${index + 1}</td>`;
-            tdHtml += `<td style="text-align:center;">${item.isATV ? '<span class="badge badge-atv">🛡️ ATV</span>' : '<span style="color:#cbd5e1;">-</span>'}</td>`;
-            tdHtml += `<td>${tuoiHienTai ? '<b>'+tuoiHienTai+' tuổi</b>' : 'N/A'}</td>`;
-            tdHtml += `<td><small>${item.birthYear ? chuoiTuoiHuuMoTa : 'N/A'}</small></td>`;
-            tdHtml += `<td style="font-weight:bold; color:var(--primary-color);">${tdNgayVongHuu}</td>`;
-
-            // Render các cột Excel gốc, tự động co giãn cột chức danh
-            item.mangHienThi.forEach((oVal, oIdx) => {
-                let tieuDeCotHienTai = MANG_TIEU_DE_GOC[oIdx] ? MANG_TIEU_DE_GOC[oIdx].toUpperCase() : "";
-                if (oIdx === item.idxChucDanh) {
-                    tdHtml += `<td class="col-chucdanh"><b>${oVal !== undefined ? oVal : ""}</b></td>`;
-                } else if (tieuDeCotHienTai.includes("AN TOÀN VIÊN") || tieuDeCotHienTai === "ATV") {
-                    tdHtml += `<td>${item.isATV ? 'Có' : ''}</td>`;
-                } else {
-                    tdHtml += `<td>${oVal !== undefined ? oVal : ""}</td>`;
-                }
-            });
-
-            return `<tr>${tdHtml}</tr>`;
-        }).join('');
-
-        bodyTR.innerHTML = bodyHtml || `<tr><td colspan="25">Chưa có dữ liệu nạp vào hệ thống.</td></tr>`;
-        document.getElementById('ns-total').textContent = mangData.length + " người";
-        document.getElementById('ns-atv').textContent = demATV + " người";
+    function napBoLocDonVi(setUnits) {
+        let opt = `<option value="ALL">-- Mã đơn vị (Tất cả) --</option>` + Array.from(setUnits).sort().map(d => `<option value="${d}">${d}</option>`).join('');
+        document.getElementById('ns-filter-donvi').innerHTML = opt;
+        document.getElementById('form-bophan').innerHTML = `<option value="">-- Chọn đơn vị --</option>` + Array.from(setUnits).sort().map(d => `<option value="${d}">${d}</option>`).join('');
     }
 
-    function locDuLieuDongBo() {
-        let keyword = document.getElementById('ns-search').value.toLowerCase().trim();
-        let filterDonVi = document.getElementById('ns-filter-donvi').value;
-        let filterAtv = document.getElementById('ns-filter-atv').value;
+    function renderBangNhanSu(list) {
+        document.getElementById('dynamic-tbody').innerHTML = list.map((item, idx) => `
+            <tr>
+                <td>${idx+1}</td>
+                <td style="font-weight:bold;">${item.ho_ten}</td>
+                <td>${item.so_bhxh}</td>
+                <td>${item.cccd}</td>
+                <td style="font-weight:bold; color:var(--secondary-color);">${item.ma_don_vi}</td>
+                <td>${item.nam}</td>
+                <td style="font-weight:bold;">${item.nam_ve_hưu}</td>
+                <td><span class="badge ${item.gioi_tinh==='Nữ'?'badge-female':'badge-male'}">${item.gioi_tinh}</span></td>
+                <td class="col-chuc-danh-work">${item.chuc_danh}</td>
+                <td><div class="qr-zone" onclick="modalQR_NS(${idx})">📷 QR</div></td>
+            </tr>
+        `).join('');
+    }
 
-        let mLoc = DANH_SACH_MASTER.filter(item => {
-            let khopText = keyword === "" || item.employeeName.toLowerCase().includes(keyword) || item.unitCode.toLowerCase().includes(keyword);
-            let khopDonVi = filterDonVi === "ALL" || item.unitCode === filterDonVi;
-            let khopAtv = filterAtv === "ALL" || (filterAtv === "ATV" && item.isATV) || (filterAtv === "NORMAL" && !item.isATV);
-            return khopText && khopDonVi && khopAtv;
+    function thongKeNhanSu(list) {
+        let total = list.length;
+        let nu = list.filter(i => i.gioi_tinh === "Nữ").length;
+        document.getElementById('dash-tong').textContent = total + " người";
+        document.getElementById('dash-nam-nu').textContent = `${total - nu} Nam / ${nu} Nữ`;
+    }
+
+    function locDuLieuDynamic() {
+        let search = cleanMark(document.getElementById('ns-search').value).toUpperCase();
+        let dv = document.getElementById('ns-filter-donvi').value;
+        let filtered = DANH_SACH_MASTER.filter(i => {
+            let mSearch = search === "" || cleanMark(i.ho_ten).toUpperCase().includes(search) || i.cccd.includes(search);
+            let mDv = dv === "ALL" || i.ma_don_vi === dv;
+            return mSearch && mDv;
         });
-
-        thựcThiHienThiNhanSu(mLoc);
-        hienThiPhanHeThietBiQR(mLoc, filterDonVi);
-        hienThiPhanHeNhatKySuaChua(mLoc, filterDonVi);
-        hienThiPhanHeHoSoThanhToan(mLoc, filterDonVi);
+        renderBangNhanSu(filtered);
     }
 
-    function hienThiPhanHeThietBiQR(mangLoc, maDonVi) {
-        document.getElementById('lbl-donvi-tb').textContent = maDonVi === "ALL" ? "Tất cả đơn vị" : maDonVi;
-        const tbBody = document.getElementById('tb-body-dynamic');
-        let sliceData = mangLoc.slice(0, 80);
-        tbBody.innerHTML = sliceData.map((t, idx) => `<tr>
-            <td>${idx + 1}</td><td><b>${t.unitCode}</b></td><td><b>${t.employeeName}</b></td><td>TS-PC-${2000 + idx}</td>
-            <td style="text-align:center;"><div class="qr-zone" onclick="phongToQR('TS-PC-${2000 + idx}','${t.employeeName}')">🖼️ Smart QR</div></td>
-        </tr>`).join('');
+    // ================= SYNC SUPABASE ONLINE BACKEND =================
+    async function dongBoNhanSuLenSupabase() {
+        if(DANH_SACH_MASTER.length === 0) { alert("Chưa có dữ liệu nhân sự để đẩy lên Cloud."); return; }
+        // Xóa sạch bảng cũ để nạp mới hoàn toàn tránh trùng lặp
+        await _supabase.from('nhan_su').delete().neq('id', 0);
+        const { error } = await _supabase.from('nhan_su').insert(DANH_SACH_MASTER);
+        if (error) alert("Lỗi tải lên: " + error.message);
+        else {
+            alert("Đã đồng bộ thành công " + DANH_SACH_MASTER.length + " hồ sơ lên Cloud Supabase!");
+            document.getElementById('sync-time').textContent = "Cập nhật: " + new Date().toLocaleTimeString();
+        }
     }
 
-    function hienThiPhanHeNhatKySuaChua(mangLoc, maDonVi) {
-        document.getElementById('lbl-donvi-sc').textContent = maDonVi === "ALL" ? "Tất cả đơn vị" : maDonVi;
-        const scBody = document.getElementById('sc-body-dynamic');
-        let sliceData = mangLoc.slice(0, 50);
-        scBody.innerHTML = sliceData.map((t, idx) => `<tr>
-            <td>${idx + 1}</td><td><b>${t.unitCode}</b></td><td>TS-PC-${2000 + idx}</td><td>${t.employeeName}</td>
-            <td>Bảo dưỡng định kỳ và kiểm tra kỹ thuật hệ thống.</td>
-            <td><span class="badge badge-pending">⏳ Đang xử lý</span></td>
-        </tr>`).join('');
+    async function taiDuLieuTuSupabase() {
+        // 1. Tải Nhân sự
+        let res1 = await _supabase.from('nhan_su').select('*');
+        if(res1.data && res1.data.length > 0) {
+            DANH_SACH_MASTER = res1.data;
+            let units = new Set(DANH_SACH_MASTER.map(i => i.ma_don_vi));
+            napBoLocDonVi(units); renderBangNhanSu(DANH_SACH_MASTER); thongKeNhanSu(DANH_SACH_MASTER);
+        }
+        // 2. Tải Cấp phát
+        let res2 = await _supabase.from('cap_phat').select('*');
+        if(res2.data) { DANH_SACH_CAP_PHAT = res2.data; lamMoiBangCapPhat(); }
+        // 3. Tải Sửa chữa
+        let res3 = await _supabase.from('bao_tri').select('*');
+        if(res3.data) { DANH_SACH_SUA_CHUA = res3.data; lamMoiBangSuaChua(); dongBoSuaChuaSangKeToan(); }
+        // 4. Tải Quyết toán
+        let res4 = await _supabase.from('ke_toan').select('*');
+        if(res4.data) { DANH_SACH_THANH_TOAN = res4.data; lamMoiBangThanhToan(); capNhatDashboardKeToan(); }
     }
 
-    function hienThiPhanHeHoSoThanhToan(mangLoc, maDonVi) {
-        document.getElementById('lbl-donvi-tt').textContent = maDonVi === "ALL" ? "Tất cả đơn vị" : maDonVi;
-        const ttBody = document.getElementById('tt-body-dynamic');
-        let sliceData = mangLoc.slice(0, 50);
-        ttBody.innerHTML = sliceData.map((t, idx) => `<tr>
-            <td>${idx + 1}</td><td><b>${t.unitCode}</b></td><td>INV-2026-${5000 + idx}</td>
-            <td>Chi phí bảo trì thiết bị cấp phát cho: ${t.employeeName}</td>
-            <td style="font-weight:bold; color:var(--danger-color);">1.500.000 đ</td><td><span class="badge badge-active">Đã duyệt chi</span></td>
-        </tr>`).join('');
+    // ================= PHÂN HỆ 2, 3, 4 ONLINE CRUD =================
+    function kiemTraLoaiThietBi() {
+        document.getElementById('group-loai-khac').style.display = document.getElementById('form-loai-tb').value === "KHAC" ? "flex" : "none";
+        tuDongSinhMaThietBi();
+    }
+    function tuDongSinhMaThietBi() {
+        let loai = document.getElementById('form-loai-tb').value;
+        let c = DANH_SACH_CAP_PHAT.length + 1;
+        document.getElementById('form-ma-tb').value = `TB-${loai}-${new Date().getFullYear()}-${String(c).padStart(4,'0')}`;
+    }
+    function capNhatNhanSuTheoBoPhan() {
+        let bp = document.getElementById('form-bophan').value;
+        let ds = DANH_SACH_MASTER.filter(i => i.ma_don_vi === bp);
+        document.getElementById('form-nhansu').innerHTML = ds.map(i => `<option value="${i.ho_ten}">${i.ho_ten}</option>`).join('');
+    }
+    async function themMoiCapPhat(e) {
+        e.preventDefault();
+        let item = {
+            ma_tb: document.getElementById('form-ma-tb').value,
+            loai_tb: document.getElementById('form-loai-tb').value,
+            bo_phan: document.getElementById('form-bophan').value,
+            nguoi_dung: document.getElementById('form-nhansu').value,
+            ngay_cap: new Date().toLocaleDateString('vi-VN')
+        };
+        await _supabase.from('cap_phat').insert([item]);
+        DANH_SACH_CAP_PHAT.push(item); lamMoiBangCapPhat(); document.getElementById('frm-cap-phat').reset(); tuDongSinhMaThietBi();
+    }
+    function lamMoiBangCapPhat() {
+        document.getElementById('tb-body-dynamic').innerHTML = DANH_SACH_CAP_PHAT.map((item, idx) => `<tr><td>${idx+1}</td><td style='font-weight:bold; color:var(--primary-color);'>${item.ma_tb}</td><td>${item.loai_tb}</td><td><b>${item.bo_phan}</b></td><td>${item.nguoi_dung}</td><td>${item.ngay_cap}</td><td><div class="qr-zone" onclick="modalQR_CP(${idx})">📷 QR</div></td><td><button class="btn-action btn-delete" onclick="xoaCapPhat(${idx})">Xóa</button></td></tr>`).join('');
+        document.getElementById('repair-ma-tb').innerHTML = `<option value="">-- Chọn thiết bị --</option>` + DANH_SACH_CAP_PHAT.map(t => `<option value="${t.ma_tb}">${t.ma_tb}</option>`).join('');
+    }
+    async function xoaCapPhat(idx) {
+        await _supabase.from('cap_phat').delete().eq('ma_tb', DANH_SACH_CAP_PHAT[idx].ma_tb);
+        DANH_SACH_CAP_PHAT.splice(idx,1); lamMoiBangCapPhat();
     }
 
-    function phongToQR(maTs, ten) {
-        let qr = qrcode(0, 'M');
-        qr.addData(`MÃ TÀI SẢN: ${maTs}\nNHÂN VIÊN: ${ten}`);
-        qr.make();
-        document.getElementById('modal-qr-holder').innerHTML = qr.createImgTag(5.5);
-        document.getElementById('overlay').style.display = 'block';
-        document.getElementById('modal-qr').style.display = 'block';
+    function autoDienThongTinThietBi() {
+        let t = DANH_SACH_CAP_PHAT.find(i => i.ma_tb === document.getElementById('repair-ma-tb').value);
+        document.getElementById('repair-bophan').value = t ? t.bo_phan : "";
+        document.getElementById('repair-nhansu').value = t ? t.nguoi_dung : "";
+    }
+    async function themMoiNhatKySuaChua(e) {
+        e.preventDefault();
+        let item = {
+            ma_tb: document.getElementById('repair-ma-tb').value,
+            bo_phan: document.getElementById('repair-bophan').value,
+            nguoi_dung: document.getElementById('repair-nhansu').value,
+            phan_loai: document.getElementById('repair-phanloai').value,
+            chi_phi: parseFloat(document.getElementById('repair-chiphi').value || 0),
+            mo_ta: document.getElementById('repair-mota').value
+        };
+        await _supabase.from('bao_tri').insert([item]);
+        DANH_SACH_SUA_CHUA.push(item); lamMoiBangSuaChua(); dongBoSuaChuaSangKeToan(); document.getElementById('frm-repair').reset();
+    }
+    function lamMoiBangSuaChua() {
+        document.getElementById('sc-body-dynamic').innerHTML = DANH_SACH_SUA_CHUA.map((item, idx) => `<tr><td>${idx+1}</td><td style="font-weight:bold;">${item.ma_tb}</td><td><b>${item.bo_phan}</b></td><td>${item.nguoi_dung}</td><td><small class="badge badge-warning">${item.phan_loai}</small></td><td style="color:var(--danger-color); font-weight:bold;">${item.chi_phi.toLocaleString()} đ</td><td class="cell-flexible">${item.mo_ta}</td><td><div class="qr-zone" onclick="modalQR_SC(${idx})">📷 QR</div></td><td><button class="btn-action btn-delete" onclick="xoaSuaChua(${idx})">Xóa</button></td></tr>`).join('');
+    }
+    async function xoaSuaChua(idx) {
+        await _supabase.from('bao_tri').delete().eq('ma_tb', DANH_SACH_SUA_CHUA[idx].ma_tb).eq('mo_ta', DANH_SACH_SUA_CHUA[idx].mo_ta);
+        DANH_SACH_SUA_CHUA.splice(idx,1); lamMoiBangSuaChua(); dongBoSuaChuaSangKeToan();
+    }
+    function dongBoSuaChuaSangKeToan() {
+        document.getElementById('tt-repair-index').innerHTML = `<option value="">-- Chọn hồ sơ bảo trì --</option>` + DANH_SACH_SUA_CHUA.map((s, idx) => `<option value="${idx}">Hồ sơ [${s.ma_tb}] - ${s.chi_phi.toLocaleString()}đ</option>`).join('');
     }
 
-    function dongModalQR() {
-        document.getElementById('overlay').style.display = 'none';
-        document.getElementById('modal-qr').style.display = 'none';
+    function autoFillTuNhatKySuaChua() {
+        let sc = DANH_SACH_SUA_CHUA[document.getElementById('tt-repair-index').value]; if(!sc) return;
+        document.getElementById('tt-ma-tb').value = sc.ma_tb;
+        document.getElementById('tt-bophan').value = sc.bo_phan;
+        document.getElementById('tt-gia-goc').value = sc.chi_phi;
+        tinhToanThongSoThue();
+    }
+    function tinhToanThongSoThue() {
+        let goc = parseFloat(document.getElementById('tt-gia-goc').value || 0);
+        let vat = parseFloat(document.getElementById('tt-vat').value || 0);
+        document.getElementById('tt-tien-thue').value = (goc * vat / 100).toLocaleString() + " đ";
+        document.getElementById('tt-tong-sau-thue').value = (goc * (1 + vat/100)).toLocaleString() + " đ";
+    }
+    async function themMoiThanhToan(e) {
+        e.preventDefault();
+        let goc = parseFloat(document.getElementById('tt-gia-goc').value || 0);
+        let vat = parseFloat(document.getElementById('tt-vat').value || 0);
+        let gross = goc * (1 + vat/100);
+        let item = {
+            ma_tb: document.getElementById('tt-ma-tb').value,
+            bo_phan: document.getElementById('tt-bophan').value,
+            gross: gross,
+            stk: document.getElementById('tt-stk').value,
+            ngan_hang: document.getElementById('tt-ngonhang').value,
+            chu_tk: document.getElementById('tt-chutk').value,
+            link_ct: document.getElementById('tt-link-chungtu').value
+        };
+        await _supabase.from('ke_toan').insert([item]);
+        DANH_SACH_THANH_TOAN.push(item); capNhatDashboardKeToan(); lamMoiBangThanhToan(); document.getElementById('frm-thanh-toan').reset();
+    }
+    function lamMoiBangThanhToan() {
+        document.getElementById('tt-body-dynamic').innerHTML = DANH_SACH_THANH_TOAN.map((item, idx) => `<tr><td>${idx+1}</td><td style="font-weight:bold;">${item.ma_tb}</td><td><b>${item.bo_phan}</b></td><td style="color:var(--success-color); font-weight:bold;">${item.gross.toLocaleString()} đ</td><td><code>${item.stk}</code></td><td>${item.ngan_hang}</td><td><a href="${item.link_ct}" target="_blank">Link</a></td><td><div class="qr-zone" onclick="modalQR_TT(${idx})">📷 QR</div></td><td><button class="btn-action" onclick="inPhieu(${idx})">📄 In</button></td><td><button class="btn-action btn-delete" onclick="xoaThanhToan(${idx})">Xóa</button></td></tr>`).join('');
+    }
+    function capNhatDashboardKeToan() {
+        document.getElementById('tt-count').textContent = DANH_SACH_THANH_TOAN.length + " bộ";
+        let total = DANH_SACH_THANH_TOAN.reduce((sum, i) => sum + i.gross, 0);
+        document.getElementById('tt-sum-gross').textContent = total.toLocaleString() + " đ";
+    }
+    async function xoaThanhToan(idx) {
+        await _supabase.from('ke_toan').delete().eq('ma_tb', DANH_SACH_THANH_TOAN[idx].ma_tb).eq('stk', DANH_SACH_THANH_TOAN[idx].stk);
+        DANH_SACH_THANH_TOAN.splice(idx,1); lamMoiBangThanhToan(); capNhatDashboardKeToan();
+    }
+
+    // ================= QR GENERATOR & MODAL =================
+    function showModalQR(code, text) {
+        let qr = qrcode(0, 'M'); qr.addData(code); qr.make();
+        document.getElementById('modal-qr-holder').innerHTML = qr.createImgTag(5);
+        document.getElementById('modal-qr-text').textContent = text;
+        document.getElementById('overlay').style.display = 'block'; document.getElementById('modal-qr').style.display = 'block';
+    }
+    function dongModals() { document.getElementById('modal-qr').style.display = 'none'; document.getElementById('overlay').style.display = 'none'; }
+    
+    function modalQR_NS(idx) { let i = DANH_SACH_MASTER[idx]; showModalQR(`NS-${i.ho_ten}`, `Hồ Sơ: ${i.ho_ten}\nCCCD: ${i.cccd}\nĐơn vị: ${i.ma_don_vi}\nNăm hưu: ${i.nam_ve_hưu}`); }
+    function modalQR_CP(idx) { let i = DANH_SACH_CAP_PHAT[idx]; showModalQR(`CP-${i.ma_tb}`, `Tài Sản: ${i.ma_tb}\nNgười dùng: ${i.nguoi_dung}\nBộ phận: ${i.bo_phan}`); }
+    function modalQR_SC(idx) { let i = DANH_SACH_SUA_CHUA[idx]; showModalQR(`SC-${i.ma_tb}`, `Bảo Trì: ${i.ma_tb}\nChi phí: ${i.chi_phi.toLocaleString()}đ\nNội dung: ${i.mo_ta}`); }
+    function modalQR_TT(idx) { let i = DANH_SACH_THANH_TOAN[idx]; showModalQR(`BANK-${i.stk}`, `Ủy Nhiệm Chi:\nSTK: ${i.stk}\nNgân hàng: ${i.ngan_hang}\nSố tiền: ${i.gross.toLocaleString()} đ`); }
+
+    function inPhieu(idx) {
+        let data = DANH_SACH_THANH_TOAN[idx];
+        let p = document.getElementById('doc-export-preview');
+        p.innerHTML = `<h3 style='text-align:center;'>ỦY NHIỆM CHI PHÊ DUYỆT</h3><p>Thiết bị giải ngân: <b>${data.ma_tb}</b></p><p>Đơn vị yêu cầu: ${data.bo_phan}</p><p>Chủ tài khoản nhận: ${data.chu_tk} - STK: ${data.stk} tại ${data.ngan_hang}</p><h4>Tổng số tiền thanh toán (Gross): ${data.gross.toLocaleString()} VNĐ</h4><br><center><button onclick="window.print()">🖨️ Tiến hành in ấn</button></center>`;
+        p.style.display = "block"; p.scrollIntoView({ behavior: 'smooth' });
     }
 </script>
 </body>
