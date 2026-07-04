@@ -40,7 +40,7 @@
         .status-bar { background: #e2e8f0; padding: 6px 12px; border-radius: 4px; margin-bottom: 15px; font-size: 9.5pt; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
         .dot-online { display: inline-block; width: 10px; height: 10px; background: var(--success-color); border-radius: 50%; margin-right: 5px; }
 
-        /* KHU VỰC DASHBOARD TỔNG QUAN MỚI ĐẦY ĐỦ CHỈ SỐ */
+        /* DASHBOARD TỔNG QUAN */
         .dashboard-section {
             background: #fff; border: 1px solid var(--border-color); padding: 15px; border-radius: 6px; margin-bottom: 20px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.02);
@@ -85,8 +85,10 @@
         .form-group full-width { grid-column: 1 / -1; }
         
         .btn-submit { background-color: var(--success-color); color: white; border: none; padding: 8px 16px; font-size: 10.5pt; font-weight: bold; cursor: pointer; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; height: 38px; }
-        .btn-action { padding: 4px 8px; font-size: 9.5pt; font-weight: bold; cursor: pointer; border-radius: 3px; border: 1px solid transparent; }
+        .btn-action { padding: 4px 8px; font-size: 9.5pt; font-weight: bold; cursor: pointer; border-radius: 3px; border: 1px solid transparent; margin-right: 2px; }
         .btn-delete { background-color: #fef2f2; color: #dc2626; border-color: #fca5a5; }
+        .btn-edit { background-color: #f0fdf4; color: #16a34a; border-color: #bbf7d0; }
+        .btn-cancel { background-color: #f1f5f9; color: #475569; border-color: #cbd5e1; }
 
         .table-responsive { width: 100%; overflow-x: auto; border: 1px solid var(--border-color); background: var(--card-bg); max-height: 450px; overflow-y: auto; border-radius: 4px; margin-bottom: 15px;}
         table { width: 100%; border-collapse: separate; border-spacing: 0; }
@@ -99,7 +101,6 @@
         .badge-male { background-color: #eff6ff; color: #2563eb; }
         .badge-yes { background-color: #dcfce7; color: #15803d; }
         
-        /* Badge trạng thái hồ sơ kế toán */
         .badge-pending { background-color: #fff7ed; color: #c2410c; border: 1px solid #ffedd5; }
         .badge-paid { background-color: #f0fdf4; color: #16a34a; border: 1px solid #dcfce7; }
 
@@ -115,19 +116,10 @@
         .preview-body { min-height: 300px; display: flex; justify-content: center; align-items: center; background: #f8fafc; border: 1px inset #cbd5e1; padding: 15px; overflow: auto; }
         .preview-body img { max-width: 100%; max-height: 600px; object-fit: contain; }
         .preview-body iframe { width: 100%; height: 600px; border: none; }
-        .excel-preview-table { width: 100%; border-collapse: collapse; font-size: 9.5pt; background: #fff; }
-        .excel-preview-table th, .excel-preview-table td { border: 1px solid #cbd5e1; padding: 6px 8px; text-align: left; }
 
         .modal-qr { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 6px; z-index: 1000; text-align: center; border: 2px solid var(--primary-color); box-shadow: 0 10px 25px rgba(0,0,0,0.3); width: 90%; max-width: 400px; }
         .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 999; }
-
         .tax-tool-box { background: #fef3c7; border: 1px solid #f59e0b; padding: 12px; border-radius: 6px; margin-top: 5px; }
-
-        @media print {
-            body * { visibility: hidden; }
-            #print-area, #print-area * { visibility: visible; }
-            #print-area { position: absolute; left: 0; top: 0; width: 100%; }
-        }
     </style>
 </head>
 <body>
@@ -213,7 +205,7 @@
         <div class="table-responsive">
             <table>
                 <thead>
-                    <tr><th>STT</th><th>Họ và Tên</th><th>Ngày Tháng Năm Sinh</th><th>Tuổi</th><th>Số sổ BHXH</th><th>Số CCCD</th><th>Mã Đơn Vị</th><th>Mốc Hưu Cũ</th><th>Hưu Mới (Luật Mới)</th><th>Giới tính</th><th>An Toàn Viên</th><th>Nghề Độc Hại</th><th class="col-chuc-danh">Chức danh công việc</th><th>QR</th></tr>
+                    <tr><th>STT</th><th>Họ và Tên</th><th>Ngày Sinh</th><th>Tuổi</th><th>Số sổ BHXH</th><th>Số CCCD</th><th>Mã Đơn Vị</th><th>Mốc Hưu Cũ</th><th>Hưu Mới</th><th>Giới tính</th><th>An Toàn Viên</th><th>Nghề Độc Hại</th><th class="col-chuc-danh">Chức danh công việc</th><th>QR</th></tr>
                 </thead>
                 <tbody id="dynamic-tbody"></tbody>
             </table>
@@ -221,58 +213,49 @@
     </div>
 
     <div id="thiet-bi" class="tab-content">
-        <div class="panel-control">
-            <h3 style="margin-top:0; color:var(--primary-color);">ĐĂNG KÝ PHÂN PHỐI CẤP PHÁT TÀI SẢN VẬT TƯ</h3>
+        <div class="panel-control" id="form-cap-phat-anchor">
+            <h3 style="margin-top:0; color:var(--primary-color);" id="title-cap-phat">ĐĂNG KÝ PHÂN PHỐI CẤP PHÁT TÀI SẢN VẬT TƯ</h3>
             <form id="frm-cap-phat" onsubmit="themMoiCapPhat(event)">
+                <input type="hidden" id="edit-cp-id" value="">
                 <div class="allocation-form-grid">
                     <div class="form-group">
                         <label>Loại Thiết Bị / Vật Tư</label>
-                        <input type="text" id="form-loai-tb" list="gợi-ý-loai-tb" class="input-custom" placeholder="Ví dụ: Máy in, PC, Giấy A4..." oninput="tuDongSinhMaThietBi()" required>
+                        <input type="text" id="form-loai-tb" list="gợi-ý-loai-tb" class="input-custom" placeholder="Ví dụ: Máy in, PC..." oninput="tuDongSinhMaThietBi()" required>
                         <datalist id="gợi-ý-loai-tb">
                             <option value="Máy Tính Xách Tay (PC)">
                             <option value="Điện Thoại Di Động (PHONE)">
                             <option value="Máy in Văn Phòng (PRINTER)">
-                            <option value="Giấy In Văn Phòng">
-                            <option value="Thiết Bị Mạng (ROUTER)">
                         </datalist>
                     </div>
-                    <div class="form-group"><label>Mã Thiết Bị Hệ Thống (Tự sinh)</label><input type="text" id="form-ma-tb" class="input-custom" style="background:#e2e8f0; font-weight: bold;" readonly></div>
-                    
-                    <div class="form-group">
-                        <label>Số lượng cấp phát</label>
-                        <input type="number" id="form-soluong" class="input-custom" value="1" min="1" required>
-                    </div>
+                    <div class="form-group"><label>Mã Thiết Bị Hệ Thống</label><input type="text" id="form-ma-tb" class="input-custom" style="background:#e2e8f0; font-weight: bold;" readonly></div>
+                    <div class="form-group"><label>Số lượng cấp phát</label><input type="number" id="form-soluong" class="input-custom" value="1" min="1" required></div>
                     <div class="form-group">
                         <label>Đơn vị tính</label>
                         <select id="form-donvi" class="input-custom">
-                            <option value="Cái">Cái</option>
-                            <option value="Bộ">Bộ</option>
-                            <option value="Chiếc">Chiếc</option>
-                            <option value="Ram">Ram (Giấy)</option>
-                            <option value="Thùng">Thùng</option>
-                            <option value="Hộp">Hộp</option>
-                            <option value="Gói">Gói</option>
+                            <option value="Cái">Cái</option><option value="Bộ">Bộ</option><option value="Chiếc">Chiếc</option><option value="Ram">Ram</option>
                         </select>
                     </div>
-
                     <div class="form-group"><label>Bộ Phận Thụ Hưởng</label><select id="form-bophan" class="input-custom" onchange="capNhatNhanSuTheoBoPhan()"><option value="">-- Chọn bộ phận --</option></select></div>
                     <div class="form-group"><label>Nhân Viên Vận Hành</label><select id="form-nhansu" class="input-custom"><option value="">-- Chọn nhân viên --</option></select></div>
-                    <div class="form-group full-width" style="text-align: right; margin-top:5px;"><button type="submit" class="btn-submit">💾 Lưu Cấp Phát Cloud</button></div>
+                    <div class="form-group full-width" style="text-align: right; margin-top:5px;" id="action-cp-buttons">
+                        <button type="submit" class="btn-submit" id="btn-submit-cp">💾 Lưu Cấp Phát Cloud</button>
+                    </div>
                 </div>
             </form>
         </div>
         <div class="table-responsive">
             <table>
-                <thead><tr><th>STT</th><th>Mã Hệ Thống</th><th>Tên Loại Thiết Bị / Vật Tư</th><th>Số Lượng</th><th>Đơn Vị</th><th>Bộ Phận</th><th>Người Nhận Vận Hành</th><th>Ngày Cấp</th><th>QR</th><th>Thao Tác</th></tr></thead>
+                <thead><tr><th>STT</th><th>Mã Hệ Thống</th><th>Tên Loại Thiết Bị</th><th>Số Lượng</th><th>Đơn Vị</th><th>Bộ Phận</th><th>Người Vận Hành</th><th>Ngày Cấp</th><th>QR</th><th>Thao Tác</th></tr></thead>
                 <tbody id="tb-body-dynamic"></tbody>
             </table>
         </div>
     </div>
 
     <div id="sua-chua" class="tab-content">
-        <div class="panel-control">
-            <h3 style="margin-top:0; color:var(--danger-color);">NHẬT KÝ BẢO TRÌ SỬA CHỮA TÀI SẢN</h3>
+        <div class="panel-control" id="form-sua-chua-anchor">
+            <h3 style="margin-top:0; color:var(--danger-color);" id="title-sua-chua">NHẬT KÝ BẢO TRÌ SỬA CHỮA TÀI SẢN</h3>
             <form id="frm-repair" onsubmit="themMoiNhatKySuaChua(event)">
+                <input type="hidden" id="edit-sc-id" value="">
                 <div class="allocation-form-grid">
                     <div class="form-group"><label>Chọn Thiết Bị Báo Lỗi</label><select id="repair-ma-tb" class="input-custom" onchange="autoDienThongTinThietBi()"><option value="">-- Chọn thiết bị --</option></select></div>
                     <div class="form-group"><label>Bộ Phận Quản Lý</label><input type="text" id="repair-bophan" class="input-custom" style="background:#f1f5f9;" readonly></div>
@@ -280,22 +263,25 @@
                     <div class="form-group"><label>Phân Loại Hạc Mục</label><select id="repair-phanloai" class="input-custom"><option value="Sự cố hỏng hóc">Sự cố hỏng hóc</option><option value="Bảo dưỡng định kỳ">Bảo dưỡng định kỳ</option></select></div>
                     <div class="form-group"><label>Chi Phí Khắc Phục (VNĐ)</label><input type="number" id="repair-chiphi" class="input-custom" min="0" required></div>
                     <div class="form-group full-width"><label>Mô Tả Chi Tiết Nội Dung Khắc Phục</label><textarea id="repair-mota" class="input-custom" style="height:55px;" required></textarea></div>
-                    <div class="form-group"><button type="submit" class="btn-submit" style="background:var(--danger-color);">🔧 Ghi Nhật Ký Cloud</button></div>
+                    <div class="form-group full-width" style="text-align: right;" id="action-sc-buttons">
+                        <button type="submit" class="btn-submit" style="background:var(--danger-color);" id="btn-submit-sc">🔧 Ghi Nhật Ký Cloud</button>
+                    </div>
                 </div>
             </form>
         </div>
         <div class="table-responsive">
             <table>
-                <thead><tr><th>STT</th><th>Mã Thiết Bị</th><th>Bộ Phận</th><th>Nhân Viên</th><th>Phân Loại</th><th>Chi Phí</th><th>Mô Tả Chi Tiết</th><th>QR</th><th>Thao Tác</th></tr></thead>
+                <thead><tr><th>STT</th><th>Mã Thiết Bị</th><th>Bộ Phận</th><th>Nhân Viên</th><th>Phân Loại</th><th>Chi Phí</th><th>Mô Tả</th><th>QR</th><th>Thao Tác</th></tr></thead>
                 <tbody id="sc-body-dynamic"></tbody>
             </table>
         </div>
     </div>
 
     <div id="thanh-toan" class="tab-content">
-        <div class="panel-control">
-            <h3 style="margin-top:0; color:var(--purple-color);">💳 PHÂN HỆ QUYẾT TOÁN CHI PHÍ GỐC & CÔNG CỤ TỰ ĐỘNG TÍNH THUẾ LINH HOẠT</h3>
+        <div class="panel-control" id="form-thanh-toan-anchor">
+            <h3 style="margin-top:0; color:var(--purple-color);" id="title-thanh-toan">💳 PHÂN HỆ QUYẾT TOÁN CHI PHÍ & THUẾ LINH HOẠT</h3>
             <form id="frm-thanh-toan" onsubmit="themMoiThanhToanNângCao(event)">
+                <input type="hidden" id="edit-tt-id" value="">
                 <div class="allocation-form-grid">
                     <div class="form-group"><label>Chọn Hồ Sơ Nhật Ký Bảo Trì</label><select id="tt-repair-index" class="input-custom" onchange="autoFillTuNhatKySuaChua()"><option value="">-- Chọn hồ sơ liên thông --</option></select></div>
                     <div class="form-group"><label>Mã Thiết Bị</label><input type="text" id="tt-ma-tb" class="input-custom" required></div>
@@ -304,399 +290,138 @@
                     <div class="form-group"><label>Nội Dung Sửa Chữa</label><input type="text" id="tt-noidung" class="input-custom"></div>
                     
                     <div class="form-group full-width tax-tool-box">
-                        <span style="font-weight: bold; color: var(--warning-color); display: block; margin-bottom: 8px;">🎛️ BỘ TÍNH THUẾ VAT TỰ ĐỘNG (ĐA HƯỚNG LINH HOẠT)</span>
+                        <span style="font-weight: bold; color: var(--warning-color); display: block; margin-bottom: 8px;">🎛️ BỘ TÍNH THUẾ VAT TỰ ĐỘNG</span>
                         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px;">
                             <div>
                                 <label style="font-size: 9.5pt; font-weight: bold;">Mức Thuế Suất VAT</label>
                                 <select id="tt-vat-select" class="input-custom" onchange="thayDoiLoaiThueSuat()">
-                                    <option value="0">Thuế 0%</option>
-                                    <option value="5">Thuế 5%</option>
-                                    <option value="8">Thuế 8%</option>
-                                    <option value="10" selected>Thuế 10%</option>
-                                    <option value="CUSTOM">Mức tùy chỉnh (%)</option>
+                                    <option value="0">Thuế 0%</option><option value="5">Thuế 5%</option><option value="8">Thuế 8%</option><option value="10" selected>Thuế 10%</option><option value="CUSTOM">Tùy chỉnh (%)</option>
                                 </select>
                             </div>
                             <div id="custom-tax-input-group" style="display: none;">
-                                <label style="font-size: 9.5pt; font-weight: bold; color: var(--danger-color);">Nhập % thuế mong muốn</label>
-                                <input type="number" id="tt-vat-custom-value" class="input-custom" value="10" min="0" max="100" oninput="tinhToanThueLinhHoat('GOC')">
+                                <label style="font-size: 9.5pt; font-weight: bold; color: var(--danger-color);">Nhập % thuế</label>
+                                <input type="number" id="tt-vat-custom-value" class="input-custom" value="10" min="0" oninput="tinhToanThueLinhHoat('GOC')">
                             </div>
                             <div>
-                                <label style="font-size: 9.5pt; font-weight: bold; color: blue;">Tiền Thuế VAT tương ứng</label>
+                                <label style="font-size: 9.5pt; font-weight: bold; color: blue;">Tiền Thuế VAT</label>
                                 <input type="text" id="tt-tien-thue-vat" class="input-custom" style="background:#f1f5f9; font-weight: bold;" readonly value="0">
                             </div>
                             <div>
-                                <label style="font-size: 9.5pt; font-weight: bold; color: #1e293b;">Phương thức tính toán</label>
+                                <label style="font-size: 9.5pt; font-weight: bold;">Phương thức</label>
                                 <div style="font-size: 9pt; margin-top: 5px;">
-                                    <label><input type="radio" name="tax_calc_mode" id="mode-goc" checked onchange="tinhToanThueLinhHoat('GOC')"> Tính từ giá gốc (Chưa thuế)</label><br>
-                                    <label><input type="radio" name="tax_calc_mode" id="mode-gross" onchange="tinhToanThueLinhHoat('GROSS')"> Tính ngược từ tổng Gross</label>
+                                    <label><input type="radio" name="tax_calc_mode" id="mode-goc" checked onchange="tinhToanThueLinhHoat('GOC')"> Tính từ giá gốc</label><br>
+                                    <label><input type="radio" name="tax_calc_mode" id="mode-gross" onchange="tinhToanThueLinhHoat('GROSS')"> Tính ngược từ Gross</label>
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     <div class="form-group"><label>Chi Phí Gốc (Chưa thuế)</label><input type="number" id="tt-chiphi" class="input-custom" value="0" oninput="tinhToanThueLinhHoat('GOC')"></div>
-                    <div class="form-group"><label>Tổng Thanh Toán (Gross - Có thuế)</label><input type="number" id="tt-tong-sau-thue" class="input-custom" style="background:#bbf7d0; font-weight:bold;" value="0" oninput="tinhToanThueLinhHoat('GROSS')"></div>
+                    <div class="form-group"><label>Tổng Thanh Toán (Gross)</label><input type="number" id="tt-tong-sau-thue" class="input-custom" style="background:#bbf7d0; font-weight:bold;" value="0" oninput="tinhToanThueLinhHoat('GROSS')"></div>
                     <div class="form-group"><label>Số Tài Khoản Nhận</label><input type="text" id="tt-stk" class="input-custom"></div>
-                    <div class="form-group"><label>Ngân Hàng Thụ Hưởng</label><input type="text" id="tt-ngonhang" class="input-custom"></div>
-                    <div class="form-group"><label>Chủ Tài Khoản Đơn Vị</label><input type="text" id="tt-chutk" class="input-custom"></div>
-                    
-                    <div class="form-group">
-                        <label>Trạng thái giải ngân</label>
-                        <select id="tt-trangthai" class="input-custom">
-                            <option value="Chờ duyệt">Chờ duyệt chi</option>
-                            <option value="Đã thanh toán">Đã giải ngân thanh toán</option>
-                        </select>
-                    </div>
+                    <div class="form-group"><label>Ngân Hàng</label><input type="text" id="tt-ngonhang" class="input-custom"></div>
+                    <div class="form-group"><label>Chủ Tài Khoản</label><input type="text" id="tt-chutk" class="input-custom"></div>
+                    <div class="form-group"><label>Trạng thái</label><select id="tt-trangthai" class="input-custom"><option value="Chờ duyệt">Chờ duyệt chi</option><option value="Đã thanh toán">Đã giải ngân</option></select></div>
 
                     <div class="form-group full-width">
-                        <label style="color: var(--purple-color); font-weight: bold;">Tải lên Chứng từ trực tiếp:</label>
-                        <div class="upload-zone" onclick="document.getElementById('file-upload-input').click()">
-                            📂 Nhấp để chọn file hoặc Thả tập tin vào đây
-                        </div>
-                        <div style="margin-top: 5px; display: flex; gap: 10px;">
-                            <button type="button" class="btn-action" style="background:#e2e8f0;" onclick="kichHoatUploadFolder(false)">📁 Chế độ chọn file</button>
-                            <button type="button" class="btn-action" style="background:#e2e8f0;" onclick="kichHoatUploadFolder(true)">🗂️ Chế độ chọn CẢ THƯ MỤC</button>
-                        </div>
+                        <label style="color: var(--purple-color); font-weight: bold;">Tải lên Chứng từ trực tiếp (Bắt buộc khi tạo mới):</label>
+                        <div class="upload-zone" onclick="document.getElementById('file-upload-input').click()">📂 Nhấp để chọn hoặc Thả file vào đây</div>
                         <input type="file" id="file-upload-input" style="display:none;" multiple onchange="xuLyDanhSachFileChon(event)">
                         <div class="file-list-preview" id="ds-file-cho-upload"></div>
                     </div>
-                    <div class="form-group full-width" style="text-align: right;"><button type="submit" class="btn-submit" style="background:var(--purple-color);">⚡ Phê Duyệt Ủy Nhiệm Chi & Đồng Bộ Cloud</button></div>
+                    <div class="form-group full-width" style="text-align: right;" id="action-tt-buttons">
+                        <button type="submit" class="btn-submit" style="background:var(--purple-color);" id="btn-submit-tt">⚡ Phê Duyệt Ủy Nhiệm Chi</button>
+                    </div>
                 </div>
             </form>
         </div>
         <div class="table-responsive">
             <table>
-                <thead><tr><th>STT</th><th>Mã Thiết Bị</th><th>Đơn Vị</th><th>Nhân Viên</th><th>Nội Dung</th><th>Chi Phí Gốc</th><th>Tiền Thuế VAT</th><th>Tổng Gross</th><th>Tài Khoản</th><th>Ngân Hàng</th><th>Chủ TK</th><th>Trạng Thái</th><th>Tệp Đính Kèm</th><th>Thao Tác</th></tr></thead>
+                <thead><tr><th>STT</th><th>Mã Thiết Bị</th><th>Đơn Vị</th><th>Nhân Viên</th><th>Nội Dung</th><th>Chi Phí Gốc</th><th>Thuế VAT</th><th>Tổng Gross</th><th>Tài Khoản</th><th>Ngân Hàng</th><th>Chủ TK</th><th>Trạng Thái</th><th>Tệp Đính Kèm</th><th>Thao Tác</th></tr></thead>
                 <tbody id="tt-body-dynamic"></tbody>
             </table>
-        </div>
-
-        <div class="preview-container" id="khu-vuc-preview">
-            <div class="preview-header">
-                <h4 style="margin:0; color:var(--primary-color);" id="preview-title">📄 XEM TRƯỚC CHỨNG TỪ TRỰC TUYẾN</h4>
-                <div>
-                    <button class="btn-submit" style="background:var(--success-color); padding: 4px 12px; font-size:10pt;" id="btn-print-action">🖨️ In nội dung</button>
-                    <a class="btn-submit" style="background:var(--secondary-color); padding: 4px 12px; font-size:10pt; text-decoration:none;" id="btn-download-action" href="#" download target="_blank">📥 Tải file về máy</a>
-                    <button class="btn-submit" style="background:#64748b; padding: 4px 12px; font-size:10pt;" onclick="dongKhuVucPreview()">❌ Đóng</button>
-                </div>
-            </div>
-            <div class="preview-body" id="print-area"><div id="preview-content-render" style="width:100%;"></div></div>
         </div>
     </div>
 </div>
 
 <div class="overlay" id="overlay" onclick="dongModals()"></div>
-<div class="modal-qr" id="modal-qr">
-    <div id="modal-qr-holder"></div>
-    <div id="modal-qr-text" style="font-weight:bold; margin-top:10px; text-align:left; font-size:10pt; font-family: monospace; white-space: pre-wrap;"></div>
-    <br><button class="btn-submit" style="background:#64748b; height:30px;" onclick="dongModals()">Đóng</button>
-</div>
+<div class="modal-qr" id="modal-qr"><div id="modal-qr-holder"></div><div id="modal-qr-text" style="font-weight:bold; margin-top:10px; text-align:left; font-size:10pt; font-family: monospace; white-space: pre-wrap;"></div><br><button class="btn-submit" style="background:#64748b; height:30px;" onclick="dongModals()">Đóng</button></div>
 
 <script>
     const SUPABASE_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co";
     const SUPABASE_KEY = "sb_publishable_F9qfNlAUikQ-9pYHV8jL8g_xrBa8s5w";
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    let DANH_SACH_MASTER = []; 
-    let DANH_SACH_CAP_PHAT = []; 
-    let DANH_SACH_SUA_CHUA = [];
-    let DANH_SACH_THANH_TOAN = [];
-    let MANG_FILE_CHO_UPLOAD = [];
+    let DANH_SACH_MASTER = []; let DANH_SACH_CAP_PHAT = []; let DANH_SACH_SUA_CHUA = []; let DANH_SACH_THANH_TOAN = []; let MANG_FILE_CHO_UPLOAD = [];
 
-    window.addEventListener('DOMContentLoaded', async () => {
-        await taiDuLieuTuSupabase();
-        
-        const urlParams = new URLSearchParams(window.location.search);
-        const tabParam = urlParams.get('tab');       
-        const searchParam = urlParams.get('search'); 
-        
-        if (tabParam) {
-            chuyenPhanHe(tabParam);
-            if (searchParam) {
-                if (tabParam === 'nhan-su') {
-                    document.getElementById('ns-search').value = searchParam;
-                    locDuLieuDynamic();
-                } 
-                else if (tabParam === 'thiet-bi') {
-                    let filteredRow = DANH_SACH_CAP_PHAT.filter(item => (item.ma_tb || item.MA_TB || "") === searchParam);
-                    if(filteredRow.length > 0) {
-                        DANH_SACH_CAP_PHAT = filteredRow;
-                        lamMoiBangCapPhat();
-                    }
-                }
-                else if (tabParam === 'sua-chua') {
-                    let filteredRow = DANH_SACH_SUA_CHUA.filter(item => (item.ma_tb || item.MA_TB || "") === searchParam);
-                    if(filteredRow.length > 0) {
-                        DANH_SACH_SUA_CHUA = filteredRow;
-                        lamMoiBangSuaChua();
-                    }
-                }
-            }
-        }
-    });
-
-    function chuyenPhanHe(id) {
-        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-        document.getElementById(id).classList.add('active');
-        document.getElementById('btn-tab-' + id).classList.add('active');
-    }
-
+    window.addEventListener('DOMContentLoaded', async () => { await taiDuLieuTuSupabase(); });
+    function chuyenPhanHe(id) { document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active')); document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active')); document.getElementById(id).classList.add('active'); document.getElementById('btn-tab-' + id).classList.add('active'); }
     function cleanString(str) { return String(str || "").replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim(); }
     function cleanMark(str) { return cleanString(str).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/Đ/g, "D").replace(/đ/g, "d"); }
-
-    function parseDateFull(val) {
-        if (!val) return "";
-        let sStr = String(val).trim();
-        if (!isNaN(sStr) && !sStr.includes('/') && !sStr.includes('-') && sStr.length >= 5) {
-            let num = parseFloat(sStr);
-            let d = new Date((Math.floor(num - 25569)) * 86400 * 1000);
-            return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
-        }
-        if (sStr.includes('-')) {
-            let parts = sStr.split(' ')[0].split('-');
-            if (parts.length === 3) {
-                if (parts[0].length === 4) return `${parts[2].padStart(2,'0')}/${parts[1].padStart(2,'0')}/${parts[0]}`;
-                return `${parts[0].padStart(2,'0')}/${parts[1].padStart(2,'0')}/${parts[2]}`;
-            }
-        }
-        if (sStr.includes('/')) {
-            let parts = sStr.split(' ')[0].split('/');
-            if (parts.length === 3) return `${parts[0].padStart(2,'0')}/${parts[1].padStart(2,'0')}/${parts[2]}`;
-        }
-        if (sStr.length === 4 && !isNaN(sStr)) {
-            let year = parseInt(sStr);
-            if (year > 2400) year = year - 543;
-            return `01/01/${year}`;
-        }
-        return sStr;
-    }
-
-    function tinhTuoiHienTai(dateStr) {
-        let currentYear = new Date().getFullYear();
-        if(!dateStr) return 0;
-        let parts = dateStr.split('/');
-        let namSinh = parts.length === 3 ? parseInt(parts[2]) : 1980;
-        return currentYear - (isNaN(namSinh) ? 1980 : namSinh);
-    }
-
-    function tinhNgayVeHuuLuatMoiFull(dateStr, gioiTinh) {
-        if(!dateStr || dateStr.split('/').length !== 3) return "—";
-        let parts = dateStr.split('/');
-        let day = parseInt(parts[0]);
-        let month = parseInt(parts[1]);
-        let year = parseInt(parts[2]);
-        let thoiGianTangThang = 0; 
-        if (gioiTinh === "Nam") {
-            if (year <= 1960) thoiGianTangThang = 60 * 12;
-            else thoiGianTangThang = Math.min(62 * 12, 60 * 12 + ((year - 1960) * 3));
-        } else {
-            if (year <= 1965) thoiGianTangThang = 55 * 12;
-            else thoiGianTangThang = Math.min(60 * 12, 55 * 12 + ((year - 1965) * 4));
-        }
-        let ngaySinh = new Date(year, month - 1, day);
-        ngaySinh.setMonth(ngaySinh.getMonth() + thoiGianTangThang);
-        let thangHuu = ngaySinh.getMonth() + 2; 
-        let namHuu = ngaySinh.getFullYear();
-        if(thangHuu > 12) { thangHuu = 1; namHuu += 1; }
-        return `01/${String(thangHuu).padStart(2,'0')}/${namHuu}`;
-    }
-
-    function xuLyFileExcelDynamic(event) {
-        const file = event.target.files[0]; if (!file) return;
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const data = new Uint8Array(e.target.result);
-            const wb = XLSX.read(data, { type: 'array' });
-            const arr = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "" });
-            let headIdx = arr.findIndex(row => row.some(c => cleanMark(c).toUpperCase().replace(/\s+/g, '').includes("HOVATEN") || cleanMark(c).toUpperCase().includes("HO TEN")));
-            if(headIdx === -1) headIdx = 0;
-            let heads = arr[headIdx].map(h => cleanString(h));
-
-            let idxTen = heads.findIndex(h => cleanMark(h).toUpperCase().replace(/\s+/g, '').includes("HOVATEN") || cleanMark(h).toUpperCase().includes("HO TEN"));
-            let idxDonVi = heads.findIndex(h => cleanMark(h).toUpperCase().includes("DON VI") || cleanMark(h).toUpperCase().includes("MA DV"));
-            let idxNu = heads.findIndex(h => cleanMark(h).toUpperCase().includes("NU"));
-            let idxHuuCu = heads.findIndex(h => cleanMark(h).toUpperCase().includes("NAM VE HUU") || cleanMark(h).toUpperCase().includes("MOC VE HUU"));
-            let idxNamSinh = heads.findIndex(h => cleanMark(h).toUpperCase().includes("NAM SINH"));
-            let idxChuc = heads.findIndex(h => cleanMark(h).toUpperCase().includes("CHUC DANH"));
-            let idxSbhxh = heads.findIndex(h => cleanMark(h).toUpperCase().includes("SO SO BHXH"));
-            let idxCccd = heads.findIndex(h => cleanMark(h).toUpperCase().includes("CCCD"));
-            let idxAtv = heads.findIndex(h => cleanMark(h).toUpperCase().replace(/\s+/g, '').includes("ANTOANVIEN"));
-            let idxDh = heads.findIndex(h => cleanMark(h).toUpperCase().includes("NNDH"));
-
-            DANH_SACH_MASTER = []; let units = new Set();
-            for(let i=headIdx+1; i<arr.length; i++) {
-                let r = arr[i]; if(!r || r.length===0 || (idxTen!==-1 && String(r[idxTen]).trim()==="")) continue;
-                let hoTen = idxTen !== -1 ? String(r[idxTen]).trim() : "Ẩn danh";
-                let maDonVi = idxDonVi !== -1 ? String(r[idxDonVi]).trim() : "TỔNG HỢP";
-                let gTinh = idxNu !== -1 && String(r[idxNu]).trim().toUpperCase() === "X" ? "Nữ" : "Nam";
-                let ngaySinhChuan = idxNamSinh !== -1 ? parseDateFull(String(r[idxNamSinh]).trim()) : "01/01/1980";
-                units.add(maDonVi);
-
-                DANH_SACH_MASTER.push({
-                    ho_ten: hoTen, so_bhxh: idxSbhxh !== -1 ? String(r[idxSbhxh]).trim() : "",
-                    cccd: idxCccd !== -1 ? String(r[idxCccd]).trim() : "", ma_don_vi: maDonVi,
-                    nam_sinh: ngaySinhChuan, nam_ve_hưu: idxHuuCu !== -1 ? parseDateFull(r[idxHuuCu]) : "",
-                    gioi_tinh: gTinh, an_toan_vien: idxAtv !== -1 && String(r[idxAtv]).trim() !== "" ? "X" : "",
-                    doc_hai: idxDh !== -1 && String(r[idxDh]).trim() !== "" ? "X" : "", chuc_danh: idxChuc !== -1 ? String(r[idxChuc]).trim() : ""
-                });
-            }
-            napBoLocDonVi(units); renderBangNhanSu(DANH_SACH_MASTER); thongKeNhanSuCaiTien(DANH_SACH_MASTER);
-        };
-        reader.readAsArrayBuffer(file);
-    }
-
-    function napBoLocDonVi(setUnits) {
-        let opt = `<option value="ALL">-- Tất cả --</option>` + Array.from(setUnits).sort().map(d => `<option value="${d}">${d}</option>`).join('');
-        document.getElementById('ns-filter-donvi').innerHTML = opt;
-        document.getElementById('form-bophan').innerHTML = `<option value="">-- Chọn bộ phận --</option>` + Array.from(setUnits).sort().map(d => `<option value="${d}">${d}</option>`).join('');
-    }
-
-    function renderBangNhanSu(list) {
-        document.getElementById('dynamic-tbody').innerHTML = list.map((item, idx) => {
-            let tuoi = tinhTuoiHienTai(item.nam_sinh);
-            let ngayVeHuuLuatMoiFull = tinhNgayVeHuuLuatMoiFull(item.nam_sinh, item.gioi_tinh);
-            return `<tr>
-                <td>${idx+1}</td><td><b>${item.ho_ten}</b></td><td>${item.nam_sinh}</td><td><b>${tuoi}</b></td>
-                <td>${item.so_bhxh}</td><td>${item.cccd}</td><td style="font-weight:bold; color:var(--secondary-color);">${item.ma_don_vi}</td>
-                <td>${item.nam_ve_hưu || '—'}</td><td style="color:var(--success-color); font-weight:bold; background: #f0fdf4;">${ngayVeHuuLuatMoiFull}</td>
-                <td><span class="badge ${item.gioi_tinh==='Nữ'?'badge-female':'badge-male'}">${item.gioi_tinh}</span></td>
-                <td>${(item.an_toan_vien === 'X' || item.an_toan_vien === 'YES') ? '<span class="badge badge-yes">ATV</span>' : '—'}</td>
-                <td>${(item.doc_hai === 'X' || item.doc_hai === 'YES') ? '<span class="badge" style="background:#fee2e2; color:#b91c1c;">Độc hại</span>' : '—'}</td>
-                <td class="col-chuc-danh">${item.chuc_danh}</td><td><div class="qr-zone" onclick="modalQR_NS(${idx})">📷 QR</div></td>
-            </tr>`
-        }).join('');
-    }
-
-    /* CHỨC NĂNG ĐO LƯỜNG TỶ LỆ PHẦN TRĂM BIẾN ĐỘNG THEO YÊU CẦU */
-    function thongKeNhanSuCaiTien(list) {
-        let total = list.length; 
-        let nu = list.filter(i => i.gioi_tinh === "Nữ").length;
-        let nam = total - nu;
-        let atv = list.filter(i => i.an_toan_vien === "X" || i.an_toan_vien === "YES").length;
-        let dh = list.filter(i => i.doc_hai === "X" || i.doc_hai === "YES").length;
-
-        let pctNam = total > 0 ? ((nam / total) * 100).toFixed(1) : 0;
-        let pctNu = total > 0 ? ((nu / total) * 100).toFixed(1) : 0;
-        let pctAtv = total > 0 ? ((atv / total) * 100).toFixed(1) : 0;
-        let pctDh = total > 0 ? ((dh / total) * 100).toFixed(1) : 0;
-
-        document.getElementById('dash-tong').textContent = total + " người";
-        document.getElementById('dash-nam-nu').textContent = `${nam} Nam / ${nu} Nữ`;
-        document.getElementById('dash-pct-nam-nu').textContent = `${pctNam}% Nam / ${pctNu}% Nữ`;
-        
-        document.getElementById('dash-atv').textContent = atv + " người";
-        document.getElementById('dash-pct-atv').textContent = `${pctAtv}% trên tổng lao động`;
-        
-        document.getElementById('dash-dh').textContent = dh + " người";
-        document.getElementById('dash-pct-dh').textContent = `${pctDh}% trên tổng lao động`;
-    }
-
-    /* CHỨC NĂNG PHÂN TÍCH TÀI CHÍNH KẾ TOÁN TRÊN TỔNG QUAN */
-    function thongKeKeToanCaiTien(list) {
-        let totalRecords = list.length;
-        let totalGoc = 0;
-        let totalGross = 0;
-        let pendingRecords = 0;
-        let paidRecords = 0;
-        let pendingCash = 0;
-        let paidCash = 0;
-
-        list.forEach(item => {
-            let goc = item.chi_phi_goc || item.CHI_PHI_GOC || 0;
-            let gross = item.gross || item.GROSS || 0;
-            let status = item.trang_thai || item.TRANG_THAI || "Chờ duyệt";
-
-            totalGoc += goc;
-            totalGross += gross;
-
-            if(status === "Đã thanh toán") {
-                paidRecords++;
-                paidCash += gross;
-            } else {
-                pendingRecords++;
-                pendingCash += gross;
-            }
-        });
-
-        let totalVat = totalGross - totalGoc;
-
-        document.getElementById('dash-tt-hoso').textContent = totalRecords + " hồ sơ";
-        document.getElementById('dash-tt-hoso-ct').textContent = `Chờ duyệt: ${pendingRecords} | Đã chi: ${paidRecords}`;
-        document.getElementById('dash-tt-goc').textContent = totalGoc.toLocaleString('vi-VN') + " đ";
-        document.getElementById('dash-tt-gross').textContent = totalGross.toLocaleString('vi-VN') + " đ";
-        document.getElementById('dash-tt-vat-sum').textContent = `Tiền thuế lũy kế: ${totalVat.toLocaleString('vi-VN')} đ`;
-        
-        document.getElementById('dash-tt-status-paid').textContent = paidCash.toLocaleString('vi-VN') + " đ Đã chi";
-        document.getElementById('dash-tt-status-pending').textContent = `Chờ duyệt chi: ${pendingCash.toLocaleString('vi-VN')} đ`;
-    }
-
-    function locDuLieuDynamic() {
-        let search = cleanMark(document.getElementById('ns-search').value).toUpperCase();
-        let dv = document.getElementById('ns-filter-donvi').value;
-        let gt = document.getElementById('ns-filter-gioitinh').value;
-        let filterAtv = document.getElementById('ns-filter-atv').value;
-        let filterDh = document.getElementById('ns-filter-dochai').value;
-
-        let filtered = DANH_SACH_MASTER.filter(i => {
-            let mSearch = search === "" || cleanMark(i.ho_ten).toUpperCase().includes(search) || i.cccd.includes(search);
-            let mDv = dv === "ALL" || i.ma_don_vi === dv;
-            let mGt = gt === "ALL" || i.gioi_tinh === gt;
-            let mAtv = filterAtv === "ALL" || (i.an_toan_vien === "X" || i.an_toan_vien === "YES");
-            let mDh = filterDh === "ALL" || (i.doc_hai === "X" || i.doc_hai === "YES");
-            return mSearch && mDv && mGt && mAtv && mDh;
-        });
-        renderBangNhanSu(filtered);
-    }
-
-    async function dongBoNhanSuLenSupabase() {
-        if(DANH_SACH_MASTER.length === 0) { alert("Không tìm thấy dữ liệu để đồng bộ."); return; }
-        await _supabase.from('nhan_su').delete().neq('id', 0);
-        const { error } = await _supabase.from('nhan_su').insert(DANH_SACH_MASTER);
-        if (error) alert("Lỗi: " + error.message);
-        else alert("Đã đồng bộ thành công lên Supabase Cloud Database!");
-    }
+    function parseDateFull(val) { if (!val) return ""; let sStr = String(val).trim(); if (!isNaN(sStr) && !sStr.includes('/') && !sStr.includes('-') && sStr.length >= 5) { let num = parseFloat(sStr); let d = new Date((Math.floor(num - 25569)) * 86400 * 1000); return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`; } if (sStr.includes('-')) { let parts = sStr.split(' ')[0].split('-'); if (parts.length === 3) { if (parts[0].length === 4) return `${parts[2].padStart(2,'0')}/${parts[1].padStart(2,'0')}/${parts[0]}`; return `${parts[0].padStart(2,'0')}/${parts[1].padStart(2,'0')}/${parts[2]}`; } } if (sStr.includes('/')) { let parts = sStr.split(' ')[0].split('/'); if (parts.length === 3) return `${parts[0].padStart(2,'0')}/${parts[1].padStart(2,'0')}/${parts[2]}`; } return sStr; }
+    function tinhTuoiHienTai(dateStr) { let currentYear = new Date().getFullYear(); if(!dateStr) return 0; let parts = dateStr.split('/'); let namSinh = parts.length === 3 ? parseInt(parts[2]) : 1980; return currentYear - (isNaN(namSinh) ? 1980 : namSinh); }
+    function tinhNgayVeHuuLuatMoiFull(dateStr, gioiTinh) { if(!dateStr || dateStr.split('/').length !== 3) return "—"; let parts = dateStr.split('/'); let day = parseInt(parts[0]); let month = parseInt(parts[1]); let year = parseInt(parts[2]); let thoiGianTangThang = 0; if (gioiTinh === "Nam") { if (year <= 1960) thoiGianTangThang = 60 * 12; else thoiGianTangThang = Math.min(62 * 12, 60 * 12 + ((year - 1960) * 3)); } else { if (year <= 1965) thoiGianTangThang = 55 * 12; else thoiGianTangThang = Math.min(60 * 12, 55 * 12 + ((year - 1965) * 4)); } let ngaySinh = new Date(year, month - 1, day); ngaySinh.setMonth(ngaySinh.getMonth() + thoiGianTangThang); let thangHuu = ngaySinh.getMonth() + 2; let namHuu = ngaySinh.getFullYear(); if(thangHuu > 12) { thangHuu = 1; namHuu += 1; } return `01/${String(thangHuu).padStart(2,'0')}/${namHuu}`; }
 
     async function taiDuLieuTuSupabase() {
         try {
             let res1 = await _supabase.from('nhan_su').select('*');
-            if(res1.data && res1.data.length > 0) {
-                DANH_SACH_MASTER = res1.data;
-                napBoLocDonVi(new Set(DANH_SACH_MASTER.map(i => i.ma_don_vi)));
-                renderBangNhanSu(DANH_SACH_MASTER); 
-                thongKeNhanSuCaiTien(DANH_SACH_MASTER);
-            }
+            if(res1.data) { DANH_SACH_MASTER = res1.data; napBoLocDonVi(new Set(DANH_SACH_MASTER.map(i => i.ma_don_vi))); renderBangNhanSu(DANH_SACH_MASTER); thongKeNhanSuCaiTien(DANH_SACH_MASTER); }
             let res2 = await _supabase.from('cap_phat').select('*').order('id', { ascending: true });
             if(res2.data) { DANH_SACH_CAP_PHAT = res2.data; lamMoiBangCapPhat(); }
-            let res3 = await _supabase.from('bao_tri').select('*');
+            let res3 = await _supabase.from('bao_tri').select('*').order('id', { ascending: true });
             if(res3.data) { DANH_SACH_SUA_CHUA = res3.data; lamMoiBangSuaChua(); dongBoSuaChuaSangKeToan(); }
             let res4 = await _supabase.from('ke_toan').select('*').order('id', { ascending: true });
-            if(res4.data) { 
-                DANH_SACH_THANH_TOAN = res4.data; 
-                lamMoiBangThanhToan(); 
-                thongKeKeToanCaiTien(DANH_SACH_THANH_TOAN);
-            }
-        } catch(e) {
-            console.error("Lỗi đồng bộ nạp dữ liệu nền:", e);
-        }
+            if(res4.data) { DANH_SACH_THANH_TOAN = res4.data; lamMoiBangThanhToan(); thongKeKeToanCaiTien(DANH_SACH_THANH_TOAN); }
+        } catch(e) { console.error(e); }
+    }
+
+    function thongKeNhanSuCaiTien(list) {
+        let total = list.length; let nu = list.filter(i => i.gioi_tinh === "Nữ").length; let nam = total - nu;
+        let atv = list.filter(i => i.an_toan_vien === "X" || i.an_toan_vien === "YES").length;
+        let dh = list.filter(i => i.doc_hai === "X" || i.doc_hai === "YES").length;
+        document.getElementById('dash-tong').textContent = total + " người";
+        document.getElementById('dash-nam-nu').textContent = `${nam} M / ${nu} F`;
+        document.getElementById('dash-pct-nam-nu').textContent = `${total>0?((nam/total)*100).toFixed(1):0}% M / ${total>0?((nu/total)*100).toFixed(1):0}% F`;
+        document.getElementById('dash-atv').textContent = atv + " người";
+        document.getElementById('dash-pct-atv').textContent = `${total>0?((atv/total)*100).toFixed(1):0}% tổng lao động`;
+        document.getElementById('dash-dh').textContent = dh + " người";
+        document.getElementById('dash-pct-dh').textContent = `${total>0?((dh/total)*100).toFixed(1):0}% tổng lao động`;
+    }
+
+    function thongKeKeToanCaiTien(list) {
+        let totalRecords = list.length; let totalGoc = 0; let totalGross = 0; let pendingRecords = 0; let paidRecords = 0; let pendingCash = 0; let paidCash = 0;
+        list.forEach(item => {
+            let goc = item.chi_phi_goc || item.CHI_PHI_GOC || 0; let gross = item.gross || item.GROSS || 0; let status = item.trang_thai || item.TRANG_THAI || "Chờ duyệt";
+            totalGoc += goc; totalGross += gross;
+            if(status === "Đã thanh toán") { paidRecords++; paidCash += gross; } else { pendingRecords++; pendingCash += gross; }
+        });
+        document.getElementById('dash-tt-hoso').textContent = totalRecords + " hồ sơ";
+        document.getElementById('dash-tt-hoso-ct').textContent = `Chờ duyệt: ${pendingRecords} | Đã chi: ${paidRecords}`;
+        document.getElementById('dash-tt-goc').textContent = totalGoc.toLocaleString() + " đ";
+        document.getElementById('dash-tt-gross').textContent = totalGross.toLocaleString() + " đ";
+        document.getElementById('dash-tt-vat-sum').textContent = `Tiền thuế: ${(totalGross-totalGoc).toLocaleString()} đ`;
+        document.getElementById('dash-tt-status-paid').textContent = paidCash.toLocaleString() + " đ Đã chi";
+        document.getElementById('dash-tt-status-pending').textContent = `Chờ duyệt: ${pendingCash.toLocaleString()} đ`;
+    }
+
+    function napBoLocDonVi(setUnits) {
+        let arr = Array.from(setUnits).sort();
+        document.getElementById('ns-filter-donvi').innerHTML = `<option value="ALL">-- Tất cả --</option>` + arr.map(d => `<option value="${d}">${d}</option>`).join('');
+        document.getElementById('form-bophan').innerHTML = `<option value="">-- Chọn bộ phận --</option>` + arr.map(d => `<option value="${d}">${d}</option>`).join('');
+    }
+
+    function renderBangNhanSu(list) {
+        document.getElementById('dynamic-tbody').innerHTML = list.map((item, idx) => {
+            return `<tr><td>${idx+1}</td><td><b>${item.ho_ten}</b></td><td>${item.nam_sinh}</td><td><b>${tinhTuoiHienTai(item.nam_sinh)}</b></td><td>${item.so_bhxh}</td><td>${item.cccd}</td><td>${item.ma_don_vi}</td><td>${item.nam_ve_hưu || '—'}</td><td>${tinhNgayVeHuuLuatMoiFull(item.nam_sinh, item.gioi_tinh)}</td><td><span class="badge ${item.gioi_tinh==='Nữ'?'badge-female':'badge-male'}">${item.gioi_tinh}</span></td><td>${item.an_toan_vien?'<span class="badge badge-yes">ATV</span>':'—'}</td><td>${item.doc_hai?'<span class="badge" style="background:#fee2e2; color:#b91c1c;">Độc hại</span>':'—'}</td><td class="col-chuc-danh">${item.chuc_danh}</td><td><div class="qr-zone" onclick="modalQR_NS(${idx})">📷 QR</div></td></tr>`
+        }).join('');
     }
 
     function tuDongSinhMaThietBi() {
-        let textLoai = document.getElementById('form-loai-tb').value.trim();
-        if (!textLoai) { document.getElementById('form-ma-tb').value = ""; return; }
-        
+        let textLoai = document.getElementById('form-loai-tb').value.trim(); if (!textLoai) { document.getElementById('form-ma-tb').value = ""; return; }
+        if(document.getElementById('edit-cp-id').value !== "") return;
         let chuCaiDau = cleanMark(textLoai).toUpperCase().split(/[^A-Z0-9]/).filter(w => w.length > 0).map(w => w[0]).join('').substring(0, 5);
-        if (!chuCaiDau) chuCaiDau = "TB";
-        
-        let namHienTai = new Date().getFullYear();
-        let tienToMa = `TB-${chuCaiDau}-${namHienTai}-`;
-        let soThuTuHienTai = 1;
-        let danhSachSoDaDung = DANH_SACH_CAP_PHAT.map(item => {
-            let code = item.ma_tb || item.MA_TB || "";
-            if(code.startsWith(tienToMa)) return parseInt(code.replace(tienToMa, ""), 10);
-            return null;
-        }).filter(num => num !== null && !isNaN(num));
-
+        let tienToMa = `TB-${chuCaiDau || "TB"}-${new Date().getFullYear()}-`; let soThuTuHienTai = 1;
+        let danhSachSoDaDung = DANH_SACH_CAP_PHAT.map(item => { let code = item.ma_tb || item.MA_TB || ""; return code.startsWith(tienToMa) ? parseInt(code.replace(tienToMa, ""), 10) : null; }).filter(num => num !== null && !isNaN(num));
         while (danhSachSoDaDung.includes(soThuTuHienTai)) { soThuTuHienTai++; }
         document.getElementById('form-ma-tb').value = tienToMa + String(soThuTuHienTai).padStart(4, '0');
     }
@@ -706,282 +431,219 @@
         document.getElementById('form-nhansu').innerHTML = DANH_SACH_MASTER.filter(i => i.ma_don_vi === bp).map(i => `<option value="${i.ho_ten}">${i.ho_ten}</option>`).join('');
     }
 
+    /* PHÂN HỆ 2: CẤP PHÁT (THÊM / SỬA) */
     async function themMoiCapPhat(e) {
         e.preventDefault();
+        let editId = document.getElementById('edit-cp-id').value;
         let item = { 
-            ma_tb: document.getElementById('form-ma-tb').value, 
-            loai_tb: document.getElementById('form-loai-tb').value, 
-            so_luong: parseInt(document.getElementById('form-soluong').value || 1, 10),
-            don_vi: document.getElementById('form-donvi').value,
-            bo_phan: document.getElementById('form-bophan').value, 
-            nguoi_dung: document.getElementById('form-nhansu').value, 
-            ngay_cap: new Date().toLocaleDateString('vi-VN') 
+            ma_tb: document.getElementById('form-ma-tb').value, loai_tb: document.getElementById('form-loai-tb').value, 
+            so_luong: parseInt(document.getElementById('form-soluong').value || 1, 10), don_vi: document.getElementById('form-donvi').value,
+            bo_phan: document.getElementById('form-bophan').value, nguoi_dung: document.getElementById('form-nhansu').value, ngay_cap: new Date().toLocaleDateString('vi-VN') 
         };
 
-        try {
-            const { error } = await _supabase.from('cap_phat').insert([item]);
-            if (error) throw new Error(error.message);
-            alert("Lưu thông tin đăng ký cấp phát thành công!");
-            DANH_SACH_CAP_PHAT.push(item);
-            lamMoiBangCapPhat();
-            document.getElementById('frm-cap-phat').reset(); 
-            document.getElementById('form-soluong').value = "1";
-            taiDuLieuTuSupabase();
-        } catch (err) { alert("Không thể lưu cấp phát: " + err.message); }
+        if(editId !== "") {
+            let { error } = await _supabase.from('cap_phat').update(item).eq('id', editId);
+            if(error) alert("Lỗi: " + error.message); else alert("Cập nhật cấp phát thành công!");
+        } else {
+            let { error } = await _supabase.from('cap_phat').insert([item]);
+            if(error) alert("Lỗi: " + error.message); else alert("Thêm cấp phát mới thành công!");
+        }
+        huySuaCapPhat(); await taiDuLieuTuSupabase();
+    }
+
+    function kíchHoạtSửaCấpPhát(idx) {
+        let item = DANH_SACH_CAP_PHAT[idx]; if(!item) return;
+        document.getElementById('edit-cp-id').value = item.id;
+        document.getElementById('title-cap-phat').textContent = `📝 ĐANG CẬP NHẬT THIẾT BỊ: ${item.ma_tb || item.MA_TB}`;
+        document.getElementById('form-ma-tb').value = item.ma_tb || item.MA_TB || "";
+        document.getElementById('form-loai-tb').value = item.loai_tb || item.LOAI_TB || "";
+        document.getElementById('form-soluong').value = item.so_luong || item.SO_LUONG || 1;
+        document.getElementById('form-donvi').value = item.don_vi || item.DON_VI || "Cái";
+        document.getElementById('form-bophan').value = item.bo_phan || item.BO_PHAN || "";
+        capNhatNhanSuTheoBoPhan();
+        document.getElementById('form-nhansu').value = item.nguoi_dung || item.NGUOI_DUNG || "";
+        document.getElementById('btn-submit-cp').textContent = "⚡ Xác nhận Cập nhật Cloud";
+        if(!document.getElementById('btn-cancel-cp')) {
+            document.getElementById('action-cp-buttons').insertAdjacentHTML('beforeend', `<button type="button" id="btn-cancel-cp" class="btn-action btn-cancel" onclick="huySuaCapPhat()" style="height:38px; margin-left:5px;">Hủy</button>`);
+        }
+        document.getElementById('form-cap-phat-anchor').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function huySuaCapPhat() {
+        document.getElementById('edit-cp-id').value = ""; document.getElementById('frm-cap-phat').reset();
+        document.getElementById('title-cap-phat').textContent = "ĐĂNG KÝ PHÂN PHỐI CẤP PHÁT TÀI SẢN VẬT TƯ";
+        document.getElementById('btn-submit-cp').textContent = "💾 Lưu Cấp Phát Cloud";
+        if(document.getElementById('btn-cancel-cp')) document.getElementById('btn-cancel-cp').remove();
     }
 
     function lamMoiBangCapPhat() {
         document.getElementById('tb-body-dynamic').innerHTML = DANH_SACH_CAP_PHAT.map((item, idx) => {
-            return `<tr>
-                <td>${idx+1}</td><td><b>${item.ma_tb || item.MA_TB || ""}</b></td><td>${item.loai_tb || item.LOAI_TB || ""}</td>
-                <td style="text-align: center; font-weight: bold; color: var(--warning-color);">${item.so_luong || item.SO_LUONG || 1}</td>
-                <td style="text-align: center;"><span class="badge" style="background:#f1f5f9; color:#475569; border: 1px solid #cbd5e1;">${item.don_vi || item.DON_VI || "Cái"}</span></td>
-                <td><b>${item.bo_phan || item.BO_PHAN || ""}</b></td><td>${item.nguoi_dung || item.NGUOI_DUNG || ""}</td><td>${item.ngay_cap || item.NGAY_CAP || ""}</td>
-                <td><div class="qr-zone" onclick="modalQR_CP(${idx})">📷 QR</div></td>
-                <td><button type="button" class="btn-action btn-delete" onclick="xoaCapPhat(${idx})">Xóa</button></td>
-            </tr>`;
+            return `<tr><td>${idx+1}</td><td><b>${item.ma_tb || item.MA_TB || ""}</b></td><td>${item.loai_tb || item.LOAI_TB || ""}</td><td style="color:var(--warning-color); font-weight:bold;">${item.so_luong || item.SO_LUONG || 1}</td><td>${item.don_vi || item.DON_VI || "Cái"}</td><td><b>${item.bo_phan || item.BO_PHAN || ""}</b></td><td>${item.nguoi_dung || item.NGUOI_DUNG || ""}</td><td>${item.ngay_cap || item.NGAY_CAP || ""}</td><td><div class="qr-zone" onclick="modalQR_CP(${idx})">📷 QR</div></td><td><button type="button" class="btn-action btn-edit" onclick="kíchHoạtSửaCấpPhát(${idx})">Sửa</button><button type="button" class="btn-action btn-delete" onclick="xoaCapPhat(${idx})">Xóa</button></td></tr>`;
         }).join('');
         document.getElementById('repair-ma-tb').innerHTML = `<option value="">-- Chọn thiết bị --</option>` + DANH_SACH_CAP_PHAT.map(t => `<option value="${t.ma_tb || t.MA_TB}">${t.ma_tb || t.MA_TB}</option>`).join('');
     }
-    
-    async function xoaCapPhat(idx) { 
-        let item = DANH_SACH_CAP_PHAT[idx]; if(!item) return;
-        if(confirm(`Bạn chắc chắn muốn xóa cấp phát thiết bị ${item.ma_tb || item.MA_TB}?`)) {
-            let { error } = item.id ? await _supabase.from('cap_phat').delete().eq('id', item.id) : await _supabase.from('cap_phat').delete().eq('ma_tb', item.ma_tb || item.MA_TB);
-            if (error) alert("Lỗi khi xóa: " + error.message);
-            else await taiDuLieuTuSupabase();
-        }
-    }
 
+    async function xoaCapPhat(idx) { let item = DANH_SACH_CAP_PHAT[idx]; if(confirm("Xóa thiết bị này?")) { await _supabase.from('cap_phat').delete().eq('id', item.id); await taiDuLieuTuSupabase(); } }
+
+    /* PHÂN HỆ 3: BẢO TRÌ (THÊM / SỬA) */
     function autoDienThongTinThietBi() {
-        let codeVal = document.getElementById('repair-ma-tb').value;
-        let t = DANH_SACH_CAP_PHAT.find(i => (i.ma_tb || i.MA_TB || "") === codeVal);
-        document.getElementById('repair-bophan').value = t ? (t.bo_phan || t.BO_PHAN || "") : ""; 
-        document.getElementById('repair-nhansu').value = t ? (t.nguoi_dung || t.NGUOI_DUNG || "") : "";
+        let codeVal = document.getElementById('repair-ma-tb').value; let t = DANH_SACH_CAP_PHAT.find(i => (i.ma_tb || i.MA_TB || "") === codeVal);
+        document.getElementById('repair-bophan').value = t ? (t.bo_phan || t.BO_PHAN || "") : ""; document.getElementById('repair-nhansu').value = t ? (t.nguoi_dung || t.NGUOI_DUNG || "") : "";
     }
 
     async function themMoiNhatKySuaChua(e) {
         e.preventDefault();
-        let item = { 
-            ma_tb: document.getElementById('repair-ma-tb').value, 
-            bo_phan: document.getElementById('repair-bophan').value, 
-            nguoi_dung: document.getElementById('repair-nhansu').value, 
-            phan_loai: document.getElementById('repair-phanloai').value, 
-            chi_phi: parseFloat(document.getElementById('repair-chiphi').value || 0), 
-            mo_ta: document.getElementById('repair-mota').value 
-        };
-        try {
-            const { error } = await _supabase.from('bao_tri').insert([item]);
-            if (error) throw new Error(error.message);
-            alert("Lưu nhật ký bảo trì thành công!");
-            DANH_SACH_SUA_CHUA.push(item);
-            lamMoiBangSuaChua(); dongBoSuaChuaSangKeToan();
-            document.getElementById('frm-repair').reset();
-            taiDuLieuTuSupabase();
-        } catch(err) { alert("Lỗi: " + err.message); }
+        let editId = document.getElementById('edit-sc-id').value;
+        let item = { ma_tb: document.getElementById('repair-ma-tb').value, bo_phan: document.getElementById('repair-bophan').value, nguoi_dung: document.getElementById('repair-nhansu').value, phan_loai: document.getElementById('repair-phanloai').value, chi_phi: parseFloat(document.getElementById('repair-chiphi').value || 0), mo_ta: document.getElementById('repair-mota').value };
+        if(editId !== "") {
+            let { error } = await _supabase.from('bao_tri').update(item).eq('id', editId);
+            if(error) alert("Lỗi: " + error.message); else alert("Cập nhật nhật ký bảo trì thành công!");
+        } else {
+            let { error } = await _supabase.from('bao_tri').insert([item]);
+            if(error) alert("Lỗi: " + error.message); else alert("Thêm nhật ký bảo trì thành công!");
+        }
+        huySuaSuaChua(); await taiDuLieuTuSupabase();
+    }
+
+    function kíchHoạtSửaSuaChua(idx) {
+        let item = DANH_SACH_SUA_CHUA[idx]; if(!item) return;
+        document.getElementById('edit-sc-id').value = item.id;
+        document.getElementById('title-sua-chua').textContent = `📝 ĐANG SỬA NHẬT KÝ SỰ CỐ: ${item.ma_tb || item.MA_TB}`;
+        document.getElementById('repair-ma-tb').value = item.ma_tb || item.MA_TB || "";
+        document.getElementById('repair-bophan').value = item.bo_phan || item.BO_PHAN || "";
+        document.getElementById('repair-nhansu').value = item.nguoi_dung || item.NGUOI_DUNG || "";
+        document.getElementById('repair-phanloai').value = item.phan_loai || item.PHAN_LOAI || "";
+        document.getElementById('repair-chiphi').value = item.chi_phi || item.CHI_PHI || 0;
+        document.getElementById('repair-mota').value = item.mo_ta || item.MO_TA || "";
+        document.getElementById('btn-submit-sc').textContent = "⚡ Xác nhận Cập nhật Nhật Ký";
+        if(!document.getElementById('btn-cancel-sc')) {
+            document.getElementById('action-sc-buttons').insertAdjacentHTML('beforeend', `<button type="button" id="btn-cancel-sc" class="btn-action btn-cancel" onclick="huySuaSuaChua()" style="height:38px; margin-left:5px;">Hủy</button>`);
+        }
+        document.getElementById('form-sua-chua-anchor').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function huySuaSuaChua() {
+        document.getElementById('edit-sc-id').value = ""; document.getElementById('frm-repair').reset();
+        document.getElementById('title-sua-chua').textContent = "NHẬT KÝ BẢO TRÌ SỬA CHỮA TÀI SẢN";
+        document.getElementById('btn-submit-sc').textContent = "🔧 Ghi Nhật Ký Cloud";
+        if(document.getElementById('btn-cancel-sc')) document.getElementById('btn-cancel-sc').remove();
     }
 
     function lamMoiBangSuaChua() {
         document.getElementById('sc-body-dynamic').innerHTML = DANH_SACH_SUA_CHUA.map((item, idx) => {
             let cP = item.chi_phi || item.CHI_PHI || 0;
-            return `<tr>
-                <td>${idx+1}</td><td><b>${item.ma_tb || item.MA_TB || ""}</b></td><td><b>${item.bo_phan || item.BO_PHAN || ""}</b></td><td>${item.nguoi_dung || item.NGUOI_DUNG || ""}</td>
-                <td><span class="badge">${item.phan_loai || item.PHAN_LOAI || ""}</span></td><td style="color:var(--danger-color); font-weight:bold;">${cP.toLocaleString()} đ</td>
-                <td>${item.mo_ta || item.MO_TA || ""}</td><td><div class="qr-zone" onclick="modalQR_SC(${idx})">📷 QR</div></td>
-                <td><button class="btn-action btn-delete" onclick="xoaSuaChua(${idx})">Xóa</button></td>
-            </tr>`;
+            return `<tr><td>${idx+1}</td><td><b>${item.ma_tb || item.MA_TB || ""}</b></td><td><b>${item.bo_phan || item.BO_PHAN || ""}</b></td><td>${item.nguoi_dung || item.NGUOI_DUNG || ""}</td><td>${item.phan_loai || item.PHAN_LOAI || ""}</td><td style="color:var(--danger-color); font-weight:bold;">${cP.toLocaleString()} đ</td><td>${item.mo_ta || item.MO_TA || ""}</td><td><div class="qr-zone" onclick="modalQR_SC(${idx})">📷 QR</div></td><td><button type="button" class="btn-action btn-edit" onclick="kíchHoạtSửaSuaChua(${idx})">Sửa</button><button class="btn-action btn-delete" onclick="xoaSuaChua(${idx})">Xóa</button></td></tr>`;
         }).join('');
     }
 
-    async function xoaSuaChua(idx) { 
-        let item = DANH_SACH_SUA_CHUA[idx]; if(!item) return;
-        if(confirm("Xóa bản ghi nhật ký bảo trì này?")) {
-            let { error } = item.id ? await _supabase.from('bao_tri').delete().eq('id', item.id) : await _supabase.from('bao_tri').delete().eq('ma_tb', item.ma_tb || item.MA_TB).eq('mo_ta', item.mo_ta || item.MO_TA);
-            if(error) alert("Lỗi khi xóa: " + error.message);
-            else await taiDuLieuTuSupabase(); 
-        }
-    }
+    async function xoaSuaChua(idx) { let item = DANH_SACH_SUA_CHUA[idx]; if(confirm("Xóa bản ghi này?")) { await _supabase.from('bao_tri').delete().eq('id', item.id); await taiDuLieuTuSupabase(); } }
+    function dongBoSuaChuaSangKeToan() { document.getElementById('tt-repair-index').innerHTML = `<option value="">-- Chọn hồ sơ liên thông --</option>` + DANH_SACH_SUA_CHUA.map((s, idx) => `0[${s.ma_tb||s.MA_TB}] - ${(s.mo_ta||s.MO_TA||"").substring(0,15)}... (${(s.chi_phi||s.CHI_PHI||0).toLocaleString()}đ)`).map((str, idx) => `<option value="${idx}">${str}</option>`).join(''); }
 
-    function dongBoSuaChuaSangKeToan() { 
-        document.getElementById('tt-repair-index').innerHTML = `<option value="">-- Chọn hồ sơ liên thông --</option>` + DANH_SACH_SUA_CHUA.map((s, idx) => {
-            let mTB = s.ma_tb || s.MA_TB || ""; let mT = s.mo_ta || s.MO_TA || ""; let cP = s.chi_phi || s.CHI_PHI || 0;
-            return `<option value="${idx}">[${mTB}] - ${mT.substring(0,15)}... (${cP.toLocaleString()}đ)</option>`;
-        }).join(''); 
-    }
-
-    function layMucThueSuatHienTai() {
-        let selectVal = document.getElementById('tt-vat-select').value;
-        return selectVal === "CUSTOM" ? parseFloat(document.getElementById('tt-vat-custom-value').value || 0) / 100 : parseFloat(selectVal) / 100;
-    }
-
-    function thayDoiLoaiThueSuat() {
-        document.getElementById('custom-tax-input-group').style.display = document.getElementById('tt-vat-select').value === "CUSTOM" ? "block" : "none";
-        tinhToanThueLinhHoat('GOC');
-    }
-
+    /* BỘ TÍNH THUẾ LINH HOẠT VÀ LIÊN THÔNG FORM KHAI BÁO */
+    function layMucThueSuatHienTai() { let selectVal = document.getElementById('tt-vat-select').value; return selectVal === "CUSTOM" ? parseFloat(document.getElementById('tt-vat-custom-value').value || 0) / 100 : parseFloat(selectVal) / 100; }
+    function thayDoiLoaiThueSuat() { document.getElementById('custom-tax-input-group').style.display = document.getElementById('tt-vat-select').value === "CUSTOM" ? "block" : "none"; tinhToanThueLinhHoat('GOC'); }
     function tinhToanThueLinhHoat(huongNhapLieu) {
-        let rate = layMucThueSuatHienTai();
-        let inputGoc = document.getElementById('tt-chiphi'), inputGross = document.getElementById('tt-tong-sau-thue'), inputThue = document.getElementById('tt-tien-thue-vat');
+        let rate = layMucThueSuatHienTai(); let inputGoc = document.getElementById('tt-chiphi'), inputGross = document.getElementById('tt-tong-sau-thue'), inputThue = document.getElementById('tt-tien-thue-vat');
         if(huongNhapLieu === 'GOC' || document.getElementById('mode-goc').checked) {
             let goc = parseFloat(inputGoc.value || 0); let thue = goc * rate;
-            inputThue.value = Math.round(thue).toLocaleString() + " đ";
-            if(huongNhapLieu === 'GOC') inputGross.value = Math.round(goc + thue);
+            inputThue.value = Math.round(thue).toLocaleString() + " đ"; if(huongNhapLieu === 'GOC') inputGross.value = Math.round(goc + thue);
         } else {
             let gross = parseFloat(inputGross.value || 0); let goc = gross / (1 + rate);
-            inputThue.value = Math.round(gross - goc).toLocaleString() + " đ";
-            if(huongNhapLieu === 'GROSS') inputGoc.value = Math.round(goc);
+            inputThue.value = Math.round(gross - goc).toLocaleString() + " đ"; if(huongNhapLieu === 'GROSS') inputGoc.value = Math.round(goc);
         }
     }
-
     function autoFillTuNhatKySuaChua() {
         let sc = DANH_SACH_SUA_CHUA[document.getElementById('tt-repair-index').value]; if(!sc) return;
-        document.getElementById('tt-ma-tb').value = sc.ma_tb || sc.MA_TB || ""; 
-        document.getElementById('tt-bophan').value = sc.bo_phan || sc.BO_PHAN || "";
-        document.getElementById('tt-nhansu').value = sc.nguoi_dung || sc.NGUOI_DUNG || ""; 
-        document.getElementById('tt-noidung').value = sc.mo_ta || sc.MO_TA || "";
-        document.getElementById('tt-chiphi').value = sc.chi_phi || sc.CHI_PHI || 0; 
-        document.getElementById('mode-goc').checked = true; tinhToanThueLinhHoat('GOC');
+        document.getElementById('tt-ma-tb').value = sc.ma_tb || sc.MA_TB || ""; document.getElementById('tt-bophan').value = sc.bo_phan || sc.BO_PHAN || "";
+        document.getElementById('tt-nhansu').value = sc.nguoi_dung || sc.NGUOI_DUNG || ""; document.getElementById('tt-noidung').value = sc.mo_ta || sc.MO_TA || "";
+        document.getElementById('tt-chiphi').value = sc.chi_phi || sc.CHI_PHI || 0; document.getElementById('mode-goc').checked = true; tinhToanThueLinhHoat('GOC');
     }
+    function xuLyDanhSachFileChon(event) { for(let file of event.target.files) { MANG_FILE_CHO_UPLOAD.push(file); } document.getElementById('ds-file-cho-upload').innerHTML = MANG_FILE_CHO_UPLOAD.map((f, idx) => `<div class="file-item"><span>📄 ${f.name}</span><span style="color:red; cursor:pointer;" onclick="MANG_FILE_CHO_UPLOAD.splice(${idx},1); xuLyDanhSachFileChon({target:{files:[]}})">Xóa</span></div>`).join(''); }
 
-    function kichHoatUploadFolder(isFolder) {
-        const input = document.getElementById('file-upload-input'); input.value = ""; MANG_FILE_CHO_UPLOAD = []; document.getElementById('ds-file-cho-upload').innerHTML = "";
-        if(isFolder) { input.setAttribute('webkitdirectory', ''); input.setAttribute('directory', ''); } 
-        else { input.removeAttribute('webkitdirectory'); input.removeAttribute('directory'); }
-    }
-
-    function xuLyDanhSachFileChon(event) {
-        for(let file of event.target.files) { MANG_FILE_CHO_UPLOAD.push(file); }
-        document.getElementById('ds-file-cho-upload').innerHTML = MANG_FILE_CHO_UPLOAD.map((f, idx) => `<div class="file-item"><span>📄 ${f.name} (${(f.size/1024/1024).toFixed(2)} MB)</span><span style="color:red; cursor:pointer; font-weight:bold;" onclick="MANG_FILE_CHO_UPLOAD.splice(${idx},1); xuLyDanhSachFileChon({target:{files:[]}})">Xóa</span></div>`).join('');
-    }
-    
+    /* PHÂN HỆ 4: QUYẾT TOÁN (THÊM / SỬA) */
     async function themMoiThanhToanNângCao(e) {
         e.preventDefault();
-        if (MANG_FILE_CHO_UPLOAD.length === 0) { alert("Vui lòng đính kèm ít nhất một file chứng từ."); return; }
-        alert("Đang xử lý đẩy file và cập nhật dữ liệu...");
-        let urls = [];
+        let editId = document.getElementById('edit-tt-id').value;
+        let rateText = document.getElementById('tt-vat-select').value === "CUSTOM" ? document.getElementById('tt-vat-custom-value').value + "%" : document.getElementById('tt-vat-select').value + "%";
         
-        for(let file of MANG_FILE_CHO_UPLOAD) {
-            let cleanName = file.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9.\-_]/g, '_');
-            let pathName = `${Date.now()}_${cleanName}`;
-            let { data, error } = await _supabase.storage.from('chung_tu').upload(pathName, file, { cacheControl: '3600', upsert: true });
-            if (error) { alert(`Lỗi khi tải file ${file.name}. Vui lòng tạo public bucket 'chung_tu'.`); return; }
-            if (data) {
-                let publicUrlObj = _supabase.storage.from('chung_tu').getPublicUrl(pathName);
-                if (publicUrlObj && publicUrlObj.data) urls.push(publicUrlObj.data.publicUrl);
+        let hoSo = { 
+            ma_tb: document.getElementById('tt-ma-tb').value, bo_phan: document.getElementById('tt-bophan').value, nhan_vien: document.getElementById('tt-nhansu').value, noi_dung: document.getElementById('tt-noidung').value,
+            chi_phi_goc: parseFloat(document.getElementById('tt-chiphi').value || 0), gross: parseFloat(document.getElementById('tt-tong-sau-thue').value || 0), stk: document.getElementById('tt-stk').value, 
+            ngan_hang: document.getElementById('tt-ngonhang').value, chu_tk: document.getElementById('tt-chutk').value, trang_thai: document.getElementById('tt-trangthai').value, ghi_chu: `VAT: ${rateText} (${document.getElementById('tt-tien-thue-vat').value})`
+        };
+
+        if(editId === "" && MANG_FILE_CHO_UPLOAD.length === 0) { alert("Vui lòng tải lên tập tin chứng từ gốc."); return; }
+
+        if(MANG_FILE_CHO_UPLOAD.length > 0) {
+            let urls = [];
+            for(let file of MANG_FILE_CHO_UPLOAD) {
+                let cleanName = file.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9.\-_]/g, '_');
+                let pathName = `${Date.now()}_${cleanName}`;
+                let { data, error } = await _supabase.storage.from('chung_tu').upload(pathName, file, { upsert: true });
+                if (data) { let publicUrlObj = _supabase.storage.from('chung_tu').getPublicUrl(pathName); urls.push(publicUrlObj.data.publicUrl); }
             }
+            hoSo.link_ct = JSON.stringify(urls);
         }
 
-        let rateText = document.getElementById('tt-vat-select').value === "CUSTOM" ? document.getElementById('tt-vat-custom-value').value + "%" : document.getElementById('tt-vat-select').value + "%";
-        let hoSo = { 
-            ma_tb: document.getElementById('tt-ma-tb').value, 
-            bo_phan: document.getElementById('tt-bophan').value, 
-            nhan_vien: document.getElementById('tt-nhansu').value, 
-            noi_dung: document.getElementById('tt-noidung').value,
-            chi_phi_goc: parseFloat(document.getElementById('tt-chiphi').value || 0), 
-            gross: parseFloat(document.getElementById('tt-tong-sau-thue').value || 0), 
-            stk: document.getElementById('tt-stk').value, 
-            ngan_hang: document.getElementById('tt-ngonhang').value, 
-            chu_tk: document.getElementById('tt-chutk').value,
-            trang_thai: document.getElementById('tt-trangthai').value,
-            link_ct: JSON.stringify(urls),
-            ghi_chu: `VAT: ${rateText} (${document.getElementById('tt-tien-thue-vat').value})`
-        };
-        
-        let { error: dbError } = await _supabase.from('ke_toan').insert([hoSo]);
-        if (dbError) alert("Lỗi lưu DB: " + dbError.message);
-        else {
-            alert("Đã phê duyệt hồ sơ thành công!");
-            MANG_FILE_CHO_UPLOAD = []; document.getElementById('ds-file-cho-upload').innerHTML = ""; 
-            document.getElementById('frm-thanh-toan').reset(); 
-            await taiDuLieuTuSupabase();
+        if(editId !== "") {
+            let { error } = await _supabase.from('ke_toan').update(hoSo).eq('id', editId);
+            if(error) alert("Lỗi: " + error.message); else alert("Cập nhật chứng từ quyết toán thành công!");
+        } else {
+            let { error } = await _supabase.from('ke_toan').insert([hoSo]);
+            if(error) alert("Lỗi: " + error.message); else alert("Ủy nhiệm chi và tạo mới chứng từ thành công!");
         }
+        huySuaThanhToan(); await taiDuLieuTuSupabase();
+    }
+
+    function kíchHoạtSửaThanhToan(idx) {
+        let item = DANH_SACH_THANH_TOAN[idx]; if(!item) return;
+        document.getElementById('edit-tt-id').value = item.id;
+        document.getElementById('title-thanh-toan').textContent = `📝 ĐANG CẬP NHẬT HỒ SƠ QUYẾT TOÁN CỦA THIẾT BỊ: ${item.ma_tb || item.MA_TB}`;
+        document.getElementById('tt-ma-tb').value = item.ma_tb || item.MA_TB || "";
+        document.getElementById('tt-bophan').value = item.bo_phan || item.BO_PHAN || "";
+        document.getElementById('tt-nhansu').value = item.nhan_vien || item.NHAN_VIEN || "";
+        document.getElementById('tt-noidung').value = item.noi_dung || item.NOI_DUNG || "";
+        document.getElementById('tt-chiphi').value = item.chi_phi_goc || item.CHI_PHI_GOC || 0;
+        document.getElementById('tt-tong-sau-thue').value = item.gross || item.GROSS || 0;
+        document.getElementById('tt-stk').value = item.stk || item.STK || "";
+        document.getElementById('tt-ngonhang').value = item.ngan_hang || item.NGAN_HANG || "";
+        document.getElementById('tt-chutk').value = item.chu_tk || item.CHU_TK || "";
+        document.getElementById('tt-trangthai').value = item.trang_thai || item.TRANG_THAI || "Chờ duyệt";
+        document.getElementById('mode-goc').checked = true; tinhToanThueLinhHoat('GOC');
+        
+        document.getElementById('btn-submit-tt').textContent = "⚡ Xác nhận Thay Đổi Chứng Từ";
+        if(!document.getElementById('btn-cancel-tt')) {
+            document.getElementById('action-tt-buttons').insertAdjacentHTML('beforeend', `<button type="button" id="btn-cancel-tt" class="btn-action btn-cancel" onclick="huySuaThanhToan()" style="height:38px; margin-left:5px;">Hủy</button>`);
+        }
+        document.getElementById('form-thanh-toan-anchor').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function huySuaThanhToan() {
+        document.getElementById('edit-tt-id').value = ""; document.getElementById('frm-thanh-toan').reset();
+        document.getElementById('title-thanh-toan').textContent = "💳 PHÂN HỆ QUYẾT TOÁN CHI PHÍ & THUẾ LINH HOẠT";
+        document.getElementById('btn-submit-tt').textContent = "⚡ Phê Duyệt Ủy Nhiệm Chi";
+        if(document.getElementById('btn-cancel-tt')) document.getElementById('btn-cancel-tt').remove();
+        MANG_FILE_CHO_UPLOAD = []; document.getElementById('ds-file-cho-upload').innerHTML = "";
     }
 
     function lamMoiBangThanhToan() {
         document.getElementById('tt-body-dynamic').innerHTML = DANH_SACH_THANH_TOAN.map((item, idx) => {
             let arrFiles = []; let rawLink = item.link_ct || item.LINK_CT || "";
-            if (rawLink) {
-                try {
-                    if (String(rawLink).startsWith('[')) arrFiles = JSON.parse(rawLink);
-                    else if (rawLink !== "null" && rawLink !== "") arrFiles = [rawLink];
-                } catch(e) { arrFiles = [rawLink]; }
-            }
+            if (rawLink && String(rawLink).startsWith('[')) arrFiles = JSON.parse(rawLink); else if (rawLink) arrFiles = [rawLink];
+            let btnFiles = arrFiles.map((url, fIdx) => `<button type="button" class="btn-action" style="background:#e0f2fe; color:#0369a1; border:1px solid #7dd3fc; margin:2px;" onclick="window.open('${url}')">👁️ File ${fIdx+1}</button>`).join('');
             
-            let btnFiles = arrFiles.filter(url => url && String(url).startsWith('http')).map((url, fIdx) => {
-                return `<button type="button" class="btn-action" style="background:#e0f2fe; color:#0369a1; border:1px solid #7dd3fc; margin:2px;" onclick="xemTruocChungTuOnline('${url}', '${url.split('/').pop()}')">👁️ Tệp ${fIdx+1}</button>`;
-            }).join('') || `<span style="color:#dc2626; font-style:italic; font-size:9pt;">⚠️ Trống</span>`;
-
-            let cGoc = item.chi_phi_goc || item.CHI_PHI_GOC || 0;
-            let gross = item.gross || item.GROSS || 0;
-            let status = item.trang_thai || item.TRANG_THAI || "Chờ duyệt";
-            let currentBadgeStyle = status === "Đã thanh toán" ? "badge-paid" : "badge-pending";
-            
-            return `<tr>
-                <td>${idx+1}</td><td><b>${item.ma_tb || item.MA_TB || ''}</b></td><td>${item.bo_phan || item.BO_PHAN || ''}</td><td>${item.nhan_vien || item.NHAN_VIEN || ''}</td>
-                <td>${item.noi_dung || item.NOI_DUNG || ''}</td><td>${cGoc.toLocaleString()} đ</td><td style="color:blue;">${(gross - cGoc).toLocaleString()} đ</td>
-                <td style="color:var(--success-color); font-weight:bold;">${gross.toLocaleString()} đ</td><td><code>${item.stk || item.STK || ''}</code></td>
-                <td>${item.ngan_hang || item.NGAN_HANG || ''}</td><td>${item.chu_tk || item.CHU_TK || ''}</td>
-                <td><span class="badge ${currentBadgeStyle}" style="cursor:pointer;" onclick="chuyenTrangThaiHoSoKetoan(${item.id}, '${status}')">${status} 🔄</span></td>
-                <td>${btnFiles}</td><td><button class="btn-action btn-delete" onclick="xoaHoSoKếToan(${item.id})">Xóa</button></td>
-            </tr>`;
+            let cGoc = item.chi_phi_goc || item.CHI_PHI_GOC || 0; let gross = item.gross || item.GROSS || 0; let status = item.trang_thai || item.TRANG_THAI || "Chờ duyệt";
+            return `<tr><td>${idx+1}</td><td><b>${item.ma_tb || item.MA_TB || ''}</b></td><td>${item.bo_phan || item.BO_PHAN || ''}</td><td>${item.nhan_vien || item.NHAN_VIEN || ''}</td><td>${item.noi_dung || item.NOI_DUNG || ''}</td><td>${cGoc.toLocaleString()} đ</td><td style="color:blue;">${(gross - cGoc).toLocaleString()} đ</td><td style="color:var(--success-color); font-weight:bold;">${gross.toLocaleString()} đ</td><td><code>${item.stk || item.STK || ''}</code></td><td>${item.ngan_hang || item.NGAN_HANG || ''}</td><td>${item.chu_tk || item.CHU_TK || ''}</td><td><span class="badge ${status==='Đã thanh toán'?'badge-paid':'badge-pending'}" style="cursor:pointer;" onclick="chuyenTrangThaiHoSoKetoan(${item.id}, '${status}')">${status} 🔄</span></td><td>${btnFiles || 'Trống'}</td><td><button type="button" class="btn-action btn-edit" onclick="kíchHoạtSửaThanhToan(${idx})">Sửa</button><button class="btn-action btn-delete" onclick="xoaHoSoKếToan(${item.id})">Xóa</button></td></tr>`;
         }).join('');
     }
 
-    /* ĐỔI TRẠNG THÁI THANH TOÁN TRỰC TIẾP TRÊN BẢNG */
-    async function chuyenTrangThaiHoSoKetoan(id, currentStatus) {
-        if(!id) return;
-        let newStatus = currentStatus === "Chờ duyệt" ? "Đã thanh toán" : "Chờ duyệt";
-        if(confirm(`Bạn có muốn đổi trạng thái hồ sơ này thành [${newStatus}]?`)) {
-            let { error } = await _supabase.from('ke_toan').update({ trang_thai: newStatus }).eq('id', id);
-            if(error) alert("Lỗi: " + error.message);
-            else await taiDuLieuTuSupabase();
-        }
-    }
-
-    async function xoaHoSoKếToan(id) { 
-        if(!id) return;
-        if(confirm("Bạn có chắc chắn muốn xóa hồ sơ quyết toán này?")) { 
-            const { error } = await _supabase.from('ke_toan').delete().eq('id', id); 
-            if(error) alert("Lỗi: " + error.message);
-            else { await taiDuLieuTuSupabase(); dongKhuVucPreview(); }
-        } 
-    }
-
-    function xemTruocChungTuOnline(url, name) {
-        const ext = name.split('.').pop().toLowerCase(); const body = document.getElementById('preview-content-render');
-        document.getElementById('preview-title').textContent = `📄 XEM TRƯỚC CHỨNG TỪ: ${name}`; body.innerHTML = `<div style="text-align:center; font-weight:bold; padding:20px;">🔄 Đang tải tài liệu...</div>`;
-        document.getElementById('btn-download-action').href = url; document.getElementById('btn-print-action').onclick = () => window.print();
-        document.getElementById('khu-vuc-preview').style.display = 'block'; document.getElementById('khu-vuc-preview').scrollIntoView({ behavior: 'smooth' });
-
-        if (['png', 'jpg', 'jpeg', 'webp'].includes(ext)) body.innerHTML = `<img src="${url}" alt="Chứng từ">`;
-        else if (ext === 'pdf') body.innerHTML = `<iframe src="${url}"></iframe>`;
-        else if (['xlsx', 'xls'].includes(ext)) {
-            fetch(url).then(res => res.arrayBuffer()).then(ab => {
-                let ws = XLSX.read(new Uint8Array(ab), {type: 'array'}).Sheets[XLSX.read(new Uint8Array(ab), {type: 'array'}).SheetNames[0]];
-                body.innerHTML = XLSX.utils.sheet_to_html(ws); if(body.querySelector('table')) body.querySelector('table').className = "excel-preview-table";
-            }).catch(e => { body.innerHTML = `<div style="padding:20px; color:red;">Lỗi mở file. Hãy tải trực tiếp.</div>`; });
-        } else body.innerHTML = `<div style="padding:40px;text-align:center;font-weight:bold; color:var(--warning-color);">⚠️ Định dạng file này không hỗ trợ xem trực tuyến. Hãy tải về máy.</div>`;
-    }
-    
-    function dongKhuVucPreview() { document.getElementById('khu-vuc-preview').style.display = 'none'; }
-    function showModalQR(code, text) {
-        let qr = qrcode(0, 'M'); qr.addData(code); qr.make(); document.getElementById('modal-qr-holder').innerHTML = qr.createImgTag(5);
-        document.getElementById('modal-qr-text').textContent = text; document.getElementById('overlay').style.display = 'block'; document.getElementById('modal-qr').style.display = 'block';
-    }
+    async function chuyenTrangThaiHoSoKetoan(id, currentStatus) { let newStatus = currentStatus === "Chờ duyệt" ? "Đã thanh toán" : "Chờ duyệt"; if(confirm(`Đổi trạng thái thành [${newStatus}]?`)) { await _supabase.from('ke_toan').update({ trang_thai: newStatus }).eq('id', id); await taiDuLieuTuSupabase(); } }
+    async function xoaHoSoKếToan(id) { if(confirm("Xóa hồ sơ quyết toán này?")) { await _supabase.from('ke_toan').delete().eq('id', id); await taiDuLieuTuSupabase(); } }
+    function showModalQR(code, text) { let qr = qrcode(0, 'M'); qr.addData(code); qr.make(); document.getElementById('modal-qr-holder').innerHTML = qr.createImgTag(5); document.getElementById('modal-qr-text').textContent = text; document.getElementById('overlay').style.display = 'block'; document.getElementById('modal-qr').style.display = 'block'; }
     function dongModals() { document.getElementById('modal-qr').style.display = 'none'; document.getElementById('overlay').style.display = 'none'; }
-    
-    function modalQR_NS(idx) { 
-        let i = DANH_SACH_MASTER[idx]; let currentUrl = window.location.href.split('?')[0]; 
-        showModalQR(`${currentUrl}?tab=nhan-su&search=${encodeURIComponent(i.ho_ten)}`, `Họ Tên: ${i.ho_ten}\nCCCD: ${i.cccd}\nĐơn vị: ${i.ma_don_vi}`); 
-    }
-    function modalQR_CP(idx) { 
-        let i = DANH_SACH_CAP_PHAT[idx]; let code = i.ma_tb || i.MA_TB || ""; let currentUrl = window.location.href.split('?')[0]; 
-        showModalQR(`${currentUrl}?tab=thiet-bi&search=${encodeURIComponent(code)}`, `Thiết bị: ${code}\nLoại: ${i.loai_tb || i.LOAI_TB}\nSố lượng: ${i.so_luong || i.SO_LUONG} ${i.don_vi || i.DON_VI}`); 
-    }
-    function modalQR_SC(idx) { 
-        let i = DANH_SACH_SUA_CHUA[idx]; let code = i.ma_tb || i.MA_TB || ""; let currentUrl = window.location.href.split('?')[0]; 
-        showModalQR(`${currentUrl}?tab=sua-chua&search=${encodeURIComponent(code)}`, `Sửa chữa: ${code}\nChi phí: ${(i.chi_phi || i.CHI_PHI || 0).toLocaleString()}đ`); 
-    }
+    function modalQR_NS(idx) { let i = DANH_SACH_MASTER[idx]; showModalQR(window.location.href.split('?')[0]+`?tab=nhan-su&search=${encodeURIComponent(i.ho_ten)}`, `Họ Tên: ${i.ho_ten}\nĐơn vị: ${i.ma_don_vi}`); }
+    function modalQR_CP(idx) { let i = DANH_SACH_CAP_PHAT[idx]; let code = i.ma_tb || i.MA_TB || ""; showModalQR(window.location.href.split('?')[0]+`?tab=thiet-bi&search=${encodeURIComponent(code)}`, `Mã: ${code}\nLoại: ${i.loai_tb||i.LOAI_TB}`); }
+    function modalQR_SC(idx) { let i = DANH_SACH_SUA_CHUA[idx]; let code = i.ma_tb || i.MA_TB || ""; showModalQR(window.location.href.split('?')[0]+`?tab=sua-chua&search=${encodeURIComponent(code)}`, `Mã: ${code}\nChi phí: ${(i.chi_phi||i.CHI_PHI||0).toLocaleString()}đ`); }
 </script>
 </body>
 </html>
