@@ -23,7 +23,7 @@
             --border-color: #cbd5e1;
         }
 
-        *, *::before, *::after { box-spacing: border-box; }
+        *, *::before, *::after { box-sizing: border-box; }
         body { 
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; 
             margin: 0; padding: 12px; 
@@ -196,8 +196,18 @@
             <h3 style="margin-top:0; color:var(--primary-color);">ĐĂNG KÝ PHÂN PHỐI CẤP PHÁT TÀI SẢN</h3>
             <form id="frm-cap-phat" onsubmit="themMoiCapPhat(event)">
                 <div class="allocation-form-grid">
-                    <div class="form-group"><label>Loại Thiết Bị</label><select id="form-loai-tb" class="input-custom" onchange="tuDongSinhMaThietBi()"><option value="PC">Máy Tính Xách Tay</option><option value="PHONE">Điện Thoại Di Động</option></select></div>
-                    <div class="form-group"><label>Mã Thiết Bị Hệ Thống</label><input type="text" id="form-ma-tb" class="input-custom" style="background:#e2e8f0;" readonly></div>
+                    <div class="form-group">
+                        <label>Loại Thiết Bị (Chọn hoặc Gõ nhập tự do)</label>
+                        <input type="text" id="form-loai-tb" list="gợi-ý-loai-tb" class="input-custom" placeholder="Ví dụ: Máy in, PC, iPad..." oninput="tuDongSinhMaThietBi()" required>
+                        <datalist id="gợi-ý-loai-tb">
+                            <option value="Máy Tính Xách Tay (PC)">
+                            <option value="Điện Thoại Di Động (PHONE)">
+                            <option value="Máy in Văn Phòng (PRINTER)">
+                            <option value="Máy Máy Tính Bảng (IPAD)">
+                            <option value="Thiết Bị Mạng (ROUTER)">
+                        </datalist>
+                    </div>
+                    <div class="form-group"><label>Mã Thiết Bị Hệ Thống (Tự sinh)</label><input type="text" id="form-ma-tb" class="input-custom" style="background:#e2e8f0; font-weight: bold;" readonly></div>
                     <div class="form-group"><label>Bộ Phận Thụ Hưởng</label><select id="form-bophan" class="input-custom" onchange="capNhatNhanSuTheoBoPhan()"><option value="">-- Chọn bộ phận --</option></select></div>
                     <div class="form-group"><label>Nhân Viên Vận Hành</label><select id="form-nhansu" class="input-custom"><option value="">-- Chọn nhân viên --</option></select></div>
                     <div class="form-group" style="justify-content: flex-end; padding-top:20px;"><button type="submit" class="btn-submit">💾 Lưu Cấp Phát Cloud</button></div>
@@ -352,19 +362,16 @@
     function cleanString(str) { return String(str || "").replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim(); }
     function cleanMark(str) { return cleanString(str).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/Đ/g, "D").replace(/đ/g, "d"); }
 
-    // SỬA LỖI PARSE ĐẦY ĐỦ NGÀY THÁNG NĂM SINH & CHUẨN HÓA LỖI NĂM LỚN (2542 -> 1999)
     function parseDateFull(val) {
         if (!val) return "";
         let sStr = String(val).trim();
         
-        // Trường hợp Excel lưu dạng số Serial Number (Ví dụ: 25425 hoặc tương tự)
         if (!isNaN(sStr) && !sStr.includes('/') && !sStr.includes('-') && sStr.length >= 5) {
             let num = parseFloat(sStr);
             let d = new Date((Math.floor(num - 25569)) * 86400 * 1000);
             return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
         }
 
-        // Định dạng yyyy-mm-dd hoặc tương tự
         if (sStr.includes('-')) {
             let parts = sStr.split(' ')[0].split('-');
             if (parts.length === 3) {
@@ -373,7 +380,6 @@
             }
         }
         
-        // Định dạng dd/mm/yyyy
         if (sStr.includes('/')) {
             let parts = sStr.split(' ')[0].split('/');
             if (parts.length === 3) {
@@ -381,17 +387,15 @@
             }
         }
 
-        // Nếu chỉ là một chuỗi năm độc lập (VD: 1999 hoặc lỗi gõ nhầm thành 2542)
         if (sStr.length === 4 && !isNaN(sStr)) {
             let year = parseInt(sStr);
-            if (year > 2400) year = year - 543; // Sửa lỗi hệ năm Phật Lịch Thái Lan hoặc lỗi nhập liệu nhảy số
+            if (year > 2400) year = year - 543;
             return `01/01/${year}`;
         }
 
         return sStr;
     }
 
-    // Trích xuất năm từ chuỗi ngày tháng năm đầy đủ để tính toán tuổi
     function layNamSinhTừChuoi(dateStr) {
         if(!dateStr) return 1980;
         let parts = dateStr.split('/');
@@ -403,12 +407,11 @@
     }
 
     function tinhTuoiHienTai(dateStr) {
-        let currentYear = new Date().getFullYear(); // 2026
+        let currentYear = new Date().getFullYear();
         let namSinh = layNamSinhTừChuoi(dateStr);
         return currentYear - namSinh;
     }
 
-    // THUẬT TOÁN TÍNH ĐẦY ĐỦ NGÀY THÁNG NĂM NGHỈ HƯU THEO LUẬT MỚI
     function tinhNgayVeHuuLuatMoiFull(dateStr, gioiTinh) {
         if(!dateStr || dateStr.split('/').length !== 3) return "—";
         let parts = dateStr.split('/');
@@ -421,26 +424,22 @@
         if (gioiTinh === "Nam") {
             if (year <= 1960) { thoiGianTangThang = 60 * 12; }
             else {
-                // Từ 2021 nam là 60 tuổi 3 tháng, mỗi năm tăng 3 tháng cho đến khi đạt 62 tuổi vào năm 2028
                 let khoangCachNam = year - 1960;
                 let soThangTichLuy = 60 * 12 + (khoangCachNam * 3);
                 thoiGianTangThang = Math.min(62 * 12, soThangTichLuy);
             }
-        } else { // Nữ
+        } else {
             if (year <= 1965) { thoiGianTangThang = 55 * 12; }
             else {
-                // Từ 2021 nữ là 55 tuổi 4 tháng, mỗi năm tăng 4 tháng cho đến khi đạt 60 tuổi vào năm 2035
                 let khoangCachNam = year - 1965;
                 let soThangTichLuy = 55 * 12 + (khoangCachNam * 4);
                 thoiGianTangThang = Math.min(60 * 12, soThangTichLuy);
             }
         }
 
-        // Tạo mốc ngày sinh và cộng thêm tổng số tháng nghỉ hưu luật định
         let ngaySinh = new Date(year, month - 1, day);
         ngaySinh.setMonth(ngaySinh.getMonth() + thoiGianTangThang);
 
-        // Theo luật: Thời điểm nghỉ hưu là ngày 1 của tháng liền kề sau tháng đủ tuổi
         let thangHuu = ngaySinh.getMonth() + 1; 
         let namHuu = ngaySinh.getFullYear();
         
@@ -484,7 +483,6 @@
                 let maDonVi = idxDonVi !== -1 ? String(r[idxDonVi]).trim() : "TỔNG HỢP";
                 let gTinh = idxNu !== -1 && String(r[idxNu]).trim().toUpperCase() === "X" ? "Nữ" : "Nam";
                 
-                // Đọc chuỗi ngày tháng năm sinh thô và chuyển thành định dạng chuẩn dd/mm/yyyy
                 let thongTinNgaySinhRaw = idxNamSinh !== -1 ? String(r[idxNamSinh]).trim() : "01/01/1980";
                 let ngaySinhChuan = parseDateFull(thongTinNgaySinhRaw);
                 
@@ -585,20 +583,50 @@
         if(res4.data) { DANH_SACH_THANH_TOAN = res4.data; lamMoiBangThanhToan(); }
     }
 
+    // THUẬT TOÁN TỰ SINH MÃ THIẾT BỊ THÔNG MINH TỪ TEXT NHẬP VÀO
     function tuDongSinhMaThietBi() {
-        let loai = document.getElementById('form-loai-tb').value;
-        document.getElementById('form-ma-tb').value = `TB-${loai}-${new Date().getFullYear()}-${String(DANH_SACH_CAP_PHAT.length + 1).padStart(4,'0')}`;
+        let textLoai = document.getElementById('form-loai-tb').value.trim();
+        if(!textLoai) {
+            document.getElementById('form-ma-tb').value = "";
+            return;
+        }
+
+        // Tách lấy các chữ cái đầu tiên của từng từ để làm tiền tố viết tắt (Ví dụ: Máy Tính -> MT)
+        let cleanText = cleanMark(textLoai).toUpperCase();
+        let chuCaiDau = cleanText.split(/[^A-Z0-9]/)
+                                 .filter(word => word.length > 0)
+                                 .map(word => word[0])
+                                 .join('')
+                                 .substring(0, 5); // Giới hạn tối đa 5 ký tự viết tắt
+
+        if(!chuCaiDau) chuCaiDau = "TB";
+
+        // Tạo chuỗi mã thiết bị dựa trên cấu trúc: TB-[Ký tự viết tắt]-[Năm]-[STT bốn số]
+        document.getElementById('form-ma-tb').value = `TB-${chuCaiDau}-${new Date().getFullYear()}-${String(DANH_SACH_CAP_PHAT.length + 1).padStart(4,'0')}`;
     }
+
     function capNhatNhanSuTheoBoPhan() {
         let bp = document.getElementById('form-bophan').value;
         let ds = DANH_SACH_MASTER.filter(i => i.ma_don_vi === bp);
         document.getElementById('form-nhansu').innerHTML = ds.map(i => `<option value="${i.ho_ten}">${i.ho_ten}</option>`).join('');
     }
+
     async function themMoiCapPhat(e) {
         e.preventDefault();
-        let item = { ma_tb: document.getElementById('form-ma-tb').value, loai_tb: document.getElementById('form-loai-tb').value, bo_phan: document.getElementById('form-bophan').value, nguoi_dung: document.getElementById('form-nhansu').value, ngay_cap: new Date().toLocaleDateString('vi-VN') };
-        await _supabase.from('cap_phat').insert([item]); DANH_SACH_CAP_PHAT.push(item); lamMoiBangCapPhat(); document.getElementById('frm-cap-phat').reset(); tuDongSinhMaThietBi();
+        let item = { 
+            ma_tb: document.getElementById('form-ma-tb').value, 
+            loai_tb: document.getElementById('form-loai-tb').value, 
+            bo_phan: document.getElementById('form-bophan').value, 
+            nguoi_dung: document.getElementById('form-nhansu').value, 
+            ngay_cap: new Date().toLocaleDateString('vi-VN') 
+        };
+        await _supabase.from('cap_phat').insert([item]); 
+        DANH_SACH_CAP_PHAT.push(item); 
+        lamMoiBangCapPhat(); 
+        document.getElementById('frm-cap-phat').reset(); 
+        document.getElementById('form-ma-tb').value = "";
     }
+
     function lamMoiBangCapPhat() {
         document.getElementById('tb-body-dynamic').innerHTML = DANH_SACH_CAP_PHAT.map((item, idx) => `<tr><td>${idx+1}</td><td><b>${item.ma_tb}</b></td><td>${item.loai_tb}</td><td><b>${item.bo_phan}</b></td><td>${item.nguoi_dung}</td><td>${item.ngay_cap}</td><td><div class="qr-zone" onclick="modalQR_CP(${idx})">📷 QR</div></td><td><button class="btn-action btn-delete" onclick="xoaCapPhat(${idx})">Xóa</button></td></tr>`).join('');
         document.getElementById('repair-ma-tb').innerHTML = `<option value="">-- Chọn thiết bị --</option>` + DANH_SACH_CAP_PHAT.map(t => `<option value="${t.ma_tb}">${t.ma_tb}</option>`).join('');
@@ -727,7 +755,6 @@
     }
     async function xoaHoSoKếToan(id) { if(confirm("Xóa hồ sơ quyết toán này?")) { await _supabase.from('ke_toan').delete().eq('id', id); await taiDuLieuTuSupabase(); dongKhuVucPreview(); } }
 
-    // PREVIEW SYSTEM
     function xemTruocChungTuOnline(url, name) {
         const ext = name.split('.').pop().toLowerCase(); const body = document.getElementById('preview-content-render');
         document.getElementById('preview-title').textContent = `📄 XEM TRƯỚC CHỨNG TỪ: ${name}`; body.innerHTML = "";
@@ -744,7 +771,6 @@
     }
     function dongKhuVucPreview() { document.getElementById('khu-vuc-preview').style.display = 'none'; }
 
-    // QR MODAL SYSTEMS
     function showModalQR(code, text) {
         let qr = qrcode(0, 'M'); qr.addData(code); qr.make(); document.getElementById('modal-qr-holder').innerHTML = qr.createImgTag(5);
         document.getElementById('modal-qr-text').textContent = text; document.getElementById('overlay').style.display = 'block'; document.getElementById('modal-qr').style.display = 'block';
