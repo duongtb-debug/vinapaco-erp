@@ -224,7 +224,7 @@
                         </datalist>
                     </div>
                     <div class="form-group"><label>Mã Thiết Bị Hệ Thống</label><input type="text" id="form-ma-tb" class="input-custom" style="background:#e2e8f0; font-weight: bold;" readonly></div>
-                    <div class="form-group"><label>Số lượng cấp phát</label><input type="number" id="form-soluong" class="input-custom" value="1" min="1" required></div>
+                    <div class="form-group"><label>Số lượng cấp phát</label><input type="number" id="form-soluong" class="input-custom" value="1" min="1" oninput="tuDongSinhMaThietBi()" required></div>
                     <div class="form-group">
                         <label>Đơn vị tính</label>
                         <select id="form-donvi" class="input-custom">
@@ -273,7 +273,7 @@
                     <div class="form-group"><label>Số lượng gốc / ĐVT</label><input type="text" id="repair-soluong-dvt" class="input-custom" style="background:#f1f5f9; font-weight: bold;" readonly placeholder="—"></div>
                     <div class="form-group"><label>Bộ Phận Quản Lý</label><input type="text" id="repair-bophan" class="input-custom" style="background:#f1f5f9;" readonly></div>
                     <div class="form-group"><label>Nhân Viên Sử Dụng</label><input type="text" id="repair-nhansu" class="input-custom" style="background:#f1f5f9;" readonly></div>
-                    <div class="form-group"><label>Phân Classification Hạng Mục</label><select id="repair-phanloai" class="input-custom"><option value="Sự cố hỏng hóc">Sự cố hỏng hóc</option><option value="Bảo dưỡng định kỳ">Bảo dưỡng định kỳ</option></select></div>
+                    <div class="form-group"><label>Phân Hạng Mục</label><select id="repair-phanloai" class="input-custom"><option value="Sự cố hỏng hóc">Sự cố hỏng hóc</option><option value="Bảo dưỡng định kỳ">Bảo dưỡng định kỳ</option></select></div>
                     <div class="form-group"><label>Chi Phí Khắc Phục (VNĐ)</label><input type="number" id="repair-chiphi" class="input-custom" min="0" required></div>
                     <div class="form-group full-width"><label>Mô Tả Chi Tiết Nội Dung Khắc Phục</label><textarea id="repair-mota" class="input-custom" style="height:55px;" required></textarea></div>
                     <div class="form-group full-width" style="text-align: right;" id="action-sc-buttons">
@@ -429,14 +429,34 @@
         }).join('');
     }
 
+    /* CHỨC NĂNG TỰ TĂNG MÃ THIẾT BỊ SAU KHI THIẾT BỊ SỐ 1 ĐƯỢC NHẬP */
     function tuDongSinhMaThietBi() {
-        let textLoai = document.getElementById('form-loai-tb').value.trim(); if (!textLoai) { document.getElementById('form-ma-tb').value = ""; return; }
+        let textLoai = document.getElementById('form-loai-tb').value.trim(); 
+        if (!textLoai) { 
+            document.getElementById('form-ma-tb').value = ""; 
+            return; 
+        }
         if(document.getElementById('edit-cp-id').value !== "") return;
+
         let chuCaiDau = cleanMark(textLoai).toUpperCase().split(/[^A-Z0-9]/).filter(w => w.length > 0).map(w => w[0]).join('').substring(0, 5);
-        let tienToMa = `TB-${chuCaiDau || "TB"}-${new Date().getFullYear()}-`; let soThuTuHienTai = 1;
-        let danhSachSoDaDung = DANH_SACH_CAP_PHAT.map(item => { let code = item.ma_tb || item.MA_TB || ""; return code.startsWith(tienToMa) ? parseInt(code.replace(tienToMa, ""), 10) : null; }).filter(num => num !== null && !isNaN(num));
-        while (danhSachSoDaDung.includes(soThuTuHienTai)) { soThuTuHienTai++; }
-        document.getElementById('form-ma-tb').value = tienToMa + String(soThuTuHienTai).padStart(4, '0');
+        let tienToMa = `TB-${chuCaiDau || "TB"}-${new Date().getFullYear()}-`; 
+        let maxSTT = 0;
+
+        // Quét toàn bộ danh sách để tìm Số thứ tự lớn nhất hiện tại của loại thiết bị này
+        DANH_SACH_CAP_PHAT.forEach(item => {
+            let code = item.ma_tb || item.MA_TB || "";
+            if (code.startsWith(tienToMa)) {
+                let phanSo = code.replace(tienToMa, "");
+                let soHienTai = parseInt(phanSo, 10);
+                if (!isNaN(soHienTai) && soHienTai > maxSTT) {
+                    maxSTT = soHienTai;
+                }
+            }
+        });
+
+        // Tự động cộng thêm 1 đơn vị
+        let soThuTuMoi = maxSTT + 1;
+        document.getElementById('form-ma-tb').value = tienToMa + String(soThuTuMoi).padStart(4, '0');
     }
 
     function capNhatNhanSuTheoBoPhan() {
@@ -498,7 +518,7 @@
 
     async function xoaCapPhat(idx) { let item = DANH_SACH_CAP_PHAT[idx]; if(confirm("Xóa thiết bị này?")) { await _supabase.from('cap_phat').delete().eq('id', item.id); await taiDuLieuTuSupabase(); } }
 
-    /* PHÂN HỆ 3: BẢO TRÌ SỬA CHỮA (BỔ SUNG THÔNG TIN LIÊN THÔNG SỐ LƯỢNG & ĐVT) */
+    /* PHÂN HỆ 3: BẢO TRÌ SỬA CHỮA (LIÊN THÔNG SỐ LƯỢNG & ĐVT) */
     function autoDienThongTinThietBi() {
         let codeVal = document.getElementById('repair-ma-tb').value; 
         let t = DANH_SACH_CAP_PHAT.find(i => (i.ma_tb || i.MA_TB || "") === codeVal);
@@ -547,7 +567,6 @@
         document.getElementById('title-sua-chua').textContent = `📝 ĐANG SỬA NHẬT KÝ SỰ CỐ: ${item.ma_tb || item.MA_TB}`;
         document.getElementById('repair-ma-tb').value = item.ma_tb || item.MA_TB || "";
         
-        // Hiển thị lại SL và ĐVT từ ghi chú nếu có
         try {
             let dataGoc = JSON.parse(item.ghi_chu || item.GHI_CHU);
             document.getElementById('repair-soluong-dvt').value = `${dataGoc.so_luong} ${dataGoc.don_vi}`;
@@ -596,10 +615,10 @@
         }).map((str, idx) => `<option value="${idx}">${str}</option>`).join(''); 
     }
 
-    /* PHÂN HỆ 4: QUYẾT TOÁN TÀI CHÍNH (ĐỒNG BỘ SL / ĐVT SANG KẾ TOÁN) */
+    /* PHÂN HỆ 4: QUYẾT TOÁN TÀI CHÍNH */
     function layMucThueSuatHienTai() { let selectVal = document.getElementById('tt-vat-select').value; return selectVal === "CUSTOM" ? parseFloat(document.getElementById('tt-vat-custom-value').value || 0) / 100 : parseFloat(selectVal) / 100; }
     function thayDoiLoaiThueSuat() { document.getElementById('custom-tax-input-group').style.display = document.getElementById('tt-vat-select').value === "CUSTOM" ? "block" : "none"; tinhToanThueLinhHoat('GOC'); }
-    function tinhToanThueLinhHoat(huongNhapLieu) {
+    function tinhToanThueLinhHoat(huongNhap Lieu) {
         let rate = layMucThueSuatHienTai(); let inputGoc = document.getElementById('tt-chiphi'), inputGross = document.getElementById('tt-tong-sau-thue'), inputThue = document.getElementById('tt-tien-thue-vat');
         if(huongNhapLieu === 'GOC' || document.getElementById('mode-goc').checked) {
             let goc = parseFloat(inputGoc.value || 0); let thue = goc * rate;
@@ -618,7 +637,6 @@
         document.getElementById('tt-noidung').value = sc.mo_ta || sc.MO_TA || "";
         document.getElementById('tt-chiphi').value = sc.chi_phi || sc.CHI_PHI || 0; 
         
-        // Trích xuất SL và ĐVT liên thông
         try {
             let dataGoc = JSON.parse(sc.ghi_chu || sc.GHI_CHU);
             document.getElementById('tt-soluong-dvt').value = `${dataGoc.so_luong} ${dataGoc.don_vi}`;
@@ -718,7 +736,7 @@
         }).join('');
     }
 
-    async function chuyenTrangThaiHoSoKetoan(id, currentStatus) { let newStatus = currentStatus === "Chờ duyệt" ? "Đã thanh toán" : "Chờ duyệt"; if(confirm(`Đổi trạng thái thành [${newStatus}]?`)) { await _supabase.from('ke_toan').update({ trang_thai: newStatus }).eq('id', id); await taiDuLieuTuSupabase(); } }
+    async function chuyenTrangThaiHoSoKetoan(id, currentStatus) { let newStatus = currentStatus === "Chờ duyệt" ? "Đã thanh toán" : "Chờ duyệt"; if(confirm(`Đổi trạng thái thành [${newStatus}]?`)) { await _supabase.from('ke_toan').update({ trang_thai: newStatus }).eq('id', id); await taiDu LieuTuSupabase(); } }
     async function xoaHoSoKếToan(id) { if(confirm("Xóa hồ sơ quyết toán này?")) { await _supabase.from('ke_toan').delete().eq('id', id); await taiDuLieuTuSupabase(); } }
     function showModalQR(code, text) { let qr = qrcode(0, 'M'); qr.addData(code); qr.make(); document.getElementById('modal-qr-holder').innerHTML = qr.createImgTag(5); document.getElementById('modal-qr-text').textContent = text; document.getElementById('overlay').style.display = 'block'; document.getElementById('modal-qr').style.display = 'block'; }
     function dongModals() { document.getElementById('modal-qr').style.display = 'none'; document.getElementById('overlay').style.display = 'none'; }
