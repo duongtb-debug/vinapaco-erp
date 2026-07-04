@@ -550,18 +550,22 @@
     }
 
     async function taiDuLieuTuSupabase() {
-        let res1 = await _supabase.from('nhan_su').select('*');
-        if(res1.data && res1.data.length > 0) {
-            DANH_SACH_MASTER = res1.data;
-            napBoLocDonVi(new Set(DANH_SACH_MASTER.map(i => i.ma_don_vi)));
-            renderBangNhanSu(DANH_SACH_MASTER); thongKeNhanSu(DANH_SACH_MASTER);
+        try {
+            let res1 = await _supabase.from('nhan_su').select('*');
+            if(res1.data && res1.data.length > 0) {
+                DANH_SACH_MASTER = res1.data;
+                napBoLocDonVi(new Set(DANH_SACH_MASTER.map(i => i.ma_don_vi)));
+                renderBangNhanSu(DANH_SACH_MASTER); thongKeNhanSu(DANH_SACH_MASTER);
+            }
+            let res2 = await _supabase.from('cap_phat').select('*').order('id', { ascending: true });
+            if(res2.data) { DANH_SACH_CAP_PHAT = res2.data; lamMoiBangCapPhat(); }
+            let res3 = await _supabase.from('bao_tri').select('*');
+            if(res3.data) { DANH_SACH_SUA_CHUA = res3.data; lamMoiBangSuaChua(); dongBoSuaChuaSangKeToan(); }
+            let res4 = await _supabase.from('ke_toan').select('*').order('id', { ascending: true });
+            if(res4.data) { DANH_SACH_THANH_TOAN = res4.data; lamMoiBangThanhToan(); }
+        } catch(e) {
+            console.error("Lỗi đồng bộ nạp dữ liệu nền:", e);
         }
-        let res2 = await _supabase.from('cap_phat').select('*').order('id', { ascending: true });
-        if(res2.data) { DANH_SACH_CAP_PHAT = res2.data; lamMoiBangCapPhat(); }
-        let res3 = await _supabase.from('bao_tri').select('*');
-        if(res3.data) { DANH_SACH_SUA_CHUA = res3.data; lamMoiBangSuaChua(); dongBoSuaChuaSangKeToan(); }
-        let res4 = await _supabase.from('ke_toan').select('*').order('id', { ascending: true });
-        if(res4.data) { DANH_SACH_THANH_TOAN = res4.data; lamMoiBangThanhToan(); }
     }
 
     function tuDongSinhMaThietBi() {
@@ -610,6 +614,7 @@
 
     async function themMoiCapPhat(e) {
         e.preventDefault();
+        
         let code = document.getElementById('form-ma-tb').value;
         let item = { 
             ma_tb: code, 
@@ -618,10 +623,28 @@
             nguoi_dung: document.getElementById('form-nhansu').value, 
             ngay_cap: new Date().toLocaleDateString('vi-VN') 
         };
-        await _supabase.from('cap_phat').insert([item]); 
-        await taiDuLieuTuSupabase(); 
-        document.getElementById('frm-cap-phat').reset(); 
-        document.getElementById('form-ma-tb').value = "";
+
+        try {
+            // 1. Lưu trực tiếp lên Cloud Database
+            const { error } = await _supabase.from('cap_phat').insert([item]);
+            if (error) throw new Error(error.message);
+            
+            alert("Lưu thông tin đăng ký cấp phát thành công!");
+
+            // 2. Bung ngay thông tin ra mảng và giao diện mà không bị trễ
+            DANH_SACH_CAP_PHAT.push(item);
+            lamMoiBangCapPhat();
+
+            // 3. Reset form
+            document.getElementById('frm-cap-phat').reset(); 
+            document.getElementById('form-ma-tb').value = "";
+            
+            // 4. Đồng bộ nền để lấy ID chính thức
+            taiDuLieuTuSupabase();
+
+        } catch (err) {
+            alert("Không thể lưu cấp phát. Hãy đảm bảo bạn đã chạy lệnh SQL tạo bảng 'cap_phat'. Lỗi chi tiết: " + err.message);
+        }
     }
 
     function lamMoiBangCapPhat() {
@@ -655,12 +678,21 @@
         let code = item.ma_tb || item.MA_TB || "";
         
         if(confirm(`Bạn chắc chắn muốn xóa cấp phát thiết bị ${code}?`)) {
+            let error = null;
             if(item.id) {
-                await _supabase.from('cap_phat').delete().eq('id', item.id);
+                let res = await _supabase.from('cap_phat').delete().eq('id', item.id);
+                error = res.error;
             } else {
-                await _supabase.from('cap_phat').delete().eq('ma_tb', code);
+                let res = await _supabase.from('cap_phat').delete().eq('ma_tb', code);
+                error = res.error;
             }
-            await taiDuLieuTuSupabase(); 
+            
+            if (error) {
+                alert("Lỗi khi xóa: " + error.message);
+            } else {
+                alert("Đã xóa bản ghi cấp phát!");
+                await taiDuLieuTuSupabase(); 
+            }
         }
     }
 
@@ -681,9 +713,20 @@
             chi_phi: parseFloat(document.getElementById('repair-chiphi').value || 0), 
             mo_ta: document.getElementById('repair-mota').value 
         };
-        await _supabase.from('bao_tri').insert([item]); 
-        await taiDuLieuTuSupabase();
-        document.getElementById('frm-repair').reset();
+        
+        try {
+            const { error } = await _supabase.from('bao_tri').insert([item]);
+            if (error) throw new Error(error.message);
+            
+            alert("Lưu nhật ký bảo trì thành công!");
+            DANH_SACH_SUA_CHUA.push(item);
+            lamMoiBangSuaChua();
+            dongBoSuaChuaSangKeToan();
+            document.getElementById('frm-repair').reset();
+            taiDuLieuTuSupabase();
+        } catch(err) {
+            alert("Lỗi không lưu được bảo trì: " + err.message);
+        }
     }
 
     function lamMoiBangSuaChua() {
@@ -707,12 +750,17 @@
         let item = DANH_SACH_SUA_CHUA[idx];
         if(!item) return;
         if(confirm("Xóa bản ghi nhật ký bảo trì này?")) {
+            let error = null;
             if(item.id) {
-                await _supabase.from('bao_tri').delete().eq('id', item.id);
+                let res = await _supabase.from('bao_tri').delete().eq('id', item.id);
+                error = res.error;
             } else {
-                await _supabase.from('bao_tri').delete().eq('ma_tb', item.ma_tb || item.MA_TB).eq('mo_ta', item.mo_ta || item.MO_TA);
+                let res = await _supabase.from('bao_tri').delete().eq('ma_tb', item.ma_tb || item.MA_TB).eq('mo_ta', item.mo_ta || item.MO_TA);
+                error = res.error;
             }
-            await taiDuLieuTuSupabase(); 
+            
+            if(error) alert("Lỗi khi xóa: " + error.message);
+            else await taiDuLieuTuSupabase(); 
         }
     }
 
@@ -788,7 +836,7 @@
             
             if (error) {
                 console.error("Lỗi Storage:", error);
-                alert(`Lỗi khi tải file ${file.name}. Hãy chắc chắn bạn đã tạo Bucket tên 'chung_tu' trên Supabase Storage.`);
+                alert(`Lỗi khi tải file ${file.name}. Hãy chắc chắn bạn đã tạo Public Bucket tên 'chung_tu' trên Supabase Storage.`);
                 return;
             }
             
@@ -862,6 +910,7 @@
             let cGoc = item.chi_phi_goc || item.CHI_PHI_GOC || 0;
             let gross = item.gross || item.GROSS || 0;
             let thueVat = gross - cGoc;
+            let iID = item.id || item.ID;
             
             return `<tr>
                 <td>${idx+1}</td>
@@ -876,16 +925,24 @@
                 <td>${item.ngan_hang || item.NGAN_HANG || ''}</td>
                 <td>${item.chu_tk || item.CHU_TK || '—'}</td>
                 <td>${btnFiles}</td>
-                <td><button class="btn-action btn-delete" onclick="xoaHoSoKếToan(${item.id})">Xóa</button></td>
+                <td><button class="btn-action btn-delete" onclick="xoaHoSoKếToan(${iID})">Xóa</button></td>
             </tr>`;
         }).join('');
     }
 
     async function xoaHoSoKếToan(id) { 
+        if(!id) {
+            alert("Không tìm thấy ID hợp lệ để thực hiện thao tác xóa!");
+            return;
+        }
         if(confirm("Bạn có chắc chắn muốn xóa hồ sơ quyết toán này trên Cloud?")) { 
-            await _supabase.from('ke_toan').delete().eq('id', id); 
-            await taiDuLieuTuSupabase(); 
-            dongKhuVucPreview(); 
+            const { error } = await _supabase.from('ke_toan').delete().eq('id', id); 
+            if(error) {
+                alert("Lỗi khi xóa hồ sơ kế toán: " + error.message);
+            } else {
+                await taiDuLieuTuSupabase(); 
+                dongKhuVucPreview(); 
+            }
         } 
     }
 
