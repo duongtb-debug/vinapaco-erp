@@ -6,7 +6,6 @@
     <title>Hệ thống Quản lý Vinapaco ERP v2026</title>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 
     <style>
@@ -15,6 +14,7 @@
             --success-color: #16a34a;
             --warning-color: #ea580c;
             --danger-color: #dc2626;
+            --purple-color: #7c3aed;
             --bg-color: #f8fafc;
             --text-color: #1e293b;
         }
@@ -27,10 +27,18 @@
         .status-cloud { font-size: 10pt; font-weight: bold; display: flex; align-items: center; gap: 8px; }
         .dot-online { width: 10px; height: 10px; background-color: var(--success-color); border-radius: 50%; display: inline-block; }
 
+        /* Tabs Menu */
+        .nav-tabs { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
+        .tab-btn { padding: 10px 16px; border: none; background: #e2e8f0; border-radius: 6px; cursor: pointer; font-weight: bold; color: #64748b; transition: all 0.3s; font-size: 9.5pt; }
+        .tab-btn.active { background: var(--primary-color); color: white; }
+
         .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
         .card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border-left: 4px solid var(--primary-color); }
         .card h3 { font-size: 9pt; text-transform: uppercase; color: #64748b; margin-bottom: 5px; }
         .card .value { font-size: 16pt; font-weight: bold; color: var(--text-color); }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
 
         .table-area { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow-x: auto; }
         .filter-zone { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; background: #f1f5f9; padding: 10px; border-radius: 6px; }
@@ -48,10 +56,11 @@
         .badge-yes { background: #dcfce7; color: #15803d; }
         .badge-law { background: #fef3c7; color: #b45309; }
 
-        button { padding: 4px 8px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 8.5pt; }
+        button { padding: 4px 8px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 8.5pt; transition: 0.2s; }
         .btn-edit { background: var(--primary-color); color: white; margin-right: 4px; }
         .btn-save { background: var(--success-color); color: white; margin-right: 4px; }
         .btn-delete { background: var(--danger-color); color: white; }
+        .btn-add { background: var(--purple-color); color: white; padding: 8px 15px; font-size: 10pt; margin-bottom: 15px; border-radius: 6px; }
         
         .inline-input { width: 100%; padding: 4px; border: 1px solid var(--primary-color); border-radius: 4px; font-size: 9.5pt; }
     </style>
@@ -60,17 +69,25 @@
 
     <header>
         <div>
-            <h1>VINAPACO ERP INTEGRATED SYSTEM</h1>
-            <p style="font-size:9.5pt; color:gray;">Phân hệ tự động đồng bộ ánh xạ dữ liệu gốc Supabase v2026</p>
+            <h1>VINAPACO ERP TỔNG HỢP</h1>
+            <p style="font-size:9.5pt; color:gray;">Hệ thống đồng bộ 5 Phân hệ Doanh nghiệp & Quản lý biến động ERP v2026</p>
         </div>
         <div class="status-cloud">
             <span id="cloud-status-text"><span class="dot-online" style="background:orange;"></span> Đang kết nối hệ thống...</span>
         </div>
     </header>
 
+    <div class="nav-tabs">
+        <button class="tab-btn active" id="btn-tab-nhan-su" onclick="chuyenPhanHe('nhan-su')">👥 1. Quản lý Nhân sự</button>
+        <button class="tab-btn" id="btn-tab-dao-tao" onclick="chuyenPhanHe('dao-tao')">🎓 2. Theo dõi Đào tạo</button>
+        <button class="tab-btn" id="btn-tab-bao-hiem" onclick="chuyenPhanHe('bao-hiem')">🏥 3. Chế độ Bảo hiểm</button>
+        <button class="tab-btn" id="btn-tab-luong" onclick="chuyenPhanHe('luong')">💰 4. Tiền lương & Phúc lợi</button>
+        <button class="tab-btn" id="btn-tab-danh-gia" onclick="chuyenPhanHe('danh-gia')">⭐ 5. Đánh giá KPI</button>
+    </div>
+
     <div class="dashboard-grid">
         <div class="card" style="border-left-color: var(--primary-color);">
-            <h3>Tổng số nhân sự nạp vào</h3>
+            <h3>Tổng số nhân sự (Hệ thống)</h3>
             <div class="value" id="ds-ns-tong">0 Người</div>
         </div>
         <div class="card" style="border-left-color: #db2777;">
@@ -78,7 +95,7 @@
             <div class="value" id="ds-ns-gioitinh">0 Nam / 0 Nữ</div>
         </div>
         <div class="card" style="border-left-color: var(--success-color);">
-            <h3>An Toàn Viên</h3>
+            <h3>An Toàn Viên (ATV)</h3>
             <div class="value" id="ds-ns-atv">0 Người</div>
         </div>
         <div class="card" style="border-left-color: var(--warning-color);">
@@ -87,45 +104,85 @@
         </div>
     </div>
 
-    <div class="table-area">
-        <div style="background:#f0fdf4; border:1px dashed var(--success-color); padding:15px; border-radius:6px; margin-bottom:15px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
-            <div>
-                <h3 style="color:var(--success-color);">📥 Nạp danh sách nhân sự từ File Excel</h3>
-                <p style="font-size:9pt; color:gray;">Dữ liệu tự động bóc tách, chuẩn hoá và bảo toàn mã đơn vị gốc, số BHXH, ATV từ Cloud.</p>
+    <div class="tab-content active" id="nhan-su">
+        <div class="table-area">
+            <div style="background:#f0fdf4; border:1px dashed var(--success-color); padding:15px; border-radius:6px; margin-bottom:15px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+                <div>
+                    <h3 style="color:var(--success-color);">📥 Nạp danh sách nhân sự từ File Excel</h3>
+                    <p style="font-size:9pt; color:gray;">Trích xuất chuẩn đơn vị trực tiếp đứng liền trước Tổng công ty (Vd: Xí nghiệp Bảo dưỡng).</p>
+                </div>
+                <input type="file" id="input-excel-ns" onchange="xuLyFileExcelDynamic(event)" accept=".xlsx, .xls, .csv">
             </div>
-            <input type="file" id="input-excel-ns" onchange="xuLyFileExcelDynamic(event)" accept=".xlsx, .xls, .csv" style="padding:5px; font-weight:bold;">
+            <div class="filter-zone">
+                <input type="text" id="ns-search" placeholder="🔍 Tìm tên, CCCD..." oninput="locDuLieuDynamic()">
+                <select id="ns-filter-madonvigoc" onchange="locDuLieuDynamic()"><option value="ALL">-- Mã Đơn Vị Gốc (Tất cả) --</option></select>
+                <select id="ns-filter-donvi" onchange="locDuLieuDynamic()"><option value="ALL">-- Bộ Phận Nhận Chuẩn (Tất cả) --</option></select>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>STT</th><th>Họ Và Tên</th><th>Ngày Sinh Gốc</th><th>Tuổi</th><th>Số BHXH</th><th>Số CCCD</th><th>Mã ĐV Gốc</th><th>Bộ Phận Nhận Chuẩn</th><th>Mốc Hưu</th><th>Giới Tính</th><th>ATV</th><th>Độc Hại</th><th>Chức Danh Công Việc</th><th>Thao Tác</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody-nhan-su"></tbody>
+            </table>
         </div>
+    </div>
 
-        <div class="filter-zone">
-            <input type="text" id="ns-search" placeholder="🔍 Tìm theo họ tên, CCCD..." oninput="locDuLieuDynamic()">
-            <select id="ns-filter-madonvigoc" onchange="locDuLieuDynamic()"><option value="ALL">-- Mã Đơn Vị Gốc (Tất cả) --</option></select>
-            <select id="ns-filter-donvi" onchange="locDuLieuDynamic()"><option value="ALL">-- Bộ Phận Nhận Chuẩn (Tất cả) --</option></select>
+    <div class="tab-content" id="dao-tao">
+        <div class="table-area">
+            <button class="btn-add" onclick="themDongMoi('dao-tao')">+ Thêm khóa đào tạo mới</button>
+            <table>
+                <thead>
+                    <tr>
+                        <th>STT</th><th>Mã Nhân Viên</th><th>Họ Và Tên</th><th>Bộ Phận</th><th>Tên Khóa Học</th><th>Ngày Bắt Đầu</th><th>Ngày Kết Thúc</th><th>Kết Quả</th><th>Chứng Chỉ</th><th>Thao Tác</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody-dao-tao"></tbody>
+            </table>
         </div>
+    </div>
 
-        <table>
-            <thead>
-                <tr>
-                    <th style="text-align:center; width: 50px;">STT</th>
-                    <th style="min-width: 140px;">Họ Và Tên</th>
-                    <th style="min-width: 110px;">Ngày Sinh Gốc</th>
-                    <th style="text-align:center; width: 60px;">Tuổi</th>
-                    <th style="min-width: 110px;">Số BHXH</th>
-                    <th style="min-width: 110px;">Số CCCD</th>
-                    <th style="min-width: 100px;">Mã ĐV Gốc</th>
-                    <th style="min-width: 180px;">Bộ Phận Nhận Chuẩn</th>
-                    <th style="min-width: 110px;">Mốc Nghỉ Hưu</th>
-                    <th style="text-align:center; min-width: 120px;">Năm Hưu Chuẩn</th>
-                    <th style="text-align:center; width: 80px;">Giới Tính</th>
-                    <th style="text-align:center; width: 85px;">ATV</th>
-                    <th style="text-align:center; width: 90px;">Độc Hại</th>
-                    <th style="min-width: 250px;">Chức Danh Công Việc</th>
-                    <th style="text-align:center; min-width: 120px;">Thao Tác</th>
-                </tr>
-            </thead>
-            <tbody id="dynamic-tbody">
-                <tr><td colspan="15" style="text-align:center; color:gray; font-style:italic;">Đang kiểm tra kết nối cơ sở dữ liệu cloud...</td></tr>
-            </tbody>
-        </table>
+    <div class="tab-content" id="bao-hiem">
+        <div class="table-area">
+            <button class="btn-add" onclick="themDongMoi('bao-hiem')">+ Thêm bản ghi bảo hiểm</button>
+            <table>
+                <thead>
+                    <tr>
+                        <th>STT</th><th>Họ Và Tên</th><th>Số BHXH</th><th>Mã Đơn Vị</th><th>Loại Bảo Hiểm</th><th>Mức Đóng</th><th>Từ Ngày</th><th>Đến Ngày</th><th>Trạng Thái</th><th>Thao Tác</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody-bao-hiem"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="tab-content" id="luong">
+        <div class="table-area">
+            <button class="btn-add" onclick="themDongMoi('luong')">+ Thêm dữ liệu lương</button>
+            <table>
+                <thead>
+                    <tr>
+                        <th>STT</th><th>Họ Và Tên</th><th>Bộ Phận</th><th>Lương Cơ Bản</th><th>Phụ Cấp Độc Hại</th><th>Phụ Cấp ATV</th><th>Ngày Công Thực Tế</th><th>Tổng Nhận</th><th>Thao Tác</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody-luong"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="tab-content" id="danh-gia">
+        <div class="table-area">
+            <button class="btn-add" onclick="themDongMoi('danh-gia')">+ Thêm đánh giá nhân sự</button>
+            <table>
+                <thead>
+                    <tr>
+                        <th>STT</th><th>Họ Và Tên</th><th>Bộ Phận</th><th>Kỳ Đánh Giá</th><th>Điểm KPI</th><th>Xếp Loại</th><th>Ghi Chú</th><th>Thao Tác</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody-danh-gia"></tbody>
+            </table>
+        </div>
     </div>
 
     <script>
@@ -134,26 +191,36 @@
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         let DANH_SACH_MASTER = [];
+        let DATA_DAO_TAO = [];
+        let DATA_BAO HIEM = [];
+        let DATA_LUONG = [];
+        let DATA_DANH_GIA = [];
 
         window.addEventListener('DOMContentLoaded', async () => {
             try {
-                document.getElementById('cloud-status-text').innerHTML = `<span class="dot-online" style="background:orange;"></span> Đang đồng bộ hóa dữ liệu...`;
                 await taiNhanSuTuSupabase();
-                document.getElementById('cloud-status-text').innerHTML = `<span class="dot-online"></span> Cloud Status: Trực tuyến`;
+                khoiTaoDuLieuGoc4PhanHe();
+                document.getElementById('cloud-status-text').innerHTML = `<span class="dot-online"></span> Cloud Status: Trực tuyến (ERP Tích hợp)`;
             } catch (err) {
-                document.getElementById('cloud-status-text').innerHTML = `<span class="dot-online" style="background:red;"></span> Mất kết nối Cloud!`;
+                document.getElementById('cloud-status-text').innerHTML = `<span class="dot-online" style="background:red;"></span> Mất kết nối Cloud Database!`;
             }
         });
 
+        // HÀM CHUYỂN PHÂN HỆ TRÊN TAB MENU
+        function chuyenPhanHe(id) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            document.getElementById('btn-tab-' + id).classList.add('active');
+        }
+
+        // --- ĐOẠN XỬ LÝ LÕI CỦA PHÂN HỆ 1: NHÂN SỰ ---
         function formatExcelDate(excelDate) {
             if (!excelDate) return "";
             let num = parseInt(excelDate);
             if (!isNaN(num) && num > 10000) {
                 let date = new Date((num - 25569) * 86400 * 1000);
-                let d = date.getDate().toString().padStart(2, '0');
-                let m = (date.getMonth() + 1).toString().padStart(2, '0');
-                let y = date.getFullYear();
-                return `${d}/${m}/${y}`;
+                return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`;
             }
             return excelDate.toString().trim();
         }
@@ -162,26 +229,19 @@
             if (!dateStr) return 1970;
             let str = dateStr.toString().trim();
             if (str.includes("/")) {
-                let p = str.split("/");
-                return parseInt(p[p.length - 1]) || 1970;
+                let p = str.split("/"); return parseInt(p[p.length - 1]) || 1970;
             } else if (str.includes("-")) {
-                let p = str.split("-");
-                return parseInt(p[0]) || 1970;
+                let p = str.split("-"); return parseInt(p[0]) || 1970;
             }
             let n = parseInt(str);
-            if (!isNaN(n) && n > 1900) return n;
-            return 1970;
+            return (!isNaN(n) && n > 1900) ? n : 1970;
         }
 
         function extractDonViChuan(chucDanhText) {
             if (!chucDanhText) return "Văn Phòng";
             let mangThanhPhan = chucDanhText.split(',').map(item => item.trim());
             let vTriCuoi = mangThanhPhan.length - 1;
-            
-            if (mangThanhPhan[vTriCuoi].toLowerCase().includes("tong cong ty")) {
-                vTriCuoi--;
-            }
-
+            if (mangThanhPhan[vTriCuoi].toLowerCase().includes("tong cong ty")) vTriCuoi--;
             for (let i = vTriCuoi; i >= 0; i--) {
                 let cumTu = mangThanhPhan[i];
                 let low = cumTu.toLowerCase();
@@ -193,11 +253,7 @@
         }
 
         async function xuLyFileExcelDynamic(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            document.getElementById('cloud-status-text').innerHTML = `<span class="dot-online" style="background:orange;"></span> Đang xử lý bóc tách...`;
-
+            const file = event.target.files[0]; if (!file) return;
             const reader = new FileReader();
             reader.onload = function(e) {
                 try {
@@ -208,7 +264,7 @@
 
                     const findValue = (row, targetKeywords) => {
                         for (let originalKey in row) {
-                            let k = originalKey.toString().toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/[^a-z0-9]/g, '');
+                            let k = originalKey.toString().toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd');
                             if (targetKeywords.some(kw => k.includes(kw))) return row[originalKey];
                         }
                         return "";
@@ -216,119 +272,236 @@
 
                     DANH_SACH_MASTER = rawData.map((row, index) => {
                         let hoTen = findValue(row, ['hovaten', 'hoten', 'nhanvien', 'ten']);
-                        let rawNgaySinh = findValue(row, ['ngaysinh', 'ns', 'sinhhoc']);
-                        let soBhxh = findValue(row, ['sobhxh', 'bhxh', 'baohiem', 'so_bhxh', 'soso_bhxh', 'so_so_bhxh']);
-                        let soCccd = findValue(row, ['socccd', 'cccd', 'cmnd', 'cancuoc']);
+                        let rawNgaySinh = findValue(row, ['ngaysinh', 'ns']);
+                        let soBhxh = findValue(row, ['sobhxh', 'bhxh', 'so_bhxh', 'so_so_bhxh']);
+                        let soCccd = findValue(row, ['socccd', 'cccd', 'cmnd']);
                         let chucDanh = findValue(row, ['chucdanh', 'chucvu', 'congviec']);
-                        let maDonVi = findValue(row, ['madonvigoc', 'madonvi', 'madv', 'ma_dv', 'ma_dv_goc']);
+                        let maDonVi = findValue(row, ['madonvigoc', 'madonvi', 'madv', 'ma_dv']);
                         
                         let ngaySinhChuan = formatExcelDate(rawNgaySinh);
-                        let namSinh = layNamSinh(ngaySinhChuan);
-                        let tuoi = 2026 - namSinh;
                         let donViChuan = extractDonViChuan(chucDanh ? chucDanh.toString() : "");
-
-                        let gioiTinh = "Nam";
-                        let rawGioiTinh = findValue(row, ['gioitinh', 'gt', 'namnu']);
-                        if (rawGioiTinh && (rawGioiTinh.toString().toLowerCase().includes("nu") || rawGioiTinh.toString().toLowerCase().includes("nữ"))) gioiTinh = "Nữ";
-                        else if (hoTen.toLowerCase().includes("thị ") || hoTen.toLowerCase().includes("thi ")) gioiTinh = "Nữ";
-
-                        let namHuu = gioiTinh === "Nữ" ? namSinh + 60 : namSinh + 62;
-                        let mocHuuChuan = `01/01/${namHuu}`;
+                        let gioiTinh = (hoTen.toLowerCase().includes("thị ") || hoTen.toLowerCase().includes("thi ")) ? "Nữ" : "Nam";
 
                         let docHai = "";
-                        let tuKhoaDochai = ['han', 'sua chua', 'dien', 'van hanh', 'nuoc', 'bot', 'kcs', 'nau', 'tay rua', 'clo', 'hoa chat', 'axit', 'xeo', 'tai', 'nguoi'];
-                        let coDauHieuDocHai = tuKhoaDochai.some(kw => chucDanh.toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(kw));
-                        
-                        let rawDocHaiGoc = findValue(row, ['dochai', 'doc_hai', 'nghenghiepdochai']);
-                        if (coDauHieuDocHai || (rawDocHaiGoc && rawDocHaiGoc.toString().trim() !== "" && rawDocHaiGoc.toString().trim() !== "0" && rawDocHaiGoc.toString().trim() !== "-")) {
-                            docHai = "YES";
-                        }
+                        if (chucDanh && ['han', 'sua chua', 'dien', 'van hanh', 'nuoc', 'bot', 'kcs', 'nau', 'xeo', 'nguoi'].some(kw => chucDanh.toString().toLowerCase().includes(kw))) docHai = "YES";
 
-                        let rawATV = findValue(row, ['antoanvien', 'atv', 'antoan', 'an_toan_vien']);
-                        let atv = (rawATV && rawATV.toString().trim() !== "" && rawATV.toString().trim() !== "0" && rawATV.toString().trim() !== "-") ? "YES" : "";
+                        let rawATV = findValue(row, ['antoanvien', 'atv']);
+                        let atv = (rawATV && rawATV.toString().trim() !== "" && rawATV.toString().trim() !== "0") ? "YES" : "";
 
                         return {
-                            id: index + 1, stt: index + 1, hoTen: hoTen, ngaySinh: ngaySinhChuan, tuoi: tuoi, soBhxh: soBhxh || "—", soCccd: soCccd || "—",
-                            maDonViGoc: maDonVi || "—", donViChuan: donViChuan, mocHuu: mocHuuChuan, namHuu: mocHuuChuan, gioiTinh: gioiTinh, atv: atv, docHai: docHai, chucDanh: chucDanh
+                            id: index + 1, stt: index + 1, hoTen, ngaySinh: ngaySinhChuan, tuoi: 2026 - layNamSinh(ngaySinhChuan), soBhxh: soBhxh || "—", soCccd: soCccd || "—",
+                            maDonViGoc: maDonVi || "—", donViChuan, gioiTinh, atv, docHai, chucDanh: chucDanh || "Chưa phân loại", mocHuu: "01/01/2040", namHuu: "01/01/2040"
                         };
                     });
-
-                    taiBoLocDynamic();
-                    renderBangNhanSu(DANH_SACH_MASTER);
-                    document.getElementById('cloud-status-text').innerHTML = `<span class="dot-online"></span> Đã nạp thành công ${DANH_SACH_MASTER.length} nhân sự`;
-                } catch (err) { alert("Lỗi: " + err.message); }
+                    taiBoLocDynamic(); renderBangNhanSu(DANH_SACH_MASTER); đồngBộSangCácPhânHệKhác();
+                } catch (err) { alert("Lỗi đọc Excel: " + err.message); }
             };
             reader.readAsArrayBuffer(file);
         }
 
         function renderBangNhanSu(dataList) {
-            let tbody = document.getElementById("dynamic-tbody"); tbody.innerHTML = "";
-            if(dataList.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="15" style="text-align:center; color:gray;">Không tìm thấy kết quả phù hợp.</td></tr>`;
-                return;
-            }
-            let html = "";
+            let tbody = document.getElementById("tbody-nhan-su"); tbody.innerHTML = "";
             dataList.forEach((item) => {
-                html += `<tr id="row-${item.id}">
-                    <td style="text-align:center; font-weight:500;">${item.stt}</td>
-                    <td id="cell-hoten-${item.id}" style="font-weight:bold; color:var(--primary-color);">${item.hoTen}</td>
-                    <td id="cell-ngaysinh-${item.id}" style="font-weight:500;">${item.ngaySinh}</td>
-                    <td style="text-align:center;">${item.tuoi}</td>
-                    <td id="cell-sobhxh-${item.id}" style="font-family:monospace; color:#334155;">${item.soBhxh}</td>
-                    <td style="font-family:monospace;">${item.soCccd}</td>
-                    <td id="cell-madonvigoc-${item.id}"><b style="color:#ea580c;">${item.maDonViGoc}</b></td>
-                    <td id="cell-dvchuan-${item.id}"><span class="badge badge-unit">${item.donViChuan}</span></td>
-                    <td>${item.mocHuu}</td>
-                    <td style="text-align:center; font-weight:bold; color:#0284c7;">${item.namHuu}</td>
-                    <td style="text-align:center;"><span class="badge ${item.gioiTinh === 'Nữ' ? 'badge-female' : 'badge-male'}">${item.gioiTinh}</span></td>
-                    <td style="text-align:center;">${item.atv === 'YES' ? '<span class="badge badge-yes">✓ ATV</span>' : '—'}</td>
-                    <td style="text-align:center;">${item.docHai === 'YES' ? '<span class="badge badge-law">✓ Độc hại</span>' : '—'}</td>
-                    <td id="cell-chucdanh-${item.id}" style="color:#475569; font-size:9.5pt;">${item.chucDanh}</td>
-                    <td style="text-align:center;" id="cell-actions-${item.id}">
-                        <button class="btn-edit" onclick="kichHoatSuaDong('${item.id}')">Sửa</button>
-                        <button class="btn-delete" onclick="DANH_SACH_MASTER = DANH_SACH_MASTER.filter(x => x.id !== ${item.id}); renderBangNhanSu(DANH_SACH_MASTER);">Gỡ</button>
+                tbody.innerHTML += `<tr id="row-ns-${item.id}">
+                    <td>${item.stt}</td>
+                    <td id="ns-hoten-${item.id}" style="font-weight:bold; color:var(--primary-color);">${item.hoTen}</td>
+                    <td id="ns-ngaysinh-${item.id}">${item.ngaySinh}</td>
+                    <td>${item.tuoi}</td>
+                    <td id="ns-sobhxh-${item.id}">${item.soBhxh}</td>
+                    <td>${item.soCccd}</td>
+                    <td id="ns-madonvigoc-${item.id}"><b style="color:#ea580c;">${item.maDonViGoc}</b></td>
+                    <td id="ns-dvchuan-${item.id}"><span class="badge badge-unit">${item.donViChuan}</span></td>
+                    <td>01/01/${layNamSinh(item.ngaySinh) + (item.gioiTinh === 'Nữ' ? 60 : 62)}</td>
+                    <td><span class="badge ${item.gioiTinh === 'Nữ' ? 'badge-female' : 'badge-male'}">${item.gioiTinh}</span></td>
+                    <td>${item.atv === 'YES' ? '<span class="badge badge-yes">✓ ATV</span>' : '—'}</td>
+                    <td>${item.docHai === 'YES' ? '<span class="badge badge-law">✓ Độc hại</span>' : '—'}</td>
+                    <td id="ns-chucdanh-${item.id}">${item.chucDanh}</td>
+                    <td>
+                        <button class="btn-edit" onclick="suaNhanSu('${item.id}')">Sửa</button>
+                        <button class="btn-delete" onclick="DANH_SACH_MASTER = DANH_SACH_MASTER.filter(x => x.id != ${item.id}); renderBangNhanSu(DANH_SACH_MASTER);">Gỡ</button>
                     </td>
                 </tr>`;
             });
-            tbody.innerHTML = html;
             capNhatDashboardNhanSu(dataList);
         }
 
-        function kichHoatSuaDong(id) {
+        function suaNhanSu(id) {
             let item = DANH_SACH_MASTER.find(x => x.id == id);
-            if (!item) return;
-
-            document.getElementById(`cell-hoten-${id}`).innerHTML = `<input type="text" id="edit-hoten-${id}" class="inline-input" value="${item.hoTen}">`;
-            document.getElementById(`cell-ngaysinh-${id}`).innerHTML = `<input type="text" id="edit-ngaysinh-${id}" class="inline-input" value="${item.ngaySinh}">`;
-            document.getElementById(`cell-sobhxh-${id}`).innerHTML = `<input type="text" id="edit-sobhxh-${id}" class="inline-input" value="${item.soBhxh}">`;
-            document.getElementById(`cell-madonvigoc-${id}`).innerHTML = `<input type="text" id="edit-madonvigoc-${id}" class="inline-input" value="${item.maDonViGoc}">`;
-            document.getElementById(`cell-dvchuan-${id}`).innerHTML = `<input type="text" id="edit-dvchuan-${id}" class="inline-input" value="${item.donViChuan}">`;
-            document.getElementById(`cell-chucdanh-${id}`).innerHTML = `<input type="text" id="edit-chucdanh-${id}" class="inline-input" value="${item.chucDanh}">`;
-
-            document.getElementById(`cell-actions-${id}`).innerHTML = `
-                <button class="btn-save" onclick="luuThongTinSua('${id}')">Lưu</button>
-                <button class="btn-delete" onclick="renderBangNhanSu(DANH_SACH_MASTER)">Hủy</button>
-            `;
+            document.getElementById(`ns-hoten-${id}`).innerHTML = `<input type="text" id="inp-ns-hoten-${id}" class="inline-input" value="${item.hoTen}">`;
+            document.getElementById(`ns-ngaysinh-${id}`).innerHTML = `<input type="text" id="inp-ns-ngaysinh-${id}" class="inline-input" value="${item.ngaySinh}">`;
+            document.getElementById(`ns-sobhxh-${id}`).innerHTML = `<input type="text" id="inp-ns-sobhxh-${id}" class="inline-input" value="${item.soBhxh}">`;
+            document.getElementById(`ns-madonvigoc-${id}`).innerHTML = `<input type="text" id="inp-ns-madonvigoc-${id}" class="inline-input" value="${item.maDonViGoc}">`;
+            document.getElementById(`ns-dvchuan-${id}`).innerHTML = `<input type="text" id="inp-ns-dvchuan-${id}" class="inline-input" value="${item.donViChuan}">`;
+            document.getElementById(`ns-chucdanh-${id}`).innerHTML = `<input type="text" id="inp-ns-chucdanh-${id}" class="inline-input" value="${item.chucDanh}">`;
+            
+            event.target.outerHTML = `<button class="btn-save" onclick="luuNhanSu('${id}')">Lưu</button>`;
         }
 
-        function luuThongTinSua(id) {
+        function luuNhanSu(id) {
             let item = DANH_SACH_MASTER.find(x => x.id == id);
-            if (!item) return;
-
-            item.hoTen = document.getElementById(`edit-hoten-${id}`).value;
-            item.ngaySinh = document.getElementById(`edit-ngaysinh-${id}`).value;
-            item.soBhxh = document.getElementById(`edit-sobhxh-${id}`).value;
-            item.maDonViGoc = document.getElementById(`edit-madonvigoc-${id}`).value;
-            item.donViChuan = document.getElementById(`edit-dvchuan-${id}`).value;
-            item.chucDanh = document.getElementById(`edit-chucdanh-${id}`).value;
-
-            let namSinh = layNamSinh(item.ngaySinh);
-            item.tuoi = 2026 - namSinh;
-            let namHuu = item.gioiTinh === "Nữ" ? namSinh + 60 : namSinh + 62;
-            item.mocHuu = `01/01/${namHuu}`;
-            item.namHuu = `01/01/${namHuu}`;
-
+            item.hoTen = document.getElementById(`inp-ns-hoten-${id}`).value;
+            item.ngaySinh = document.getElementById(`inp-ns-ngaysinh-${id}`).value;
+            item.soBhxh = document.getElementById(`inp-ns-sobhxh-${id}`).value;
+            item.maDonViGoc = document.getElementById(`inp-ns-madonvigoc-${id}`).value;
+            item.donViChuan = document.getElementById(`inp-ns-dvchuan-${id}`).value;
+            item.chucDanh = document.getElementById(`inp-ns-chucdanh-${id}`).value;
+            item.tuoi = 2026 - layNamSinh(item.ngaySinh);
             renderBangNhanSu(DANH_SACH_MASTER);
+            đồngBộSangCácPhânHệKhác();
+        }
+
+        // --- KHỞI TẠO & ĐỒNG BỘ 4 PHÂN HỆ CÒN LẠI ---
+        function khoiTaoDuLieuGoc4PhanHe() {
+            DATA_DAO_TAO = [{ id: 1, maNV: "NV01", hoTen: "Nguyễn Văn A", boPhan: "Xí nghiệp Bảo dưỡng", tenKhoa: "An toàn lao động Nhóm 3", ngayBD: "10/01/2026", ngayKT: "15/01/2026", ketQua: "Đạt", chungChi: "Đã cấp" }];
+            DATA_BAO_HIEM = [{ id: 1, hoTen: "Nguyễn Văn A", soBHXH: "0123456789", maDV: "XNBD", loaiBH: "BHXH bắt buộc", mucDong: "4,500,000", tuNgay: "01/01/2026", denNgay: "31/12/2026", trangThai: "Đang đóng" }];
+            DATA_LUONG = [{ id: 1, hoTen: "Nguyễn Văn A", boPhan: "Xí nghiệp Bảo dưỡng", luongCB: "7,000,000", pcDocHai: "500,000", pcATV: "200,000", ngayCong: "24", tongNhan: "7,700,000" }];
+            DATA_DANH_GIA = [{ id: 1, hoTen: "Nguyễn Văn A", boPhan: "Xí nghiệp Bảo dưỡng", kyDG: "Quý 1/2026", diemKPI: "85", xepLoai: "Tốt", ghiChu: "Hoàn thành xuất sắc nhiệm vụ cơ khí" }];
+            
+            renderPhanHeDaoTao(); renderPhanHeBaoHiem(); renderPhanHeLuong(); renderPhanHeDanhGia();
+        }
+
+        function đồngBộSangCácPhânHệKhác() {
+            if (DANH_SACH_MASTER.length === 0) return;
+            DATA_DAO_TAO = DANH_SACH_MASTER.map((x, i) => ({ id: i+1, maNV: "NV" + x.stt, hoTen: x.hoTen, boPhan: x.donViChuan, tenKhoa: "Bồi dưỡng Nghiệp vụ Vinapaco", ngayBD: "01/03/2026", ngayKT: "10/03/2026", ketQua: "Đạt", chungChi: "Đã cấp" }));
+            DATA_BAO_HIEM = DANH_SACH_MASTER.map((x, i) => ({ id: i+1, hoTen: x.hoTen, soBHXH: x.soBhxh, maDV: x.maDonViGoc, loaiBH: "BHXH + BHYT", mucDong: "5,000,000", tuNgay: "01/01/2026", denNgay: "—", trangThai: "Đang đóng" }));
+            DATA_LUONG = DANH_SACH_MASTER.map((x, i) => ({ id: i+1, hoTen: x.hoTen, boPhan: x.donViChuan, luongCB: "6,500,000", pcDocHai: x.docHai === "YES" ? "400,000" : "0", pcATV: x.atv === "YES" ? "200,000" : "0", ngayCong: "26", tongNhan: "7,100,000" }));
+            DATA_DANH_GIA = DANH_SACH_MASTER.map((x, i) => ({ id: i+1, hoTen: x.hoTen, boPhan: x.donViChuan, kyDG: "Năm 2026", diemKPI: "80", xepLoai: "Đạt", ghiChu: "Lao động hoàn thành công việc" }));
+            
+            renderPhanHeDaoTao(); renderPhanHeBaoHiem(); renderPhanHeLuong(); renderPhanHeDanhGia();
+        }
+
+        // RENDER VÀ SỬA ĐỔI PHÂN HỆ 2: ĐÀO TẠO
+        function renderPhanHeDaoTao() {
+            let tbody = document.getElementById("tbody-dao-tao"); tbody.innerHTML = "";
+            DATA_DAO_TAO.forEach(item => {
+                tbody.innerHTML += `<tr>
+                    <td>${item.id}</td><td>${item.maNV}</td><td id="dt-ht-${item.id}" style="font-weight:bold;">${item.hoTen}</td><td id="dt-bp-${item.id}">${item.boPhan}</td>
+                    <td id="dt-tk-${item.id}">${item.tenKhoa}</td><td>${item.ngayBD}</td><td>${item.ngayKT}</td><td>${item.ketQua}</td><td>${item.chungChi}</td>
+                    <td><button class="btn-edit" onclick="suaDongInline('dao-tao', '${item.id}')">Sửa</button></td>
+                </tr>`;
+            });
+        }
+
+        // RENDER VÀ SỬA ĐỔI PHÂN HỆ 3: BẢO HIỂM
+        function renderPhanHeBaoHiem() {
+            let tbody = document.getElementById("tbody-bao-hiem"); tbody.innerHTML = "";
+            DATA_BAO_HIEM.forEach(item => {
+                tbody.innerHTML += `<tr>
+                    <td>${item.id}</td><td style="font-weight:bold;">${item.hoTen}</td><td>${item.soBHXH}</td><td>${item.maDV}</td>
+                    <td id="bh-lh-${item.id}">${item.loaiBH}</td><td id="bh-md-${item.id}">${item.mucDong}</td><td>${item.tuNgay}</td><td>${item.denNgay}</td><td><span class="badge badge-yes">${item.trangThai}</span></td>
+                    <td><button class="btn-edit" onclick="suaDongInline('bao-hiem', '${item.id}')">Sửa</button></td>
+                </tr>`;
+            });
+        }
+
+        // RENDER VÀ SỬA ĐỔI PHÂN HỆ 4: TIỀN LƯƠNG
+        function renderPhanHeLuong() {
+            let tbody = document.getElementById("tbody-luong"); tbody.innerHTML = "";
+            DATA_LUONG.forEach(item => {
+                tbody.innerHTML += `<tr>
+                    <td>${item.id}</td><td style="font-weight:bold; color:var(--primary-color);">${item.hoTen}</td><td>${item.boPhan}</td>
+                    <td id="l-cb-${item.id}">${item.luongCB}</td><td>${item.pcDocHai}</td><td>${item.pcATV}</td><td>${item.ngayCong}</td><td style="font-weight:bold; color:var(--success-color);">${item.tongNhan}</td>
+                    <td><button class="btn-edit" onclick="suaDongInline('luong', '${item.id}')">Sửa</button></td>
+                </tr>`;
+            });
+        }
+
+        // RENDER VÀ SỬA ĐỔI PHÂN HỆ 5: ĐÁNH GIÁ KPI
+        function renderPhanHeDanhGia() {
+            let tbody = document.getElementById("tbody-danh-gia"); tbody.innerHTML = "";
+            DATA_DANH_GIA.forEach(item => {
+                tbody.innerHTML += `<tr>
+                    <td>${item.id}</td><td style="font-weight:bold;">${item.hoTen}</td><td>${item.boPhan}</td>
+                    <td>${item.kyDG}</td><td id="dg-kp-${item.id}">${item.diemKPI}</td><td id="dg-xl-${item.id}"><span class="badge badge-unit">${item.xepLoai}</span></td><td>${item.ghiChu}</td>
+                    <td><button class="btn-edit" onclick="suaDongInline('danh-gia', '${item.id}')">Sửa</button></td>
+                </tr>`;
+            });
+        }
+
+        // THAO TÁC SỬA ĐỔI DỮ LIỆU CHUNG CHO CÁC PHÂN HỆ 2,3,4,5
+        function suaDongInline(phanHe, id) {
+            if (phanHe === 'dao-tao') {
+                let item = DATA_DAO_TAO.find(x => x.id == id);
+                document.getElementById(`dt-tk-${id}`).innerHTML = `<input type="text" id="inp-dt-tk-${id}" class="inline-input" value="${item.tenKhoa}">`;
+                event.target.outerHTML = `<button class="btn-save" onclick="luuDongInline('dao-tao', '${id}')">Lưu</button>`;
+            } else if (phanHe === 'bao-hiem') {
+                let item = DATA_BAO_HIEM.find(x => x.id == id);
+                document.getElementById(`bh-lh-${id}`).innerHTML = `<input type="text" id="inp-bh-lh-${id}" class="inline-input" value="${item.loaiBH}">`;
+                document.getElementById(`bh-md-${id}`).innerHTML = `<input type="text" id="inp-bh-md-${id}" class="inline-input" value="${item.mucDong}">`;
+                event.target.outerHTML = `<button class="btn-save" onclick="luuDongInline('bao-hiem', '${id}')">Lưu</button>`;
+            } else if (phanHe === 'luong') {
+                let item = DATA_LUONG.find(x => x.id == id);
+                document.getElementById(`l-cb-${id}`).innerHTML = `<input type="text" id="inp-l-cb-${id}" class="inline-input" value="${item.luongCB}">`;
+                event.target.outerHTML = `<button class="btn-save" onclick="luuDongInline('luong', '${id}')">Lưu</button>`;
+            } else if (phanHe === 'danh-gia') {
+                let item = DATA_DANH_GIA.find(x => x.id == id);
+                document.getElementById(`dg-kp-${id}`).innerHTML = `<input type="text" id="inp-dg-kp-${id}" class="inline-input" value="${item.diemKPI}">`;
+                event.target.outerHTML = `<button class="btn-save" onclick="luuDongInline('danh-gia', '${id}')">Lưu</button>`;
+            }
+        }
+
+        function luuDongInline(phanHe, id) {
+            if (phanHe === 'dao-tao') {
+                DATA_DAO_TAO.find(x => x.id == id).tenKhoa = document.getElementById(`inp-dt-tk-${id}`).value;
+                renderPhanHeDaoTao();
+            } else if (phanHe === 'bao-hiem') {
+                let row = DATA_BAO_HIEM.find(x => x.id == id);
+                row.loaiBH = document.getElementById(`inp-bh-lh-${id}`).value;
+                row.mucDong = document.getElementById(`inp-bh-md-${id}`).value;
+                renderPhanHeBaoHiem();
+            } else if (phanHe === 'luong') {
+                let row = DATA_LUONG.find(x => x.id == id);
+                row.luongCB = document.getElementById(`inp-l-cb-${id}`).value;
+                row.tongNhan = (parseFloat(row.luongCB.replace(/,/g, '')) + parseFloat(row.pcDocHai.replace(/,/g, '')) + parseFloat(row.pcATV.replace(/,/g, ''))).toLocaleString();
+                renderPhanHeLuong();
+            } else if (phanHe === 'danh-gia') {
+                let row = DATA_DANH_GIA.find(x => x.id == id);
+                row.diemKPI = document.getElementById(`inp-dg-kp-${id}`).value;
+                row.xepLoai = parseInt(row.diemKPI) >= 85 ? "Xuất sắc" : "Đạt";
+                renderPhanHeDanhGia();
+            }
+        }
+
+        function themDongMoi(phanHe) {
+            if(phanHe==='dao-tao') { DATA_DAO_TAO.push({ id: DATA_DAO_TAO.length+1, maNV:"Mới", hoTen:"Nhân viên mới", boPhan:"Văn phòng", tenKhoa:"Lớp huấn luyện mới", ngayBD:"—", ngayKT:"—", ketQua:"—", chungChi:"—" }); renderPhanHeDaoTao(); }
+            if(phanHe==='bao-hiem') { DATA_BAO_HIEM.push({ id: DATA_BAO_HIEM.length+1, hoTen:"Nhân viên mới", soBHXH:"—", maDV:"—", loaiBH:"Bao hiem mới", mucDong:"0", tuNgay:"—", denNgay:"—", trangThai:"Đóng mới" }); renderPhanHeBaoHiem(); }
+            if(phanHe==='luong') { DATA_LUONG.push({ id: DATA_LUONG.length+1, hoTen:"Nhân viên mới", boPhan:"—", luongCB:"6,000,000", pcDocHai:"0", pcATV:"0", ngayCong:"0", tongNhan:"6,000,000" }); renderPhanHeLuong(); }
+            if(phanHe==='danh-gia') { DATA_DANH_GIA.push({ id: DATA_DANH_GIA.length+1, hoTen:"Nhân viên mới", boPhan:"—", kyDG:"—", diemKPI:"80", xepLoai:"Đạt", ghiChu:"" }); renderPhanHeDanhGia(); }
+        }
+
+        // --- HÀM TẢI VÀ ĐỒNG BỘ DỰ PHÒNG TỪ CLOUD SUPABASE NÂNG CAO ---
+        async function taiNhanSuTuSupabase() {
+            let res = await _supabase.from('nhan_su').select('*');
+            if(res.data && res.data.length > 0) {
+                DANH_SACH_MASTER = res.data.map((x, idx) => {
+                    const lookupCloudValue = (obj, keys) => {
+                        for (let k of keys) {
+                            if (obj[k] !== undefined && obj[k] !== null) return obj[k];
+                            let snake = k.replace(/([A-Z])/g, "_$1").toLowerCase();
+                            if (obj[snake] !== undefined && obj[snake] !== null) return obj[snake];
+                        }
+                        return "";
+                    };
+                    let hoTen = lookupCloudValue(x, ['ho_ten', 'hovaten', 'nhan_vien', 'hoTen']);
+                    let ngaySinh = lookupCloudValue(x, ['ngay_sinh', 'ngaysinh', 'ns']);
+                    let soBhxh = lookupCloudValue(x, ['so_bhxh', 'sobhxh', 'baohiem', 'so_so_bhxh']) || "—";
+                    let soCccd = lookupCloudValue(x, ['so_cccd', 'socccd', 'cmnd']);
+                    let maDonVi = lookupCloudValue(x, ['ma_don_vi', 'madonvi', 'madonvigoc', 'ma_dv_goc']) || "—";
+                    let chucDanh = lookupCloudValue(x, ['chuc_danh', 'chucdanh', 'congviec']);
+                    let donViChuan = lookupCloudValue(x, ['don_vi_chuan', 'donvichuan']) || extractDonViChuan(chucDanh);
+                    let gioiTinh = lookupCloudValue(x, ['gioi_tinh', 'gioitinh']) || "Nam";
+                    
+                    let rawAtv = lookupCloudValue(x, ['atv', 'antoanvien']);
+                    let atv = (rawAtv === "YES" || rawAtv === true || rawAtv === 1 || rawAtv === "1") ? "YES" : "";
+                    let rawDocHai = lookupCloudValue(x, ['doc_hai', 'dochai']);
+                    let docHai = (rawDocHai === "YES" || rawDocHai === true || rawDocHai === 1) ? "YES" : "";
+
+                    return {
+                        id: x.id || (idx + 1), stt: idx + 1, hoTen, ngaySinh, tuoi: 2026 - layNamSinh(ngaySinh), soBhxh, soCccd, maDonViGoc: maDonVi, donViChuan, gioiTinh, atv, docHai, chucDanh
+                    };
+                });
+                taiBoLocDynamic(); renderBangNhanSu(DANH_SACH_MASTER); đồngBộSangCácPhânHệKhác();
+            }
         }
 
         function taiBoLocDynamic() {
@@ -340,9 +513,7 @@
 
         function capNhatDashboardNhanSu(list) {
             document.getElementById("ds-ns-tong").innerText = list.length + " Người";
-            let nam = list.filter(x => x.gioiTinh === "Nam").length;
-            let nu = list.filter(x => x.gioiTinh === "Nữ").length;
-            document.getElementById("ds-ns-gioitinh").innerText = `${nam} Nam / ${nu} Nữ`;
+            document.getElementById("ds-ns-gioitinh").innerText = `${list.filter(x => x.gioiTinh === "Nam").length} Nam / ${list.filter(x => x.gioiTinh === "Nữ").length} Nữ`;
             document.getElementById("ds-ns-atv").innerText = list.filter(x => x.atv === "YES").length + " Người";
             document.getElementById("ds-ns-dochai").innerText = list.filter(x => x.docHai === "YES").length + " Người";
         }
@@ -351,93 +522,10 @@
             let keyword = document.getElementById("ns-search").value.toLowerCase();
             let filterMaDV = document.getElementById("ns-filter-madonvigoc").value;
             let filterDV = document.getElementById("ns-filter-donvi").value;
-
             let ketQua = DANH_SACH_MASTER.filter(item => {
-                let matchKey = item.hoTen.toLowerCase().includes(keyword) || item.soCccd.includes(keyword);
-                let matchMaDV = filterMaDV === "ALL" || item.maDonViGoc === filterMaDV;
-                let matchDV = filterDV === "ALL" || item.donViChuan === filterDV;
-                return matchKey && matchMaDV && matchDV;
+                return (item.hoTen.toLowerCase().includes(keyword) || item.soCccd.includes(keyword)) && (filterMaDV === "ALL" || item.maDonViGoc === filterMaDV) && (filterDV === "ALL" || item.donViChuan === filterDV);
             });
             renderBangNhanSu(ketQua);
-        }
-
-        // 🛠️ THUẬT TOÁN ĐỌC ĐA DIỆN (DEEP MATCHING) KHÔNG QUAN TÂM ĐẾN ĐỊNH DẠNG TÊN CỘT TRÊN SUPABASE
-        async function taiNhanSuTuSupabase() {
-            let res = await _supabase.from('nhan_su').select('*');
-            if(res.data && res.data.length > 0) {
-                DANH_SACH_MASTER = res.data.map((x, idx) => {
-                    
-                    // Hàm nội bộ tìm kiếm giá trị thuộc tính bất chấp ký tự viết hoa/thường hoặc gạch dưới
-                    const lookupCloudValue = (obj, keys) => {
-                        for (let k of keys) {
-                            if (obj[k] !== undefined && obj[k] !== null) return obj[k];
-                            let snakeCase = k.replace(/([A-Z])/g, "_$1").toLowerCase();
-                            if (obj[snakeCase] !== undefined && obj[snakeCase] !== null) return obj[snakeCase];
-                        }
-                        return "";
-                    };
-
-                    let hoTen = lookupCloudValue(x, ['ho_ten', 'hovaten', 'nhan_vien', 'hoTen', 'ten']);
-                    let ngaySinh = lookupCloudValue(x, ['ngay_sinh', 'ngaysinh', 'ns', 'ngaySinh']);
-                    
-                    // Xử lý sâu cột Số BHXH / Số Sổ Bảo Hiểm
-                    let soBhxhGoc = lookupCloudValue(x, ['so_bhxh', 'sobhxh', 'baohiem', 'so_so_bhxh', 'soso_bhxh', 'soSoBhxh']);
-                    let soBhxh = (soBhxhGoc && soBhxhGoc.toString().trim() !== "") ? soBhxhGoc : "—";
-                    
-                    let soCccd = lookupCloudValue(x, ['so_cccd', 'socccd', 'cmnd', 'cancuoc', 'soCccd']);
-                    
-                    // Xử lý sâu cột Mã Đơn Vị Gốc
-                    let maDonViGoc = lookupCloudValue(x, ['ma_don_vi', 'madonvi', 'madonvigoc', 'ma_dv', 'ma_dv_goc', 'madv', 'maDonViGoc']);
-                    let maDonVi = (maDonViGoc && maDonViGoc.toString().trim() !== "") ? maDonViGoc : "—";
-                    
-                    let chucDanh = lookupCloudValue(x, ['chuc_danh', 'chucdanh', 'congviec', 'chucDanh']);
-                    let donViChuan = lookupCloudValue(x, ['don_vi_chuan', 'donvichuan', 'donViChuan']) || extractDonViChuan(chucDanh);
-                    let gioiTinh = lookupCloudValue(x, ['gioi_tinh', 'gioitinh', 'gioiTinh']) || "Nam";
-                    
-                    let namSinh = layNamSinh(ngaySinh);
-                    let tuoi = 2026 - namSinh;
-                    
-                    let namHuu = gioiTinh === "Nữ" ? namSinh + 60 : namSinh + 62;
-                    let mốcHưuGốc = lookupCloudValue(x, ['moc_huu', 'mochuu', 'mocHuu']) || `01/01/${namHuu}`;
-                    let nămHưuGốc = lookupCloudValue(x, ['nam_huu', 'namhuu', 'namHuu']) || `01/01/${namHuu}`;
-
-                    // Xử lý sâu cột An toàn viên và Độc hại
-                    let rawAtv = lookupCloudValue(x, ['atv', 'antoanvien', 'an_toan_vien', 'antoan']);
-                    let atv = (rawAtv === "YES" || rawAtv === true || rawAtv === 1 || rawAtv === "1" || rawAtv.toString().toLowerCase() === "yes") ? "YES" : "";
-                    
-                    let rawDocHai = lookupCloudValue(x, ['doc_hai', 'dochai', 'nghenghiepdochai', 'docHai']);
-                    let docHai = (rawDocHai === "YES" || rawDocHai === true || rawDocHai === 1 || rawDocHai === "1" || rawDocHai.toString().toLowerCase() === "yes") ? "YES" : "";
-
-                    // Cơ chế Fallback dự phòng: Quét lại Chức danh công việc nếu Cloud bị rỗng trường độc hại
-                    if (!docHai && chucDanh) {
-                        let tuKhoaDochai = ['han', 'sua chua', 'dien', 'van hanh', 'nuoc', 'bot', 'kcs', 'nau', 'tay rua', 'clo', 'hoa chat', 'axit', 'xeo', 'tai', 'nguoi'];
-                        let coDauHieuDocHai = tuKhoaDochai.some(kw => chucDanh.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(kw));
-                        if (coDauHieuDocHai) docHai = "YES";
-                    }
-
-                    return {
-                        id: x.id || (idx + 1),
-                        stt: idx + 1,
-                        hoTen: hoTen || "Chưa rõ tên",
-                        ngaySinh: ngaySinh || "—",
-                        tuoi: tuoi,
-                        soBhxh: soBhxh,
-                        soCccd: soCccd,
-                        maDonViGoc: maDonVi,
-                        donViChuan: donViChuan,
-                        mocHuu: mốcHưuGốc,
-                        namHuu: nămHưuGốc,
-                        gioiTinh: gioiTinh,
-                        atv: atv,
-                        docHai: docHai,
-                        chucDanh: chucDanh || "Chưa phân loại"
-                    };
-                });
-                taiBoLocDynamic(); 
-                renderBangNhanSu(DANH_SACH_MASTER);
-            } else {
-                document.getElementById("dynamic-tbody").innerHTML = `<tr><td colspan="15" style="text-align:center; color:gray;">Kết nối thành công nhưng bảng dữ liệu trống trên Cloud. Bạn hãy nạp file Excel.</td></tr>`;
-            }
         }
     </script>
 </body>
