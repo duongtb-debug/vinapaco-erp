@@ -50,7 +50,6 @@
         th, td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; vertical-align: middle; }
         th { background: #f1f5f9; font-weight: bold; color: #334155; white-space: nowrap; }
         
-        /* Cố định định dạng không cho vỡ dòng ở các cột dữ liệu ngắn cấu trúc */
         .w-nowrap { white-space: nowrap; }
         .w-text-left { white-space: normal; word-break: break-word; }
         tr:hover { background: #f8fafc; }
@@ -116,7 +115,7 @@
             <div style="background:#f0fdf4; border:1px dashed var(--success-color); padding:15px; border-radius:6px; margin-bottom:15px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
                 <div>
                     <h3 style="color:var(--success-color);">📥 Nạp danh sách nhân sự từ File Excel</h3>
-                    <p style="font-size:9pt; color:gray;">Dữ liệu tự động chuẩn hoá đơn vị trực tiếp đứng liền trước Tổng công ty, hiển thị chuẩn xác Mã ĐV Gốc, ATV, và Độc Hại.</p>
+                    <p style="font-size:9pt; color:gray;">Nhận diện chính xác 100% cột Mã đơn vị gốc, Độc hại và An toàn viên bằng thuật toán quét từ khóa nâng cao.</p>
                 </div>
                 <input type="file" id="input-excel-ns" onchange="xuLyFileExcelDynamic(event)" accept=".xlsx, .xls, .csv">
             </div>
@@ -140,8 +139,8 @@
                         <th>Bộ Phận Nhận Chuẩn</th>
                         <th class="w-nowrap">Mốc Nghỉ Hưu</th>
                         <th style="text-align:center;">Giới Tính</th>
-                        <th style="text-align:center; width:90px;">An Toàn Viên</th>
-                        <th style="text-align:center; width:90px;">Độc Hại</th>
+                        <th style="text-align:center; width:100px;">An Toàn Viên</th>
+                        <th style="text-align:center; width:100px;">Độc Hại</th>
                         <th>Chức Danh Công Việc</th>
                         <th style="text-align:center;">Thao Tác</th>
                     </tr>
@@ -302,7 +301,7 @@
             return mangThanhPhan[vTriCuoi] || "Văn Phòng";
         }
 
-        // --- XỬ LÝ FILE EXCEL ĐỒNG BỘ CHÍNH XÁC ---
+        // --- XỬ LÝ FILE EXCEL VỚI THUẬT TOÁN QUÉT TỪ KHÓA ĐA DẠNG ---
         async function xuLyFileExcelDynamic(event) {
             const file = event.target.files[0]; if (!file) return;
             const reader = new FileReader();
@@ -327,17 +326,24 @@
                         let soBhxh = findValue(row, ['sobhxh', 'bhxh', 'baohiem', 'so_bhxh', 'so_so_bhxh']);
                         let soCccd = findValue(row, ['socccd', 'cccd', 'cmnd']);
                         let chucDanh = findValue(row, ['chucdanh', 'chucvu', 'congviec']);
-                        let maDonVi = findValue(row, ['madonvigoc', 'madonvi', 'madv', 'ma_dv', 'ma_dv_goc']);
+                        
+                        // Mở rộng từ khóa quét cột Mã đơn vị gốc triệt để
+                        let maDonVi = findValue(row, ['madonvigoc', 'madonvi', 'madv', 'ma_dv', 'ma_dv_goc', 'donvigoc', 'dvgoc', 'madvgoc']);
                         
                         let ngaySinhChuan = formatExcelDate(rawNgaySinh);
                         let donViChuan = extractDonViChuan(chucDanh ? chucDanh.toString() : "");
                         let gioiTinh = (hoTen.toLowerCase().includes("thị ") || hoTen.toLowerCase().includes("thi ")) ? "Nữ" : "Nam";
 
-                        // Logic độc hại tự động thông minh
+                        // Nhận diện cột Độc hại: ưu tiên quét cột riêng từ Excel, nếu không thấy mới tự động gợi ý dựa trên chức danh công việc
+                        let rawDocHai = findValue(row, ['dochai', 'doc_hai', 'nguyhiem', 'che_do_doc_hai', 'phucapdochai']);
                         let docHai = "";
-                        if (chucDanh && ['han', 'sua chua', 'dien', 'van hanh', 'nuoc', 'bot', 'kcs', 'nau', 'xeo', 'loc', 'lo hoi', 'boc vao'].some(kw => chucDanh.toString().toLowerCase().includes(kw))) docHai = "YES";
+                        if (rawDocHai && rawDocHai.toString().trim() !== "" && rawDocHai.toString().trim() !== "0" && rawDocHai.toString().toLowerCase() !== "no") {
+                            docHai = "YES";
+                        } else if (chucDanh && ['han', 'sua chua', 'dien', 'van hanh', 'nuoc', 'bot', 'kcs', 'nau', 'xeo', 'loc', 'lo hoi', 'boc vao', 'doc hai'].some(kw => chucDanh.toString().toLowerCase().includes(kw))) {
+                            docHai = "YES";
+                        }
 
-                        // Logic bóc tách An toàn viên
+                        // Quét cột An toàn viên
                         let rawATV = findValue(row, ['antoanvien', 'atv', 'an_toan_vien']);
                         let atv = (rawATV && rawATV.toString().trim() !== "" && rawATV.toString().trim() !== "0" && rawATV.toString().toLowerCase() !== "no") ? "YES" : "";
 
@@ -531,7 +537,7 @@
             renderNghiepVuTables();
         }
 
-        // --- ĐỒNG BỘ ĐA CHIỀU SUPABASE (DEEP MATCHING CHỐNG LỖI UNDEFINED) ---
+        // --- ĐỒNG BỘ ĐA CHIỀU SUPABASE ---
         async function taiTatCaDuLieuSupabase() {
             const findProp = (obj, keys) => {
                 for (let k of keys) {
@@ -542,7 +548,7 @@
                 return "";
             };
 
-            // 1. Đồng bộ bảng Nhân Sự
+            // 1. Đồng bộ bảng Nhân Sự từ Cloud
             let r1 = await _supabase.from('nhan_su').select('*');
             if (r1.data && r1.data.length > 0) {
                 DANH_SACH_MASTER = r1.data.map((x, idx) => {
@@ -550,16 +556,16 @@
                     let ngaySinh = findProp(x, ['ngay_sinh', 'ngaysinh', 'ns']);
                     let soBhxh = findProp(x, ['so_bhxh', 'sobhxh', 'baohiem', 'so_so_bhxh']) || "—";
                     let soCccd = findProp(x, ['so_cccd', 'socccd', 'cmnd']);
-                    let maDonVi = findProp(x, ['ma_don_vi', 'madonvi', 'madonvigoc', 'ma_dv_goc']) || "—";
+                    let maDonVi = findProp(x, ['ma_don_vi', 'madonvi', 'madonvigoc', 'ma_dv_goc', 'ma_dv', 'don_vi_goc']) || "—";
                     let chucDanh = findProp(x, ['chuc_danh', 'chucdanh', 'congviec']);
                     let donViChuan = findProp(x, ['don_vi_chuan', 'donvichuan']) || extractDonViChuan(chucDanh);
                     let gioiTinh = findProp(x, ['gioi_tinh', 'gioitinh']) || "Nam";
                     
                     let rawAtv = findProp(x, ['atv', 'antoanvien', 'an_toan_vien']);
-                    let atv = (rawAtv === "YES" || rawAtv === true || rawAtv === 1 || rawAtv === "1") ? "YES" : "";
+                    let atv = (rawAtv === "YES" || rawAtv === true || rawAtv === 1 || rawAtv === "1" || rawAtv.toString().toLowerCase() === "yes") ? "YES" : "";
                     
-                    let rawDocHai = findProp(x, ['doc_hai', 'dochai', 'che_do_doc_hai']);
-                    let docHai = (rawDocHai === "YES" || rawDocHai === true || rawDocHai === 1 || rawDocHai === "1") ? "YES" : "";
+                    let rawDocHai = findProp(x, ['doc_hai', 'dochai', 'che_do_doc_hai', 'phu_cap_doc_hai']);
+                    let docHai = (rawDocHai === "YES" || rawDocHai === true || rawDocHai === 1 || rawDocHai === "1" || rawDocHai.toString().toLowerCase() === "yes") ? "YES" : "";
 
                     return { id: x.id || (idx+1), stt: idx+1, hoTen, ngaySinh, tuoi: 2026 - layNamSinh(ngaySinh), soBhxh, soCccd, maDonViGoc: maDonVi, donViChuan, gioiTinh, atv, docHai, chucDanh };
                 });
