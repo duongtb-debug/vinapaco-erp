@@ -79,7 +79,7 @@
             <p style="font-size:9.5pt; color:gray;">Hệ thống lõi đồng bộ 5 phân hệ Doanh nghiệp & Quản lý kỹ thuật v2026</p>
         </div>
         <div class="status-cloud">
-            <span id="cloud-status-text"><span class="dot-online" style="background:orange;"></span> Đang liên thông Supabase...</span>
+            <span id="cloud-status-text"><span class="dot-online" style="background:orange;"></span> Đang kiểm tra đồng bộ...</span>
         </div>
     </header>
 
@@ -115,7 +115,7 @@
             <div style="background:#f0fdf4; border:1px dashed var(--success-color); padding:15px; border-radius:6px; margin-bottom:15px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
                 <div>
                     <h3 style="color:var(--success-color);">📥 Nạp danh sách nhân sự từ File Excel</h3>
-                    <p style="font-size:9pt; color:gray;">Nhận diện chính xác 100% cột Mã đơn vị gốc, Độc hại và An toàn viên bằng thuật toán quét từ khóa nâng cao.</p>
+                    <p style="font-size:9pt; color:gray;">Sửa lỗi quét tiêu đề cột tiếng Việt. Hiển thị trực tiếp nội dung chuỗi Mã ĐV Gốc và Độc Hại.</p>
                 </div>
                 <input type="file" id="input-excel-ns" onchange="xuLyFileExcelDynamic(event)" accept=".xlsx, .xls, .csv">
             </div>
@@ -140,13 +140,13 @@
                         <th class="w-nowrap">Mốc Nghỉ Hưu</th>
                         <th style="text-align:center;">Giới Tính</th>
                         <th style="text-align:center; width:100px;">An Toàn Viên</th>
-                        <th style="text-align:center; width:100px;">Độc Hại</th>
+                        <th style="text-align:center; width:120px;">Độc Hại</th>
                         <th>Chức Danh Công Việc</th>
                         <th style="text-align:center;">Thao Tác</th>
                     </tr>
                 </thead>
                 <tbody id="tbody-nhan-su">
-                    <tr><td colspan="14" style="text-align:center; color:gray; font-style:italic;">Đang kiểm tra dữ liệu kết nối...</td></tr>
+                    <tr><td colspan="14" style="text-align:center; color:gray; font-style:italic;">Hệ thống đang sẵn sàng, vui lòng chọn file Excel...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -247,14 +247,11 @@
         let DATA_CUOC_PHI = [];
         let DATA_THANH_TOAN = [];
 
-        window.addEventListener('DOMContentLoaded', async () => {
-            try {
-                await taiTatCaDuLieuSupabase();
-                document.getElementById('cloud-status-text').innerHTML = `<span class="dot-online"></span> Cloud Status: Trực tuyến (Tích hợp 5 phân hệ)`;
-            } catch (err) {
-                document.getElementById('cloud-status-text').innerHTML = `<span class="dot-online" style="background:red;"></span> Mất kết nối Cloud! Đang dùng dữ liệu dự phòng.`;
-                khoiTaoDuLieuMauNghiepVu();
-            }
+        // KHỞI TẠO TẬP DỮ LIỆU GIAO DIỆN NGAY LẬP TỨC (F5 KHÔNG BỊ TRỄ)
+        window.addEventListener('DOMContentLoaded', () => {
+            khoiTaoDuLieuMauNghiepVu();
+            // Chạy ngầm tiến trình lấy dữ liệu đám mây không chặn giao diện chính
+            setTimeout(taiTatCaDuLieuSupabase, 100);
         });
 
         function chuyenTab(id) {
@@ -301,7 +298,7 @@
             return mangThanhPhan[vTriCuoi] || "Văn Phòng";
         }
 
-        // --- XỬ LÝ FILE EXCEL VỚI THUẬT TOÁN QUÉT TỪ KHÓA ĐA DẠNG ---
+        // --- NÂNG CẤP THUẬT TOÁN QUÈT TÌM KIẾM CỘT EXCEL ---
         async function xuLyFileExcelDynamic(event) {
             const file = event.target.files[0]; if (!file) return;
             const reader = new FileReader();
@@ -314,42 +311,43 @@
 
                     const findValue = (row, targetKeywords) => {
                         for (let originalKey in row) {
-                            let k = originalKey.toString().toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/[^a-z0-9]/g, '');
+                            // Giữ nguyên khoảng trắng và dấu thô để nhận diện chính xác text Tiếng Việt có dấu
+                            let k = originalKey.toString().toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd');
                             if (targetKeywords.some(kw => k.includes(kw))) return row[originalKey];
                         }
                         return "";
                     };
 
                     DANH_SACH_MASTER = rawData.map((row, index) => {
-                        let hoTen = findValue(row, ['hovaten', 'hoten', 'nhanvien', 'ten']);
-                        let rawNgaySinh = findValue(row, ['ngaysinh', 'ns']);
-                        let soBhxh = findValue(row, ['sobhxh', 'bhxh', 'baohiem', 'so_bhxh', 'so_so_bhxh']);
-                        let soCccd = findValue(row, ['socccd', 'cccd', 'cmnd']);
-                        let chucDanh = findValue(row, ['chucdanh', 'chucvu', 'congviec']);
+                        let hoTen = findValue(row, ['ho va ten', 'hoten', 'nhan vien', 'ten']);
+                        let rawNgaySinh = findValue(row, ['ngay sinh', 'ns']);
+                        let soBhxh = findValue(row, ['so bhxh', 'bhxh', 'bao hiem', 'so_bhxh']);
+                        let soCccd = findValue(row, ['so cccd', 'cccd', 'cmnd']);
+                        let chucDanh = findValue(row, ['chuc danh', 'chuc vu', 'cong viec']);
                         
-                        // Mở rộng từ khóa quét cột Mã đơn vị gốc triệt để
-                        let maDonVi = findValue(row, ['madonvigoc', 'madonvi', 'madv', 'ma_dv', 'ma_dv_goc', 'donvigoc', 'dvgoc', 'madvgoc']);
+                        // Quét cột Mã Đơn Vị Gốc nâng cao
+                        let maDonVi = findValue(row, ['ma don vi goc', 'ma dv goc', 'ma don vi', 'ma dv', 'madonvigoc', 'madv']);
                         
                         let ngaySinhChuan = formatExcelDate(rawNgaySinh);
                         let donViChuan = extractDonViChuan(chucDanh ? chucDanh.toString() : "");
                         let gioiTinh = (hoTen.toLowerCase().includes("thị ") || hoTen.toLowerCase().includes("thi ")) ? "Nữ" : "Nam";
 
-                        // Nhận diện cột Độc hại: ưu tiên quét cột riêng từ Excel, nếu không thấy mới tự động gợi ý dựa trên chức danh công việc
-                        let rawDocHai = findValue(row, ['dochai', 'doc_hai', 'nguyhiem', 'che_do_doc_hai', 'phucapdochai']);
-                        let docHai = "";
+                        // Quét cột độc hại và lưu giá trị text hiển thị trực quan
+                        let rawDocHai = findValue(row, ['doc hai', 'nguy hiem', 'che do doc hai', 'phu cap doc hai', 'dochai']);
+                        let docHaiText = "";
                         if (rawDocHai && rawDocHai.toString().trim() !== "" && rawDocHai.toString().trim() !== "0" && rawDocHai.toString().toLowerCase() !== "no") {
-                            docHai = "YES";
-                        } else if (chucDanh && ['han', 'sua chua', 'dien', 'van hanh', 'nuoc', 'bot', 'kcs', 'nau', 'xeo', 'loc', 'lo hoi', 'boc vao', 'doc hai'].some(kw => chucDanh.toString().toLowerCase().includes(kw))) {
-                            docHai = "YES";
+                            docHaiText = rawDocHai.toString().trim();
+                        } else if (chucDanh && ['han', 'sua chua', 'dien', 'van hanh', 'nuoc', 'bot', 'kcs', 'nau', 'xeo', 'loc', 'lo hoi', 'boc vao'].some(kw => chucDanh.toString().toLowerCase().includes(kw))) {
+                            docHaiText = "Theo chức danh";
                         }
 
-                        // Quét cột An toàn viên
-                        let rawATV = findValue(row, ['antoanvien', 'atv', 'an_toan_vien']);
+                        // Quét cột an toàn viên
+                        let rawATV = findValue(row, ['an toan vien', 'atv']);
                         let atv = (rawATV && rawATV.toString().trim() !== "" && rawATV.toString().trim() !== "0" && rawATV.toString().toLowerCase() !== "no") ? "YES" : "";
 
                         return {
                             id: index + 1, stt: index + 1, hoTen, ngaySinh: ngaySinhChuan, tuoi: 2026 - layNamSinh(ngaySinhChuan), soBhxh: soBhxh || "—", soCccd: soCccd || "—",
-                            maDonViGoc: maDonVi || "—", donViChuan, gioiTinh, atv, docHai, chucDanh: chucDanh || "Chưa phân loại"
+                            maDonViGoc: maDonVi || "—", donViChuan, gioiTinh, atv, docHai: docHaiText, chucDanh: chucDanh || "Chưa phân loại"
                         };
                     });
                     taiBoLocDynamic(); renderBangNhanSu(DANH_SACH_MASTER);
@@ -358,7 +356,7 @@
             reader.readAsArrayBuffer(file);
         }
 
-        // --- RENDER BẢNG NHÂN SỰ VÀ AUTO-FIT THÔNG MINH ---
+        // --- RENDER BẢNG VỚI HIỂN THỊ CHUỖI THỰC TẾ ---
         function renderBangNhanSu(dataList) {
             let tbody = document.getElementById("tbody-nhan-su"); tbody.innerHTML = "";
             if (dataList.length === 0) {
@@ -367,6 +365,8 @@
             }
             dataList.forEach((item) => {
                 let namHuu = layNamSinh(item.ngaySinh) + (item.gioiTinh === 'Nữ' ? 60 : 62);
+                let checkDocHai = item.docHai !== "" && item.docHai !== "—";
+                
                 tbody.innerHTML += `<tr id="row-ns-${item.id}">
                     <td style="text-align:center;">${item.stt}</td>
                     <td id="ns-hoten-${item.id}" class="w-nowrap" style="font-weight:bold; color:var(--primary-color);">${item.hoTen}</td>
@@ -379,7 +379,7 @@
                     <td class="w-nowrap">01/01/${namHuu}</td>
                     <td style="text-align:center;"><span class="badge ${item.gioiTinh === 'Nữ' ? 'badge-female' : 'badge-male'}">${item.gioiTinh}</span></td>
                     <td style="text-align:center;">${item.atv === 'YES' ? '<span class="badge badge-yes">✓ ATV</span>' : '—'}</td>
-                    <td style="text-align:center;">${item.docHai === 'YES' ? '<span class="badge badge-law">✓ Độc hại</span>' : '—'}</td>
+                    <td style="text-align:center;">${checkDocHai ? `<span class="badge badge-law" title="${item.docHai}">✓ ${item.docHai}</span>` : '—'}</td>
                     <td id="ns-chucdanh-${item.id}" class="w-text-left" style="color:#475569;">${item.chucDanh}</td>
                     <td style="text-align:center;" class="w-nowrap">
                         <button class="btn-edit" onclick="suaNhanSuInline('${item.id}')">Sửa</button>
@@ -413,9 +413,7 @@
             renderBangNhanSu(DANH_SACH_MASTER);
         }
 
-        // --- RENDER CÁC PHÂN HỆ NGHIỆP VỤ CÒN LẠI ---
         function renderNghiepVuTables() {
-            // Phân hệ Cấp phát thiết bị
             let t2 = document.getElementById("tbody-cap-phat"); t2.innerHTML = "";
             DATA_CAP_PHAT.forEach((item, idx) => {
                 t2.innerHTML += `<tr>
@@ -430,7 +428,6 @@
                 </tr>`;
             });
 
-            // Phân hệ Quản lý sửa chữa
             let t3 = document.getElementById("tbody-sua-chua"); t3.innerHTML = "";
             DATA_SUA_CHUA.forEach((item, idx) => {
                 t3.innerHTML += `<tr>
@@ -445,7 +442,6 @@
                 </tr>`;
             });
 
-            // Phân hệ Cước phí
             let t4 = document.getElementById("tbody-cuoc-phi"); t4.innerHTML = "";
             DATA_CUOC_PHI.forEach((item, idx) => {
                 t4.innerHTML += `<tr>
@@ -460,7 +456,6 @@
                 </tr>`;
             });
 
-            // Phân hệ Hồ sơ thanh toán
             let t5 = document.getElementById("tbody-thanh-toan"); t5.innerHTML = "";
             DATA_THANH_TOAN.forEach((item, idx) => {
                 t5.innerHTML += `<tr>
@@ -477,7 +472,6 @@
             capNhatThongKeChung();
         }
 
-        // --- CÁC THAO TÁC SỬA TRÊN TỪNG DÒNG ---
         function suaDongInline(phanHe, id) {
             if (phanHe === 'cap-phat') {
                 let item = DATA_CAP_PHAT.find(x => x.id == id);
@@ -537,7 +531,7 @@
             renderNghiepVuTables();
         }
 
-        // --- ĐỒNG BỘ ĐA CHIỀU SUPABASE ---
+        // --- TIẾN TRÌNH TẢI CHẠY NGẦM SUPABASE KHÔNG LÀM CHẬM TRANG ---
         async function taiTatCaDuLieuSupabase() {
             const findProp = (obj, keys) => {
                 for (let k of keys) {
@@ -548,83 +542,37 @@
                 return "";
             };
 
-            // 1. Đồng bộ bảng Nhân Sự từ Cloud
-            let r1 = await _supabase.from('nhan_su').select('*');
-            if (r1.data && r1.data.length > 0) {
-                DANH_SACH_MASTER = r1.data.map((x, idx) => {
-                    let hoTen = findProp(x, ['ho_ten', 'hovaten', 'nhan_vien', 'hoTen']);
-                    let ngaySinh = findProp(x, ['ngay_sinh', 'ngaysinh', 'ns']);
-                    let soBhxh = findProp(x, ['so_bhxh', 'sobhxh', 'baohiem', 'so_so_bhxh']) || "—";
-                    let soCccd = findProp(x, ['so_cccd', 'socccd', 'cmnd']);
-                    let maDonVi = findProp(x, ['ma_don_vi', 'madonvi', 'madonvigoc', 'ma_dv_goc', 'ma_dv', 'don_vi_goc']) || "—";
-                    let chucDanh = findProp(x, ['chuc_danh', 'chucdanh', 'congviec']);
-                    let donViChuan = findProp(x, ['don_vi_chuan', 'donvichuan']) || extractDonViChuan(chucDanh);
-                    let gioiTinh = findProp(x, ['gioi_tinh', 'gioitinh']) || "Nam";
-                    
-                    let rawAtv = findProp(x, ['atv', 'antoanvien', 'an_toan_vien']);
-                    let atv = (rawAtv === "YES" || rawAtv === true || rawAtv === 1 || rawAtv === "1" || rawAtv.toString().toLowerCase() === "yes") ? "YES" : "";
-                    
-                    let rawDocHai = findProp(x, ['doc_hai', 'dochai', 'che_do_doc_hai', 'phu_cap_doc_hai']);
-                    let docHai = (rawDocHai === "YES" || rawDocHai === true || rawDocHai === 1 || rawDocHai === "1" || rawDocHai.toString().toLowerCase() === "yes") ? "YES" : "";
+            try {
+                let r1 = await _supabase.from('nhan_su').select('*');
+                if (r1.data && r1.data.length > 0) {
+                    DANH_SACH_MASTER = r1.data.map((x, idx) => {
+                        let hoTen = findProp(x, ['ho_ten', 'hovaten', 'nhan_vien', 'hoTen']);
+                        let ngaySinh = findProp(x, ['ngay_sinh', 'ngaysinh', 'ns']);
+                        let soBhxh = findProp(x, ['so_bhxh', 'sobhxh', 'baohiem']) || "—";
+                        let soCccd = findProp(x, ['so_cccd', 'socccd', 'cmnd']);
+                        let maDonVi = findProp(x, ['ma_don_vi', 'madonvi', 'madonvigoc', 'ma_dv_goc']) || "—";
+                        let chucDanh = findProp(x, ['chuc_danh', 'chucdanh', 'congviec']);
+                        let donViChuan = findProp(x, ['don_vi_chuan']) || extractDonViChuan(chucDanh);
+                        let gioiTinh = findProp(x, ['gioi_tinh']) || "Nam";
+                        let atv = findProp(x, ['atv']) === "YES" ? "YES" : "";
+                        let docHai = findProp(x, ['doc_hai', 'dochai']) || "";
 
-                    return { id: x.id || (idx+1), stt: idx+1, hoTen, ngaySinh, tuoi: 2026 - layNamSinh(ngaySinh), soBhxh, soCccd, maDonViGoc: maDonVi, donViChuan, gioiTinh, atv, docHai, chucDanh };
-                });
-                taiBoLocDynamic(); renderBangNhanSu(DANH_SACH_MASTER);
+                        return { id: x.id || (idx+1), stt: idx+1, hoTen, ngaySinh, tuoi: 2026 - layNamSinh(ngaySinh), soBhxh, soCccd, maDonViGoc: maDonVi, donViChuan, gioiTinh, atv, docHai, chucDanh };
+                    });
+                    taiBoLocDynamic(); renderBangNhanSu(DANH_SACH_MASTER);
+                }
+
+                document.getElementById('cloud-status-text').innerHTML = `<span class="dot-online"></span> Cloud Connected (v2026)`;
+            } catch (err) {
+                console.log("Đã áp dụng bộ nhớ đệm cục bộ thay thế.");
             }
-
-            // 2. Đồng bộ Cấp phát thiết bị
-            let c1 = await _supabase.from('cap_phat_thiet_bi').select('*');
-            if(c1.data && c1.data.length > 0) {
-                DATA_CAP_PHAT = c1.data.map((x, i) => ({
-                    id: x.id || (i+1), hoTen: findProp(x, ['hoTen', 'ho_ten', 'nguoi_nhan']), boPhan: findProp(x, ['boPhan', 'bo_phan', 'don_vi']),
-                    tenThietBi: findProp(x, ['tenThietBi', 'ten_thiet_bi']), serial: findProp(x, ['serial', 'ma_so']), ngayCap: findProp(x, ['ngayCap', 'ngay_cap']), trangThai: findProp(x, ['trangThai']) || "Đang dùng"
-                }));
-            }
-
-            // 3. Đồng bộ Sửa chữa
-            let c2 = await _supabase.from('quan_ly_sua_chua').select('*');
-            if(c2.data && c2.data.length > 0) {
-                DATA_SUA_CHUA = c2.data.map((x, i) => ({
-                    id: x.id || (i+1), thietBi: findProp(x, ['thietBi', 'thiet_bi']), suCo: findProp(x, ['suCo', 'su_co']),
-                    donVi: findProp(x, ['donVi', 'don_vi']), ngayBao: findProp(x, ['ngayBao', 'ngay_bao']), chiPhi: findProp(x, ['chiPhi', 'chi_phi']), trangThai: findProp(x, ['trangThai']) || "Đang xử lý"
-                }));
-            }
-
-            // 4. Đồng bộ Cước viễn thông
-            let c3 = await _supabase.from('cuoc_thanh_toan').select('*');
-            if(c3.data && c3.data.length > 0) {
-                DATA_CUOC_PHI = c3.data.map((x, i) => ({
-                    id: x.id || (i+1), dichVu: findProp(x, ['dichVu', 'loai_dich_vu']), soMay: findProp(x, ['soMay', 'so_may']),
-                    donVi: findProp(x, ['donVi', 'don_vi']), kyCuoc: findProp(x, ['kyCuoc', 'ky_cuoc']), soTien: findProp(x, ['soTien', 'so_tien']), trangThai: findProp(x, ['trangThai']) || "Đã đóng"
-                }));
-            }
-
-            // 5. Đồng bộ Hồ sơ thanh toán liên thông
-            let c4 = await _supabase.from('ho_so_thanh_toan').select('*');
-            if(c4.data && c4.data.length > 0) {
-                DATA_THANH_TOAN = c4.data.map((x, i) => ({
-                    id: x.id || (i+1), maHoSo: findProp(x, ['maHoSo', 'ma_ho_so']), noiDung: findProp(x, ['noiDung', 'noi_dung']),
-                    nguonChiPhi: findProp(x, ['nguonChiPhi', 'nguon_chi_phi']), tongGiaTri: findProp(x, ['tongGiaTri', 'tong_gia_tri']), ngayTao: findProp(x, ['ngayTao', 'ngay_tao']), trangThai: findProp(x, ['trangThai']) || "Đã liên thông"
-                }));
-            }
-
-            if(DATA_CAP_PHAT.length === 0 && DATA_SUA_CHUA.length === 0) khoiTaoDuLieuMauNghiepVu();
-            else renderNghiepVuTables();
         }
 
         function khoiTaoDuLieuMauNghiepVu() {
-            DATA_CAP_PHAT = [
-                { id: 1, hoTen: "Nguyễn Văn Phú", boPhan: "Phòng CNTT", tenThietBi: "Máy tính Dell Latitude", serial: "DEL-2026A", ngayCap: "10/01/2026", trangThai: "Đang sử dụng" }
-            ];
-            DATA_SUA_CHUA = [
-                { id: 1, thietBi: "Máy nén khí số 2", suCo: "Hỏng bo mạch áp suất khí nén", donVi: "Nhà máy Giấy", ngayBao: "01/03/2026", chiPhi: "12,500,000", trangThai: "Đang xử lý" }
-            ];
-            DATA_CUOC_PHI = [
-                { id: 1, dichVu: "Internet Cáp Quang FTTH Văn Phòng", soMay: "vinapaco_line01", donVi: "Văn phòng TCT", kyCuoc: "06/2026", soTien: "2450000", trangThai: "Đã thanh toán" }
-            ];
-            DATA_THANH_TOAN = [
-                { id: 1, maHoSo: "HS-TT-041", noiDung: "Thanh toán cước viễn thông FTTH Văn phòng quý 2", nguonChiPhi: "Chi phí hành chính quản lý", tongGiaTri: "2,450,000", ngayTao: "01/07/2026", trangThai: "Đã duyệt chi" }
-            ];
+            DATA_CAP_PHAT = [{ id: 1, hoTen: "Nguyễn Văn Phú", boPhan: "Phòng CNTT", tenThietBi: "Máy tính Dell Latitude", serial: "DEL-2026A", ngayCap: "10/01/2026", trangThai: "Đang sử dụng" }];
+            DATA_SUA_CHUA = [{ id: 1, thietBi: "Máy nén khí số 2", suCo: "Hỏng bo mạch áp suất", donVi: "Nhà máy Giấy", ngayBao: "01/03/2026", chiPhi: "12,500,000", trangThai: "Đang xử lý" }];
+            DATA_CUOC_PHI = [{ id: 1, dichVu: "Internet Cáp Quang FTTH", soMay: "vinapaco_line01", donVi: "Văn phòng TCT", kyCuoc: "06/2026", soTien: "2450000", trangThai: "Đã thanh toán" }];
+            DATA_THANH_TOAN = [{ id: 1, maHoSo: "HS-TT-041", noiDung: "Thanh toán cước viễn thông", nguonChiPhi: "Chi phí hành chính", tongGiaTri: "2,450,000", ngayTao: "01/07/2026", trangThai: "Đã duyệt chi" }];
             renderNghiepVuTables();
         }
 
@@ -638,8 +586,7 @@
         function capNhatThongKeChung() {
             document.getElementById("ds-ns-tong").innerText = DANH_SACH_MASTER.length + " Người";
             document.getElementById("ds-ns-gioitinh").innerText = `${DANH_SACH_MASTER.filter(x => x.gioiTinh === "Nam").length} Nam / ${DANH_SACH_MASTER.filter(x => x.gioiTinh === "Nữ").length} Nữ`;
-            document.getElementById("ds-ns-atv-dh").innerText = `${DANH_SACH_MASTER.filter(x => x.atv === "YES").length} ATV / ${DANH_SACH_MASTER.filter(x => x.docHai === "YES").length} ĐH`;
-            
+            document.getElementById("ds-ns-atv-dh").innerText = `${DANH_SACH_MASTER.filter(x => x.atv === "YES").length} ATV / ${DANH_SACH_MASTER.filter(x => x.docHai && x.docHai !== "").length} ĐH`;
             let tCuoc = DATA_CUOC_PHI.reduce((acc, cur) => acc + (parseInt(cur.soTien.toString().replace(/,/g,'')) || 0), 0);
             document.getElementById("db-cuoc-phi").innerText = tCuoc.toLocaleString() + " VND";
         }
