@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vinapaco ERP Master System v2026 - Training Edition</title>
+    <title>Vinapaco ERP Master System v2026 - Ultimate Training Edition</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
@@ -20,7 +20,6 @@
         
         header { background: linear-gradient(135deg, #0f172a, #1e293b); color: white; padding: 15px 20px; border-radius: 8px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
         
-        /* ĐIỀU HƯỚNG GRID */
         .grid-main { display: grid; grid-template-columns: 240px 1fr; gap: 15px; }
         .sidebar { display: flex; flex-direction: column; gap: 15px; }
         .widget-box { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
@@ -35,7 +34,6 @@
         .view-section { display: none; }
         .view-section.active { display: block; }
 
-        /* FILTER & TABLES */
         .filter-wrapper { background: #f8fafc; padding: 12px; border-radius: 6px; margin-bottom: 15px; border: 1px solid #e2e8f0; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
         .search-box { flex: 1; min-width: 200px; position: relative; }
         .search-box input { width: 100%; padding: 8px 12px 8px 32px; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; }
@@ -48,10 +46,22 @@
         th { background: #f1f5f9; font-weight: 700; color: #334155; position: sticky; top: 0; z-index: 10; }
         
         /* FORM NHẬP */
-        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 15px; background: #f8fafc; padding: 15px; border-radius: 6px; border: 1px solid #e2e8f0; }
-        .form-group { display: flex; flex-direction: column; gap: 4px; }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin-bottom: 15px; background: #f8fafc; padding: 15px; border-radius: 6px; border: 1px solid #e2e8f0; }
+        .form-group { display: flex; flex-direction: column; gap: 4px; position: relative; }
         .form-group label { font-weight: 600; color: #475569; }
         .form-group input, .form-group select { padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; font-size: 13px; }
+
+        /* BOX CHỌN NHÂN SỰ THÔNG MINH */
+        .smart-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #cbd5e1; border-radius: 6px; max-height: 200px; overflow-y: auto; z-index: 100; box-shadow: 0 4px 6px rgba(0,0,0,0.1); display: none; }
+        .smart-dropdown div { padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #f1f5f9; }
+        .smart-dropdown div:hover { background: #f0f9ff; color: var(--primary); font-weight: 600; }
+
+        /* KHU VỰC UPLOAD FILE VÀ PREVIEW */
+        .upload-zone { border: 2px dashed #cbd5e1; padding: 15px; border-radius: 6px; text-align: center; background: white; cursor: pointer; transition: all 0.2s; position: relative; }
+        .upload-zone:hover { border-color: var(--primary); background: #f0f9ff; }
+        .preview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; margin-top: 10px; }
+        .preview-card { background: #f1f5f9; padding: 8px; border-radius: 4px; border: 1px solid #e2e8f0; font-size: 11px; position: relative; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; text-overflow: ellipsis; }
+        .preview-card .remove-btn { position: absolute; top: 2px; right: 2px; background: var(--danger); color: white; border: none; border-radius: 50%; width: 16px; height: 16px; cursor: pointer; font-size: 10px; line-height: 16px; text-align: center; }
 
         /* BUTTONS & BADGES */
         button.btn { padding: 8px 14px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; }
@@ -65,6 +75,8 @@
         .badge-danger { background: #fee2e2; color: #b91c1c; }
 
         .cloud-status { padding: 6px 12px; border-radius: 20px; font-weight: 600; font-size: 12px; background: #dcfce7; color: #15803d; }
+        .file-link { color: var(--primary); text-decoration: none; font-weight: 600; display: block; max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
+        .file-link:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
@@ -78,6 +90,7 @@
     </header>
 
     <div class="grid-main">
+        <!-- SIDEBAR -->
         <div class="sidebar">
             <div class="widget-box">
                 <div class="widget-title">⚙️ Phân hệ cốt lõi</div>
@@ -88,93 +101,81 @@
             </div>
         </div>
 
+        <!-- WORKSPACE CHÍNH -->
         <div class="workspace">
             
+            <!-- SECTION 1: NHÂN SỰ GỐC -->
             <div id="section-nhansu" class="view-section active">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
                     <h2>👥 Quản lý danh bản nhân sự gốc</h2>
-                    <div class="excel-upload-wrapper">
-                        <button class="btn btn-purple">📥 Tải File Excel Nhân Sự</button>
-                        <input type="file" style="position:absolute; left:0; top:0; opacity:0; cursor:pointer;" onchange="handleExcelAndSync(this)">
-                    </div>
                 </div>
                 <div class="filter-wrapper">
-                    <div class="search-box">
-                        <input type="text" id="search-ns" placeholder="Tìm tên, CCCD, chức danh..." oninput="filterNhanSu()">
-                    </div>
-                    <select id="filter-dv-ns" class="filter-select" onchange="filterNhanSu()">
-                        <option value="">-- Tất cả đơn vị --</option>
-                    </select>
+                    <div class="search-box"><input type="text" id="search-ns" placeholder="Tìm tên, CCCD..." oninput="filterNhanSu()"></div>
                 </div>
                 <div class="table-container">
                     <table>
                         <thead>
-                            <tr>
-                                <th>STT</th><th>Họ và Tên</th><th>Ngày Sinh</th><th>Giới Tính</th><th>Số CCCD</th><th>Mã Đơn Vị</th><th>An Toàn Viên</th><th>Độc Hại</th><th>Hưu Luật Mới</th>
-                            </tr>
+                            <tr><th>STT</th><th>Họ và Tên</th><th>Ngày Sinh</th><th>Giới Tính</th><th>Số CCCD</th><th>Mã Đơn Vị</th><th>Hưu Luật Mới</th></tr>
                         </thead>
                         <tbody id="tbody-nhansu"></tbody>
                     </table>
                 </div>
             </div>
 
+            <!-- SECTION 2: THEO DÕI ĐÀO TẠO -->
             <div id="section-daotao" class="view-section">
                 <h2>🎓 Phân hệ Quản lý & Theo dõi Đào tạo cán bộ</h2>
-                <p style="color:#64748b; margin-bottom:15px;">Cập nhật lịch sử huấn luyện an toàn lao động, nâng bậc thợ, cấp chứng chỉ độc hại.</p>
+                <p style="color:#64748b; margin-bottom:15px;">Hệ thống lọc nhân sự thông minh và đính kèm văn bằng chứng chỉ không giới hạn dung lượng.</p>
 
-                <div class="widget-title" style="margin-top:10px;">➕ Ghi nhận khóa đào tạo mới cho nhân sự</div>
+                <!-- FORM GHI NHẬN KHOÁ HỌC -->
+                <div class="widget-title">➕ Ghi nhận khóa đào tạo mới</div>
                 <div class="form-grid">
+                    <!-- CHỌN NHÂN SỰ THÔNG MINH -->
                     <div class="form-group">
-                        <label>Chọn Nhân Sự (CCCD)</label>
-                        <select id="form-dt-cccd"></select>
+                        <label>Gõ tìm kiếm Nhân sự (Tên, CCCD hoặc Đơn vị)</label>
+                        <input type="text" id="smart-ns-input" placeholder="Ví dụ: DV01 hoặc Tuấn..." oninput="searchSmartNhanSu()" autocomplete="off">
+                        <input type="hidden" id="form-dt-cccd-value">
+                        <div id="smart-ns-dropdown" class="smart-dropdown"></div>
                     </div>
                     <div class="form-group">
                         <label>Tên Khóa Học / Huấn Luyện</label>
                         <input type="text" id="form-dt-khoahoc" placeholder="Ví dụ: Huấn luyện Thẻ ATV nhóm 2">
                     </div>
                     <div class="form-group">
-                        <label>Ngày Bắt Đầu</label>
-                        <input type="date" id="form-dt-batdau">
+                        <label>Thời gian học</label>
+                        <div style="display:flex; gap:5px;"><input type="date" id="form-dt-batdau" style="width:50%;"><input type="date" id="form-dt-kethuc" style="width:50%;"></div>
                     </div>
                     <div class="form-group">
-                        <label>Ngày Kết Thúc</label>
-                        <input type="date" id="form-dt-kethuc">
+                        <label>Kết Quả & Hạn Chứng Chỉ</label>
+                        <div style="display:flex; gap:5px;">
+                            <select id="form-dt-ketqua" style="width:50%;"><option value="Đạt">Đạt</option><option value="Đang học">Đang học</option></select>
+                            <input type="date" id="form-dt-hethan" style="width:50%;">
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label>Kết Quả</label>
-                        <select id="form-dt-ketqua">
-                            <option value="Đạt">Đạt (Cấp chứng nhận)</option>
-                            <option value="Đang học">Đang học / Huấn luyện</option>
-                            <option value="Chưa đạt">Chưa đạt</option>
-                        </select>
+                    
+                    <!-- UPLOAD NHIỀU FILE HOẶC FOLDER CÙNG LÚC -->
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label>Đính kèm Văn bằng / Tài liệu đào tạo (Chọn nhiều file hoặc kéo thả)</label>
+                        <div class="upload-zone">
+                            <span>📁 Click để chọn nhiều File hoặc <b>Thả File vào đây</b></span>
+                            <input type="file" id="file-uploader" multiple webkitdirectory mozdirectory directory style="position:absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer;" onchange="handleFileSelect(event)">
+                        </div>
+                        <div id="file-preview-area" class="preview-grid"></div>
                     </div>
-                    <div class="form-group">
-                        <label>Ngày Hết Hạn Chứng Chỉ</label>
-                        <input type="date" id="form-dt-hethan" placeholder="Bỏ trống nếu vô thời hạn">
-                    </div>
-                    <div class="form-group" style="justify-content: flex-end;">
-                        <button class="btn btn-primary" onclick="submitTrainingForm()">💾 Lưu Lên Cloud</button>
+
+                    <div class="form-group" style="grid-column: span 2; align-items: flex-end;">
+                        <button class="btn btn-primary" id="btn-save-daotao" onclick="submitTrainingForm()">💾 Lưu Lịch Sử & Upload Tài Liệu</button>
                     </div>
                 </div>
 
+                <!-- BẢNG DỮ LIỆU ĐÀO TẠO -->
                 <div class="filter-wrapper">
-                    <div class="search-box">
-                        <input type="text" id="search-dt" placeholder="Tìm theo tên nhân sự hoặc tên khóa học..." oninput="filterDaoTao()">
-                    </div>
-                    <select id="filter-dt-kq" class="filter-select" onchange="filterDaoTao()">
-                        <option value="">-- Tất cả kết quả --</option>
-                        <option value="Đạt">Đạt</option>
-                        <option value="Đang học">Đang học</option>
-                        <option value="Chưa đạt">Chưa đạt</option>
-                    </select>
+                    <div class="search-box"><input type="text" id="search-dt" placeholder="Tìm theo tên hoặc khóa học..." oninput="filterDaoTao()"></div>
                 </div>
-
                 <div class="table-container">
                     <table>
                         <thead>
-                            <tr>
-                                <th>Họ và Tên</th><th>Mã Đơn Vị</th><th>Tên Khóa Đào Tạo</th><th>Thời Gian</th><th>Kết Quả</th><th>Hạn Chứng Chỉ</th><th>Trạng Thái Hạn</th><th>Thao Tác</th>
-                            </tr>
+                            <tr><th>Họ và Tên</th><th>Đơn Vị</th><th>Tên Khóa Đào Tạo</th><th>Kết Quả</th><th>Hạn Chứng Chỉ</th><th>Văn Bằng Đính Kèm</th><th>Thao Tác</th></tr>
                         </thead>
                         <tbody id="tbody-daotao"></tbody>
                     </table>
@@ -191,163 +192,211 @@
 
         let DATA_NHAN_SU = [];
         let DATA_DAO_TAO = [];
+        let SELECTED_FILES = []; // Lưu trữ tạm các file chờ upload
 
-        // Chuyển đổi màn hình làm việc
         function switchSection(sectionName) {
             document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
-            
             document.getElementById(`section-${sectionName}`).classList.add('active');
             document.getElementById(`btn-nav-${sectionName}`).classList.add('active');
         }
 
-        window.addEventListener('DOMContentLoaded', async () => {
-            await loadAllData();
-        });
+        window.addEventListener('DOMContentLoaded', async () => { await loadAllData(); });
 
         async function loadAllData() {
             try {
-                // 1. Tải dữ liệu nhân sự
                 let resNS = await _supabase.from('vinapaco_nhansu').select('*').order('stt');
                 DATA_NHAN_SU = resNS.data || [];
-                
-                // 2. Tải dữ liệu đào tạo
                 let resDT = await _supabase.from('vinapaco_daotao').select('*');
                 DATA_DAO_TAO = resDT.data || [];
-
-                renderNhanSuOptions();
-                filterNhanSu();
-                filterDaoTao();
-            } catch (e) { console.error("Lỗi đồng bộ dữ liệu: ", e); }
+                filterNhanSu(); filterDaoTao();
+            } catch (e) { console.error(e); }
         }
 
-        // Đổ danh sách nhân sự vào thẻ Select của Form Đào tạo
-        function renderNhanSuOptions() {
-            let select = document.getElementById('form-dt-cccd');
-            select.innerHTML = DATA_NHAN_SU.map(x => `<option value="${x.so_cccd}">${x.ho_ten} (${x.so_cccd})</option>`).join('');
+        // TÌM KIẾM NHÂN SỰ THÔNG MINH (TÊN, CCCD, MÃ ĐƠN VỊ)
+        function searchSmartNhanSu() {
+            let val = document.getElementById('smart-ns-input').value.toLowerCase().trim();
+            let dropdown = document.getElementById('smart-ns-dropdown');
+            if(!val) { dropdown.style.display = 'none'; return; }
+
+            let matches = DATA_NHAN_SU.filter(x => 
+                x.ho_ten.toLowerCase().includes(val) || 
+                x.so_cccd.includes(val) || 
+                (x.ma_don_vi && x.ma_don_vi.toLowerCase().includes(val))
+            ).slice(0, 10); // Giới hạn hiển thị top 10 kết quả gọn gàng
+
+            if(matches.length === 0) {
+                dropdown.innerHTML = '<div style="color:#94a3b8; cursor:default;">Không tìm thấy nhân sự/đơn vị này</div>';
+            } else {
+                dropdown.innerHTML = matches.map(x => `
+                    <div onclick="selectSmartNhanSu('${x.so_cccd}', '${x.ho_ten}', '${x.ma_don_vi}')">
+                        <b>${x.ho_ten}</b> - Đơn vị: <span style="color:var(--warning); font-weight:bold;">${x.ma_don_vi}</span> <br>
+                        <small style="color:#64748b;">CCCD: ${x.so_cccd}</small>
+                    </div>
+                `).join('');
+            }
+            dropdown.style.display = 'block';
         }
 
-        // THÊM MỚI LỊCH SỬ ĐÀO TẠO LÊN CLOUD
+        function selectSmartNhanSu(cccd, name, madv) {
+            document.getElementById('smart-ns-input').value = `${name} (Đơn vị: ${madv})`;
+            document.getElementById('form-dt-cccd-value').value = cccd;
+            document.getElementById('smart-ns-dropdown').style.display = 'none';
+        }
+
+        // XỬ LÝ CHỌN FILE VÀ XEM TRƯỚC (PREVIEW)
+        function handleFileSelect(event) {
+            let files = Array.from(event.target.files);
+            files.forEach(file => {
+                // Tránh lỗi hiển thị trùng lặp file
+                if(!SELECTED_FILES.some(f => f.name === file.name && f.size === file.size)) {
+                    SELECTED_FILES.push(file);
+                }
+            });
+            renderFilePreviews();
+        }
+
+        function renderFilePreviews() {
+            let area = document.getElementById('file-preview-area');
+            area.innerHTML = SELECTED_FILES.map((file, idx) => {
+                let sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+                let icon = "📄";
+                if(file.type.includes('image')) icon = "🖼️";
+                if(file.name.includes('.pdf')) icon = "📕";
+                if(file.name.includes('.xls')) icon = "📗";
+
+                return `
+                    <div class="preview-card">
+                        <button class="remove-btn" onclick="removeSelectedFile(${idx})">×</button>
+                        <span style="font-size:20px; margin-bottom:4px;">${icon}</span>
+                        <b title="${file.name}" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${file.name}</b>
+                        <span style="color:#64748b;">${sizeMB} MB</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function removeSelectedFile(idx) {
+            SELECTED_FILES.splice(idx, 1);
+            renderFilePreviews();
+        }
+
+        // SUBMIT FORM: UPLOAD THẲNG LÊN BUCKET VÀ LƯU DATA LÊN CLOUD
         async function submitTrainingForm() {
-            let cccd = document.getElementById('form-dt-cccd').value;
+            let cccd = document.getElementById('form-dt-cccd-value').value;
             let khoahoc = document.getElementById('form-dt-khoahoc').value.trim();
             let batdau = document.getElementById('form-dt-batdau').value;
             let kethuc = document.getElementById('form-dt-kethuc').value;
             let ketqua = document.getElementById('form-dt-ketqua').value;
             let hethan = document.getElementById('form-dt-hethan').value;
+            let btn = document.getElementById('btn-save-daotao');
 
+            if(!cccd) { alert("Vui lòng chọn nhân sự từ danh sách gợi ý!"); return; }
             if(!khoahoc) { alert("Vui lòng nhập tên khóa học!"); return; }
 
-            let { error } = await _supabase.from('vinapaco_daotao').insert([{
-                so_cccd: cccd,
-                ten_khoa_hoc: khoahoc,
-                ngay_bat_dau: batdau || null,
-                ngay_ket_thuc: kethuc || null,
-                ket_qua: ketqua,
-                ngay_het_han: hethan || null
-            }]);
+            btn.disabled = true;
+            btn.innerText = "⏳ Đang upload tài liệu & xử lý Cloud...";
 
-            if(!error) {
-                alert("Đã ghi nhận dữ liệu khóa học lên hệ thống thành công!");
-                document.getElementById('form-dt-khoahoc').value = "";
-                await loadAllData();
-            } else { alert("Lỗi ghi nhận dữ liệu!"); }
+            try {
+                let uploadedFileUrls = [];
+                
+                // Vòng lặp upload bất đồng bộ từng file lên Supabase Storage Bucket
+                for(let file of SELECTED_FILES) {
+                    let cleanName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_')}`;
+                    let filePath = `${cccd}/${cleanName}`;
+
+                    let { data, error } = await _supabase.storage
+                        .from('vinapaco_tailieu')
+                        .upload(filePath, file, { cacheControl: '3600', upsert: true });
+
+                    if(!error) {
+                        let { data: publicUrlData } = _supabase.storage.from('vinapaco_tailieu').getPublicUrl(filePath);
+                        uploadedFileUrls.push({ name: file.name, url: publicUrlData.publicUrl });
+                    }
+                }
+
+                // Ghi nhận dòng thông tin kèm danh sách link file JSONB vào bảng Đào tạo
+                let { error } = await _supabase.from('vinapaco_daotao').insert([{
+                    so_cccd: cccd,
+                    ten_khoa_hoc: khoahoc,
+                    ngay_bat_dau: batdau || null,
+                    ngay_ket_thuc: kethuc || null,
+                    ket_qua: ketqua,
+                    ngay_het_han: hethan || null,
+                    tai_lieu: uploadedFileUrls
+                }]);
+
+                if(!error) {
+                    alert("Đã đồng bộ thông tin đào tạo và toàn bộ tập tin đính kèm!");
+                    // Reset Form
+                    document.getElementById('smart-ns-input').value = "";
+                    document.getElementById('form-dt-cccd-value').value = "";
+                    document.getElementById('form-dt-khoahoc').value = "";
+                    SELECTED_FILES = [];
+                    renderFilePreviews();
+                    await loadAllData();
+                } else { alert("Lỗi lưu DB: " + error.message); }
+
+            } catch (err) { console.error(err); }
+            btn.disabled = false; btn.innerText = "💾 Lưu Lịch Sử & Upload Tài Liệu";
         }
 
-        // XÓA LỊCH SỬ ĐÀO TẠO
         async function deleteTraining(id) {
-            if(confirm("Bạn có chắc chắn muốn xóa lịch sử đào tạo này?")) {
+            if(confirm("Xóa lịch sử đào tạo này?")) {
                 await _supabase.from('vinapaco_daotao').delete().eq('id', id);
                 await loadAllData();
             }
         }
 
-        // LỌC TIẾN ĐỘ ĐÀO TẠO VÀ HIỂN THỊ CẢNH BÁO CHỨNG CHỈ HẾT HẠN
         function filterDaoTao() {
             let searchTxt = document.getElementById('search-dt').value.toLowerCase().trim();
-            let filterKq = document.getElementById('filter-dt-kq').value;
             let tbody = document.getElementById('tbody-daotao');
 
             let filtered = DATA_DAO_TAO.filter(dt => {
-                let nhansu = DATA_NHAN_SU.find(ns => ns.so_cccd === dt.so_cccd) || {};
-                let matchSearch = (nhansu.ho_ten || '').toLowerCase().includes(searchTxt) || dt.ten_khoa_hoc.toLowerCase().includes(searchTxt);
-                let matchKq = filterKq === "" || dt.ket_qua === filterKq;
-                return matchSearch && matchKq;
+                let ns = DATA_NHAN_SU.find(x => x.so_cccd === dt.so_cccd) || {};
+                return (ns.ho_ten || '').toLowerCase().includes(searchTxt) || dt.ten_khoa_hoc.toLowerCase().includes(searchTxt);
             });
-
-            if(filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:#94a3b8; padding:30px;">Không có dữ liệu đào tạo nào phù hợp.</td></tr>`;
-                return;
-            }
 
             tbody.innerHTML = filtered.map(dt => {
                 let ns = DATA_NHAN_SU.find(x => x.so_cccd === dt.so_cccd) || { ho_ten: 'Không rõ', ma_don_vi: '—' };
+                let files = dt.tai_lieu || [];
                 
-                // Đánh giá hạn chứng chỉ vào năm 2026
-                let hanBadge = `<span class="badge badge-success">Vô thời hạn</span>`;
-                if(dt.ngay_het_han) {
-                    let dateHetHan = new Date(dt.ngay_het_han);
-                    let today = new Date("2026-07-10"); // Dựa theo mốc thời gian hệ thống quản trị hiện tại 2026
-                    if(dateHetHan < today) {
-                        hanBadge = `<span class="badge badge-danger">⚠️ Đã hết hạn</span>`;
-                    } else if ((dateHetHan - today) / (1000*60*60*24) <= 60) {
-                        hanBadge = `<span class="badge badge-warning">⏳ Sắp hết hạn (Dưới 60 ngày)</span>`;
-                    } else {
-                        hanBadge = `<span class="badge badge-success">Còn hạn</span>`;
-                    }
-                }
+                let fileLinksHtml = files.map(f => `
+                    <a href="${f.url}" target="_blank" class="file-link" title="${f.name}">📎 ${f.name}</a>
+                `).join('') || '<span style="color:#94a3b8; font-style:italic;">Không có tài liệu</span>';
 
                 return `
                     <tr>
                         <td style="font-weight:bold; color:var(--primary);">${ns.ho_ten}</td>
                         <td style="font-weight:bold;">${ns.ma_don_vi}</td>
                         <td>${dt.ten_khoa_hoc}</td>
-                        <td>${dt.ngay_bat_dau ? dt.ngay_bat_dau : '—'} -> ${dt.ngay_ket_thuc ? dt.ngay_ket_thuc : '—'}</td>
-                        <td><span class="badge ${dt.ket_qua === 'Đạt' ? 'badge-success' : dt.ket_qua === 'Đang học' ? 'badge-warning' : 'badge-danger'}">${dt.ket_qua}</span></td>
-                        <td style="font-family:monospace;">${dt.ngay_het_han ? dt.ngay_het_han : 'Vô thời hạn'}</td>
-                        <td>${hanBadge}</td>
+                        <td><span class="badge ${dt.ket_qua==='Đạt'?'badge-success':'badge-warning'}">${dt.ket_qua}</span></td>
+                        <td>${dt.ngay_het_han ? dt.ngay_het_han : 'Vô thời hạn'}</td>
+                        <td>${fileLinksHtml}</td>
                         <td><button class="btn btn-danger btn-sm" onclick="deleteTraining('${dt.id}')">🗑️ Xóa</button></td>
                     </tr>
                 `;
             }).join('');
         }
 
-        // LỌC DANH SÁCH NHÂN SỰ GỐC 
         function filterNhanSu() {
             let searchTxt = document.getElementById('search-ns').value.toLowerCase().trim();
-            let selectDV = document.getElementById('filter-dv-ns').value;
             let tbody = document.getElementById('tbody-nhansu');
-
-            let filtered = DATA_NHAN_SU.filter(item => {
-                let matchSearch = item.ho_ten.toLowerCase().includes(searchTxt) || item.so_cccd.includes(searchTxt);
-                let matchDV = selectDV === "" || item.ma_don_vi === selectDV;
-                return matchSearch && matchDV;
-            });
-
-            // Cập nhật thẻ Select Đơn vị nếu chưa có
-            let setDV = new Set();
-            DATA_NHAN_SU.forEach(x => { if(x.ma_don_vi) setDV.add(x.ma_don_vi); });
-            let selectElement = document.getElementById('filter-dv-ns');
-            if(selectElement.options.length <= 1) {
-                Array.from(setDV).sort().forEach(dv => {
-                    selectElement.innerHTML += `<option value="${dv}">Đơn vị ${dv}</option>`;
-                });
-            }
+            let filtered = DATA_NHAN_SU.filter(x => x.ho_ten.toLowerCase().includes(searchTxt));
 
             tbody.innerHTML = filtered.map(x => `
                 <tr>
-                    <td>${x.stt}</td>
-                    <td style="font-weight:bold; color:var(--primary);">${x.ho_ten}</td>
-                    <td>${x.ngay_sinh}</td>
-                    <td>${x.gioi_tinh}</td>
-                    <td style="font-family:monospace;">${x.so_cccd}</td>
-                    <td style="font-weight:bold;">${x.ma_don_vi}</td>
-                    <td>${x.an_toan_vien}</td>
-                    <td>${x.doc_hai}</td>
-                    <td style="font-weight:bold; color:var(--warning); font-family:monospace;">${x.nam_ve_huu_du_kien}</td>
+                    <td>${x.stt}</td><td><b>${x.ho_ten}</b></td><td>${x.ngay_sinh}</td><td>${x.gioi_tinh}</td><td>${x.so_cccd}</td><td>${x.ma_don_vi}</td><td>${x.nam_ve_huu_du_kien}</td>
                 </tr>
             `).join('');
         }
+
+        // Tự động đóng dropdown khi click ra ngoài vùng tìm kiếm
+        document.addEventListener('click', function(e) {
+            if(!document.getElementById('smart-ns-input').contains(e.target)) {
+                document.getElementById('smart-ns-dropdown').style.display = 'none';
+            }
+        });
     </script>
 </body>
 </html>
