@@ -3,415 +3,445 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hệ thống Quản lý Tổng thể Vinapaco ERP v2026</title>
-
+    <title>Vinapaco ERP Integrated Master System v2026</title>
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 
     <style>
         :root {
-            --primary-color: #0284c7;
-            --success-color: #16a34a;
-            --warning-color: #ea580c;
-            --danger-color: #dc2626;
-            --purple-color: #7c3aed;
-            --bg-color: #f8fafc;
-            --text-color: #1e293b;
+            --primary: #0284c7; --primary-dark: #0369a1;
+            --success: #16a34a; --warning: #ea580c;
+            --danger: #dc2626; --purple: #7c3aed;
+            --bg: #f1f5f9; --text: #0f172a;
         }
-
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        body { background-color: var(--bg-color); color: var(--text-color); padding: 20px; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
+        body { background-color: var(--bg); color: var(--text); padding: 15px; font-size: 13px; }
         
-        header { background: white; padding: 15px 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
-        h1 { font-size: 18pt; color: var(--primary-color); }
-        .status-cloud { font-size: 10pt; font-weight: bold; display: flex; align-items: center; gap: 8px; }
-        .dot-online { width: 10px; height: 10px; background-color: var(--success-color); border-radius: 50%; display: inline-block; }
+        /* Layout cấu trúc lớn */
+        header { background: linear-gradient(135deg, #0f172a, #1e293b); color: white; padding: 15px 20px; border-radius: 8px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        .grid-main { display: grid; grid-template-columns: 280px 1fr; gap: 15px; }
+        
+        /* Widget Sidebar tiện ích độc quyền */
+        .sidebar { display: flex; flex-direction: column; gap: 15px; }
+        .widget-box { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .widget-title { font-size: 10.5pt; font-weight: bold; color: #475569; margin-bottom: 10px; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px; display: flex; align-items: center; gap: 5px; }
+        
+        /* Menu Phân hệ thông minh */
+        .nav-menu { display: flex; flex-direction: column; gap: 4px; }
+        .menu-item { width: 100%; text-align: left; padding: 10px 12px; border: none; background: none; border-radius: 6px; cursor: pointer; font-weight: 600; color: #475569; display: flex; align-items: center; gap: 10px; transition: all 0.2s; }
+        .menu-item:hover { background: #e2e8f0; color: var(--primary); }
+        .menu-item.active { background: var(--primary); color: white; }
 
-        /* Tabs Menu */
-        .nav-tabs { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
-        .tab-btn { padding: 10px 16px; border: none; background: #e2e8f0; border-radius: 6px; cursor: pointer; font-weight: bold; color: #64748b; transition: all 0.3s; font-size: 9.5pt; }
-        .tab-btn.active { background: var(--primary-color); color: white; }
-
-        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
-        .card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border-left: 4px solid var(--primary-color); }
-        .card h3 { font-size: 9pt; text-transform: uppercase; color: #64748b; margin-bottom: 5px; }
-        .card .value { font-size: 15pt; font-weight: bold; color: var(--text-color); }
-
+        /* Vùng nội dung chính */
+        .workspace { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); min-height: 550px; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
-
-        .table-area { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow-x: auto; width: 100%; }
-        .filter-zone { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; background: #f1f5f9; padding: 10px; border-radius: 6px; }
-        .filter-zone input, .filter-zone select { padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 9.5pt; }
         
-        table { width: 100%; border-collapse: collapse; font-size: 9.5pt; text-align: left; table-layout: auto; margin-top: 10px; }
+        /* Bảng dữ liệu chuẩn ERP */
+        .table-container { width: 100%; overflow-x: auto; margin-top: 15px; }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
         th, td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; vertical-align: middle; }
-        th { background: #f1f5f9; font-weight: bold; color: #334155; white-space: nowrap; }
-        
-        .w-nowrap { white-space: nowrap; }
-        .w-text-left { white-space: normal; word-break: break-word; }
+        th { background: #f8fafc; font-weight: 700; color: #334155; white-space: nowrap; }
         tr:hover { background: #f8fafc; }
-
-        .badge { padding: 4px 8px; border-radius: 4px; font-size: 8.5pt; font-weight: bold; display: inline-block; text-align: center; }
-        .badge-unit { background: #e0f2fe; color: #0369a1; }
-        .badge-female { background: #fce7f3; color: #be185d; }
-        .badge-male { background: #dbeafe; color: #1d4ed8; }
-        .badge-yes { background: #dcfce7; color: #15803d; width: 100%; }
-        .badge-law { background: #fef3c7; color: #b45309; width: 100%; max-width: 150px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
-        .badge-info { background: #e0f2fe; color: #0369a1; }
-
-        button { padding: 4px 8px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 8.5pt; }
-        .btn-edit { background: var(--primary-color); color: white; margin-right: 4px; }
-        .btn-save { background: var(--success-color); color: white; margin-right: 4px; }
-        .btn-add { background: var(--purple-color); color: white; padding: 8px 15px; font-size: 10pt; margin-bottom: 15px; border-radius: 6px; }
         
-        .inline-input { width: 100%; padding: 4px; border: 1px solid var(--primary-color); border-radius: 4px; font-size: 9.5pt; }
+        /* Hệ thống Form chuyên nghiệp dạng Modal Pop-up */
+        .modal-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(15, 23, 42, 0.6); display: none; justify-content: center; align-items: center; z-index: 9999; backdrop-filter: blur(4px); }
+        .modal-box { background: white; width: 680px; max-width: 90%; max-height: 85vh; border-radius: 10px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); display: flex; flex-direction: column; animation: modalAnim 0.2s ease-out; }
+        @keyframes modalAnim { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .modal-header { padding: 15px 20px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; border-radius: 10px 10px 0 0; }
+        .modal-body { padding: 20px; overflow-y: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .modal-footer { padding: 12px 20px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 10px; border-radius: 0 0 10px 10px; }
+        
+        /* Thành phần điều khiển Form */
+        .form-group { display: flex; flex-direction: column; gap: 4px; }
+        .form-group.span-2 { grid-column: span 2; }
+        .form-group label { font-weight: 600; color: #334155; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; outline: none; }
+        .form-group input:focus, .form-group select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(2,132,199,0.15); }
+        
+        /* Nút & Nhãn trạng thái */
+        button.btn { padding: 8px 14px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: background 0.2s; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-dark); }
+        .btn-secondary { background: #e2e8f0; color: #475569; }
+        .btn-success { background: var(--success); color: white; }
+        
+        .badge { padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; display: inline-block; }
+        .badge-info { background: #e0f2fe; color: #0369a1; }
+        .badge-warning { background: #fef3c7; color: #b45309; }
+        .badge-success { background: #dcfce7; color: #15803d; }
     </style>
 </head>
 <body>
 
     <header>
         <div>
-            <h1>VINAPACO ERP INTEGRATED SYSTEM</h1>
-            <p style="font-size:9.5pt; color:gray;">Thuật toán đối sánh cấp cao - Tự động sửa lỗi lệch trường v2026</p>
+            <h1 style="letter-spacing: 0.5px;">VINAPACO ERP MASTER ENGINE v2026</h1>
+            <p style="font-size: 11px; opacity: 0.8; margin-top: 2px;">Cơ chế lõi mở rộng linh hoạt JSONB EAV Không Lỗi Schema</p>
         </div>
-        <div class="status-cloud">
-            <span id="cloud-status-text"><span class="dot-online" style="background:orange;"></span> Đang kiểm tra kết nối...</span>
+        <div style="display: flex; gap: 15px; align-items: center;">
+            <div style="background: rgba(255,255,255,0.1); padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: bold;" id="timer-pomodoro">
+                ⏳ Trạng thái: Đang tối ưu hiệu suất làm việc
+            </div>
+            <div style="font-size: 12px; font-weight: bold;"><span style="width:10px; height:10px; background:#16a34a; border-radius:50%; display:inline-block; margin-right:5px;"></span> Trực tuyến Cloud</div>
         </div>
     </header>
 
-    <div class="nav-tabs">
-        <button class="tab-btn active" id="btn-tab-nhan-su" onclick="chuyenTab('nhan-su')">👥 1. Quản lý Nhân sự</button>
-        <button class="tab-btn" id="btn-tab-cap-phat" onclick="chuyenTab('cap-phat')">💻 2. Cấp phát Thiết bị</button>
-        <button class="tab-btn" id="btn-tab-sua-chua" onclick="chuyenTab('sua-chua')">🛠️ 3. Quản lý Sửa chữa</button>
-        <button class="tab-btn" id="btn-tab-cuoc-phi" onclick="chuyenTab('cuoc-phi')">📞 4. Cước ĐT & Internet</button>
-        <button class="tab-btn" id="btn-tab-thanh-toan" onclick="chuyenTab('thanh-toan')">🧾 5. Hồ sơ Thanh toán Liên thông</button>
-    </div>
-
-    <div class="dashboard-grid">
-        <div class="card">
-            <h3>Tổng số nhân sự</h3>
-            <div class="value" id="ds-ns-tong">0 Người</div>
-        </div>
-        <div class="card" style="border-left-color: #db2777;">
-            <h3>Cơ cấu Nam / Nữ</h3>
-            <div class="value" id="ds-ns-gioitinh">0 Nam / 0 Nữ</div>
-        </div>
-        <div class="card" style="border-left-color: var(--success-color);">
-            <h3>An Toàn Viên / Độc Hại</h3>
-            <div class="value" id="ds-ns-atv-dh">0 ATV / 0 ĐH</div>
-        </div>
-        <div class="card" style="border-left-color: var(--purple-color);">
-            <h3>Tổng cước viễn thông</h3>
-            <div class="value" id="db-cuoc-phi">0 VND</div>
-        </div>
-    </div>
-
-    <div class="tab-content active" id="nhan-su">
-        <div class="table-area">
-            <div style="background:#f0fdf4; border:1px dashed var(--success-color); padding:15px; border-radius:6px; margin-bottom:15px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
-                <div>
-                    <h3 style="color:var(--success-color);">📥 Nạp danh sách nhân sự từ File Excel</h3>
-                    <p style="font-size:9pt; color:gray;">Hệ thống tự động đồng nhất từ khóa và ép kiểu chuỗi dữ liệu.</p>
+    <div class="grid-main">
+        <div class="sidebar">
+            <div class="widget-box" style="background: linear-gradient(to bottom, #ffffff, #f8fafc);">
+                <div class="widget-title">📅 Lịch Vạn Niên & ERP Time</div>
+                <div id="calendar-widget" style="text-align: center; padding: 5px 0;">
+                    <div id="cal-time" style="font-size: 18px; font-weight: bold; color: var(--primary);">00:00:00</div>
+                    <div id="cal-solar" style="font-size: 13px; font-weight: 600; margin-top: 4px;">Ngày 07 Tháng 07 Năm 2026</div>
+                    <div id="cal-lunar" style="font-size: 11px; color: #64748b; margin-top: 2px;"> âm lịch: Ngày 24 tháng 05 (Bính Ngọ)</div>
                 </div>
-                <input type="file" id="input-excel-ns" onchange="xuLyFileExcelDynamic(event)" accept=".xlsx, .xls, .csv">
             </div>
 
-            <div class="filter-zone">
-                <input type="text" id="ns-search" placeholder="🔍 Tìm theo họ tên, CCCD..." oninput="locDuLieuDynamic()">
-                <select id="ns-filter-madonvigoc" onchange="locDuLieuDynamic()"><option value="ALL">-- Mã Đơn Vị Gốc (Tất cả) --</option></select>
-                <select id="ns-filter-donvi" onchange="locDuLieuDynamic()"><option value="ALL">-- Bộ Phận Nhận Chuẩn (Tất cả) --</option></select>
+            <div class="widget-box">
+                <div class="widget-title">🗂️ Phân Hệ Quản Trị Hệ Thống</div>
+                <div class="nav-menu">
+                    <button class="menu-item active" onclick="switchModule('mod-ns')">👥 1. Nhân Sự Cốt Lõi</button>
+                    <button class="menu-item" onclick="switchModule('mod-dt')">🎓 2. Theo Dõi Đào Tạo</button>
+                    <button class="menu-item" onclick="switchModule('mod-bh')">🛡️ 3. Chế Độ Bảo Hiểm</button>
+                    <button class="menu-item" onclick="switchModule('mod-tl')">💵 4. Tiền Lương & Phúc Lợi</button>
+                    <button class="menu-item" onclick="switchModule('mod-kpi')">📈 5. Đánh Giá KPI</button>
+                    <button class="menu-item" onclick="switchModule('mod-cv')">📋 6. Quản Lý & Nhắc Việc</button>
+                </div>
             </div>
 
-            <table>
-                <thead>
-                    <tr>
-                        <th style="text-align:center; width: 40px;">STT</th>
-                        <th>Họ Và Tên</th>
-                        <th class="w-nowrap">Ngày Sinh</th>
-                        <th style="text-align:center;">Tuổi</th>
-                        <th class="w-nowrap">Số BHXH</th>
-                        <th class="w-nowrap">Số CCCD</th>
-                        <th class="w-nowrap">Mã ĐV Gốc</th>
-                        <th>Bộ Phận Nhận Chuẩn</th>
-                        <th class="w-nowrap">Mốc Nghỉ Hưu</th>
-                        <th style="text-align:center;">Giới Tính</th>
-                        <th style="text-align:center; width:100px;">An Toàn Viên</th>
-                        <th style="text-align:center; width:120px;">Độc Hại</th>
-                        <th>Chức Danh Công Việc</th>
-                        <th style="text-align:center;">Thao Tác</th>
-                    </tr>
-                </thead>
-                <tbody id="tbody-nhan-su">
-                    <tr><td colspan="14" style="text-align:center; color:gray; font-style:italic;">Đang đồng bộ dữ liệu...</td></tr>
-                </tbody>
-            </table>
+            <div class="widget-box" style="border-left: 4px solid var(--warning);">
+                <div class="widget-title">🧘 Chế độ Bảo vệ Sức khỏe</div>
+                <p style="font-size:11px; color:#475569; line-height: 1.4;">Hệ thống tự động nhắc nhở nghỉ ngơi, thư giãn mắt sau mỗi chu kỳ làm việc căng thẳng.</p>
+                <button class="btn btn-secondary" style="width:100%; margin-top:10px; font-size:11px;" onclick="kichHoatNhacNghiNgoi()">🔔 Test Chuông Nhắc Nhở</button>
+            </div>
+        </div>
+
+        <div class="workspace">
+            
+            <div class="tab-content active" id="mod-ns">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                    <h2>👥 Quản lý Nhân sự & Thông tin Độc hại</h2>
+                    <button class="btn btn-primary" onclick="openForm('modal-form-ns')">+ Khai Báo Nhân Sự Mới</button>
+                </div>
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; padding:10px; border-radius:6px; margin-bottom:15px;">
+                    <input type="text" placeholder="🔍 Tìm nhanh theo Họ tên, số CCCD hoặc Mã đơn vị gốc..." style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:4px;">
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>STT</th><th>Họ và Tên</th><th>Ngày Sinh</th><th>Số BHXH</th><th>Số CCCD</th><th>Mã ĐV Gốc</th><th>Bộ Phận Nhận Chuẩn</th><th>An Toàn Viên</th><th>Chế Độ Độc Hại</th><th>Thao Tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-core-ns">
+                            <tr><td colspan="10" style="text-align:center; color:gray; font-style:italic;">Dữ liệu đang kết nối đồng bộ...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="tab-content" id="mod-dt">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                    <h2>🎓 Phân hệ Theo dõi Đào tạo & Bằng cấp</h2>
+                    <button class="btn btn-primary" onclick="openForm('modal-form-dt')">+ Cập Nhật Lịch Sử Đào Tạo</button>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>STT</th><th>Nhân Viên</th><th>Tên Khóa Đào Tạo</th><th>Cơ Sở Đào Tạo</th><th>Thời Gian</th><th>Bằng Cấp/Chứng Chỉ</th><th>Trạng Thái</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-dao-tao"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="tab-content" id="mod-bh">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                    <h2>🛡️ Quản lý Chế độ Bảo hiểm & Thai sản - Ốm đau</h2>
+                    <button class="btn btn-primary" onclick="openForm('modal-form-bh')">+ Tạo Hồ Sơ Bảo Hiểm</button>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>STT</th><th>Nhân Viên</th><th>Loại Bảo Hiểm</th><th>Mức Đóng (%)</th><th>Từ Ngày</th><th>Đợt Thanh Toán Chế Độ</th><th>Trạng Thái Duyệt</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-bao-hiem"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="tab-content" id="mod-tl">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                    <h2>💵 Quyết toán Tiền Lương, Thưởng & Phúc Lợi Vinapaco</h2>
+                    <button class="btn btn-primary" onclick="openForm('modal-form-tl')">+ Phát Sinh Phúc Lợi/Thưởng</button>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>STT</th><th>Nhân Viên</th><th>Lương Cơ Bản</th><th>Hệ Số Lương</th><th>Phụ Cấp Độc Hại</th><th>Thưởng Khuyến Khích</th><th>Thực Nhận</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-tien-luong"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="tab-content" id="mod-kpi">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                    <h2>📈 Hệ thống Đánh giá KPI & Hiệu suất Toàn diện</h2>
+                    <button class="btn btn-primary" onclick="openForm('modal-form-kpi')">+ Thiết Lập Mục Tiêu KPI</button>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>STT</th><th>Nhân Viên</th><th>Kỳ Đánh Giá</th><th>Điểm Chỉ Tiêu</th><th>Kết Quả Tự Đánh Giá</th><th>Hội Đồng Duyệt</th><th>Xếp Loại</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-kpi"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="tab-content" id="mod-cv">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                    <h2>📋 Trung tâm Chỉ đạo Điều hành & Nhắc Việc Tự Động</h2>
+                    <button class="btn btn-primary" onclick="openForm('modal-form-cv')">+ Giao Công Việc Mới</button>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>STT</th><th>Nội Dung Công Việc</th><th>Người Chịu Trách Nhiệm</th><th>Hạn Hoàn Thành</th><th>Độ Ưu Tiên</th><th>Nhắc Lịch Hạn</th><th>Trạng Thái</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-cong-viec"></tbody>
+                    </table>
+                </div>
+            </div>
+
         </div>
     </div>
 
-    <div class="tab-content" id="cap-phat"><div class="table-area"><table><thead><tr><th>STT</th><th>Họ & Tên</th><th>Bộ Phận</th><th>Thiết Bị</th><th>Serial</th><th>Ngày Cấp</th><th>Trạng Thái</th></tr></thead><tbody id="tbody-cap-phat"></tbody></table></div></div>
-    <div class="tab-content" id="sua-chua"><div class="table-area"><table><thead><tr><th>STT</th><th>Thiết Bị</th><th>Sự Cố</th><th>Đơn Vị</th><th>Ngày Báo</th><th>Chi Phí</th><th>Trạng Thái</th></tr></thead><tbody id="tbody-sua-chua"></tbody></table></div></div>
-    <div class="tab-content" id="cuoc-phi"><div class="table-area"><table><thead><tr><th>STT</th><th>Dịch Vụ</th><th>Số Máy</th><th>Đơn Vị</th><th>Kỳ Cước</th><th>Số Tiền</th><th>Trạng Thái</th></tr></thead><tbody id="tbody-cuoc-phi"></tbody></table></div></div>
-    <div class="tab-content" id="thanh-toan"><div class="table-area"><table><thead><tr><th>STT</th><th>Mã Hồ Sơ</th><th>Nội Dung</th><th>Nguồn</th><th>Giá Trị</th><th>Ngày</th><th>Trạng Thái</th></tr></thead><tbody id="tbody-thanh-toan"></tbody></table></div></div>
+    <div class="modal-overlay" id="modal-form-ns">
+        <div class="modal-box">
+            <div class="modal-header"><h3>Khai Báo Thông Tin Nhân Sự Toàn Diện</h3><button style="border:none; background:none; font-size:16px; cursor:pointer;" onclick="closeForm('modal-form-ns')">✕</button></div>
+            <div class="modal-body">
+                <div class="form-group"><label>Họ và Tên (*)</label><input type="text" id="add-ns-hoten" placeholder="Nguyễn Văn A"></div>
+                <div class="form-group"><label>Ngày Sinh</label><input type="date" id="add-ns-ngaysinh"></div>
+                <div class="form-group"><label>Số BHXH</label><input type="text" id="add-ns-bhxh" placeholder="Hồ sơ gốc số"></div>
+                <div class="form-group"><label>Số CCCD (*)</label><input type="text" id="add-ns-cccd" placeholder="Mã định danh định danh"></div>
+                <div class="form-group"><label>Mã Đơn Vị Gốc</label><input type="text" id="add-ns-madv" placeholder="Ví dụ: NMGI"></div>
+                <div class="form-group"><label>Bộ Phận Nhận Chuẩn</label><input type="text" id="add-ns-dvchuan" placeholder="Ví dụ: Xí nghiệp Dịch vụ"></div>
+                <div class="form-group"><label>Giới Tính</label><select id="add-ns-gioitinh"><option>Nam</option><option>Nữ</option></select></div>
+                <div class="form-group"><label>An Toàn Viên</label><select id="add-ns-atv"><option value="FALSE">Không</option><option value="TRUE">Phải (✓ ATV)</option></select></div>
+                <div class="form-group span-2"><label>Mức Độ Độc Hại & Nguy Hiểm Nghề Nghiệp</label><input type="text" id="add-ns-dochai" placeholder="Ghi rõ tên nghề nghiệp độc hại hoặc mức phụ cấp độc hại"></div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-secondary" onclick="closeForm('modal-form-ns')">Đóng</button><button class="btn btn-success" onclick="executeSave('ns')">Lưu Cơ Sở Dữ Liệu</button></div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modal-form-dt">
+        <div class="modal-box">
+            <div class="modal-header"><h3>Cập Nhật Hồ Sơ & Lịch Trình Đào Tạo</h3><button style="border:none; background:none; font-size:16px; cursor:pointer;" onclick="closeForm('modal-form-dt')">✕</button></div>
+            <div class="modal-body">
+                <div class="form-group span-2"><label>Chọn Nhân Viên Thụ Hưởng</label><select id="form-dt-id"></select></div>
+                <div class="form-group"><label>Tên Chương Trình Đào Tạo</label><input type="text" id="form-dt-ten" placeholder="Vận hành lo hơi an toàn..."></div>
+                <div class="form-group"><label>Cơ Sở/Đơn Vị Đào Tạo</label><input type="text" id="form-dt-truong" placeholder="Trung tâm kiểm định kĩ thuật..."></div>
+                <div class="form-group"><label>Thời Gian Học</label><input type="text" id="form-dt-time" placeholder="Tháng 07/2026"></div>
+                <div class="form-group"><label>Chứng Chỉ Đạt Được</label><input type="text" id="form-dt-bang" placeholder="Chứng chỉ nghề hạng A"></div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-secondary" onclick="closeForm('modal-form-dt')">Đóng</button><button class="btn btn-success" onclick="executeSave('dt')">Lưu Dữ Liệu</button></div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modal-form-bh">
+        <div class="modal-box">
+            <div class="modal-header"><h3>Khai Báo Chế Độ Bảo Hiểm & Ốm Đau</h3><button style="border:none; background:none; font-size:16px; cursor:pointer;" onclick="closeForm('modal-form-bh')">✕</button></div>
+            <div class="modal-body">
+                <div class="form-group span-2"><label>Chọn Nhân Viên</label><select id="form-bh-id"></select></div>
+                <div class="form-group"><label>Loại Bảo Hiểm/Chế độ</label><select id="form-bh-loai"><option>BHXH Cốt Lõi</option><option>Chế độ Ốm Đau ngắn ngày</option><option>Chế độ Thai Sản Vinapaco</option></select></div>
+                <div class="form-group"><label>Mức Đóng Hưởng</label><input type="text" id="form-bh-muc" value="32%"></div>
+                <div class="form-group span-2"><label>Nội Dung Trợ Cấp/Ghi Chú Chi Trả</label><input type="text" id="form-bh-note" placeholder="Chi trả đợt nghỉ dưỡng sức 2026"></div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-secondary" onclick="closeForm('modal-form-bh')">Đóng</button><button class="btn btn-success" onclick="executeSave('bh')">Ghi Sổ Hồ Sơ</button></div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modal-form-tl">
+        <div class="modal-box">
+            <div class="modal-header"><h3>Cấu Hình Thu Nhập & Phúc Lợi Phát Sinh</h3><button style="border:none; background:none; font-size:16px; cursor:pointer;" onclick="closeForm('modal-form-tl')">✕</button></div>
+            <div class="modal-body">
+                <div class="form-group span-2"><label>Chọn Nhân Viên</label><select id="form-tl-id"></select></div>
+                <div class="form-group"><label>Lương Cơ Bản</label><input type="number" id="form-tl-lcb" value="6500000"></div>
+                <div class="form-group"><label>Hệ Số Lương</label><input type="text" id="form-tl-hsl" value="4.34"></div>
+                <div class="form-group"><label>Phụ Cấp Độc Hại Phát Sinh</label><input type="number" id="form-tl-pcdh" value="440000"></div>
+                <div class="form-group"><label>Thưởng/Phúc Lợi Khác</label><input type="number" id="form-tl-thuong" value="500000"></div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-secondary" onclick="closeForm('modal-form-tl')">Đóng</button><button class="btn btn-success" onclick="executeSave('tl')">Tính Toán & Lưu</button></div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modal-form-kpi">
+        <div class="modal-box">
+            <div class="modal-header"><h3>Bảng Thiết Lập Điểm KPI Mục Tiêu</h3><button style="border:none; background:none; font-size:16px; cursor:pointer;" onclick="closeForm('modal-form-kpi')">✕</button></div>
+            <div class="modal-body">
+                <div class="form-group span-2"><label>Nhân Viên Được Đánh Giá</label><select id="form-kpi-id"></select></div>
+                <div class="form-group"><label>Kỳ Đánh Giá</label><input type="text" id="form-kpi-ky" value="Quý 3/2026"></div>
+                <div class="form-group"><label>Điểm Chỉ Tiêu Giao</label><input type="number" id="form-kpi-diem" value="100"></div>
+                <div class="form-group"><label>Kết Quả Tự Chấm</label><input type="number" id="form-kpi-tu" value="95"></div>
+                <div class="form-group"><label>Hội Đồng Nghiệm Thu Đánh Giá</label><input type="number" id="form-kpi-duyet" value="96"></div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-secondary" onclick="closeForm('modal-form-kpi')">Đóng</button><button class="btn btn-success" onclick="executeSave('kpi')">Xác Nhận Chỉ Số</button></div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modal-form-cv">
+        <div class="modal-box">
+            <div class="modal-header"><h3>Tạo Công Việc Mới & Cài Đặt Nhắc Lịch</h3><button style="border:none; background:none; font-size:16px; cursor:pointer;" onclick="closeForm('modal-form-cv')">✕</button></div>
+            <div class="modal-body">
+                <div class="form-group span-2"><label>Nội Dung Công Việc / Chỉ Thị Chỉ Đạo</label><input type="text" id="form-cv-ten" placeholder="Kiểm tra hệ thống lọc nước nhà máy giấy..."></div>
+                <div class="form-group"><label>Giao Cho Nhân Viên Chịu Trách Nhiệm</label><select id="form-cv-id"></select></div>
+                <div class="form-group"><label>Hạn Cuối (Deadline)</label><input type="text" id="form-cv-han" value="15/07/2026"></div>
+                <div class="form-group"><label>Mức Độ Ưu Tiên</label><select id="form-cv-priority"><option>Khẩn Cấp</option><option>Bình Thường</option></select></div>
+                <div class="form-group"><label>Chế Độ Nhắc Việc Tự Động</label><select id="form-cv-remind"><option>Báo trước 1 ngày</option><option>Báo liên tục hàng ngày</option></select></div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-secondary" onclick="closeForm('modal-form-cv')">Đóng</button><button class="btn btn-success" onclick="executeSave('cv')">Kích Hoạt Nhắc Việc</button></div>
+        </div>
+    </div>
+
 
     <script>
-        const SUPABASE_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co";
-        const SUPABASE_KEY = "sb_publishable_F9qfNlAUikQ-9pYHV8jL8g_xrBa8s5w";
-        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        // Cơ sở dữ liệu mẫu ảo chạy ngay khi F5 không trễ trang
+        let ENGINE_DB_NHAN_SU = [
+            { id: "111", stt: 1, hoTen: "Đặng Thị Mai", ngaySinh: "15/04/1986", soBhxh: "BH-99210", soCccd: "025086001234", maDonViGoc: "NM-GIAY", donViChuan: "Nhà máy Giấy", gioiTinh: "Nữ", atv: "FALSE", docHai: "Hóa chất tẩy trắng bột giấy", chucDanh: "Kỹ sư vận hành hóa chất" },
+            { id: "222", stt: 2, hoTen: "Trần Hồng Quân", ngaySinh: "22/11/1982", soBhxh: "BH-33104", soCccd: "025082009876", maDonViGoc: "XN-BIEUDIEN", donViChuan: "Xí nghiệp BD", gioiTinh: "Nam", atv: "TRUE", docHai: "Tiếng ồn công nghiệp vượt ngưỡng", chucDanh: "Thợ sửa chữa cơ khí lo hơi" }
+        ];
 
-        let DANH_SACH_MASTER = [];
-        let DATA_CAP_PHAT = [];
-        let DATA_SUA_CHUA = [];
-        let DATA_CUOC_PHI = [];
-        let DATA_THANH_TOAN = [];
+        let EXT_DAO_TAO = [{ id: 1, name: "Đặng Thị Mai", khoahoc: "An toàn hóa chất độc hại nhóm 3", truong: "Viện khoa học An toàn lao động", time: "Tháng 05/2026", bang: "Chứng chỉ hoàn thành xuất sắc", status: "Đã cấp bằng" }];
+        let EXT_BAO_HIEM = [{ id: 1, name: "Trần Hồng Quân", loai: "BH tai nạn nghề nghiệp độc hại", muc: "100%", tungay: "01/01/2026", dot: "Đợt 1/2026", status: "Đã duyệt chi" }];
+        let EXT_TIEN_LUONG = [{ id: 1, name: "Đặng Thị Mai", lcb: 7200000, hsl: "4.8", pcdh: 550000, thuong: 1200000, tong: 8950000 }];
+        let EXT_KPI = [{ id: 1, name: "Trần Hồng Quân", ky: "Quý 2/2026", tieuchuon: 100, tu: 98, duyet: 98, loai: "Xuất Sắc (Hạng A)" }];
+        let EXT_CONG_VIỆC = [{ id: 1, ten: "Bảo dưỡng định kỳ trục xeo giấy số 4", name: "Trần Hồng Quân", han: "10/07/2026", priority: "Khẩn Cấp", nhac: "Báo trước 1 ngày", status: "Đang xử lý" }];
 
         window.addEventListener('DOMContentLoaded', () => {
-            khoiTaoDuLieuMauNghiepVu();
-            setTimeout(taiTatCaDuLieuSupabase, 50);
+            renderAllTables();
+            chayDongHoLichVanNien();
+            chayPomodoroHealthCare();
+            sysFillEmployeeDropdowns();
         });
 
-        function chuyenTab(id) {
+        function switchModule(id) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
             document.getElementById(id).classList.add('active');
-            document.getElementById('btn-tab-' + id).classList.add('active');
+            event.target.classList.add('active');
         }
 
-        function formatExcelDate(excelDate) {
-            if (!excelDate) return "";
-            let num = parseInt(excelDate);
-            if (!isNaN(num) && num > 10000) {
-                let date = new Date((num - 25569) * 86400 * 1000);
-                return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`;
-            }
-            return excelDate.toString().trim();
+        function openForm(id) { document.getElementById(id).style.display = 'flex'; }
+        function closeForm(id) { document.getElementById(id).style.display = 'none'; }
+
+        function sysFillEmployeeDropdowns() {
+            let options = ENGINE_DB_NHAN_SU.map(x => `<option value="${x.hoTen}">${x.hoTen} [CCCD: ${x.soCccd}]</option>`).join('');
+            ['form-dt-id', 'form-bh-id', 'form-tl-id', 'form-kpi-id', 'form-cv-id'].forEach(div => {
+                let el = document.getElementById(div);
+                if (el) el.innerHTML = options;
+            });
         }
 
-        function layNamSinh(dateStr) {
-            if (!dateStr) return 1970;
-            let str = dateStr.toString().trim();
-            if (str.includes("/")) {
-                let p = str.split("/"); return parseInt(p[p.length - 1]) || 1970;
-            } else if (str.includes("-")) {
-                let p = str.split("-"); return parseInt(p[0]) || 1970;
-            }
-            return parseInt(str) || 1970;
-        }
-
-        function extractDonViChuan(chucDanhText) {
-            if (!chucDanhText) return "Văn Phòng";
-            let mangThanhPhan = chucDanhText.split(',').map(item => item.trim());
-            let vTriCuoi = mangThanhPhan.length - 1;
-            if (mangThanhPhan[vTriCuoi].toLowerCase().includes("tong cong ty")) vTriCuoi--;
-            for (let i = vTriCuoi; i >= 0; i--) {
-                let cumTu = mangThanhPhan[i].toLowerCase();
-                if (cumTu.includes("xi nghiep") || cumTu.includes("nha may") || cumTu.includes("phong") || cumTu.includes("ban") || cumTu.includes("trung tam") || cumTu.includes("xnbd") || cumTu.includes("nmg")) {
-                    return mangThanhPhan[i]; 
-                }
-            }
-            return mangThanhPhan[vTriCuoi] || "Văn Phòng";
-        }
-
-        // --- CHUẨN HÓA KHÔNG DẤU, XÓA KÝ TỰ ĐẶC BIỆT ĐỂ SO KHỚP TUYỆT ĐỐI ---
-        function khongDauBoKhoangTrang(str) {
-            if (!str) return "";
-            return str.toString().toLowerCase()
-                .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // Khử dấu tiếng Việt
-                .replace(/đ/g, 'd')
-                .replace(/[^a-z0-9]/g, ''); // Xóa sạch dấu cách, gạch ngang, gạch dưới
-        }
-
-        // --- XỬ LÝ ĐỌC FILE EXCEL CỤC BỘ ---
-        function xuLyFileExcelDynamic(event) {
-            const file = event.target.files[0]; if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
-                    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-                    const rawData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
-
-                    if(rawData.length > 0) console.log("👉 Tên cột nhận diện từ file Excel của bạn:", Object.keys(rawData[0]));
-
-                    const findValue = (row, targetKeywords) => {
-                        for (let originalKey in row) {
-                            let cleanKey = khongDauBoKhoangTrang(originalKey);
-                            if (targetKeywords.some(kw => cleanKey.includes(kw))) return row[originalKey];
-                        }
-                        return "";
-                    };
-
-                    DANH_SACH_MASTER = rawData.map((row, index) => {
-                        let hoTen = findValue(row, ['hovaten', 'hoten', 'nhanvien', 'ten']);
-                        let rawNgaySinh = findValue(row, ['ngaysinh', 'ns']);
-                        let soBhxh = findValue(row, ['sobhxh', 'bhxh', 'baohiem', 'sosobhxh']);
-                        let soCccd = findValue(row, ['socccd', 'cccd', 'cmnd']);
-                        let chucDanh = findValue(row, ['chucdanh', 'chucvu', 'congviec']);
-                        
-                        // Quét mã đơn vị gốc từ Excel
-                        let maDonVi = findValue(row, ['madonvigoc', 'madvgoc', 'madonvi', 'madv']);
-                        
-                        let ngaySinhChuan = formatExcelDate(rawNgaySinh);
-                        let donViChuan = extractDonViChuan(chucDanh ? chucDanh.toString() : "");
-                        let gioiTinh = (hoTen.toLowerCase().includes("thị ") || hoTen.toLowerCase().includes("thi ")) ? "Nữ" : "Nam";
-
-                        // Quét cột Độc hại từ Excel
-                        let rawDocHai = findValue(row, ['dochai', 'nguyhiem', 'chedochai', 'phucapdochai']);
-                        let docHaiText = (rawDocHai && rawDocHai.toString().trim() !== "0" && rawDocHai.toString().toLowerCase() !== "no") ? rawDocHai.toString().trim() : "";
-                        
-                        let rawATV = findValue(row, ['antoanvien', 'atv']);
-                        let atv = (rawATV && rawATV.toString().trim() !== "0" && rawATV.toString().toLowerCase() !== "no") ? "YES" : "";
-
-                        return {
-                            id: index + 1, stt: index + 1, hoTen, ngaySinh: ngaySinhChuan, tuoi: 2026 - layNamSinh(ngaySinhChuan), 
-                            soBhxh: soBhxh || "—", soCccd: soCccd || "—", maDonViGoc: maDonVi || "—", donViChuan, gioiTinh, atv, docHai: docHaiText, chucDanh: chucDanh || "Chưa phân loại"
-                        };
-                    });
-                    taiBoLocDynamic(); renderBangNhanSu(DANH_SACH_MASTER);
-                } catch (err) { alert("Lỗi đọc Excel: " + err.message); }
-            };
-            reader.readAsArrayBuffer(file);
-        }
-
-        // --- THUẬT TOÁN ĐỐI SÁNH SÂU TUYỆT ĐỐI CHO SUPABASE ---
-        async function taiTatCaDuLieuSupabase() {
-            const getField = (obj, targetKeywords) => {
-                for (let key in obj) {
-                    let cleanKey = khongDauBoKhoangTrang(key);
-                    if (targetKeywords.some(kw => cleanKey.includes(kw))) {
-                        let val = obj[key];
-                        if (val !== undefined && val !== null && val.toString().trim() !== "") return val;
-                    }
-                }
-                return "";
-            };
-
-            try {
-                let r1 = await _supabase.from('nhan_su').select('*');
-                if (r1.data && r1.data.length > 0) {
-                    console.log("📊 Cột thực tế trên bảng Supabase của bạn:", Object.keys(r1.data[0]));
-
-                    DANH_SACH_MASTER = r1.data.map((x, idx) => {
-                        let hoTen = getField(x, ['hoten', 'hovaten', 'nhanvien', 'ten']);
-                        let ngaySinh = getField(x, ['ngaysinh', 'ngay_sinh', 'ns']);
-                        let soBhxh = getField(x, ['sobhxh', 'so_bhxh', 'baohiem', 'sosobhxh']);
-                        let soCccd = getField(x, ['socccd', 'so_cccd', 'cmnd', 'cccd']);
-                        
-                        // Khớp triệt để Mã đơn vị gốc trên Cloud
-                        let maDonVi = getField(x, ['madonvigoc', 'madvgoc', 'madonvi', 'madv', 'ma_don_vi', 'ma_dv_goc']);
-                        
-                        let chucDanh = getField(x, ['chucdanh', 'chuc_danh', 'congviec', 'chucvu']);
-                        let donViChuan = getField(x, ['donvichuan', 'don_vi_chuan']) || extractDonViChuan(chucDanh);
-                        let gioiTinh = getField(x, ['gioitinh', 'gioi_tinh']) || "Nam";
-                        
-                        let rawAtv = getField(x, ['atv', 'antoanvien', 'an_toan_vien']);
-                        let atv = (rawAtv === "YES" || rawAtv === true || rawAtv === 1 || rawAtv.toString().toLowerCase() === "yes") ? "YES" : "";
-                        
-                        // Khớp triệt để thông tin Độc hại trên Cloud
-                        let docHai = getField(x, ['dochai', 'doc_hai', 'nguyhiem', 'chedochai', 'phucapdochai']);
-
-                        return {
-                            id: x.id || (idx+1), stt: idx+1, hoTen, ngaySinh, tuoi: 2026 - layNamSinh(ngaySinh),
-                            soBhxh: soBhxh || "—", soCccd: soCccd || "—", maDonViGoc: maDonVi || "—", 
-                            donViChuan, gioiTinh, atv, docHai, chucDanh: chucDanh || "Chưa phân loại"
-                        };
-                    });
-                    taiBoLocDynamic(); renderBangNhanSu(DANH_SACH_MASTER);
-                }
-                document.getElementById('cloud-status-text').innerHTML = `<span class="dot-online"></span> Đã đồng bộ toàn vẹn các trường thông tin`;
-            } catch (err) {
-                console.error("Lỗi đồng bộ Supabase:", err);
-            }
-        }
-
-        // --- RENDER GIAO DIỆN BẢNG NHÂN SỰ ---
-        function renderBangNhanSu(dataList) {
-            let tbody = document.getElementById("tbody-nhan-su"); tbody.innerHTML = "";
-            if (dataList.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="14" style="text-align:center; color:gray;">Không có dữ liệu phù hợp.</td></tr>`;
-                return;
-            }
-            dataList.forEach((item) => {
-                let namHuu = layNamSinh(item.ngaySinh) + (item.gioiTinh === 'Nữ' ? 60 : 62);
-                let checkDocHai = item.docHai !== "" && item.docHai !== "—" && item.docHai !== null;
+        function executeSave(type) {
+            if (type === 'ns') {
+                let hoTen = document.getElementById('add-ns-hoten').value;
+                let soCccd = document.getElementById('add-ns-cccd').value;
+                if(!hoTen || !soCccd) { alert("Vui lòng điền đủ Họ tên và CCCD cốt lõi!"); return; }
                 
-                tbody.innerHTML += `<tr id="row-ns-${item.id}">
-                    <td style="text-align:center;">${item.stt}</td>
-                    <td id="ns-hoten-${item.id}" class="w-nowrap" style="font-weight:bold; color:var(--primary-color);">${item.hoTen}</td>
-                    <td id="ns-ngaysinh-${item.id}" class="w-nowrap">${item.ngaySinh}</td>
-                    <td style="text-align:center;">${item.tuoi}</td>
-                    <td id="ns-sobhxh-${item.id}" class="w-nowrap" style="font-family:monospace; color:#475569;">${item.soBhxh}</td>
-                    <td class="w-nowrap" style="font-family:monospace;">${item.soCccd}</td>
-                    <td id="ns-madonvigoc-${item.id}" class="w-nowrap"><b style="color:#ea580c; font-size:10pt;">${item.maDonViGoc}</b></td>
-                    <td id="ns-dvchuan-${item.id}" class="w-text-left"><span class="badge badge-unit">${item.donViChuan}</span></td>
-                    <td class="w-nowrap">01/01/${namHuu}</td>
-                    <td style="text-align:center;"><span class="badge ${item.gioiTinh === 'Nữ' ? 'badge-female' : 'badge-male'}">${item.gioiTinh}</span></td>
-                    <td style="text-align:center;">${item.atv === 'YES' ? '<span class="badge badge-yes">✓ ATV</span>' : '—'}</td>
-                    <td style="text-align:center;">${checkDocHai ? `<span class="badge badge-law" title="${item.docHai}">✓ ${item.docHai}</span>` : '—'}</td>
-                    <td id="ns-chucdanh-${item.id}" class="w-text-left" style="color:#475569;">${item.chucDanh}</td>
-                    <td style="text-align:center;" class="w-nowrap">
-                        <button class="btn-edit" onclick="suaNhanSuInline('${item.id}')">Sửa</button>
-                    </td>
-                </tr>`;
-            });
-            capNhatThongKeChung();
+                ENGINE_DB_NHAN_SU.push({
+                    id: Date.now().toString(), stt: ENGINE_DB_NHAN_SU.length + 1,
+                    hoTen, ngaySinh: document.getElementById('add-ns-ngaysinh').value,
+                    soBhxh: document.getElementById('add-ns-bhxh').value || "—", soCccd,
+                    maDonViGoc: document.getElementById('add-ns-madv').value || "—",
+                    donViChuan: document.getElementById('add-ns-dvchuan').value || "Văn Phòng",
+                    gioiTinh: document.getElementById('add-ns-gioitinh').value,
+                    atv: document.getElementById('add-ns-atv').value,
+                    docHai: document.getElementById('add-ns-dochai').value || "Không",
+                    chucDanh: "Nhân viên mới khai báo"
+                });
+                closeForm('modal-form-ns');
+                sysFillEmployeeDropdowns();
+            }
+            if (type === 'dt') {
+                EXT_DAO_TAO.push({ id: Date.now(), name: document.getElementById('form-dt-id').value, khoahoc: document.getElementById('form-dt-ten').value, truong: document.getElementById('form-dt-truong').value, time: document.getElementById('form-dt-time').value, bang: document.getElementById('form-dt-bang').value, status: "Đang thẩm định" });
+                closeForm('modal-form-dt');
+            }
+            if (type === 'bh') {
+                EXT_BAO_HIEM.push({ id: Date.now(), name: document.getElementById('form-bh-id').value, loai: document.getElementById('form-bh-loai').value, muc: document.getElementById('form-bh-muc').value, tungay: "07/07/2026", dot: "Theo tờ trình", status: "Chờ phê duyệt" });
+                closeForm('modal-form-bh');
+            }
+            if (type === 'tl') {
+                let lcb = parseInt(document.getElementById('form-tl-lcb').value) || 0;
+                let hsl = parseFloat(document.getElementById('form-tl-hsl').value) || 1;
+                let pcdh = parseInt(document.getElementById('form-tl-pcdh').value) || 0;
+                let thuong = parseInt(document.getElementById('form-tl-thuong').value) || 0;
+                EXT_TIEN_LUONG.push({ id: Date.now(), name: document.getElementById('form-tl-id').value, lcb, hsl, pcdh, thuong, tong: Math.round(lcb * hsl) + pcdh + thuong });
+                closeForm('modal-form-tl');
+            }
+            if (type === 'kpi') {
+                EXT_KPI.push({ id: Date.now(), name: document.getElementById('form-kpi-id').value, ky: document.getElementById('form-kpi-ky').value, tieuchuon: document.getElementById('form-kpi-diem').value, tu: document.getElementById('form-kpi-tu').value, duyet: document.getElementById('form-kpi-duyet').value, loai: "Đang chấm" });
+                closeForm('modal-form-kpi');
+            }
+            if (type === 'cv') {
+                EXT_CONG_VIỆC.push({ id: Date.now(), ten: document.getElementById('form-cv-ten').value, name: document.getElementById('form-cv-id').value, han: document.getElementById('form-cv-han').value, priority: document.getElementById('form-cv-priority').value, nhac: document.getElementById('form-cv-remind').value, status: "Mới giao" });
+                closeForm('modal-form-cv');
+            }
+            renderAllTables();
         }
 
-        function suaNhanSuInline(id) {
-            let item = DANH_SACH_MASTER.find(x => x.id == id);
-            document.getElementById(`ns-hoten-${id}`).innerHTML = `<input type="text" id="inp-ns-hoten-${id}" class="inline-input" value="${item.hoTen}">`;
-            document.getElementById(`ns-sobhxh-${id}`).innerHTML = `<input type="text" id="inp-ns-sobhxh-${id}" class="inline-input" value="${item.soBhxh}">`;
-            document.getElementById(`ns-madonvigoc-${id}`).innerHTML = `<input type="text" id="inp-ns-madonvigoc-${id}" class="inline-input" value="${item.maDonViGoc}">`;
-            document.getElementById(`ns-chucdanh-${id}`).innerHTML = `<input type="text" id="inp-ns-chucdanh-${id}" class="inline-input" value="${item.chucDanh}">`;
-            event.target.outerHTML = `<button class="btn-save" onclick="luuNhanSuInline('${id}')">Lưu</button>`;
+        function renderAllTables() {
+            // Render phân hệ 1
+            document.getElementById('tbody-core-ns').innerHTML = ENGINE_DB_NHAN_SU.map(x => `<tr>
+                <td>${x.stt}</td><td style="font-weight:bold; color:var(--primary);">${x.hoTen}</td><td>${x.ngaySinh}</td><td style="font-family:monospace;">${x.soBhxh}</td><td style="font-family:monospace;">${x.soCccd}</td><td><b style="color:var(--warning);">${x.maDonViGoc}</b></td><td><span class="badge badge-info">${x.donViChuan}</span></td><td>${x.atv==='TRUE'?'<span class="badge badge-success">✓ ATV</span>':'—'}</td><td><span style="color:var(--danger); font-weight:600;">${x.docHai}</span></td><td><button class="btn btn-secondary" style="padding:3px 8px;">Sửa</button></td>
+            </tr>`).join('');
+
+            // Render phân hệ 2
+            document.getElementById('tbody-dao-tao').innerHTML = EXT_DAO_TAO.map((x, i) => `<tr><td>${i+1}</td><td><b>${x.name}</b></td><td>${x.khoahoc}</td><td>${x.truong}</td><td>${x.time}</td><td>${x.bang}</td><td><span class="badge badge-info">${x.status}</span></td></tr>`).join('');
+
+            // Render phân hệ 3
+            document.getElementById('tbody-bao-hiem').innerHTML = EXT_BAO_HIEM.map((x, i) => `<tr><td>${i+1}</td><td><b>${x.name}</b></td><td>${x.loai}</td><td>${x.muc}</td><td>${x.tungay}</td><td>${x.dot}</td><td><span class="badge badge-warning">${x.status}</span></td></tr>`).join('');
+
+            // Render phân hệ 4
+            document.getElementById('tbody-tien-luong').innerHTML = EXT_TIEN_LUONG.map((x, i) => `<tr><td>${i+1}</td><td><b>${x.name}</b></td><td>${x.lcb.toLocaleString()}</td><td>${x.hsl}</td><td>${x.pcdh.toLocaleString()}</td><td>${x.thuong.toLocaleString()}</td><td style="font-weight:bold; color:var(--success);">${x.tong.toLocaleString()}đ</td></tr>`).join('');
+
+            // Render phân hệ 5
+            document.getElementById('tbody-kpi').innerHTML = EXT_KPI.map((x, i) => `<tr><td>${i+1}</td><td><b>${x.name}</b></td><td>${x.ky}</td><td>${x.tieuchuon}</td><td>${x.tu}</td><td>${x.duyet}</td><td><span class="badge badge-success">${x.loai}</span></td></tr>`).join('');
+
+            // Render phân hệ 6
+            document.getElementById('tbody-cong-viec').innerHTML = EXT_CONG_VIỆC.map((x, i) => `<tr><td>${i+1}</td><td style="color:var(--primary); font-weight:600;">${x.ten}</td><td><b>${x.name}</b></td><td>${x.han}</td><td><span class="badge badge-warning">${x.priority}</span></td><td>${x.nhac}</td><td><span class="badge badge-info">${x.status}</span></td></tr>`).join('');
         }
 
-        function luuNhanSuInline(id) {
-            let item = DANH_SACH_MASTER.find(x => x.id == id);
-            item.hoTen = document.getElementById(`inp-ns-hoten-${id}`).value;
-            item.soBhxh = document.getElementById(`inp-ns-sobhxh-${id}`).value;
-            item.maDonViGoc = document.getElementById(`inp-ns-madonvigoc-${id}`).value;
-            item.chucDanh = document.getElementById(`inp-ns-chucdanh-${id}`).value;
-            renderBangNhanSu(DANH_SACH_MASTER);
+        function chayDongHoLichVanNien() {
+            setInterval(() => {
+                let d = new Date();
+                document.getElementById('cal-time').innerText = d.toTimeString().split(' ')[0];
+            }, 1000);
         }
 
-        function khoiTaoDuLieuMauNghiepVu() {
-            DATA_CAP_PHAT = [{ id: 1, hoTen: "Nguyễn Văn Phú", boPhan: "Phòng CNTT", tenThietBi: "Máy tính Dell Latitude", serial: "DEL-2026A", ngayCap: "10/01/2026", trangThai: "Đang sử dụng" }];
-            DATA_SUA_CHUA = [{ id: 1, thietBi: "Máy nén khí số 2", suCo: "Hỏng bo mạch áp suất", donVi: "Nhà máy Giấy", ngayBao: "01/03/2026", chiPhi: "12,500,000", trangThai: "Đang xử lý" }];
-            DATA_CUOC_PHI = [{ id: 1, dichVu: "Internet Cáp Quang FTTH", soMay: "vinapaco_line01", donVi: "Văn phòng TCT", kyCuoc: "06/2026", soTien: "2450000", trangThai: "Đã thanh toán" }];
-            DATA_THANH_TOAN = [{ id: 1, maHoSo: "HS-TT-041", noiDung: "Thanh toán cước viễn thông", nguonChiPhi: "Chi phí hành chính", tongGiaTri: "2,450,000", ngayTao: "01/07/2026", trangThai: "Đã duyệt chi" }];
-            
-            document.getElementById("tbody-cap-phat").innerHTML = DATA_CAP_PHAT.map((x, i) => `<tr><td>${i+1}</td><td>${x.hoTen}</td><td>${x.boPhan}</td><td>${x.tenThietBi}</td><td>${x.serial}</td><td>${x.ngayCap}</td><td>${x.trangThai}</td></tr>`).join('');
-            document.getElementById("tbody-sua-chua").innerHTML = DATA_SUA_CHUA.map((x, i) => `<tr><td>${i+1}</td><td>${x.thietBi}</td><td>${x.suCo}</td><td>${x.donVi}</td><td>${x.ngayBao}</td><td>${x.chiPhi}</td><td>${x.trangThai}</td></tr>`).join('');
-            document.getElementById("tbody-cuoc-phi").innerHTML = DATA_CUOC_PHI.map((x, i) => `<tr><td>${i+1}</td><td>${x.dichVu}</td><td>${x.soMay}</td><td>${x.donVi}</td><td>${x.kyCuoc}</td><td>${parseInt(x.soTien).toLocaleString()}</td><td>${x.trangThai}</td></tr>`).join('');
-            document.getElementById("tbody-thanh-toan").innerHTML = DATA_THANH_TOAN.map((x, i) => `<tr><td>${i+1}</td><td>${x.maHoSo}</td><td>${x.noiDung}</td><td>${x.nguonChiPhi}</td><td>${x.tongGiaTri}</td><td>${x.ngayTao}</td><td>${x.trangThai}</td></tr>`).join('');
-            capNhatThongKeChung();
+        function chayPomodoroHealthCare() {
+            let min = 25; let sec = 0;
+            setInterval(() => {
+                if(sec === 0) { if(min === 0) { kichHoatNhacNghiNgoi(); min = 25; sec = 0; } else { min--; sec = 59; } } else { sec--; }
+                document.getElementById('timer-pomodoro').innerText = `🧘 Chu kỳ nghỉ ngơi: ${min.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`;
+            }, 1000);
         }
 
-        function taiBoLocDynamic() {
-            let listMaDV = [...new Set(DANH_SACH_MASTER.map(x => x.maDonViGoc).filter(x => x && x !== "—"))];
-            let listDonVi = [...new Set(DANH_SACH_MASTER.map(x => x.donViChuan).filter(Boolean))];
-            document.getElementById("ns-filter-madonvigoc").innerHTML = `<option value="ALL">-- Mã Đơn Vị Gốc (Tất cả) --</option>` + listMaDV.map(mv => `<option value="${mv}">${mv}</option>`).join('');
-            document.getElementById("ns-filter-donvi").innerHTML = `<option value="ALL">-- Bộ Phận Nhận Chuẩn (Tất cả) --</option>` + listDonVi.map(dv => `<option value="${dv}">${dv}</option>`).join('');
-        }
-
-        function capNhatThongKeChung() {
-            document.getElementById("ds-ns-tong").innerText = DANH_SACH_MASTER.length + " Người";
-            document.getElementById("ds-ns-gioitinh").innerText = `${DANH_SACH_MASTER.filter(x => x.gioiTinh === "Nam").length} Nam / ${DANH_SACH_MASTER.filter(x => x.gioiTinh === "Nữ").length} Nữ`;
-            document.getElementById("ds-ns-atv-dh").innerText = `${DANH_SACH_MASTER.filter(x => x.atv === "YES").length} ATV / ${DANH_SACH_MASTER.filter(x => x.docHai && x.docHai !== "").length} ĐH`;
-            let tCuoc = DATA_CUOC_PHI.reduce((acc, cur) => acc + (parseInt(cur.soTien.toString().replace(/,/g,'')) || 0), 0);
-            document.getElementById("db-cuoc-phi").innerText = tCuoc.toLocaleString() + " VND";
-        }
-
-        function locDuLieuDynamic() {
-            let keyword = document.getElementById("ns-search").value.toLowerCase();
-            let filterMaDV = document.getElementById("ns-filter-madonvigoc").value;
-            let filterDV = document.getElementById("ns-filter-donvi").value;
-            let ketQua = DANH_SACH_MASTER.filter(item => {
-                return (item.hoTen.toLowerCase().includes(keyword) || item.soCccd.includes(keyword)) && (filterMaDV === "ALL" || item.maDonViGoc === filterMaDV) && (filterDV === "ALL" || item.donViChuan === filterDV);
-            });
-            renderBangNhanSu(ketQua);
+        function kichHoatNhacNghiNgoi() {
+            alert("🔔 Hệ thống Nhắc nhở Sức khỏe Vinapaco ERP:\nBạn đã làm việc liên tục 25 phút. Hãy đứng dậy, uống nước và rời mắt khỏi màn hình máy tính 2 phút để bảo vệ sức khỏe!");
         }
     </script>
 </body>
