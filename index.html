@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vinapaco ERP Master System v2026 - Supabase Integrated</title>
+    <title>Vinapaco ERP Master System v2026 - Ultimate Edition</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
@@ -55,18 +55,21 @@
         .workspace { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); min-height: 550px; }
         .table-container { width: 100%; overflow-x: auto; margin-top: 15px; border: 1px solid #e2e8f0; border-radius: 6px; max-height: 500px; }
         table { width: 100%; border-collapse: collapse; text-align: left; }
-        th, td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
+        th, td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; white-space: nowrap; vertical-align: middle; }
         th { background: #f8fafc; font-weight: 700; color: #334155; position: sticky; top: 0; z-index: 10; }
         tr:hover { background: #f8fafc; }
         
         .empty-row { text-align: center; color: #94a3b8; padding: 40px !important; font-style: italic; }
         
-        button.btn { padding: 8px 14px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; transition: all 0.2s; }
+        button.btn { padding: 6px 12px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-size: 12px; transition: all 0.2s; }
         .btn-primary { background: var(--primary); color: white; }
         .btn-danger { background: var(--danger); color: white; }
         .btn-purple { background: var(--purple); color: white; }
         .btn-success { background: var(--success); color: white; }
+        .btn-warning { background: var(--warning); color: white; }
         .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        .btn-sm { padding: 4px 8px; font-size: 11px; border-radius: 4px; }
         
         .badge { padding: 3px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; display: inline-block; }
         .badge-male { background: #e0f2fe; color: #0369a1; }
@@ -74,6 +77,8 @@
         .badge-atv { background: #dcfce7; color: #15803d; }
         .badge-dochai { background: #fee2e2; color: #b91c1c; }
         
+        /* INPUT ĐỔI MÀU KHI Ở CHẾ ĐỘ SỬA */
+        .edit-input { width: 100%; padding: 5px 8px; border: 1px solid var(--primary); border-radius: 4px; font-size: 12px; background: #f0f9ff; outline: none; }
         .excel-upload-wrapper { position: relative; display: inline-block; }
         .excel-upload-wrapper input[type="file"] { position: absolute; left: 0; top: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
     </style>
@@ -83,13 +88,13 @@
     <header>
         <div>
             <h1 style="letter-spacing: 0.5px;">VINAPACO MASTER ENGINE v2026</h1>
-            <p style="font-size: 11px; opacity: 0.9; margin-top: 2px;">Đồng bộ dữ liệu thời gian thực Cloud Supabase Database</p>
+            <p style="font-size: 11px; opacity: 0.9; margin-top: 2px;">Hệ thống tối ưu biến động: Hỗ trợ Chỉnh sửa dữ liệu trực tiếp & Đồng bộ Cloud</p>
         </div>
         <div class="cloud-status status-online" id="db-status-badge">🟢 Cloud Supabase Connected</div>
     </header>
 
     <div class="stats-grid">
-        <div class="stat-card"><div class="stat-label">Tổng số lao động</div><div class="stat-value" id="stat-total">0</div><div class="stat-sub">Đồng bộ từ Database</div></div>
+        <div class="stat-card"><div class="stat-label">Tổng số lao động</div><div class="stat-value" id="stat-total">0</div><div class="stat-sub">Đồng bộ thực tế</div></div>
         <div class="stat-card"><div class="stat-label">Lao động Nam</div><div class="stat-value" id="stat-male">0</div><div class="stat-sub" id="stat-male-pct">Tỷ lệ: 0%</div></div>
         <div class="stat-card female"><div class="stat-label">Lao động Nữ</div><div class="stat-value" id="stat-female">0</div><div class="stat-sub" id="stat-female-pct">Tỷ lệ: 0%</div></div>
         <div class="stat-card atv"><div class="stat-label">An toàn viên</div><div class="stat-value" id="stat-atv">0</div><div class="stat-sub" id="stat-atv-pct">Tỷ lệ: 0%</div></div>
@@ -121,7 +126,7 @@
 
         <div class="workspace">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                <h2>📋 Dữ Liệu Nhân Sự Đồng Bộ Đám Mây</h2>
+                <h2>📋 Danh Sách Nhân Sự & Cập Nhật Biến Động</h2>
                 <div style="display: flex; gap: 8px;">
                     <div class="excel-upload-wrapper">
                         <button class="btn btn-purple" id="btn-upload-excel">📥 Import Excel Lên Supabase</button>
@@ -135,22 +140,23 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>STT Gốc</th>
+                            <th>Thao Tác</th>
+                            <th>STT</th>
                             <th>Họ và Tên</th>
-                            <th>Ngày/Năm Sinh</th>
+                            <th>Ngày Sinh</th>
                             <th>Giới Tính</th>
                             <th>Số Sổ BHXH</th>
-                            <th>Số CCCD</th>
+                            <th>Số CCCD (Khóa)</th>
                             <th>Mã Đơn Vị</th>
                             <th>An Toàn Viên</th>
                             <th>Độc Hại (NNĐH)</th>
                             <th>Ngày Về Hưu Gốc</th>
-                            <th>Năm Về Hưu Dự Kiến</th>
+                            <th>Hưu Luật Mới</th>
                             <th>Chức Danh Công Việc</th>
                         </tr>
                     </thead>
                     <tbody id="tbody-vinapaco">
-                        <tr><td colspan="12" class="empty-row">🔄 Đang tải dữ liệu từ Supabase Cloud...</td></tr>
+                        <tr><td colspan="13" class="empty-row">🔄 Đang tải dữ liệu từ Supabase Cloud...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -158,20 +164,19 @@
     </div>
 
     <script>
-        // CẤU HÌNH LIÊN KẾT ĐẾN SUPABASE KHÔNG LỖI
         const SUPABASE_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co";
         const SUPABASE_KEY = "sb_publishable_F9qfNlAUikQ-9pYHV8jL8g_xrBa8s5w";
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         let MASTER_CLOUD_DATA = [];
         let FILTERED_VIEW_DATA = [];
+        let EDITING_CCCD = null; // Lưu trữ ID nhân sự đang được sửa đổi
 
-        // Khởi động hệ thống: Tải dữ liệu từ Supabase về hiển thị ngay lập tức
         window.addEventListener('DOMContentLoaded', () => {
             fetchDataFromSupabase();
         });
 
-        // Hàm lấy dữ liệu từ Supabase về client
+        // Hàm tải dữ liệu tổng thể từ Cloud
         async function fetchDataFromSupabase() {
             setVisualStatus("syncing", "🔄 Loading from Cloud...");
             try {
@@ -182,7 +187,6 @@
 
                 if (error) throw error;
 
-                // Chuyển đổi dữ liệu từ Snake_case trên database về CamelCase trên giao diện
                 MASTER_CLOUD_DATA = (data || []).map(row => ({
                     stt: row.stt,
                     hoTen: row.ho_ten,
@@ -193,32 +197,32 @@
                     maDonVi: row.ma_don_vi,
                     anToanVien: row.an_toan_vien,
                     docHai: row.doc_hai,
-                    isDocHaiBoolean: row.doc_hai !== "—",
+                    isDocHaiBoolean: row.doc_hai !== "—" && !row.doc_hai.includes("—"),
                     namVeHuuGoc: row.nam_ve_huu_goc,
                     namVeHuuDuKien: row.nam_ve_huu_du_kien,
                     chucDanh: row.chuc_danh
                 }));
 
-                // Cập nhật bộ lọc danh sách Đơn vị động
                 let setMaDonVi = new Set();
                 MASTER_CLOUD_DATA.forEach(x => { if(x.maDonVi && x.maDonVi !== "—") setMaDonVi.add(x.maDonVi); });
                 
                 let selectDV = document.getElementById('filter-ma-dv');
+                let currentVal = selectDV.value;
                 selectDV.innerHTML = `<option value="">-- Tất cả đơn vị (${setMaDonVi.size}) --</option>`;
                 Array.from(setMaDonVi).sort().forEach(dv => {
                     selectDV.innerHTML += `<option value="${dv}">Đơn vị: ${dv}</option>`;
                 });
+                if(currentVal) selectDV.value = currentVal;
 
                 filterData();
                 setVisualStatus("online", "🟢 Cloud Supabase Connected");
             } catch (err) {
                 console.error(err);
-                alert("Lỗi tải dữ liệu: Vui lòng kiểm tra lại cấu trúc bảng 'vinapaco_nhansu' trên Supabase!");
                 setVisualStatus("online", "🔴 Cloud Connection Error");
             }
         }
 
-        // CHUẨN HÓA ĐỊNH DẠNG NGÀY THÁNG VIỆT NAM (Sửa triệt để lỗi chuỗi ngày số 25425)
+        // CHUẨN HÓA ĐỊNH DẠNG NGÀY THÁNG VIỆT NAM
         function formatExcelDate(cellValue) {
             if (!cellValue) return "—";
             let cleaned = String(cellValue).trim();
@@ -231,10 +235,7 @@
                 let date_info = new Date(utc_value * 1000);
                 date_info.setDate(date_info.getDate() + 1);
                 
-                let d = String(date_info.getDate()).padStart(2, '0');
-                let m = String(date_info.getMonth() + 1).padStart(2, '0');
-                let y = date_info.getFullYear();
-                return `${d}/${m}/${y}`;
+                return `${String(date_info.getDate()).padStart(2, '0')}/${String(date_info.getMonth() + 1).padStart(2, '0')}/${date_info.getFullYear()}`;
             }
 
             if (cleaned.includes('-')) {
@@ -247,7 +248,7 @@
             return cleaned;
         }
 
-        // THUẬT TOÁN TÍNH CHUẨN NGÀY VỀ HƯU LUẬT MỚI KẾT HỢP TRỪ 5 NĂM ĐỘC HẠI
+        // TÍNH TOÁN NGÀY NGHỈ HƯU LUẬT MỚI
         function calculateRetirementDateFull(birthDateStr, gender, isDocHai) {
             if (!birthDateStr || birthDateStr === "—") return "—";
             let parts = birthDateStr.split('/');
@@ -277,7 +278,69 @@
             return `${String(birthDate.getDate()).padStart(2,'0')}/${String(birthDate.getMonth()+1).padStart(2,'0')}/${birthDate.getFullYear()}`;
         }
 
-        // HÀM TIẾP NHẬN EXCEL VÀ ĐỒNG BỘ BATCH CHUNKING LÊN SUPABASE
+        // BẬT CHẾ ĐỘ SỬA CHO 1 DÒNG NHÂN SỰ CHỈ ĐỊNH
+        function enterEditMode(cccd) {
+            EDITING_CCCD = cccd;
+            renderTableAndStats();
+        }
+
+        // THOÁT CHẾ ĐỘ SỬA HỦY BỎ THAY ĐỔI
+        function cancelEditMode() {
+            EDITING_CCCD = null;
+            renderTableAndStats();
+        }
+
+        // LƯU CẬP NHẬT BIẾN ĐỘNG CỦA NHÂN SỰ LÊN THẲNG SUPABASE
+        async function saveRowUpdate(cccd) {
+            setVisualStatus("syncing", "⏳ Saving data...");
+            try {
+                // Thu thập dữ liệu từ các ô Input tương ứng trên giao diện
+                let hoTen = document.getElementById(`edit-hoten-${cccd}`).value.trim();
+                let ngaySinh = document.getElementById(`edit-ngaysinh-${cccd}`).value.trim();
+                let gioiTinh = document.getElementById(`edit-gioitinh-${cccd}`).value;
+                let soBhxh = document.getElementById(`edit-sobhxh-${cccd}`).value.trim();
+                let maDonVi = document.getElementById(`edit-madonvi-${cccd}`).value.trim();
+                let anToanVien = document.getElementById(`edit-atv-${cccd}`).value.trim();
+                let docHai = document.getElementById(`edit-dochai-${cccd}`).value.trim();
+                let namVeHuuGoc = document.getElementById(`edit-huugoc-${cccd}`).value.trim();
+                let chucDanh = document.getElementById(`edit-chucdanh-${cccd}`).value.trim();
+                let stt = document.getElementById(`edit-stt-${cccd}`).value.trim();
+
+                let isDocHai = (docHai !== "" && docHai !== "—");
+                
+                // Tự động tính toán lại Ngày về hưu mới dựa trên dữ liệu vừa sửa đổi
+                let newHuuDuKien = calculateRetirementDateFull(ngaySinh, gioiTinh, isDocHai);
+
+                // Gửi gói lệnh cập nhật duy nhất một dòng lên Cloud dựa trên khóa chính số CCCD
+                let { error } = await _supabase
+                    .from('vinapaco_nhansu')
+                    .upsert({
+                        so_cccd: cccd, // Khóa chính cố định
+                        stt: stt,
+                        ho_ten: hoTen,
+                        ngay_sinh: ngaySinh,
+                        gioi_tinh: gioiTinh,
+                        so_bhxh: soBhxh,
+                        ma_don_vi: maDonVi,
+                        an_toan_vien: anToanVien !== "" ? anToanVien : "—",
+                        doc_hai: docHai !== "" ? docHai : "—",
+                        nam_ve_huu_goc: namVeHuuGoc,
+                        nam_ve_huu_du_kien: newHuuDuKien,
+                        chuc_danh: chucDanh
+                    }, { onConflict: 'so_cccd' });
+
+                if (error) throw error;
+
+                EDITING_CCCD = null; // Thoát chế độ sửa
+                await fetchDataFromSupabase(); // Làm sạch và cập nhật lại giao diện người dùng
+            } catch (err) {
+                console.error(err);
+                alert("Lỗi khi cập nhật thông tin nhân sự lên hệ thống!");
+                setVisualStatus("online", "🔴 Update Error");
+            }
+        }
+
+        // IMPORT FILE EXCEL BATCHING LUYỆN CHỐNG TRÀN TẢI
         function handleExcelAndSync(inputElement) {
             let file = inputElement.files[0];
             if (!file) return;
@@ -290,13 +353,12 @@
                 let rawRows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
                 
                 if (rawRows.length === 0) {
-                    alert("Tập tin Excel trống!");
+                    alert("Tập tin trống!");
                     setVisualStatus("online", "🟢 Cloud Connected");
                     return;
                 }
 
                 let dbPayloads = [];
-
                 rawRows.forEach((row, idx) => {
                     let name = row['Họ và tên'] || row['Họ và Tên'];
                     if (!name) return;
@@ -317,7 +379,6 @@
                     let calculatedRetirement = calculateRetirementDateFull(normalizedBirth, gender, isDocHai);
                     let cleanCccd = row['Số CCCD'] ? String(row['Số CCCD']).trim() : "FAKE_ID_" + idx + "_" + Date.now();
 
-                    // Khớp cấu trúc snake_case chính xác với Supabase Table
                     dbPayloads.push({
                         stt: String(row['Stt'] || (idx + 1)),
                         ho_ten: String(name).trim(),
@@ -334,35 +395,26 @@
                     });
                 });
 
-                // Thực hiện chia nhỏ mẻ dữ liệu (Batching 100 dòng một mẻ) tránh lỗi nghẽn payload mạng
                 let chunkSize = 100;
                 let totalRows = dbPayloads.length;
                 
                 for (let i = 0; i < totalRows; i += chunkSize) {
                     let chunk = dbPayloads.slice(i, i + chunkSize);
-                    setVisualStatus("syncing", `⏳ Đang đồng bộ Cloud: ${i}/${totalRows} dòng...`);
-                    
-                    // Lệnh upsert xử lý chống lỗi trùng khóa chính cực tốt
-                    let { error } = await _supabase
-                        .from('vinapaco_nhansu')
-                        .upsert(chunk, { onConflict: 'so_cccd' });
-
+                    setVisualStatus("syncing", `⏳ Đang nạp Cloud: ${i}/${totalRows} dòng...`);
+                    let { error } = await _supabase.from('vinapaco_nhansu').upsert(chunk, { onConflict: 'so_cccd' });
                     if (error) {
-                        console.error(error);
-                        alert(`Lỗi đồng bộ mẻ dữ liệu tại vị trí dòng ${i}! Hãy chắc chắn trường 'so_cccd' là Khóa chính.`);
-                        setVisualStatus("online", "🔴 Cloud Error");
+                        alert("Lỗi import mẻ dữ liệu lớn!");
                         return;
                     }
                 }
 
-                alert(`🎯 VINAPACO CLOUD ENGINE:\nĐã đồng bộ thành công ${totalRows} bản ghi nhân sự lên hệ thống Supabase!`);
+                alert(`Đã đồng bộ mượt mà ${totalRows} nhân sự!`);
                 inputElement.value = '';
-                await fetchDataFromSupabase(); // Reload dữ liệu sạch từ Cloud về UI
+                await fetchDataFromSupabase();
             };
             reader.readAsArrayBuffer(file);
         }
 
-        // BỘ LỌC ĐA NĂNG & TÌM KIẾM THÔNG MINH REAL-TIME TRÊN BẢN GHI ĐỒNG BỘ
         function filterData() {
             let searchTxt = document.getElementById('smart-search').value.toLowerCase().trim();
             let selectMaDV = document.getElementById('filter-ma-dv').value;
@@ -385,11 +437,10 @@
             renderTableAndStats();
         }
 
-        // IN DỮ LIỆU BẢNG VÀ CHỈ SỐ DASHBOARD ANALYTICS
         function renderTableAndStats() {
             let tbody = document.getElementById('tbody-vinapaco');
             if (FILTERED_VIEW_DATA.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="12" class="empty-row">⚠️ Không tìm thấy dữ liệu nhân sự phù hợp trên Cloud.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="13" class="empty-row">⚠️ Không tìm thấy kết quả phù hợp trên Cloud.</td></tr>`;
                 updateDashboard(0, 0, 0, 0, 0);
                 return;
             }
@@ -397,13 +448,48 @@
             let total = FILTERED_VIEW_DATA.length;
             let female = FILTERED_VIEW_DATA.filter(x => x.gioiTinh === "Nữ").length;
             let male = total - female;
-            let atvCount = FILTERED_VIEW_DATA.filter(x => x.anToanVien !== "—").length;
+            let atvCount = FILTERED_VIEW_DATA.filter(x => x.anToanVien !== "—" && x.anToanVien !== "").length;
             let dochaiCount = FILTERED_VIEW_DATA.filter(x => x.isDocHaiBoolean).length;
 
             updateDashboard(total, male, female, atvCount, dochaiCount);
 
-            tbody.innerHTML = FILTERED_VIEW_DATA.map(x => `
+            tbody.innerHTML = FILTERED_VIEW_DATA.map(x => {
+                // NẾU DÒNG ĐÓ ĐANG ĐƯỢC CHỌN SỬA -> HIỂN THỊ CÁC Ô NHẬP LIỆU INLINE INPUTS
+                if (EDITING_CCCD === x.soCccd) {
+                    return `
+                    <tr style="background: #fffbeb;">
+                        <td>
+                            <div style="display:flex; gap:4px;">
+                                <button class="btn btn-warning btn-sm" onclick="saveRowUpdate('${x.soCccd}')">💾 Lưu</button>
+                                <button class="btn btn-danger btn-sm" onclick="cancelEditMode()">✕ Hủy</button>
+                            </div>
+                        </td>
+                        <td><input type="text" id="edit-stt-${x.soCccd}" class="edit-input" value="${x.stt}" style="width:40px;"></td>
+                        <td><input type="text" id="edit-hoten-${x.soCccd}" class="edit-input" value="${x.hoTen}"></td>
+                        <td><input type="text" id="edit-ngaysinh-${x.soCccd}" class="edit-input" value="${x.ngaySinh}" style="width:85px; font-family:monospace;"></td>
+                        <td>
+                            <select id="edit-gioitinh-${x.soCccd}" class="edit-input" style="width:65px;">
+                                <option value="Nam" ${x.gioiTinh==='Nam'?'selected':''}>Nam</option>
+                                <option value="Nữ" ${x.gioiTinh==='Nữ'?'selected':''}>Nữ</option>
+                            </select>
+                        </td>
+                        <td><input type="text" id="edit-sobhxh-${x.soCccd}" class="edit-input" value="${x.soBhxh}" style="width:90px; font-family:monospace;"></td>
+                        <td style="font-family:monospace; font-weight:bold; color:#64748b; padding:10px;">${x.soCccd}</td>
+                        <td><input type="text" id="edit-madonvi-${x.soCccd}" class="edit-input" value="${x.maDonVi}" style="width:60px;"></td>
+                        <td><input type="text" id="edit-atv-${x.soCccd}" class="edit-input" value="${x.anToanVien==='—'?'':x.anToanVien}" placeholder="Ví dụ: ATV (2)"></td>
+                        <td><input type="text" id="edit-dochai-${x.soCccd}" class="edit-input" value="${x.docHai==='—'?'':x.docHai}" placeholder="Ví dụ: Độc hại (1)"></td>
+                        <td><input type="text" id="edit-huugoc-${x.soCccd}" class="edit-input" value="${x.namVeHuuGoc}" style="width:85px; font-family:monospace;"></td>
+                        <td style="text-align:center; color:#94a3b8; font-style:italic;">Tự động tính</td>
+                        <td><input type="text" id="edit-chucdanh-${x.soCccd}" class="edit-input" value="${x.chucDanh}" style="min-width:200px;"></td>
+                    </tr>`;
+                }
+
+                // DÒNG BÌNH THƯỜNG TRƯỚC KHI KÍCH HOẠT CHẾ ĐỘ CHỈNH SỬA
+                return `
                 <tr>
+                    <td>
+                        <button class="btn btn-primary btn-sm" onclick="enterEditMode('${x.soCccd}')">✏️ Sửa</button>
+                    </td>
                     <td>${x.stt}</td>
                     <td style="font-weight:bold; color:var(--primary);">${x.hoTen}</td>
                     <td style="font-family:monospace; font-weight:600;">${x.ngaySinh}</td>
@@ -411,13 +497,13 @@
                     <td style="font-family:monospace;">${x.soBhxh}</td>
                     <td style="font-family:monospace;">${x.soCccd}</td>
                     <td style="font-weight:bold; color: #0f172a;">${x.maDonVi}</td>
-                    <td>${x.anToanVien !== '—' ? `<span class="badge badge-atv">${x.anToanVien}</span>` : '—'}</td>
-                    <td>${x.docHai !== '—' ? `<span class="badge badge-danger">⚠️ ${x.docHai}</span>` : '—'}</td>
+                    <td>${x.anToanVien !== '—' && x.anToanVien !== '' ? `<span class="badge badge-atv">${x.anToanVien}</span>` : '—'}</td>
+                    <td>${x.docHai !== '—' && x.docHai !== '' ? `<span class="badge badge-danger">⚠️ ${x.docHai}</span>` : '—'}</td>
                     <td style="font-family:monospace; color:#475569;">${x.namVeHuuGoc}</td>
                     <td style="font-weight:bold; color:var(--warning); text-align:center; font-family:monospace;">${x.namVeHuuDuKien}</td>
                     <td style="max-width: 250px; white-space: normal; word-wrap: break-word; color:#475569; font-size:12px;">${x.chucDanh}</td>
-                </tr>
-            `).join('');
+                </tr>`;
+            }).join('');
         }
 
         function updateDashboard(total, male, female, atv, dochai) {
@@ -427,9 +513,9 @@
             document.getElementById('stat-female').innerText = female.toLocaleString();
             document.getElementById('stat-female-pct').innerText = total > 0 ? `Tỷ lệ: ${((female/total)*100).toFixed(1)}%` : "Tỷ lệ: 0%";
             document.getElementById('stat-atv').innerText = atv.toLocaleString();
-            document.getElementById('stat-atv-pct').innerText = total > 0 ? `Tỷ lệ: ${((atv/total)*100).toFixed(1)}%` : "Tỷ lệ: 0%";
+            document.getElementById('stat-atv-pct').innerText = total > 0 ? `Tỷ lệ: ${((atv/total)*100).toFixed(1)}% tổng` : "Tỷ lệ: 0%";
             document.getElementById('stat-dochai').innerText = dochai.toLocaleString();
-            document.getElementById('stat-dochai-pct').innerText = total > 0 ? `Tỷ lệ: ${((dochai/total)*100).toFixed(1)}%` : "Tỷ lệ: 0%";
+            document.getElementById('stat-dochai-pct').innerText = total > 0 ? `Tỷ lệ: ${((dochai/total)*100).toFixed(1)}% tổng` : "Tỷ lệ: 0%";
         }
 
         function setVisualStatus(type, text) {
@@ -438,33 +524,21 @@
             badge.className = "cloud-status " + (type === 'online' ? 'status-online' : 'status-syncing');
         }
 
-        // HÀM CHỨC NĂNG ĐẨY KHỐI DỮ LIỆU ĐÃ CHỌN SANG PHÂN HỆ TIẾP THEO
         function pushToNextModule() {
             if(FILTERED_VIEW_DATA.length === 0) {
-                alert("Không có dữ liệu phù hợp để đẩy!");
+                alert("Không có dữ liệu!");
                 return;
             }
             let selectMaDV = document.getElementById('filter-ma-dv').value || "TẤT CẢ CÁC ĐƠN VỊ";
-            alert(`📥 ĐÃ TRÍCH XUẤT THÀNH CÔNG:\nĐã xuất kho dữ liệu Cloud gồm ${FILTERED_VIEW_DATA.length} bản ghi thuộc nhóm [Đơn vị: ${selectMaDV}]. Sẵn sàng đồng bộ cho các phân hệ phân phối BHLĐ & Kế toán.`);
+            alert(`📥 ĐÃ XUẤT KHO DỮ LIỆU ĐÁM MÂY:\nĐã trích xuất ${FILTERED_VIEW_DATA.length} nhân sự thuộc [Đơn vị: ${selectMaDV}] để chuyển tiếp đồng bộ thành công.`);
         }
 
-        // HÀM GIẢI PHÓNG TOÀN BỘ DỮ LIỆU TRÊN SUPABASE CLOUD (KHI MUỐN LÀM SẠCH)
         async function clearSupabaseCloud() {
-            if (confirm("🚨 CẢNH BÁO NGUY HIỂM:\nHành động này sẽ XÓA SẠCH toàn bộ bản ghi trên bảng Supabase Cloud! Bạn chắc chắn muốn xóa?")) {
+            if (confirm("🚨 CẢNH BÁO NGUY HIỂM:\nHành động này sẽ XÓA SẠCH toàn bộ bảng trên Supabase Cloud!")) {
                 setVisualStatus("syncing", "🗑️ Clearing Cloud...");
-                
-                // Thực hiện xóa diện rộng dữ liệu trên Supabase thông qua filter luôn đúng
-                let { error } = await _supabase
-                    .from('vinapaco_nhansu')
-                    .delete()
-                    .neq('stt', '—_—'); 
-
-                if (error) {
-                    alert("Không thể xóa sạch dữ liệu Cloud, hãy kiểm tra chính sách RLS trên Supabase!");
-                } else {
-                    alert("Đã dọn dẹp trống hoàn toàn bảng dữ liệu nhân sự trên Cloud!");
-                    await fetchDataFromSupabase();
-                }
+                let { error } = await _supabase.from('vinapaco_nhansu').delete().neq('stt', '—_—'); 
+                if (error) alert("Lỗi xóa!"); 
+                else { alert("Đã xóa sạch CSDL Cloud!"); await fetchDataFromSupabase(); }
             }
         }
     </script>
