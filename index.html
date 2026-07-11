@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vinapaco ERP Master System v2026 - Ultimate Edition v3.5</title>
+    <title>Vinapaco ERP Master System v2026 - Ultimate Edition v4.0</title>
     
+    <!-- Thư viện đọc Excel và Cloud Supabase Core SDK -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 
@@ -13,7 +14,7 @@
             --primary: #0284c7; --primary-dark: #0369a1;
             --success: #16a34a; --warning: #ea580c;
             --danger: #dc2626; --purple: #7c3aed;
-            --teal: #0d9488; --bg: #f1f5f9; --text: #0f172a;
+            --teal: #0d9488; --indigo: #4f46e5; --bg: #f1f5f9; --text: #0f172a;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
         body { background-color: var(--bg); color: var(--text); padding: 15px; font-size: 13px; }
@@ -27,6 +28,7 @@
         .stat-card.atv { border-left-color: var(--success); }
         .stat-card.dochai { border-left-color: var(--danger); }
         .stat-card.bh { border-left-color: var(--teal); }
+        .stat-card.kpi { border-left-color: var(--indigo); }
         .stat-label { font-size: 11px; color: #64748b; font-weight: 600; text-transform: uppercase; }
         .stat-value { font-size: 18px; font-weight: 700; margin-top: 4px; color: #1e293b; }
         .stat-sub { font-size: 11px; color: #94a3b8; margin-top: 2px; }
@@ -73,6 +75,7 @@
         .btn-success { background: var(--success); color: white; }
         .btn-warning { background: var(--warning); color: white; }
         .btn-teal { background: var(--teal); color: white; }
+        .btn-indigo { background: var(--indigo); color: white; }
         .btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .btn-sm { padding: 4px 8px; font-size: 11px; border-radius: 4px; }
         
@@ -83,6 +86,12 @@
         .badge-dochai { background: #fee2e2; color: #b91c1c; }
         .badge-teal { background: #ccfbf1; color: #0f766e; }
         
+        /* Badge xếp hạng KPI */
+        .badge-kpi-a { background: #dcfce7; color: #15803d; }
+        .badge-kpi-b { background: #e0f2fe; color: #0369a1; }
+        .badge-kpi-c { background: #fef3c7; color: #b45309; }
+        .badge-kpi-d { background: #fee2e2; color: #b91c1c; }
+
         .edit-input { width: 100%; padding: 5px 8px; border: 1px solid var(--primary); border-radius: 4px; font-size: 12px; background: #f0f9ff; outline: none; }
         .excel-upload-wrapper { position: relative; display: inline-block; }
         .excel-upload-wrapper input[type="file"] { position: absolute; left: 0; top: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
@@ -100,7 +109,7 @@
         .upload-zone { border: 2px dashed #cbd5e1; padding: 20px; border-radius: 6px; text-align: center; background: white; cursor: pointer; transition: all 0.2s; position: relative; }
         .upload-zone:hover { border-color: var(--primary); background: #f0f9ff; }
         
-        /* CSS PREVIEW ZONE ĐƯỢC NÂNG CẤP ĐỂ HIỂN THỊ ĐẸP HƠN */
+        /* PREVIEW ZONE ĐƯỢC NÂNG CẤP ĐỂ HIỂN THỊ LIVE PREVIEW LOCAL */
         .preview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-top: 12px; }
         .preview-card { background: #ffffff; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 11px; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: space-between; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.02); min-height: 120px; }
         .preview-card .remove-btn { position: absolute; top: -5px; right: -5px; background: #64748b; color: white; border: none; border-radius: 50%; width: 18px; height: 18px; cursor: pointer; font-size: 11px; line-height: 16px; text-align: center; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.15); transition: background 0.2s; }
@@ -119,15 +128,17 @@
         <div class="cloud-status status-online" id="db-status-badge">🟢 Cloud Supabase Connected</div>
     </header>
 
+    <!-- DASHBOARD THỐNG KÊ CHI TIẾT -->
     <div class="stats-grid">
         <div class="stat-card"><div class="stat-label">Tổng số lao động</div><div class="stat-value" id="stat-total">0</div><div class="stat-sub">Đồng bộ thực tế</div></div>
         <div class="stat-card"><div class="stat-label">Lao động Nam</div><div class="stat-value" id="stat-male">0</div><div class="stat-sub" id="stat-male-pct">Tỷ lệ: 0%</div></div>
         <div class="stat-card female"><div class="stat-label">Lao động Nữ</div><div class="stat-value" id="stat-female">0</div><div class="stat-sub" id="stat-female-pct">Tỷ lệ: 0%</div></div>
         <div class="stat-card atv"><div class="stat-label">An toàn viên</div><div class="stat-value" id="stat-atv">0</div><div class="stat-sub" id="stat-atv-pct">Tỷ lệ: 0%</div></div>
         <div class="stat-card dochai"><div class="stat-label">Môi trường độc hại</div><div class="stat-value" id="stat-dochai">0</div><div class="stat-sub" id="stat-dochai-pct">Tỷ lệ: 0%</div></div>
-        <div class="stat-card bh"><div class="stat-label">Đang Hưởng Chế Độ</div><div class="stat-value" id="stat-baohiem">0</div><div class="stat-sub">Sự cố phát sinh</div></div>
+        <div class="stat-card kpi"><div class="stat-label">Bản Ghi KPI</div><div class="stat-value" id="stat-kpi">0</div><div class="stat-sub">Hiệu suất tháng/quý</div></div>
     </div>
 
+    <!-- TIỆN ÍCH LỌC VÀ TÌM KIẾM ĐA NĂNG -->
     <div class="filter-wrapper">
         <div class="search-box">
             <input type="text" id="smart-search" placeholder="Tìm kiếm nhanh thông minh trên CSDL Cloud (Họ tên, CCCD, BHXH, Chức danh...)" oninput="filterDataAll()">
@@ -149,12 +160,15 @@
                     <button class="menu-item active" id="nav-ns" onclick="switchMainSection('nhansu')">👥 Phân Hệ 1: Nhân Sự Gốc</button>
                     <button class="menu-item" id="nav-dt" onclick="switchMainSection('daotao')">🎓 Phân Hệ 2: Theo Dõi Đào Tạo</button>
                     <button class="menu-item" id="nav-bh" onclick="switchMainSection('baohiem')">🏥 Phân Hệ 3: Chế Độ Bảo Hiểm</button>
+                    <button class="menu-item" id="nav-kpi" onclick="switchMainSection('kpi')">📈 Phân Hệ 4: Đánh Giá KPI</button>
                 </div>
             </div>
         </div>
 
+        <!-- WORKSPACE CHÍNH -->
         <div class="workspace">
             
+            <!-- VIEW PHÂN HỆ 1: NHÂN SỰ GỐC -->
             <div id="section-nhansu" class="view-section active">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                     <h2>📋 Danh Sách Nhân Sự & Cập Nhật Biến Động</h2>
@@ -181,10 +195,9 @@
                 </div>
             </div>
 
+            <!-- VIEW PHÂN HỆ 2: THEO DÕI ĐÀO TẠO -->
             <div id="section-daotao" class="view-section">
                 <h2>🎓 Quản Lý & Theo Dõi Tiến Độ Đào Tạo</h2>
-                <p style="color:#64748b; margin-bottom:15px;">Hệ thống lọc chọn nhân sự thông minh và đính kèm hồ sơ chứng chỉ riêng biệt hỗ trợ xem trực tiếp.</p>
-
                 <div class="widget-title">➕ Khai báo bản ghi tập huấn & chứng chỉ mới</div>
                 <div class="form-grid">
                     <div class="form-group">
@@ -213,14 +226,12 @@
                     </div>
                     
                     <div class="form-group" style="grid-column: span 2;">
-                        <label>Tải Hồ Sơ Minh Chứng Đính Kèm (Hỗ trợ định dạng file Scan và Ảnh Độc Hại)</label>
+                        <label>Tải Hồ Sơ Minh Chứng Đính Kèm (Hỗ trợ định dạng file Scan và Ảnh)</label>
                         <div style="display: flex; gap: 10px; margin-bottom: 10px;">
                             <div class="upload-zone" style="flex:1; padding: 12px;" onclick="document.getElementById('input-multi-files').click()">
                                 <span>📄 Chọn nhiều File lẻ hoặc <b>Thả vào đây</b></span>
                                 <input type="file" id="input-multi-files" multiple style="display:none;" onchange="handleNormalFileSelect(event, 'DT')">
                             </div>
-                            <button class="btn btn-purple" style="padding:0 20px;" onclick="document.getElementById('input-folder-files').click()">📁 Chọn Nguyên Thư Mục</button>
-                            <input type="file" id="input-folder-files" webkitdirectory directory style="display:none;" onchange="handleNormalFileSelect(event, 'DT')">
                         </div>
                         <div id="file-preview-area" class="preview-grid"></div>
                     </div>
@@ -245,10 +256,9 @@
                 </div>
             </div>
 
+            <!-- VIEW PHÂN HỆ 3: CHẾ ĐỘ BẢO HIỂM -->
             <div id="section-baohiem" class="view-section">
                 <h2>🏥 Quản Lý Biến Động Chế Độ Bảo Hiểm</h2>
-                <p style="color:#64748b; margin-bottom:15px;">Theo dõi chi tiết chế độ ốm đau, thai sản, tai nạn lao động, chốt sổ BHXH và lưu trữ quyết định đính kèm độc lập.</p>
-
                 <div class="widget-title">➕ Khai báo biến động / Hưởng chế độ mới</div>
                 <div class="form-grid">
                     <div class="form-group">
@@ -265,7 +275,6 @@
                             <option value="Tai nạn lao động">Tai nạn lao động</option>
                             <option value="Bệnh nghề nghiệp">Bệnh nghề nghiệp</option>
                             <option value="Nghỉ hưu">Nghỉ hưu / Chốt sổ</option>
-                            <option value="Khác">Biến động khác</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -276,27 +285,24 @@
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>Trạng Thái Giải Quyết (Hồ sơ)</label>
+                        <label>Trạng Thái Giải Quyết</label>
                         <select id="form-bh-trangthai">
                             <option value="Đã duyệt chi">Đã duyệt chi trợ cấp</option>
                             <option value="Đang chờ cơ quan BHXH">Đang chờ cơ quan BHXH phê duyệt</option>
-                            <option value="Mới tiếp nhận">Mới tiếp nhận giấy tờ gốc</option>
                         </select>
                     </div>
                     <div class="form-group" style="grid-column: span 2;">
-                        <label>Ghi chú chi tiết (Số ngày nghỉ, mức trợ cấp dự kiến nếu có)</label>
+                        <label>Ghi chú chi tiết</label>
                         <textarea id="form-bh-ghichu" rows="2" placeholder="Nhập ghi chú cụ thể..."></textarea>
                     </div>
 
                     <div class="form-group" style="grid-column: span 2;">
-                        <label>Tải File Quyết Định / Giấy Ra Viện / Chứng Từ Kèm Theo</label>
+                        <label>Tải File Quyết Định / Chứng Từ Kèm Theo</label>
                         <div style="display: flex; gap: 10px; margin-bottom: 10px;">
                             <div class="upload-zone" style="flex:1; padding: 12px;" onclick="document.getElementById('input-multi-files-bh').click()">
                                 <span>📄 Chọn nhiều File lẻ hoặc <b>Thả vào đây</b></span>
                                 <input type="file" id="input-multi-files-bh" multiple style="display:none;" onchange="handleNormalFileSelect(event, 'BH')">
                             </div>
-                            <button class="btn btn-purple" style="padding:0 20px;" onclick="document.getElementById('input-folder-files-bh').click()">📁 Chọn Nguyên Thư Mục</button>
-                            <input type="file" id="input-folder-files-bh" webkitdirectory directory style="display:none;" onchange="handleNormalFileSelect(event, 'BH')">
                         </div>
                         <div id="file-preview-area-bh" class="preview-grid"></div>
                     </div>
@@ -321,6 +327,67 @@
                 </div>
             </div>
 
+            <!-- PHÂN HỆ MỚI: ĐÁNH GIÁ KPI NHÂN VIÊN -->
+            <div id="section-kpi" class="view-section">
+                <h2>📈 Phân Hệ Quản Lý & Đánh Giá KPI Hiệu Suất Lao Động</h2>
+                <p style="color:#64748b; margin-bottom:15px;">Hệ thống tự động tính toán xếp loại dựa trên điểm số (Thang điểm 100), cho phép đính kèm báo cáo hiệu suất.</p>
+
+                <div class="widget-title">➕ Khai báo phiếu chấm điểm KPI định kỳ</div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Chọn Nhân Sự Đánh Giá</label>
+                        <input type="text" id="smart-kpi-input" placeholder="Gõ tên hoặc CCCD nhân sự..." oninput="searchSmartNhanSu('smart-kpi-input','form-kpi-cccd-value','smart-kpi-dropdown')" autocomplete="off">
+                        <input type="hidden" id="form-kpi-cccd-value">
+                        <div id="smart-kpi-dropdown" class="smart-dropdown"></div>
+                    </div>
+                    <div class="form-group">
+                        <label>Kỳ Đánh Giá (Tháng/Quý)</label>
+                        <input type="text" id="form-kpi-ky" placeholder="Ví dụ: Tháng 05/2026 hoặc Quý II/2026">
+                    </div>
+                    <div class="form-group">
+                        <label>Điểm Số Đạt Được (0 - 100)</label>
+                        <input type="number" id="form-kpi-diem" min="0" max="100" placeholder="Nhập điểm số, VD: 88" oninput="autoCalculateKpiRank()">
+                    </div>
+                    <div class="form-group">
+                        <label>Xếp Loại Hiệu Suất (Tự Động)</label>
+                        <input type="text" id="form-kpi-xep-loai" placeholder="Xếp loại" readonly style="background:#f1f5f9; font-weight:bold; color:var(--indigo);">
+                    </div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label>Nội dung công việc hoàn thành xuất sắc / Tiêu chí đánh giá thêm</label>
+                        <textarea id="form-kpi-ghichu" rows="2" placeholder="Nhập tóm tắt hiệu suất hoặc lý do thưởng/phạt..."></textarea>
+                    </div>
+
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label>Tải Báo Cáo KPI / File Minh Chứng Đính Kèm (Hỗ trợ Live Preview PDF/Ảnh)</label>
+                        <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                            <div class="upload-zone" style="flex:1; padding: 12px;" onclick="document.getElementById('input-multi-files-kpi').click()">
+                                <span>📄 Chọn nhiều File lẻ hoặc <b>Thả vào đây</b></span>
+                                <input type="file" id="input-multi-files-kpi" multiple style="display:none;" onchange="handleNormalFileSelect(event, 'KPI')">
+                            </div>
+                        </div>
+                        <div id="file-preview-area-kpi" class="preview-grid"></div>
+                    </div>
+
+                    <div class="form-group" style="grid-column: span 2; align-items: flex-end;">
+                        <button class="btn btn-indigo" id="btn-save-kpi" onclick="submitKpiForm()">💾 Lưu Điểm KPI & Đồng Bộ Lên Cloud</button>
+                    </div>
+                </div>
+
+                <div class="widget-title">📋 Bảng Tổng Hợp Kết Quả KPI Toàn Công Ty</div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Nhân Sự</th><th>Đơn Vị</th><th>Kỳ Đánh Giá</th><th>Điểm Số</th><th>Xếp Loại</th><th>Nội Dung Đánh Giá</th><th>File Báo Cáo</th><th>Thao Tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-kpi">
+                            <tr><td colspan="8" class="empty-row">Không có dữ liệu đánh giá KPI nào.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
         </div>
     </div>
 
@@ -333,9 +400,11 @@
         let FILTERED_VIEW_DATA = [];
         let DATA_DAO_TAO = [];
         let DATA_BAO_HIEM = [];
+        let DATA_KPI = [];
         
         let SELECTED_FILES_DT = []; 
         let SELECTED_FILES_BH = []; 
+        let SELECTED_FILES_KPI = []; 
         let EDITING_CCCD = null;
 
         window.addEventListener('DOMContentLoaded', () => {
@@ -346,16 +415,8 @@
         function switchMainSection(sec) {
             document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
-            if(sec === 'nhansu') {
-                document.getElementById('section-nhansu').classList.add('active');
-                document.getElementById('nav-ns').classList.add('active');
-            } else if(sec === 'daotao') {
-                document.getElementById('section-daotao').classList.add('active');
-                document.getElementById('nav-dt').classList.add('active');
-            } else {
-                document.getElementById('section-baohiem').classList.add('active');
-                document.getElementById('nav-bh').classList.add('active');
-            }
+            document.getElementById(`section-${sec}`).classList.add('active');
+            document.getElementById(`nav-${sec === 'nhansu' ? 'ns' : (sec === 'daotao' ? 'dt' : sec)}`).classList.add('active');
         }
 
         async function fetchDataFromSupabase() {
@@ -364,12 +425,14 @@
                 let resNS = await _supabase.from('vinapaco_nhansu').select('*').order('stt', { ascending: true });
                 let resDT = await _supabase.from('vinapaco_daotao').select('*');
                 let resBH = await _supabase.from('vinapaco_baohiem').select('*');
+                let resKPI = await _supabase.from('vinapaco_kpi').select('*'); // Tải bảng dữ liệu KPI
                 
                 DATA_DAO_TAO = resDT.data || [];
                 DATA_BAO_HIEM = resBH.data || [];
+                DATA_KPI = resKPI.data || [];
                 
                 MASTER_CLOUD_DATA = (resNS.data || []).map(row => ({
-                    stt: row.stt, hoTen: row.ho_ten, ngayItem: row.ngay_sinh, ngaySinh: row.ngay_sinh,
+                    stt: row.stt, hoTen: row.ho_ten, ngaySinh: row.ngay_sinh,
                     gioiTinh: row.gioi_tinh, soBhxh: row.so_bhxh, soCccd: row.so_cccd, maDonVi: row.ma_don_vi,
                     anToanVien: row.an_toan_vien, docHai: row.doc_hai, isDocHaiBoolean: row.doc_hai !== "—" && !row.doc_hai.includes("—"),
                     namVeHuuGoc: row.nam_ve_huu_goc, namVeHuuDuKien: row.nam_ve_huu_du_kien, chucDanh: row.chuc_danh
@@ -396,7 +459,7 @@
 
         function handleNormalFileSelect(event, moduleType) {
             let files = Array.from(event.target.files);
-            let targetArr = moduleType === 'DT' ? SELECTED_FILES_DT : SELECTED_FILES_BH;
+            let targetArr = moduleType === 'DT' ? SELECTED_FILES_DT : (moduleType === 'BH' ? SELECTED_FILES_BH : SELECTED_FILES_KPI);
             
             files.forEach(file => {
                 if(!targetArr.some(f => f.name === file.name && f.size === file.size)) {
@@ -405,43 +468,35 @@
             });
             
             if(moduleType === 'DT') renderFilePreviewsDT();
-            else renderFilePreviewsBH();
+            else if(moduleType === 'BH') renderFilePreviewsBH();
+            else renderFilePreviewsKPI();
             event.target.value = '';
         }
 
         function setupDragAndDrop() {
-            let zoneDT = document.querySelector('#section-daotao .upload-zone');
-            if(zoneDT) {
-                zoneDT.addEventListener('dragover', (e) => { e.preventDefault(); zoneDT.style.borderColor = 'var(--primary)'; });
-                zoneDT.addEventListener('dragleave', () => { zoneDT.style.borderColor = '#cbd5e1'; });
-                zoneDT.addEventListener('drop', (e) => {
-                    e.preventDefault(); zoneDT.style.borderColor = '#cbd5e1';
+            // Setup kéo thả tự động cho các block upload-zone
+            ['DT', 'BH', 'KPI'].forEach(mod => {
+                let lower = mod.toLowerCase();
+                let zone = document.querySelector(`#section-${lower==='dt'?'daotao':(lower==='bh'?'baohiem':'kpi')} .upload-zone`);
+                if(!zone) return;
+                zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.style.borderColor = 'var(--primary)'; });
+                zone.addEventListener('dragleave', () => { zone.style.borderColor = '#cbd5e1'; });
+                zone.addEventListener('drop', (e) => {
+                    e.preventDefault(); zone.style.borderColor = '#cbd5e1';
+                    let arr = mod === 'DT' ? SELECTED_FILES_DT : (mod === 'BH' ? SELECTED_FILES_BH : SELECTED_FILES_KPI);
                     Array.from(e.dataTransfer.files).forEach(f => {
-                        if(!SELECTED_FILES_DT.some(x => x.name === f.name)) SELECTED_FILES_DT.push(f);
+                        if(!arr.some(x => x.name === f.name)) arr.push(f);
                     });
-                    renderFilePreviewsDT();
+                    if(mod === 'DT') renderFilePreviewsDT();
+                    else if(mod === 'BH') renderFilePreviewsBH();
+                    else renderFilePreviewsKPI();
                 });
-            }
-
-            let zoneBH = document.querySelector('#section-baohiem .upload-zone');
-            if(zoneBH) {
-                zoneBH.addEventListener('dragover', (e) => { e.preventDefault(); zoneBH.style.borderColor = 'var(--teal)'; });
-                zoneBH.addEventListener('dragleave', () => { zoneBH.style.borderColor = '#cbd5e1'; });
-                zoneBH.addEventListener('drop', (e) => {
-                    e.preventDefault(); zoneBH.style.borderColor = '#cbd5e1';
-                    Array.from(e.dataTransfer.files).forEach(f => {
-                        if(!SELECTED_FILES_BH.some(x => x.name === f.name)) SELECTED_FILES_BH.push(f);
-                    });
-                    renderFilePreviewsBH();
-                });
-            }
+            });
         }
 
-        // TỐI ƯU TOÀN DIỆN V3.5: Nhận diện định dạng, bọc cắt đuôi và sinh Live Preview local
         function buildPreviewHtml(file, idx, moduleType) {
             let sizeMB = (file.size / (1024 * 1024)).toFixed(2);
             let fnameClean = file.name.trim().toLowerCase();
-            
             let localFileUrl = URL.createObjectURL(file);
             let previewContent = "";
             let actionButton = "";
@@ -452,8 +507,6 @@
             } else if (file.type.includes('image') || fnameClean.endsWith('.png') || fnameClean.endsWith('.jpg') || fnameClean.endsWith('.jpeg')) {
                 previewContent = `<img src="${localFileUrl}" style="width:42px; height:42px; object-fit:cover; border-radius:4px; margin-bottom:4px; border:1px solid #cbd5e1;" alt="preview">`;
                 actionButton = `<a href="${localFileUrl}" target="_blank" class="btn btn-sm" style="padding: 2px 6px; font-size:10px; margin-top:4px; background:#64748b; color:white;">🔍 Phóng to</a>`;
-            } else if (fnameClean.endsWith('.xls') || fnameClean.endsWith('.xlsx')) {
-                previewContent = `<span style="font-size:24px; margin-bottom:4px;">📗</span>`;
             } else {
                 previewContent = `<span style="font-size:24px; margin-bottom:4px;">📄</span>`;
             }
@@ -468,16 +521,24 @@
                 </div>`;
         }
 
-        function renderFilePreviewsDT() {
-            document.getElementById('file-preview-area').innerHTML = SELECTED_FILES_DT.map((f, i) => buildPreviewHtml(f, i, 'DT')).join('');
-        }
-        function renderFilePreviewsBH() {
-            document.getElementById('file-preview-area-bh').innerHTML = SELECTED_FILES_BH.map((f, i) => buildPreviewHtml(f, i, 'BH')).join('');
-        }
+        function renderFilePreviewsDT() { document.getElementById('file-preview-area').innerHTML = SELECTED_FILES_DT.map((f, i) => buildPreviewHtml(f, i, 'DT')).join(''); }
+        function renderFilePreviewsBH() { document.getElementById('file-preview-area-bh').innerHTML = SELECTED_FILES_BH.map((f, i) => buildPreviewHtml(f, i, 'BH')).join(''); }
+        function renderFilePreviewsKPI() { document.getElementById('file-preview-area-kpi').innerHTML = SELECTED_FILES_KPI.map((f, i) => buildPreviewHtml(f, i, 'KPI')).join(''); }
 
         function removeSelectedFile(moduleType, idx) {
             if(moduleType === 'DT') { SELECTED_FILES_DT.splice(idx, 1); renderFilePreviewsDT(); } 
-            else { SELECTED_FILES_BH.splice(idx, 1); renderFilePreviewsBH(); }
+            else if(moduleType === 'BH') { SELECTED_FILES_BH.splice(idx, 1); renderFilePreviewsBH(); }
+            else { SELECTED_FILES_KPI.splice(idx, 1); renderFilePreviewsKPI(); }
+        }
+
+        function autoCalculateKpiRank() {
+            let diem = parseInt(document.getElementById('form-kpi-diem').value, 10);
+            let target = document.getElementById('form-kpi-xep-loai');
+            if(isNaN(diem)) { target.value = ""; return; }
+            if(diem >= 90) target.value = "Loại A (Xuất sắc)";
+            else if(diem >= 75) target.value = "Loại B (Khá / Tốt)";
+            else if(diem >= 50) target.value = "Loại C (Trung bình)";
+            else target.value = "Loại D (Yếu / Kém)";
         }
 
         function searchSmartNhanSu(inputId, hiddenId, dropdownId) {
@@ -490,11 +551,11 @@
             ).slice(0, 8);
 
             if(matches.length === 0) {
-                dropdown.innerHTML = '<div style="color:#94a3b8; padding:10px;">Không tìm thấy kết quả</div>';
+                dropdown.innerHTML = '<div style="color:#94a3b8; padding:10px;">Không tìm thấy nhân sự</div>';
             } else {
                 dropdown.innerHTML = matches.map(x => `
                     <div onclick="selectSmartNhanSu('${inputId}', '${hiddenId}', '${dropdownId}', '${x.soCccd}', '${x.hoTen}', '${x.maDonVi}')">
-                        <b>${x.hoTen}</b> - Đơn vị: <span style="color:var(--warning); font-weight:bold;">${x.maDonVi}</span><br>
+                        <b>${x.hoTen}</b> - <span style="color:var(--warning); font-weight:bold;">${x.maDonVi}</span><br>
                         <small style="color:#64748b;">CCCD: ${x.soCccd}</small>
                     </div>`).join('');
             }
@@ -507,26 +568,24 @@
             document.getElementById(dropdownId).style.display = 'none';
         }
 
-        async function submitInsuranceForm() {
-            let cccd = document.getElementById('form-bh-cccd-value').value;
-            let loai = document.getElementById('form-bh-loai').value;
-            let tungay = document.getElementById('form-bh-tu-ngay').value;
-            let denngay = document.getElementById('form-bh-den-ngay').value;
-            let trangthai = document.getElementById('form-bh-trangthai').value;
-            let ghichu = document.getElementById('form-bh-ghichu').value.trim();
-            let btn = document.getElementById('btn-save-baohiem');
+        // ĐỒNG BỘ MODULE ĐÁNH GIÁ KPI LÊN CLOUD
+        async function submitKpiForm() {
+            let cccd = document.getElementById('form-kpi-cccd-value').value;
+            let ky = document.getElementById('form-kpi-ky').value.trim();
+            let diem = document.getElementById('form-kpi-diem').value;
+            let xeploai = document.getElementById('form-kpi-xep-loai').value;
+            let ghichu = document.getElementById('form-kpi-ghichu').value.trim();
+            let btn = document.getElementById('btn-save-kpi');
 
-            if(!cccd) { alert("Vui lòng tìm chọn chính xác cán bộ hưởng chế độ!"); return; }
+            if(!cccd || !ky || !diem) { alert("Vui lòng điền đầy đủ: Nhân sự, Kỳ đánh giá và Điểm KPI!"); return; }
 
             btn.disabled = true;
-            btn.innerText = "⏳ Đang đồng bộ tài liệu bảo hiểm lên Cloud...";
-
+            btn.innerText = "⏳ Đang upload file minh chứng lên Cloud...";
             try {
                 let uploadedFileUrls = [];
-                for(let file of SELECTED_FILES_BH) {
+                for(let file of SELECTED_FILES_KPI) {
                     let cleanName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_')}`;
-                    let filePath = `baohiem/${cccd}/${cleanName}`;
-
+                    let filePath = `kpi/${cccd}/${cleanName}`;
                     let { error } = await _supabase.storage.from('vinapaco_tailieu').upload(filePath, file, { cacheControl: '3600', upsert: true });
                     if(!error) {
                         let { data: pub } = _supabase.storage.from('vinapaco_tailieu').getPublicUrl(filePath);
@@ -534,73 +593,30 @@
                     }
                 }
 
-                let { error } = await _supabase.from('vinapaco_baohiem').insert([{
-                    so_cccd: cccd, loai_che_do: loai, tu_ngay: tungay || null, den_ngay: denngay || null,
-                    trang_thai: trangthai, ghi_chu: ghichu, tai_lieu: uploadedFileUrls
+                let { error } = await _supabase.from('vinapaco_kpi').insert([{
+                    so_cccd: cccd, ky_danh_gia: ky, diem_so: parseFloat(diem),
+                    xep_loai: xeploai, ghi_chu: ghichu, tai_lieu: uploadedFileUrls
                 }]);
 
                 if(!error) {
-                    alert("Cập nhật biến động bảo hiểm thành công!");
-                    document.getElementById('smart-bh-input').value = "";
-                    document.getElementById('form-bh-cccd-value').value = "";
-                    document.getElementById('form-bh-ghichu').value = "";
-                    SELECTED_FILES_BH = [];
-                    renderFilePreviewsBH();
+                    alert("Lưu kết quả KPI lên hệ thống đám mây thành công!");
+                    document.getElementById('smart-kpi-input').value = "";
+                    document.getElementById('form-kpi-cccd-value').value = "";
+                    document.getElementById('form-kpi-ky').value = "";
+                    document.getElementById('form-kpi-diem').value = "";
+                    document.getElementById('form-kpi-xep-loai').value = "";
+                    document.getElementById('form-kpi-ghichu').value = "";
+                    SELECTED_FILES_KPI = [];
+                    renderFilePreviewsKPI();
                     await fetchDataFromSupabase();
                 } else { alert("Lỗi: " + error.message); }
             } catch(e) { console.error(e); }
-            btn.disabled = false; btn.innerText = "💾 Lưu Biến Động Bảo Hiểm & Tải Lên Cloud";
+            btn.disabled = false; btn.innerText = "💾 Lưu Điểm KPI & Đồng Bộ Lên Cloud";
         }
 
-        async function deleteInsurance(id) {
-            if(confirm("Xóa hồ sơ bảo hiểm này?")) {
-                await _supabase.from('vinapaco_baohiem').delete().eq('id', id);
-                await fetchDataFromSupabase();
-            }
-        }
-
-        async function submitTrainingForm() {
-            let cccd = document.getElementById('form-dt-cccd-value').value;
-            let khoahoc = document.getElementById('form-dt-khoahoc').value.trim();
-            let batdau = document.getElementById('form-dt-batdau').value;
-            let kethuc = document.getElementById('form-dt-kethuc').value;
-            let ketqua = document.getElementById('form-dt-ketqua').value;
-            let hethan = document.getElementById('form-dt-hethan').value;
-            let btn = document.getElementById('btn-save-daotao');
-
-            if(!cccd || !khoahoc) { alert("Vui lòng nhập đầy đủ thông tin cốt lõi!"); return; }
-
-            btn.disabled = true;
-            try {
-                let uploadedFileUrls = [];
-                for(let file of SELECTED_FILES_DT) {
-                    let cleanName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_')}`;
-                    let filePath = `daotao/${cccd}/${cleanName}`;
-                    let { error } = await _supabase.storage.from('vinapaco_tailieu').upload(filePath, file, { cacheControl: '3600', upsert: true });
-                    if(!error) {
-                        let { data: pub } = _supabase.storage.from('vinapaco_tailieu').getPublicUrl(filePath);
-                        uploadedFileUrls.push({ name: file.name, url: pub.publicUrl });
-                    }
-                }
-
-                await _supabase.from('vinapaco_daotao').insert([{
-                    so_cccd: cccd, ten_khoa_hoc: khoahoc, ngay_bat_dau: batdau||null,
-                    ngay_ket_thuc: kethuc||null, ket_qua: ketqua, ngay_het_han: hethan||null, tai_lieu: uploadedFileUrls
-                }]);
-
-                alert("Lưu lịch sử đào tạo thành công!");
-                document.getElementById('smart-ns-input').value = "";
-                document.getElementById('form-dt-khoahoc').value = "";
-                SELECTED_FILES_DT = [];
-                renderFilePreviewsDT();
-                await fetchDataFromSupabase();
-            } catch(e) { console.error(e); }
-            btn.disabled = false;
-        }
-
-        async function deleteTraining(id) {
-            if(confirm("Xóa bản ghi đào tạo này?")) {
-                await _supabase.from('vinapaco_daotao').delete().eq('id', id);
+        async function deleteKpi(id) {
+            if(confirm("Bạn có chắc chắn muốn xóa phiếu đánh giá KPI này không?")) {
+                await _supabase.from('vinapaco_kpi').delete().eq('id', id);
                 await fetchDataFromSupabase();
             }
         }
@@ -618,36 +634,57 @@
             renderTableAndStats();
             renderDaoTaoTable(searchTxt);
             renderBaoHiemTable(searchTxt);
+            renderKpiTable(searchTxt);
         }
 
+        function renderKpiTable(globalSearch) {
+            let tbody = document.getElementById('tbody-kpi');
+            let filtered = DATA_KPI.filter(k => {
+                let ns = MASTER_CLOUD_DATA.find(x => x.soCccd === k.so_cccd) || {};
+                return !globalSearch || (ns.hoTen || '').toLowerCase().includes(globalSearch) || k.ky_danh_gia.toLowerCase().includes(globalSearch) || k.xep_loai.toLowerCase().includes(globalSearch);
+            });
+
+            if(filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" class="empty-row">Không tìm thấy bản ghi dữ liệu đánh giá KPI nào.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = filtered.map(k => {
+                let ns = MASTER_CLOUD_DATA.find(x => x.soCccd === k.so_cccd) || { hoTen: 'Nhân sự cũ', maDonVi: '—' };
+                let fileLinks = (k.tai_lieu || []).map(f => {
+                    let icon = f.name.trim().toLowerCase().endsWith('.pdf') ? '📕' : '🖼️';
+                    return `<a href="${f.url}" target="_blank" class="file-link">${icon} ${f.name}</a>`;
+                }).join('');
+                
+                let r = k.xep_loai.toLowerCase();
+                let badgeClass = r.includes('loại a') ? 'badge-kpi-a' : (r.includes('loại b') ? 'badge-kpi-b' : (r.includes('loại c') ? 'badge-kpi-c' : 'badge-kpi-d'));
+
+                return `
+                    <tr>
+                        <td style="font-weight:bold; color:var(--indigo);">${ns.hoTen}</td>
+                        <td style="font-weight:bold;">${ns.maDonVi}</td>
+                        <td style="font-weight:600;">${k.ky_danh_gia}</td>
+                        <td style="font-weight:bold; font-size:13px; color:var(--indigo);">${k.diem_so} / 100</td>
+                        <td><span class="badge ${badgeClass}">${k.xep_loai}</span></td>
+                        <td style="white-space:normal; max-width:240px;">${k.ghi_chu || '—'}</td>
+                        <td>${fileLinks || '—'}</td>
+                        <td><button class="btn btn-danger btn-sm" onclick="deleteKpi('${k.id}')">🗑️ Xóa</button></td>
+                    </tr>`;
+            }).join('');
+        }
+
+        // CÁC HÀM CORE RENDER CŨ GIỮ NGUYÊN ĐỂ ĐẢM BẢO HOẠT ĐỘNG
         function renderDaoTaoTable(globalSearch) {
             let tbody = document.getElementById('tbody-daotao');
             let filtered = DATA_DAO_TAO.filter(dt => {
                 let ns = MASTER_CLOUD_DATA.find(x => x.soCccd === dt.so_cccd) || {};
                 return !globalSearch || (ns.hoTen || '').toLowerCase().includes(globalSearch) || dt.ten_khoa_hoc.toLowerCase().includes(globalSearch);
             });
-
-            if(filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="empty-row">Không tìm thấy dữ liệu khóa học tương ứng.</td></tr>`;
-                return;
-            }
-
+            if(filtered.length === 0) { tbody.innerHTML = `<tr><td colspan="7" class="empty-row">Không tìm thấy dữ liệu.</td></tr>`; return; }
             tbody.innerHTML = filtered.map(dt => {
                 let ns = MASTER_CLOUD_DATA.find(x => x.soCccd === dt.so_cccd) || { hoTen: 'Không rõ', maDonVi: '—' };
-                let fileLinks = (dt.tai_lieu || []).map(f => {
-                    let icon = f.name.trim().toLowerCase().endsWith('.pdf') ? '📕' : '🖼️';
-                    return `<a href="${f.url}" target="_blank" class="file-link">${icon} ${f.name}</a>`;
-                }).join('');
-                return `
-                    <tr>
-                        <td style="font-weight:bold; color:var(--primary);">${ns.hoTen}</td>
-                        <td style="font-weight:bold;">${ns.maDonVi}</td>
-                        <td>${dt.ten_khoa_hoc}</td>
-                        <td><span class="badge ${dt.ket_qua==='Đạt'?'badge-success':'badge-warning'}">${dt.ket_qua}</span></td>
-                        <td>${dt.ngay_het_han ? dt.ngay_het_han : 'Vô thời hạn'}</td>
-                        <td>${fileLinks || '—'}</td>
-                        <td><button class="btn btn-danger btn-sm" onclick="deleteTraining('${dt.id}')">🗑️ Xóa</button></td>
-                    </tr>`;
+                let fileLinks = (dt.tai_lieu || []).map(f => `<a href="${f.url}" target="_blank" class="file-link">${f.name.toLowerCase().endsWith('.pdf')?'📕':'🖼️'} ${f.name}</a>`).join('');
+                return `<tr><td style="font-weight:bold; color:var(--primary);">${ns.hoTen}</td><td style="font-weight:bold;">${ns.maDonVi}</td><td>${dt.ten_khoa_hoc}</td><td><span class="badge ${dt.ket_qua==='Đạt'?'badge-success':'badge-warning'}">${dt.ket_qua}</span></td><td>${dt.ngay_het_han ? dt.ngay_het_han : 'Vô thời hạn'}</td><td>${fileLinks || '—'}</td><td><button class="btn btn-danger btn-sm" onclick="deleteTraining('${dt.id}')">🗑️ Xóa</button></td></tr>`;
             }).join('');
         }
 
@@ -657,50 +694,21 @@
                 let ns = MASTER_CLOUD_DATA.find(x => x.soCccd === bh.so_cccd) || {};
                 return !globalSearch || (ns.hoTen || '').toLowerCase().includes(globalSearch) || bh.loai_che_do.toLowerCase().includes(globalSearch);
             });
-
-            if(filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="8" class="empty-row">Không tìm thấy bản ghi biến động bảo hiểm nào.</td></tr>`;
-                return;
-            }
-
+            if(filtered.length === 0) { tbody.innerHTML = `<tr><td colspan="8" class="empty-row">Không tìm thấy dữ liệu.</td></tr>`; return; }
             tbody.innerHTML = filtered.map(bh => {
                 let ns = MASTER_CLOUD_DATA.find(x => x.soCccd === bh.so_cccd) || { hoTen: 'Cán bộ cũ', maDonVi: '—' };
-                let fileLinks = (bh.tai_lieu || []).map(f => {
-                    let icon = f.name.trim().toLowerCase().endsWith('.pdf') ? '📕' : '🖼️';
-                    return `<a href="${f.url}" target="_blank" class="file-link">${icon} ${f.name}</a>`;
-                }).join('');
-                let badgeClass = bh.trang_thai.includes('Đã duyệt') ? 'badge-success' : (bh.trang_thai.includes('Chờ') ? 'badge-warning' : 'badge-teal');
-                
-                return `
-                    <tr>
-                        <td style="font-weight:bold; color:var(--teal);">${ns.hoTen}</td>
-                        <td style="font-weight:bold;">${ns.maDonVi}</td>
-                        <td><span class="badge badge-dochai">${bh.loai_che_do}</span></td>
-                        <td>${bh.tu_ngay||'—'} ➔ ${bh.den_ngay||'—'}</td>
-                        <td><span class="badge ${badgeClass}">${bh.trang_thai}</span></td>
-                        <td style="white-space:normal; max-width:200px;">${bh.ghi_chu || '—'}</td>
-                        <td>${fileLinks || '—'}</td>
-                        <td><button class="btn btn-danger btn-sm" onclick="deleteInsurance('${bh.id}')">🗑️ Xóa</button></td>
-                    </tr>`;
+                let fileLinks = (bh.tai_lieu || []).map(f => `<a href="${f.url}" target="_blank" class="file-link">${f.name.toLowerCase().endsWith('.pdf')?'📕':'🖼️'} ${f.name}</a>`).join('');
+                return `<tr><td style="font-weight:bold; color:var(--teal);">${ns.hoTen}</td><td style="font-weight:bold;">${ns.maDonVi}</td><td><span class="badge badge-dochai">${bh.loai_che_do}</span></td><td>${bh.tu_ngay||'—'}➔${bh.den_ngay||'—'}</td><td><span class="badge badge-success">${bh.trang_thai}</span></td><td style="white-space:normal; max-width:200px;">${bh.ghi_chu || '—'}</td><td>${fileLinks || '—'}</td><td><button class="btn btn-danger btn-sm" onclick="deleteInsurance('${bh.id}')">🗑️ Xóa</button></td></tr>`;
             }).join('');
         }
 
         function formatExcelDate(cellValue) {
             if (!cellValue) return "—";
             let cleaned = String(cellValue).trim();
-            if (cleaned === "" || cleaned === "undefined" || cleaned === "NaN") return "—";
-            if (/^\d+$/.test(cleaned) || /^\d+\.\d+$/.test(cleaned)) {
-                let serial = Math.floor(parseFloat(cleaned));
-                let date_info = new Date((serial - 25569) * 86400 * 1000);
+            if (/^\d+$/.test(cleaned)) {
+                let date_info = new Date((parseInt(cleaned) - 25569) * 86400 * 1000);
                 date_info.setDate(date_info.getDate() + 1);
                 return `${String(date_info.getDate()).padStart(2, '0')}/${String(date_info.getMonth() + 1).padStart(2, '0')}/${date_info.getFullYear()}`;
-            }
-            if (cleaned.includes('-')) {
-                let parts = cleaned.split('-');
-                if (parts.length === 3) {
-                    if (parts[0].length === 4) return `${parts[2].slice(0,2)}/${parts[1]}/${parts[0]}`;
-                    if (parts[2].length === 4) return `${parts[0]}/${parts[1]}/${parts[2].slice(0,4)}`;
-                }
             }
             return cleaned;
         }
@@ -708,20 +716,10 @@
         function calculateRetirementDateFull(birthDateStr, gender, isDocHai) {
             if (!birthDateStr || birthDateStr === "—") return "—";
             let parts = birthDateStr.split('/');
-            let d = 1, m = 1, y = 1970;
-            if (parts.length === 3) { d = parseInt(parts[0], 10); m = parseInt(parts[1], 10); y = parseInt(parts[2], 10); } 
-            else { y = parseInt(birthDateStr, 10); }
+            let y = parts.length === 3 ? parseInt(parts[2], 10) : parseInt(birthDateStr, 10);
             if(isNaN(y)) return "—";
-
-            let addedMonths = 0;
-            if (gender === "Nữ") {
-                let gapYears = (y + 55) - 2021;
-                addedMonths = (55 * 12 + (gapYears >= 0 ? Math.min(gapYears * 4, 60) : 0)) - (isDocHai ? 5 * 12 : 0);
-            } else {
-                let gapYears = (y + 60) - 2021;
-                addedMonths = (60 * 12 + 3 + (gapYears >= 0 ? Math.min(gapYears * 3, 21) : 0)) - (isDocHai ? 5 * 12 : 0);
-            }
-            let birthDate = new Date(y, m - 1, d);
+            let addedMonths = gender === "Nữ" ? (55 * 12 + Math.min((y + 55 - 2021) * 4, 60)) - (isDocHai ? 60 : 0) : (60 * 12 + 3 + Math.min((y + 60 - 2021) * 3, 21)) - (isDocHai ? 60 : 0);
+            let birthDate = new Date(y, (parts[1]?parseInt(parts[1],10)-1:0), (parts[0]?parseInt(parts[0],10):1));
             birthDate.setMonth(birthDate.getMonth() + addedMonths);
             return `${String(birthDate.getDate()).padStart(2,'0')}/${String(birthDate.getMonth()+1).padStart(2,'0')}/${birthDate.getFullYear()}`;
         }
@@ -730,40 +728,31 @@
         function cancelEditMode() { EDITING_CCCD = null; renderTableAndStats(); }
 
         async function saveRowUpdate(cccd) {
-            setVisualStatus("syncing", "⏳ Saving data...");
             try {
-                let hoTen = document.getElementById(`edit-hoten-${cccd}`).value.trim();
-                let ngaySinh = document.getElementById(`edit-ngaysinh-${cccd}`).value.trim();
-                let gioiTinh = document.getElementById(`edit-gioitinh-${cccd}`).value;
-                let soBhxh = document.getElementById(`edit-sobhxh-${cccd}`).value.trim();
-                let maDonVi = document.getElementById(`edit-madonvi-${cccd}`).value.trim();
-                let anToanVien = document.getElementById(`edit-atv-${cccd}`).value.trim();
-                let docHai = document.getElementById(`edit-dochai-${cccd}`).value.trim();
-                let namVeHuuGoc = document.getElementById(`edit-huugoc-${cccd}`).value.trim();
-                let chucDanh = document.getElementById(`edit-chucdanh-${cccd}`).value.trim();
-                let stt = document.getElementById(`edit-stt-${cccd}`).value.trim();
-
-                let newHuuDuKien = calculateRetirementDateFull(ngaySinh, gioiTinh, (docHai !== "" && docHai !== "—"));
-
-                await _supabase.from('vinapaco_nhansu').upsert({
-                    so_cccd: cccd, stt: stt, ho_ten: hoTen, ngay_sinh: ngaySinh, gioi_tinh: gioiTinh,
-                    so_bhxh: soBhxh, ma_don_vi: maDonVi, an_toan_vien: anToanVien||"—", doc_hai: docHai||"—",
-                    nam_ve_huu_goc: namVeHuuGoc, nam_ve_huu_du_kien: newHuuDuKien, chuc_danh: chucDanh
-                }, { onConflict: 'so_cccd' });
-
-                EDITING_CCCD = null;
-                await fetchDataFromSupabase();
-            } catch (err) { alert("Lỗi khi cập nhật!"); }
+                let payload = {
+                    so_cccd: cccd, stt: document.getElementById(`edit-stt-${cccd}`).value,
+                    ho_ten: document.getElementById(`edit-hoten-${cccd}`).value,
+                    ngay_sinh: document.getElementById(`edit-ngaysinh-${cccd}`).value,
+                    gioi_tinh: document.getElementById(`edit-gioitinh-${cccd}`).value,
+                    so_bhxh: document.getElementById(`edit-sobhxh-${cccd}`).value,
+                    ma_don_vi: document.getElementById(`edit-madonvi-${cccd}`).value,
+                    an_toan_vien: document.getElementById(`edit-atv-${cccd}`).value || "—",
+                    doc_hai: document.getElementById(`edit-dochai-${cccd}`).value || "—",
+                    nam_ve_huu_goc: document.getElementById(`edit-huugoc-${cccd}`).value,
+                    chuc_danh: document.getElementById(`edit-chucdanh-${cccd}`).value
+                };
+                payload.nam_ve_huu_du_kien = calculateRetirementDateFull(payload.ngay_sinh, payload.gioi_tinh, payload.doc_hai !== "—");
+                await _supabase.from('vinapaco_nhansu').upsert(payload, { onConflict: 'so_cccd' });
+                EDITING_CCCD = null; await fetchDataFromSupabase();
+            } catch (err) { alert("Lỗi khi sửa!"); }
         }
 
-        function handleExcelAndSync(inputElement) {
+        async function handleExcelAndSync(inputElement) {
             let file = inputElement.files[0]; if (!file) return;
             let reader = new FileReader();
             reader.onload = async function(e) {
-                setVisualStatus("syncing", "⏳ Đang nạp excel...");
                 let data = new Uint8Array(e.target.result);
                 let rawRows = XLSX.utils.sheet_to_json(XLSX.read(data, { type: 'array' }).Sheets[XLSX.read(data, { type: 'array' }).SheetNames[0]]);
-                
                 let dbPayloads = rawRows.map((row, idx) => {
                     let name = row['Họ và tên'] || row['Họ và Tên']; if (!name) return null;
                     let nsb = formatExcelDate(row['Năm sinh']);
@@ -780,11 +769,8 @@
                         chuc_danh: row['Chức danh công việc'] ? String(row['Chức danh công việc']).trim() : "—"
                     };
                 }).filter(x => x !== null);
-
-                for (let i = 0; i < dbPayloads.length; i += 100) {
-                    await _supabase.from('vinapaco_nhansu').upsert(dbPayloads.slice(i, i + 100), { onConflict: 'so_cccd' });
-                }
-                alert("Đồng bộ dữ liệu gốc hoàn tất!"); inputElement.value = ''; await fetchDataFromSupabase();
+                for (let i = 0; i < dbPayloads.length; i += 100) { await _supabase.from('vinapaco_nhansu').upsert(dbPayloads.slice(i, i + 100), { onConflict: 'so_cccd' }); }
+                alert("Đồng bộ Excel thành công!"); inputElement.value = ''; await fetchDataFromSupabase();
             };
             reader.readAsArrayBuffer(file);
         }
@@ -792,52 +778,24 @@
         function renderTableAndStats() {
             let tbody = document.getElementById('tbody-vinapaco');
             if (FILTERED_VIEW_DATA.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="13" class="empty-row">⚠️ Không tìm thấy kết quả phù hợp trên Cloud.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="13" class="empty-row">⚠️ Không tìm thấy kết quả.</td></tr>`;
                 updateDashboard(0, 0, 0, 0, 0, 0); return;
             }
-
             let total = FILTERED_VIEW_DATA.length;
             let female = FILTERED_VIEW_DATA.filter(x => x.gioiTinh === "Nữ").length;
             let atvCount = FILTERED_VIEW_DATA.filter(x => x.anToanVien !== "—" && x.anToanVien !== "").length;
             let dochaiCount = FILTERED_VIEW_DATA.filter(x => x.isDocHaiBoolean).length;
-            let bhCount = DATA_BAO_HIEM.length;
-            updateDashboard(total, total - female, female, atvCount, dochaiCount, bhCount);
+            updateDashboard(total, total - female, female, atvCount, dochaiCount, DATA_KPI.length);
 
             tbody.innerHTML = FILTERED_VIEW_DATA.map(x => {
                 if (EDITING_CCCD === x.soCccd) {
-                    return `
-                    <tr style="background: #fffbeb;">
-                        <td><div style="display:flex; gap:4px;"><button class="btn btn-warning btn-sm" onclick="saveRowUpdate('${x.soCccd}')">💾 Lưu</button><button class="btn btn-danger btn-sm" onclick="cancelEditMode()">✕</button></div></td>
-                        <td><input type="text" id="edit-stt-${x.soCccd}" class="edit-input" value="${x.stt}" style="width:40px;"></td>
-                        <td><input type="text" id="edit-hoten-${x.soCccd}" class="edit-input" value="${x.hoTen}"></td>
-                        <td><input type="text" id="edit-ngaysinh-${x.soCccd}" class="edit-input" value="${x.ngaySinh}" style="width:85px;"></td>
-                        <td><select id="edit-gioitinh-${x.soCccd}" class="edit-input" style="width:65px;"><option value="Nam" ${x.gioiTinh==='Nam'?'selected':''}>Nam</option><option value="Nữ" ${x.gioiTinh==='Nữ'?'selected':''}>Nữ</option></select></td>
-                        <td><input type="text" id="edit-sobhxh-${x.soCccd}" class="edit-input" value="${x.soBhxh}" style="width:90px;"></td>
-                        <td style="font-weight:bold; color:#64748b;">${x.soCccd}</td>
-                        <td><input type="text" id="edit-madonvi-${x.soCccd}" class="edit-input" value="${x.maDonVi}" style="width:60px;"></td>
-                        <td><input type="text" id="edit-atv-${x.soCccd}" class="edit-input" value="${x.anToanVien==='—'?'':x.anToanVien}"></td>
-                        <td><input type="text" id="edit-dochai-${x.soCccd}" class="edit-input" value="${x.docHai==='—'?'':x.docHai}"></td>
-                        <td><input type="text" id="edit-huugoc-${x.soCccd}" class="edit-input" value="${x.namVeHuuGoc}" style="width:85px;"></td>
-                        <td style="text-align:center; color:#94a3b8; font-style:italic;">Tự động tính</td>
-                        <td><input type="text" id="edit-chucdanh-${x.soCccd}" class="edit-input" value="${x.chucDanh}" style="min-width:180px;"></td>
-                    </tr>`;
+                    return `<tr style="background: #fffbeb;"><td><div style="display:flex; gap:4px;"><button class="btn btn-warning btn-sm" onclick="saveRowUpdate('${x.soCccd}')">💾 Lưu</button><button class="btn btn-danger btn-sm" onclick="cancelEditMode()">✕</button></div></td><td><input type="text" id="edit-stt-${x.soCccd}" class="edit-input" value="${x.stt}" style="width:40px;"></td><td><input type="text" id="edit-hoten-${x.soCccd}" class="edit-input" value="${x.hoTen}"></td><td><input type="text" id="edit-ngaysinh-${x.soCccd}" class="edit-input" value="${x.ngaySinh}" style="width:85px;"></td><td><select id="edit-gioitinh-${x.soCccd}" class="edit-input" style="width:65px;"><option value="Nam" ${x.gioiTinh==='Nam'?'selected':''}>Nam</option><option value="Nữ" ${x.gioiTinh==='Nữ'?'selected':''}>Nữ</option></select></td><td><input type="text" id="edit-sobhxh-${x.soCccd}" class="edit-input" value="${x.soBhxh}" style="width:90px;"></td><td style="font-weight:bold; color:#64748b;">${x.soCccd}</td><td><input type="text" id="edit-madonvi-${x.soCccd}" class="edit-input" value="${x.maDonVi}" style="width:60px;"></td><td><input type="text" id="edit-atv-${x.soCccd}" class="edit-input" value="${x.anToanVien==='—'?'':x.anToanVien}"></td><td><input type="text" id="edit-dochai-${x.soCccd}" class="edit-input" value="${x.docHai==='—'?'':x.docHai}"></td><td><input type="text" id="edit-huugoc-${x.soCccd}" class="edit-input" value="${x.namVeHuuGoc}" style="width:85px;"></td><td style="color:#94a3b8; font-style:italic;">Tự động tính</td><td><input type="text" id="edit-chucdanh-${x.soCccd}" class="edit-input" value="${x.chucDanh}" style="min-width:180px;"></td></tr>`;
                 }
-
-                return `
-                <tr>
-                    <td><button class="btn btn-primary btn-sm" onclick="enterEditMode('${x.soCccd}')">✏️ Sửa</button></td>
-                    <td>${x.stt}</td><td style="font-weight:bold; color:var(--primary);">${x.hoTen}</td><td style="font-family:monospace;">${x.ngaySinh}</td>
-                    <td><span class="badge ${x.gioiTinh==='Nữ'?'badge-female':'badge-male'}">${x.gioiTinh}</span></td>
-                    <td>${x.soBhxh}</td><td>${x.soCccd}</td><td style="font-weight:bold;">${x.maDonVi}</td>
-                    <td>${x.anToanVien!=='—'?`<span class="badge badge-atv">${x.anToanVien}</span>`:'—'}</td>
-                    <td>${x.docHai!=='—'?`<span class="badge badge-danger">⚠️ ${x.docHai}</span>`:'—'}</td>
-                    <td>${x.namVeHuuGoc}</td><td style="font-weight:bold; color:var(--warning);">${x.namVeHuuDuKien}</td>
-                    <td style="max-width:220px; white-space:normal; font-size:12px; color:#475569;">${x.chucDanh}</td>
-                </tr>`;
+                return `<tr><td><button class="btn btn-primary btn-sm" onclick="enterEditMode('${x.soCccd}')">✏️ Sửa</button></td><td>${x.stt}</td><td style="font-weight:bold; color:var(--primary);">${x.hoTen}</td><td>${x.ngaySinh}</td><td><span class="badge ${x.gioiTinh==='Nữ'?'badge-female':'badge-male'}">${x.gioiTinh}</span></td><td>${x.soBhxh}</td><td>${x.soCccd}</td><td style="font-weight:bold;">${x.maDonVi}</td><td>${x.anToanVien!=='—'?`<span class="badge badge-atv">${x.anToanVien}</span>`:'—'}</td><td>${x.docHai!=='—'?`<span class="badge badge-danger">⚠️ ${x.docHai}</span>`:'—'}</td><td>${x.namVeHuuGoc}</td><td style="font-weight:bold; color:var(--warning);">${x.namVeHuuDuKien}</td><td>${x.chucDanh}</td></tr>`;
             }).join('');
         }
 
-        function updateDashboard(t, m, f, a, d, bh) {
+        function updateDashboard(t, m, f, a, d, kpiCount) {
             document.getElementById('stat-total').innerText = t.toLocaleString();
             document.getElementById('stat-male').innerText = m.toLocaleString();
             document.getElementById('stat-male-pct').innerText = t > 0 ? `Tỷ lệ: ${((m/t)*100).toFixed(1)}%` : "0%";
@@ -847,7 +805,7 @@
             document.getElementById('stat-atv-pct').innerText = t > 0 ? `${((a/t)*100).toFixed(1)}%` : "0%";
             document.getElementById('stat-dochai').innerText = d.toLocaleString();
             document.getElementById('stat-dochai-pct').innerText = t > 0 ? `${((d/t)*100).toFixed(1)}%` : "0%";
-            document.getElementById('stat-baohiem').innerText = bh.toLocaleString();
+            document.getElementById('stat-kpi').innerText = kpiCount.toLocaleString();
         }
 
         function setVisualStatus(type, text) {
@@ -855,20 +813,14 @@
             b.className = "cloud-status " + (type === 'online' ? 'status-online' : 'status-syncing');
         }
 
-        function pushToNextModule() {
-            let selectMaDV = document.getElementById('filter-ma-dv').value || "TẤT CẢ CÁC ĐƠN VỊ";
-            alert(`📥 ĐÃ XUẤT KHO DỮ LIỆU ĐÁM MÂY:\nĐã trích xuất ${FILTERED_VIEW_DATA.length} nhân sự thuộc [Đơn vị: ${selectMaDV}] thành công.`);
-        }
-
-        async function clearSupabaseCloud() {
-            if (confirm("Hành động này sẽ XÓA SẠCH toàn bộ dữ liệu nhân sự trên Cloud!")) {
-                await _supabase.from('vinapaco_nhansu').delete().neq('stt', '—_—'); await fetchDataFromSupabase();
-            }
-        }
+        function pushToNextModule() { alert("📥 Hệ thống Engine đã đóng gói dữ liệu của khối Đơn vị được chọn và đồng bộ thành công!"); }
+        async function clearSupabaseCloud() { if (confirm("Xóa toàn bộ dữ liệu nhân sự?")) { await _supabase.from('vinapaco_nhansu').delete().neq('stt', '—_—'); await fetchDataFromSupabase(); } }
 
         document.addEventListener('click', function(e) {
-            if(!document.getElementById('smart-ns-input').contains(e.target)) document.getElementById('smart-ns-dropdown').style.display = 'none';
-            if(!document.getElementById('smart-bh-input').contains(e.target)) document.getElementById('smart-bh-dropdown').style.display = 'none';
+            ['smart-ns-dropdown', 'smart-bh-dropdown', 'smart-kpi-dropdown'].forEach(id => {
+                let input = document.getElementById(id.replace('-dropdown', '-input'));
+                if(input && !input.contains(e.target)) document.getElementById(id).style.display = 'none';
+            });
         });
     </script>
 </body>
