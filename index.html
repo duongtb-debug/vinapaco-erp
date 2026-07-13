@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VINAPACO KẾ TOÁN v32.0 - ĐỊNH DẠNG TẠM ỨNG CHUẨN TIỀN TỆ</title>
+    <title>VINAPACO KẾ TOÁN v33.0 - ĐẦY ĐỦ VÀ CHUẨN XÁC</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 11px; margin: 0; padding: 0; color: #1e293b; background: #f1f5f9; }
@@ -41,7 +41,6 @@
         .input-cong { border: 1px solid #3b82f6; background: #fffdfa; color: #1d4ed8; width: 60px; }
         .input-cong:focus { background: #fffae6; border-color: #ea580c; outline: none; }
         
-        /* Ô nhập liệu tạm ứng hỗ trợ định dạng tiền tệ rõ ràng */
         .input-tamung { border: 1px solid #dc2626; color: #b91c1c; background: #fef2f2; width: 100px; text-align: right; font-weight: bold; }
         .input-tamung:focus { border-color: #b91c1c; outline: none; background: #fee2e2; color: #000; text-align: left; }
         
@@ -52,7 +51,7 @@
 <body>
 
     <div class="navbar">
-        <h1>VINAPACO v32.0 - TẠM ỨNG ĐỊNH DẠNG TIỀN TỆ RÕ RÀNG</h1>
+        <h1>VINAPACO v33.0 - HỆ THỐNG QUẢN LÝ LƯƠNG CHUẨN ĐỊNH DẠNG KẾ TOÁN</h1>
         <button onclick="exportCleanExcel()" class="btn-export">Xuất Bảng Lương Tổng Hợp (.xlsx)</button>
     </div>
 
@@ -131,7 +130,7 @@
             let nLe = staff.le;
             let hstt = staff.hsHoanThanh;
 
-            // 1. PHÂN HỆ LƯƠNG CƠ BẢN
+            // 1. PHÂN HỆ LƯƠNG CƠ BẢN VÀ GIẢM TRỪ BẢO HIỂM CHUẨN KẾ TOÁN
             let luongCoBanThang = baseLCB * (staff.heSoCB + staff.phuCapCB);
             let luongThoiGian = Math.round((luongCoBanThang / 22) * nCong);
             let luongLePhepThucTe = Math.round(staff.luongKyHD / 22) * (nPhep + nLe);
@@ -139,6 +138,8 @@
 
             let bhtn = staff.heSoCB > 0 ? Math.round(staff.luongKyHD * 0.01) : 0;
             let bhxh_yt = staff.heSoCB > 0 ? Math.round(staff.luongKyHD * 0.095) : 0;
+            
+            // Công thức chuẩn: Thực lĩnh LCB = Tổng tiền - (BHTN + BHXH + BHYT)
             let thucLinhLCB = tongTienLCB - bhtn - bhxh_yt;
 
             // 2. PHÂN HỆ LƯƠNG CÔNG VIỆC
@@ -146,7 +147,7 @@
             let luongCV_ThucTe = Math.round((luongCongViecThang / 22) * nCong);
             let thucLinhLCV = luongCV_ThucTe - staff.tamUng - staff.pctt - staff.truUngT4;
 
-            // 3. TỔNG THỰC LĨNH CB + CV CUỐI CÙNG
+            // 3. TỔNG THỰC LĨNH CB + CV CUỐI CÙNG CHUẨN
             let thucLinhTongCuoiCung = thucLinhLCV + thucLinhLCB;
 
             // 4. PHỤ CẤP ĂN CA & ĐỘC HẠI
@@ -191,7 +192,7 @@
             const file = event.target.files[0];
             if (!file) return;
 
-            document.getElementById('upload-status').innerText = "Đang xử lý phân tích và định dạng dữ liệu...";
+            document.getElementById('upload-status').innerText = "Đang xử lý phân tích dữ liệu...";
             const reader = new FileReader();
             reader.onload = function(e) {
                 try {
@@ -248,8 +249,8 @@
                     }
 
                     document.getElementById('debug-status').style.display = "block";
-                    document.getElementById('debug-status').innerHTML = `✅ Hệ thống đã áp dụng định dạng tiền tệ thông minh cho toàn bộ cột Tạm Ứng và Thực Lĩnh.`;
-                    document.getElementById('upload-status').innerText = "Đã nạp và co giãn bảng dữ liệu thành công!";
+                    document.getElementById('debug-status').innerHTML = `✅ Hệ thống bảng tính thông minh sẵn sàng. Toàn bộ logic công thức và giảm trừ trích đóng bảo hiểm đã áp dụng đồng bộ.`;
+                    document.getElementById('upload-status').innerText = "Đã nạp dữ liệu thành công!";
                     renderTable();
                 } catch(err) {
                     alert("Lỗi cấu trúc dữ liệu file chấm công: " + err.message);
@@ -258,7 +259,6 @@
             reader.readAsArrayBuffer(file);
         }
 
-        // Định dạng số tiền tệ khi người dùng nhập xong tạm ứng
         function formatTamUngInput(input, index) {
             let val = input.value.replace(/[^0-9.-]/g, '');
             let parsedVal = parseFloat(val);
@@ -266,7 +266,6 @@
             
             dynamicStaffDatabase[index]['tamUng'] = parsedVal;
             
-            // Cập nhật giao diện khi blur
             input.type = "text";
             input.value = parsedVal > 0 ? "-" + parsedVal.toLocaleString() : "0";
 
@@ -280,7 +279,6 @@
             updateTotalsFooter();
         }
 
-        // Trả lại số nguyên khi người dùng click vào để sửa tạm ứng
         function unformatTamUngInput(input, index) {
             input.type = "number";
             input.value = dynamicStaffDatabase[index]['tamUng'];
@@ -356,7 +354,6 @@
                 let oLe = `<input type="number" step="0.5" value="${staff.le}" data-col="3" data-row="${index}" oninput="updateFieldHandmade(${index}, 'le', this.value)" class="input-table input-cong">`;
                 let oHT = `<input type="number" step="0.1" value="${staff.hsHoanThanh}" data-col="4" data-row="${index}" oninput="updateFieldHandmade(${index}, 'hsHoanThanh', this.value)" class="input-table">`;
                 
-                // Ô nhập liệu tạm ứng động hiển thị dạng chuỗi phân tách tiền tệ rõ ràng
                 let hienThiTamUng = staff.tamUng > 0 ? "-" + staff.tamUng.toLocaleString() : "0";
                 let oTamUng = `<input type="text" value="${hienThiTamUng}" data-col="5" data-row="${index}" onfocus="unformatTamUngInput(this, ${index})" onblur="formatTamUngInput(this, ${index})" class="input-table input-tamung">`;
 
@@ -389,7 +386,7 @@
             const ws = XLSX.utils.aoa_to_sheet(dataForExcel);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "Bảng_Lương_Tổng_Hợp");
-            XLSX.writeFile(wb, "Bang_Luong_Vinapaco_v32.xlsx");
+            XLSX.writeFile(wb, "Bang_Luong_Vinapaco_v33.xlsx");
         }
     </script>
 </body>
