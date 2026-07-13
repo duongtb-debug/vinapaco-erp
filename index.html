@@ -3,438 +3,362 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vinapaco ERP - Quản Trị Hệ Thống Chuyên Gia v8</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <title>VINAPACO KẾ TOÁN v28.0 - BỎ LƯƠNG K3 CƠ BẢN</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    
     <style>
-        :root {
-            --primary-color: #0f172a;
-            --accent-color: #2563eb;
-            --bg-color: #f8fafc;
-            --card-bg: #ffffff;
-            --text-main: #334155;
-            --border-color: #e2e8f0;
-            --row-even: #f8fafc;
-            --row-hover: #f1f5f9;
-            --row-focus: #e0f2fe;
-            --status-success: #10b981;
-            --status-error: #ef4444;
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        body { background-color: var(--bg-color); color: var(--text-main); display: flex; height: 100vh; overflow: hidden; }
-        
-        /* Sidebar Layout */
-        #sidebar { width: 280px; background-color: var(--primary-color); color: white; padding: 20px 12px; display: flex; flex-direction: column; justify-content: space-between; }
-        .logo { font-size: 18px; font-weight: bold; text-align: center; padding: 10px 0 15px 0; border-bottom: 1px solid #334155; color: #f8fafc; letter-spacing: 1px; }
-        .nav-menu { display: flex; flex-direction: column; gap: 8px; margin-top: 15px; flex: 1; }
-        .nav-btn { padding: 12px 15px; border: none; background: none; color: #94a3b8; text-align: left; font-size: 14px; cursor: pointer; border-radius: 6px; transition: 0.2s; }
-        .nav-btn:hover, .nav-btn.active { background-color: var(--accent-color); color: white; }
-
-        .sidebar-calendar-widget {
-            background: linear-gradient(135deg, #1e293b, #0f172a);
-            border: 1px solid #334155;
-            border-radius: 10px;
-            padding: 15px;
-            text-align: center;
-        }
-        .widget-clock { font-size: 20px; font-weight: bold; color: #38bdf8; margin-bottom: 8px; font-family: monospace; }
-        .widget-date-dl { font-size: 13px; color: #f8fafc; opacity: 0.9; margin-bottom: 8px; }
-        .widget-date-al { font-size: 18px; font-weight: bold; color: #fbbf24; margin-bottom: 4px; }
-
-        /* Main Content */
-        #main-view { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-        #topbar { height: 60px; background-color: var(--card-bg); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; padding: 0 30px; }
-        #content-area { flex: 1; padding: 30px; overflow-y: auto; }
-
-        /* Supabase Status Badge */
-        .db-status-container { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; background: #f1f5f9; padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border-color); }
-        .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; background-color: #64748b; animation: pulse 2s infinite; }
-        .status-dot.connected { background-color: var(--status-success); box-shadow: 0 0 8px var(--status-success); }
-        .status-dot.disconnected { background-color: var(--status-error); box-shadow: 0 0 8px var(--status-error); }
-
-        .card { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; margin-bottom: 25px; }
-        .card-title { font-size: 16px; font-weight: 600; margin-bottom: 15px; color: #1e293b; border-left: 4px solid var(--accent-color); padding-left: 10px; }
-        
-        .upload-zone { border: 2px dashed #cbd5e1; padding: 20px; text-align: center; border-radius: 8px; background-color: #f8fafc; cursor: pointer; }
-        .upload-zone:hover { border-color: var(--accent-color); background-color: #eff6ff; }
-        .grid-flex { display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-end; }
-        .form-group { margin-bottom: 15px; display: inline-block; margin-right: 15px; }
-        label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 5px; color: #64748b; }
-        select, input, button { padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 14px; outline: none; }
-        button { background-color: var(--accent-color); color: white; border: none; cursor: pointer; font-weight: 500; }
-
-        /* Table Style & Badges */
-        .table-responsive { width: 100%; overflow-x: auto; border: 1px solid var(--border-color); border-radius: 6px; background-color: white; max-height: 520px; }
-        table { width: 100%; border-collapse: collapse; text-align: left; white-space: nowrap; }
-        th, td { padding: 12px 18px; border-bottom: 1px solid var(--border-color); font-size: 14px; }
-        th { background-color: #f1f5f9; color: #475569; font-weight: 600; position: sticky; top: 0; z-index: 10; }
-        
-        tbody tr:nth-child(even) { background-color: var(--row-even); }
-        tbody tr:hover { background-color: var(--row-hover); cursor: pointer; }
-        tbody tr.focused-row { background-color: var(--row-focus) !important; border-left: 4px solid var(--accent-color); }
-        
-        .badge-atv { background: #f0fdf4; color: #16a34a; padding: 4px 8px; border-radius: 4px; font-weight: 600; border: 1px solid #bbf7d0; }
-        .badge-dh { background: #fff7ed; color: #ea580c; padding: 4px 8px; border-radius: 4px; font-weight: 600; border: 1px solid #ffedd5; }
-        .badge-age { background: #fef9c3; color: #713f12; padding: 2px 6px; border-radius: 4px; font-weight: 600; }
-        .btn-edit-row { background-color: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; padding: 4px 8px; font-size: 12px; border-radius: 4px; transition: 0.2s; }
-        .btn-edit-row:hover { background-color: var(--accent-color); color: white; }
-
-        /* Modal Popup */
-        #edit-modal-backdrop { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 1000; justify-content: center; align-items: center; }
-        .modal-content { background: white; padding: 25px; border-radius: 8px; width: 520px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
-        .modal-actions { margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px; }
-
-        @keyframes pulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 11px; margin: 0; padding: 0; color: #1e293b; background: #f1f5f9; }
+        .navbar { background: #0f172a; color: white; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+        .navbar h1 { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; }
+        .btn-export { background: #10b981; color: white; border: none; padding: 6px 12px; font-weight: bold; border-radius: 4px; cursor: pointer; transition: all 0.2s; font-size: 11px; }
+        .btn-export:hover { background: #059669; }
+        .container { max-width: 1600px; margin: 15px auto; padding: 0 15px; }
+        .card { background: white; border-radius: 6px; border: 1px solid #e2e8f0; padding: 15px; margin-bottom: 15px; box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1); }
+        .upload-zone { border: 2px dashed #3b82f6; background: #eff6ff; padding: 20px; text-align: center; border-radius: 6px; cursor: pointer; font-weight: 600; color: #2563eb; font-size: 12px; transition: all 0.2s; }
+        .upload-zone:hover { background: #dbeafe; }
+        .tabs { display: flex; gap: 4px; margin-bottom: -1px; }
+        .tab-btn { padding: 8px 16px; font-weight: bold; border: 1px solid #e2e8f0; border-bottom: none; border-radius: 4px 4px 0 0; cursor: pointer; background: #f8fafc; color: #64748b; font-size: 11px; }
+        .tab-btn.active-lcb { background: #2563eb; color: white; border-color: #2563eb; }
+        .tab-btn.active-lcv { background: #ea580c; color: white; border-color: #ea580c; }
+        .tab-btn.active-anca { background: #059669; color: white; border-color: #059669; }
+        .tab-btn.active-nganhang { background: #7c3aed; color: white; border-color: #7c3aed; }
+        .table-responsive { background: white; border: 1px solid #e2e8f0; border-radius: 0 6px 6px 6px; padding: 12px; overflow-x: auto; box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1); }
+        table { width: 100%; border-collapse: collapse; text-align: right; white-space: nowrap; }
+        th, td { padding: 6px 8px; border: 1px solid #cbd5e1; }
+        th { text-align: center; color: white; font-weight: 600; background: #475569; }
+        tr:nth-child(even) { background: #f8fafc; }
+        tr:hover { background: #f1f5f9; }
+        .text-left { text-align: left; }
+        .text-center { text-align: center; }
+        .font-bold { font-weight: bold; }
+        .input-table { width: 55px; text-align: center; font-weight: bold; border: 1px solid #cbd5e1; border-radius: 4px; padding: 4px; font-size: 11px; }
+        .input-cong { border: 1px solid #3b82f6; background: #fffdfa; color: #1d4ed8; }
+        .input-cong:focus { background: #fffae6; border-color: #ea580c; outline: none; }
+        .badge-report { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; padding: 10px 15px; border-radius: 4px; margin-top: 10px; font-weight: 500; display: none; }
+        .hidden { display: none; }
     </style>
 </head>
 <body>
 
-    <div id="sidebar">
-        <div>
-            <div class="logo">VINAPACO ERP v8</div>
-            <div class="nav-menu">
-                <button class="nav-btn active" onclick="switchTab('nhansu')">👥 Nhân Sự Gốc (Excel)</button>
-                <button class="nav-btn" onclick="switchTab('nghiepvu')">💼 Phân Hệ Nghiệp Vụ</button>
-            </div>
-        </div>
-        <div class="sidebar-calendar-widget">
-            <div id="live-clock" class="widget-clock">00:00:00</div>
-            <div id="date-duong" class="widget-date-dl">Đang tải...</div>
-            <div id="date-am" class="widget-date-al">Ngày 24 / 05 Âm Lịch</div>
-        </div>
+    <div class="navbar">
+        <h1>VINAPACO v28.0 - ĐÃ LOẠI BỎ HOÀN TOÀN CỘT K3 CƠ BẢN</h1>
+        <button onclick="exportCleanExcel()" class="btn-export">Xuất Bảng Lương Tổng Hợp (.xlsx)</button>
     </div>
 
-    <div id="main-view">
-        <div id="topbar">
-            <h2 id="view-title">Hệ Thống Quản Lý Nhân Sự Gốc</h2>
-            <div class="db-status-container">
-                <span id="supabase-dot" class="status-dot"></span>
-                <span id="supabase-text">Đang kết nối...</span>
+    <div class="container">
+        <div class="card">
+            <h3 style="margin-top:0; color:#0f172a; font-size: 12px;">BƯỚC 1: NẠP FILE BẢNG THỐNG KÊ CHẤM CÔNG VÂN TAY GỐC THÁNG 6</h3>
+            <div class="upload-zone" onclick="document.getElementById('excel-file-input').click()">
+                <span id="upload-status">Chọn file Excel chấm công Văn phòng TCT để tự động tính toán lương lễ phép...</span>
+                <input type="file" id="excel-file-input" accept=".xlsx, .xls" class="hidden" onchange="handleFileSelect(event)">
             </div>
+            <div id="debug-status" class="badge-report"></div>
         </div>
-        
-        <div id="content-area">
-            <div id="tab-nhansu" class="tab-content">
-                <div class="card">
-                    <div class="card-title">Nhập danh sách trực tiếp từ Excel</div>
-                    <div class="upload-zone" onclick="document.getElementById('excel-file-input').click()">
-                        <p style="font-size: 14px; color: #64748b;">📍 Bấm để nạp hoặc kéo thả file Excel Nhân sự Vinapaco</p>
-                        <input type="file" id="excel-file-input" accept=".xlsx, .xls" style="display:none;" onchange="handleExcelImport(event)">
-                    </div>
-                </div>
 
-                <div class="card">
-                    <div class="card-title">🔍 Bộ lọc nhanh</div>
-                    <div class="grid-flex">
-                        <div class="form-group">
-                            <label>Tìm kiếm thông minh</label>
-                            <input type="text" id="filter-search-global" placeholder="Nhập tên, số CCCD..." oninput="applyAdvancedFilters()">
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="card-title" id="table-status">Bảng dữ liệu Excel (Trống)</div>
-                    <div class="table-responsive">
-                        <table id="dynamic-excel-table">
-                            <thead><tr><th style="text-align: center;">Chưa có dữ liệu.</th></tr></thead>
-                            <tbody></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
+        <h3 style="color:#0f172a; font-size: 12px; margin-bottom: 6px;">BƯỚC 2: NHẬP LIỆU VÀ ĐIỀU HƯỚNG LIÊN TỤC</h3>
+        <div class="tabs">
+            <button onclick="switchTab('lcb')" id="tab-btn-lcb" class="tab-btn active-lcb">1. Phân Hệ Lương Cơ Bản (Thời Gian, Phép, Lễ độc lập)</button>
+            <button onclick="switchTab('lcv')" id="tab-btn-lcv" class="tab-btn">2. Phân Hệ Lương Công Việc (Thực Lĩnh CV)</button>
+            <button onclick="switchTab('anca')" id="tab-btn-anca" class="tab-btn">3. Phụ Cấp Ăn Ca & Độc Hại</button>
+            <button onclick="switchTab('nganhang')" id="tab-btn-nganhang" class="tab-btn">4. Tổng Hợp Chi Trả Ngân Hàng</button>
         </div>
-    </div>
 
-    <div id="edit-modal-backdrop">
-        <div class="modal-content">
-            <h3 style="margin-bottom: 15px; font-size: 16px;">✏️ Cập nhật & Sửa lỗi định dạng</h3>
-            <input type="hidden" id="edit-index">
-            
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                <div class="form-group" style="width:100%;">
-                    <label>Họ và Tên</label>
-                    <input type="text" id="edit-hoten" style="width:100%;">
-                </div>
-                <div class="form-group" style="width:100%;">
-                    <label>Ngày/Năm sinh (Gốc)</label>
-                    <input type="text" id="edit-ngaysinh" placeholder="VD: 25425 hoặc DD/MM/YYYY" style="width:100%;">
-                </div>
-                <div class="form-group" style="width:100%;">
-                    <label>Số sổ BHXH</label>
-                    <input type="text" id="edit-bhxh" style="width:100%;">
-                </div>
-                <div class="form-group" style="width:100%;">
-                    <label>Số CCCD</label>
-                    <input type="text" id="edit-cccd" style="width:100%;">
-                </div>
-                <div class="form-group" style="width:100%;">
-                    <label>Năm về hưu (Gốc)</label>
-                    <input type="text" id="edit-vehưu" placeholder="VD: 46266 hoặc DD/MM/YYYY" style="width:100%;">
-                </div>
-                <div class="form-group" style="width:100%;">
-                    <label>Hưu luật mới</label>
-                    <input type="text" id="edit-huuluat" style="width:100%;">
-                </div>
-                <div class="form-group" style="width:100%;">
-                    <label>An toàn viên gốc</label>
-                    <input type="text" id="edit-atv" style="width:100%;">
-                </div>
-                <div class="form-group" style="width:100%;">
-                    <label>NNĐH gốc</label>
-                    <input type="text" id="edit-nndh" style="width:100%;">
-                </div>
-            </div>
-            <div class="form-group" style="width:100%; margin-top: 10px;">
-                <label>Chức danh công việc</label>
-                <input type="text" id="edit-chucdanh" style="width:100%;">
-            </div>
-
-            <div class="modal-actions">
-                <button onclick="closeEditModal()" style="background-color: #64748b;">Hủy</button>
-                <button onclick="saveRowCalculations()" style="background-color: var(--accent-color);">Lưu & Cập Nhật Tự Động</button>
-            </div>
+        <div class="table-responsive">
+            <table id="main-table">
+                <thead id="table-head">
+                    <tr style="background:#475569;">
+                        <th colspan="15" style="padding: 25px; font-weight: 500; color: #cbd5e1;">Hệ thống đã sẵn sàng. Hãy nạp file ở Bước 1...</th>
+                    </tr>
+                </thead>
+                <tbody id="table-body"></tbody>
+                <tfoot id="table-foot"></tfoot>
+            </table>
         </div>
     </div>
 
     <script>
-        const SUBABASE_URL = "https://mtfpxsfxjsnghtalamdd.supabase.co";
-        const SUPABASE_KEY = "sb_publishable_F9qfNlAUikQ-9pYHV8jL8g_xrBa8s5w";
-        let _supabase = null;
-        let localExcelData = []; 
+        // Danh mục gốc Văn phòng TCT - Đã loại bỏ trường luongK3CB
+        const MASTER_STAFF_DIRECTORY = {
+            "NGUYỄN MINH NGỌC":       { heSoCB: 1.94, phuCapCB: 0.25, luongKyHD: 9066600, hsHoanThanh: 1.0, heSoCV: 5.20, phuCapCV: 0.60, luongK3CV: 11009296, docHai: 0, tamUng: 5000000, pctt: 0, truUngT4: 0 },
+            "NGUYỄN VĂN NAM":         { heSoCB: 1.48, phuCapCB: 0.00, luongKyHD: 6127200, hsHoanThanh: 1.0, heSoCV: 2.24, phuCapCV: 0.00, luongK3CV: 4220718, docHai: 0, tamUng: 4000000, pctt: 0, truUngT4: 0 },
+            "NGUYỄN THỊ TUYẾT NHUNG": { heSoCB: 1.79, phuCapCB: 0.00, luongKyHD: 7410600, hsHoanThanh: 1.0, heSoCV: 1.74, phuCapCV: 0.00, luongK3CV: 3277717, docHai: 10, tamUng: 3000000, pctt: 0, truUngT4: 0 },
+            "VŨ THỊ THU":             { heSoCB: 1.94, phuCapCB: 0.00, luongKyHD: 8031600, hsHoanThanh: 1.0, heSoCV: 1.86, phuCapCV: 0.00, luongK3CV: 3504021, docHai: 10, tamUng: 3000000, pctt: 0, truUngT4: 0 },
+            "ĐÀO THỊ LIÊN":           { heSoCB: 1.79, phuCapCB: 0.00, luongKyHD: 7410600, hsHoanThanh: 1.0, heSoCV: 1.74, phuCapCV: 0.00, luongK3CV: 3277717, docHai: 10, tamUng: 4000000, pctt: 0, truUngT4: 0 },
+            "VÕ THỊ THANH TUYỀN":     { heSoCB: 1.71, phuCapCB: 0.00, luongKyHD: 7079400, hsHoanThanh: 1.0, heSoCV: 1.74, phuCapCV: 0.00, luongK3CV: 3277717, docHai: 10, tamUng: 3000000, pctt: 0, truUngT4: 0 },
+            "TRẦN THỊ THANH":         { heSoCB: 1.67, phuCapCB: 0.00, luongKyHD: 6913800, hsHoanThanh: 1.0, heSoCV: 1.48, phuCapCV: 0.00, luongK3CV: 2787848, docHai: 10, tamUng: 4000000, pctt: 0, truUngT4: 0 },
+            "TRẦN ĐỨC CHIẾN":         { heSoCB: 1.83, phuCapCB: 0.00, luongKyHD: 7576200, hsHoanThanh: 1.0, heSoCV: 1.66, phuCapCV: 0.00, luongK3CV: 3127027, docHai: 0, tamUng: 3000000, pctt: 0, truUngT4: 0 },
+            "PHẠM TIẾN LONG":         { heSoCB: 1.80, phuCapCB: 0.00, luongKyHD: 7452000, hsHoanThanh: 1.0, heSoCV: 1.62, phuCapCV: 0.00, luongK3CV: 3051700, docHai: 0, tamUng: 4000000, pctt: 0, truUngT4: 0 },
+            "ĐINH HỮU VINH":          { heSoCB: 1.83, phuCapCB: 0.00, luongKyHD: 7576200, hsHoanThanh: 1.0, heSoCV: 1.66, phuCapCV: 0.00, luongK3CV: 3127027, docHai: 0, tamUng: 3000000, pctt: 0, truUngT4: 0 },
+            "BÙI ĐÌNH ĐIỆP":          { heSoCB: 1.53, phuCapCB: 0.00, luongKyHD: 6334200, hsHoanThanh: 1.0, heSoCV: 1.62, phuCapCV: 0.00, luongK3CV: 3051700, docHai: 0, tamUng: 4000000, pctt: 0, truUngT4: 0 },
+            "HOÀNG MẠNH HÙNG":        { heSoCB: 1.53, phuCapCB: 0.00, luongKyHD: 6334200, hsHoanThanh: 1.0, heSoCV: 1.62, phuCapCV: 0.00, luongK3CV: 3051700, docHai: 0, tamUng: 4000000, pctt: 0, truUngT4: 0 },
+            "MA TRỌNG LUẬN":          { heSoCB: 1.35, phuCapCB: 0.00, luongKyHD: 5589000, hsHoanThanh: 1.1, heSoCV: 1.63, phuCapCV: 0.00, luongK3CV: 3070532, docHai: 18, tamUng: 3000000, pctt: 0, truUngT4: 0 },
+            "TRẦN BÌNH DƯƠNG":        { heSoCB: 1.79, phuCapCB: 0.00, luongKyHD: 7410600, hsHoanThanh: 1.0, heSoCV: 2.40, phuCapCV: 0.00, luongK3CV: 4521037, docHai: 18, tamUng: 3000000, pctt: 0, truUngT4: 0 },
+            "ĐẶNG TRẦN TRUNG":        { heSoCB: 1.53, phuCapCB: 0.00, luongKyHD: 6334200, hsHoanThanh: 1.0, heSoCV: 1.62, phuCapCV: 0.00, luongK3CV: 3051700, docHai: 0, tamUng: 3000000, pctt: 0, truUngT4: 0 },
+            "PHẠM HUY CHIẾN":         { heSoCB: 2.26, phuCapCB: 0.00, luongKyHD: 9356400, hsHoanThanh: 1.0, heSoCV: 2.40, phuCapCV: 0.00, luongK3CV: 4521037, docHai: 0, tamUng: 4000000, pctt: 0, truUngT4: 0 },
+            "NGUYỄN ĐỨC CHÍ":         { heSoCB: 1.53, phuCapCB: 0.00, luongKyHD: 6334200, hsHoanThanh: 1.0, heSoCV: 1.85, phuCapCV: 0.00, luongK3CV: 3485184, docHai: 0, tamUng: 0,       pctt: 0, truUngT4: 0 },
+            "TRẦN THẠCH DƯƠNG":       { heSoCB: 1.53, phuCapCB: 0.00, luongKyHD: 6334200, hsHoanThanh: 1.0, heSoCV: 1.85, phuCapCV: 0.00, luongK3CV: 3485184, docHai: 0, tamUng: 0,       pctt: 0, truUngT4: 0 },
+            "LÊ HỒNG PHƯƠNG":         { heSoCB: 1.53, phuCapCB: 0.00, luongKyHD: 6334200, hsHoanThanh: 1.0, heSoCV: 1.85, phuCapCV: 0.00, luongK3CV: 3485184, docHai: 0, tamUng: 0,       pctt: 0, truUngT4: 0 },
+            "KHỔNG VĂN CHƯƠNG":       { heSoCB: 1.53, phuCapCB: 0.00, luongKyHD: 6334200, hsHoanThanh: 1.0, heSoCV: 1.85, phuCapCV: 0.00, luongK3CV: 3485184, docHai: 0, tamUng: 0,       pctt: 0, truUngT4: 0 }
+        };
 
-        const CUSTOM_FINAL_HEADERS = [
-            "Thao tác", "Stt", "Họ và Tên", "Tên", "Năm sinh", "Năm", "Tuổi hiện tại", 
-            "Số sổ bảo hiểm", "Số căn cước công dân", "Năm về hưu", "Hưu luật mới", 
-            "An toàn viên", "NNĐH", "Chức danh công việc"
-        ];
+        let dynamicStaffDatabase = [];
+        const baseLCB = 2530000;
+        const dongGiaLCV = 2087970;
+        let activeTab = 'lcb';
 
-        function checkSupabaseConnection() {
-            const dot = document.getElementById('supabase-dot');
-            const text = document.getElementById('supabase-text');
-            try {
-                _supabase = supabase.createClient(SUBABASE_URL, SUPABASE_KEY);
-                if(_supabase) {
-                    dot.className = "status-dot connected";
-                    text.innerText = "Supabase: Đã Kết Nối";
-                    text.style.color = "var(--status-success)";
-                }
-            } catch (err) {
-                dot.className = "status-dot disconnected";
-                text.innerText = "Supabase: Mất Kết Nối";
-                text.style.color = "var(--status-error)";
-            }
+        function switchTab(tabName) {
+            activeTab = tabName;
+            ['lcb', 'lcv', 'anca', 'nganhang'].forEach(t => {
+                const btn = document.getElementById('tab-btn-' + t);
+                btn.className = 'tab-btn'; if (t === tabName) btn.classList.add('active-' + t);
+            });
+            renderTable();
         }
 
-        // --- BỘ MÁY ĐỊNH DẠNG VÀ PHỤC HỒI DỮ LIỆU EXCEL SERIAL HỢP NHẤT ---
-        function normalizeDate(val) {
-            if (!val || val === "—" || val === "") return "—";
+        function tinhToanToanBoLuong(staff) {
+            let nCong = staff.cong;
+            let nPhep = staff.phep;
+            let nLe = staff.le;
+            let hstt = staff.hsHoanThanh;
+
+            let luongCoBanThang = baseLCB * (staff.heSoCB + staff.phuCapCB);
+            let luongThoiGian = Math.round((luongCoBanThang / 22) * nCong);
             
-            // Xử lý nếu giá trị đầu vào là chuỗi nhưng bản chất là số thuần (ví dụ nhập tay "46266")
-            let num = Number(val);
-            if (!isNaN(num) && typeof val === 'string' && val.trim() !== "") {
-                val = num;
-            }
-
-            if (typeof val === 'number') {
-                const date = new Date((val - 25569) * 86400 * 1000);
-                if (isNaN(date.getTime())) return val; 
-                const dd = String(date.getDate()).padStart(2, '0');
-                const mm = String(date.getMonth() + 1).padStart(2, '0');
-                const yyyy = date.getFullYear();
-                return `${dd}/${mm}/${yyyy}`;
-            }
-
-            // Nếu là chuỗi ngày tháng chuẩn Việt Nam hoặc chuỗi văn bản (ví dụ: "Tháng 08/2032")
-            return val.toString().trim();
-        }
-
-        function normalizeYear(val) {
-            if (!val || val === "—" || val === "") return "—";
+            let luongPhepThucTe = Math.round((staff.luongKyHD / 22) * nPhep);
+            let luongLeThucTe = Math.round((staff.luongKyHD / 22) * nLe);
             
-            let num = Number(val);
-            if (!isNaN(num)) {
-                // Nếu là mã Excel Serial (VD: 5425 hoặc 25425)
-                if (num > 1000) {
-                    const date = new Date((num - 25569) * 86400 * 1000);
-                    return isNaN(date.getTime()) ? val.toString() : date.getFullYear().toString();
-                }
-                return num.toString();
-            }
+            // CÔNG THỨC MỚI: Loại bỏ hoàn toàn K3 gốc cơ bản
+            let tongTienLCB = Math.round(luongThoiGian * hstt) + luongPhepThucTe + luongLeThucTe;
 
-            if (typeof val === 'string' && val.includes('/')) {
-                const parts = val.split('/');
-                return parts[parts.length - 1]; 
-            }
-            return val.toString();
+            let bhtn = staff.heSoCB > 0 ? Math.round(staff.luongKyHD * 0.01) : 0;
+            let bhxh_yt = staff.heSoCB > 0 ? Math.round(staff.luongKyHD * 0.095) : 0;
+            let thucLinhLCB = tongTienLCB - bhtn - bhxh_yt;
+
+            let luongCongViecThang = (staff.heSoCV + staff.phuCapCV) * dongGiaLCV;
+            let luongCV_ThucTe = Math.round((luongCongViecThang / 22) * nCong);
+            let thucLinhLCV = luongCV_ThucTe - staff.tamUng - staff.pctt - staff.truUngT4;
+
+            let anCa = staff.name.toUpperCase().includes("HOÀNG MẠNH HÙNG") ? 600000 : Math.round(nCong * 5000);
+            let boiDuongDocHai = Math.round(staff.docHai * 13000);
+            let tongThucNhanNganHang = thucLinhLCB + thucLinhLCV + anCa + boiDuongDocHai;
+
+            return { luongCoBanThang, luongThoiGian, luongPhepThucTe, luongLeThucTe, tongTienLCB, bhtn, bhxh_yt, thucLinhLCB, luongCV_ThucTe, thucLinhLCV, anCa, boiDuongDocHai, tongThucNhanNganHang };
         }
 
-        // HÀM TÍNH TOÁN CORE - TỰ ĐỘNG KHẮC PHỤC LỖI KHI CÓ THAY ĐỔI DỮ LIỆU
-        function calculateRowDependencies(row, index) {
-            // Chuẩn hóa định dạng trước khi xử lý logic
-            row["Năm sinh"] = normalizeDate(row["Năm sinh"]);
-            row["Năm về hưu"] = normalizeDate(row["Năm về hưu"]);
-            row["Hưu luật mới"] = normalizeDate(row["Hưu luật mới"]);
+        function setupNavigationKeys() {
+            document.querySelectorAll('.input-table').forEach(input => {
+                input.onkeydown = function(e) {
+                    let col = parseInt(this.getAttribute('data-col'));
+                    let row = parseInt(this.getAttribute('data-row'));
+                    let nextInput;
 
-            // 1. Tách tên tự động
-            if (row["Họ và Tên"] && row["Họ và Tên"] !== "—") {
-                const parts = row["Họ và Tên"].trim().split(/\s+/);
-                row["Tên"] = parts[parts.length - 1];
-            }
+                    if (e.key === 'ArrowDown' || e.key === 'Enter') {
+                        e.preventDefault();
+                        nextInput = document.querySelector(`.input-table[data-col="${col}"][data-row="${row + 1}"]`);
+                    } else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        nextInput = document.querySelector(`.input-table[data-col="${col}"][data-row="${row - 1}"]`);
+                    } else if (e.key === 'ArrowRight') {
+                        nextInput = document.querySelector(`.input-table[data-col="${col + 1}"][data-row="${row}"]`);
+                    } else if (e.key === 'ArrowLeft') {
+                        nextInput = document.querySelector(`.input-table[data-col="${col - 1}"][data-row="${row}"]`);
+                    }
 
-            // 2. Ép định dạng Năm gốc
-            row["Năm"] = normalizeYear(row["Năm sinh"] !== "—" ? row["Năm sinh"] : row["Năm"]);
-
-            // 3. Tính Tuổi hiện tại dựa trên mốc thời gian cố định 2026
-            if (row["Năm"] !== "—" && !isNaN(parseInt(row["Năm"]))) {
-                row["Tuổi hiện tại"] = 2026 - parseInt(row["Năm"]);
-            } else {
-                row["Tuổi hiện tại"] = "—";
-            }
-
-            return row;
+                    if (nextInput) {
+                        nextInput.focus();
+                        setTimeout(() => nextInput.select(), 5);
+                    }
+                };
+                input.onfocus = function() { this.select(); };
+            });
         }
 
-        function handleExcelImport(event) {
+        function handleFileSelect(event) {
             const file = event.target.files[0];
             if (!file) return;
+
+            document.getElementById('upload-status').innerText = "Đang phân tích dữ liệu...";
             const reader = new FileReader();
             reader.onload = function(e) {
-                const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, { type: 'array' });
-                const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-                const rawJson = XLSX.utils.sheet_to_json(worksheet, { defval: "—" });
-                
-                localExcelData = rawJson.map((row, idx) => {
-                    const findVal = (kws) => {
-                        const key = Object.keys(row).find(k => kws.some(kw => k.toLowerCase().replace(/\s+/g, '').includes(kw.toLowerCase().replace(/\s+/g, ''))));
-                        return key ? row[key] : "—";
-                    };
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+                    
+                    let nameColIdx = 2;       
+                    let targetCongColIdx = 34; 
+                    let phépColIdx = 42;       
+                    let lễColIdx = 44;         
+                    let dataStartRowIdx = 7;   
 
-                    let item = {
-                        "Stt": findVal(["stt", "thứ tự"]),
-                        "Họ và Tên": findVal(["họ và tên", "hoten"]),
-                        "Tên": "—",
-                        "Năm sinh": findVal(["ngày sinh", "ngaysinh", "năm sinh"]),
-                        "Năm": "—",
-                        "Tuổi hiện tại": "—",
-                        "Số sổ bảo hiểm": findVal(["số sổ bhxh", "bảo hiểm", "bhxh"]),
-                        "Số căn cước công dân": findVal(["số cccd", "cccd", "căn cước"]),
-                        "Năm về hưu": findVal(["ngày về hưu gốc", "về hưu gốc", "năm về hưu"]),
-                        "Hưu luật mới": findVal(["hưu luật mới", "luật mới"]),
-                        "An toàn viên": findVal(["an toàn viên", "atv"]),
-                        "NNĐH": findVal(["độc hại", "nnđh"]),
-                        "Chức danh công việc": findVal(["chức danh", "chức vụ", "công việc"])
-                    };
-                    return calculateRowDependencies(item, idx);
-                });
-                renderOrderedTable(localExcelData);
+                    for (let i = 0; i < Math.min(rows.length, 25); i++) {
+                        let currentRow = rows[i];
+                        if (!currentRow) continue;
+                        for (let j = 0; j < currentRow.length; j++) {
+                            let val = currentRow[j] ? currentRow[j].toString().trim().toUpperCase() : "";
+                            if (val.includes("TÊN NHÂN VIÊN") || val === "HỌ VÀ TÊN" || val === "HỌ TÊN") {
+                                nameColIdx = j;
+                                dataStartRowIdx = i + 1;
+                            }
+                            if (val === "NT" && j > 20) targetCongColIdx = j;
+                            if (val === "PHÉP") phépColIdx = j;
+                            if (val === "LỄ") lễColIdx = j;
+                        }
+                    }
+
+                    dynamicStaffDatabase = [];
+
+                    for (let i = dataStartRowIdx; i < rows.length; i++) {
+                        let row = rows[i];
+                        if (!row || row.length <= nameColIdx) continue;
+
+                        let rawName = row[nameColIdx] ? row[nameColIdx].toString().trim() : "";
+                        let upperName = rawName.toUpperCase().replace(/\s+/g, ' ');
+
+                        if (!rawName || /^\d+$/.test(rawName) || rawName.length <= 2 || upperName.includes("CỘNG") || upperName.includes("TOTAL")) continue;
+
+                        let masterData = MASTER_STAFF_DIRECTORY[upperName];
+                        if (!masterData) continue; 
+
+                        let parsedCong = parseFloat(row[targetCongColIdx]?.toString().replace(/,/g, '.')) || 0;
+                        let nPhep = parseFloat(row[phépColIdx]?.toString().replace(/,/g, '.')) || 0;
+                        let nLe = parseFloat(row[lễColIdx]?.toString().replace(/,/g, '.')) || 0;
+
+                        dynamicStaffDatabase.push({
+                            name: upperName, cong: parsedCong, phep: nPhep, le: nLe,
+                            heSoCB: masterData.heSoCB, phuCapCB: masterData.phuCapCB, luongKyHD: masterData.luongKyHD,
+                            hsHoanThanh: masterData.hsHoanThanh, heSoCV: masterData.heSoCV, phuCapCV: masterData.phuCapCV, docHai: masterData.docHai,
+                            tamUng: masterData.tamUng, pctt: masterData.pctt, truUngT4: masterData.truUngT4
+                        });
+                    }
+
+                    if (dynamicStaffDatabase.length === 0) {
+                        for (let i = 6; i < rows.length; i++) {
+                            let row = rows[i];
+                            if (!row || !row[2]) continue;
+                            let nameFix = row[2].toString().trim().toUpperCase().replace(/\s+/g, ' ');
+                            let mData = MASTER_STAFF_DIRECTORY[nameFix];
+                            if (mData) {
+                                dynamicStaffDatabase.push({
+                                    name: nameFix,
+                                    cong: parseFloat(row[34]) || 0, phep: parseFloat(row[42]) || 0, le: parseFloat(row[44]) || 0,
+                                    heSoCB: mData.heSoCB, phuCapCB: mData.phuCapCB, luongKyHD: mData.luongKyHD,
+                                    hsHoanThanh: mData.hsHoanThanh, heSoCV: mData.heSoCV, phuCapCV: mData.phuCapCV, docHai: mData.docHai,
+                                    tamUng: mData.tamUng, pctt: mData.pctt, truUngT4: mData.truUngT4
+                                });
+                            }
+                        }
+                    }
+
+                    document.getElementById('debug-status').style.display = "block";
+                    document.getElementById('debug-status').innerHTML = `✅ Thành công! Đã đồng bộ dữ liệu chuẩn: Bỏ hoàn toàn K3 Cơ Bản.`;
+                    document.getElementById('upload-status').innerText = "Đã nạp file thành công!";
+                    renderTable();
+                } catch(err) {
+                    alert("Lỗi cấu trúc dữ liệu: " + err.message);
+                }
             };
             reader.readAsArrayBuffer(file);
         }
 
-        function renderOrderedTable(dataArray) {
-            const table = document.getElementById('dynamic-excel-table');
-            table.innerHTML = "";
-            if(dataArray.length === 0) return;
-
-            const thead = document.createElement('thead');
-            const hr = document.createElement('tr');
-            CUSTOM_FINAL_HEADERS.forEach(h => { const th = document.createElement('th'); th.innerText = h; hr.appendChild(th); });
-            thead.appendChild(hr);
-            table.appendChild(thead);
-
-            const tbody = document.createElement('tbody');
-            dataArray.forEach((row, index) => {
-                const tr = document.createElement('tr');
-                CUSTOM_FINAL_HEADERS.forEach(header => {
-                    const td = document.createElement('td');
-                    if(header === "Thao tác") {
-                        td.innerHTML = `<button class="btn-edit-row" onclick="openEditModal(${index})">Sửa</button>`;
-                    } else if(header === "An toàn viên") {
-                        td.innerHTML = (row[header] && row[header] !== "—" && row[header] !== "") ? `<span class="badge-atv">ATV (${row[header]})</span>` : "—";
-                    } else if(header === "NNĐH") {
-                        td.innerHTML = (row[header] && row[header] !== "—" && row[header] !== "") ? `<span class="badge-dh">Độc hại (${row[header]})</span>` : "—";
-                    } else if(header === "Tuổi hiện tại" && row[header] !== "—") {
-                        td.innerHTML = `<span class="badge-age">${row[header]}</span>`;
-                    } else if(header === "Họ và Tên") {
-                        td.innerHTML = `<b style="color:var(--accent-color);">${row[header]}</b>`;
-                    } else {
-                        td.innerText = row[header];
-                    }
-                    tr.appendChild(td);
-                });
-                tbody.appendChild(tr);
-            });
-            table.appendChild(tbody);
-            document.getElementById('table-status').innerText = `Bảng dữ liệu Excel (Đã cấu trúc ${dataArray.length} nhân sự thành công)`;
-        }
-
-        function openEditModal(index) {
-            const data = localExcelData[index];
-            document.getElementById('edit-index').value = index;
-            document.getElementById('edit-hoten').value = data["Họ và Tên"] === "—" ? "" : data["Họ và Tên"];
-            document.getElementById('edit-ngaysinh').value = data["Năm sinh"] === "—" ? "" : data["Năm sinh"];
-            document.getElementById('edit-bhxh').value = data["Số sổ bảo hiểm"] === "—" ? "" : data["Số sổ bảo hiểm"];
-            document.getElementById('edit-cccd').value = data["Số căn cước công dân"] === "—" ? "" : data["Số căn cước công dân"];
-            document.getElementById('edit-vehưu').value = data["Năm về hưu"] === "—" ? "" : data["Năm về hưu"];
-            document.getElementById('edit-huuluat').value = data["Hưu luật mới"] === "—" ? "" : data["Hưu luật mới"];
-            document.getElementById('edit-atv').value = data["An toàn viên"] === "—" ? "" : data["An toàn viên"];
-            document.getElementById('edit-nndh').value = data["NNĐH"] === "—" ? "" : data["NNĐH"];
-            document.getElementById('edit-chucdanh').value = data["Chức danh công việc"] === "—" ? "" : data["Chức danh công việc"];
-            document.getElementById('edit-modal-backdrop').style.display = 'flex';
-        }
-
-        document.getElementById('edit-modal-backdrop').onclick = function(e) {
-            if(e.target === this) closeEditModal();
-        };
-
-        function closeEditModal() { document.getElementById('edit-modal-backdrop').style.display = 'none'; }
-
-        function saveRowCalculations() {
-            const idx = document.getElementById('edit-index').value;
+        function updateFieldHandmade(index, field, value) {
+            let parsedVal = parseFloat(value);
+            if (isNaN(parsedVal) || parsedVal < 0) parsedVal = 0;
+            dynamicStaffDatabase[index][field] = parsedVal;
             
-            localExcelData[idx]["Họ và Tên"] = document.getElementById('edit-hoten').value || "—";
-            localExcelData[idx]["Năm sinh"] = document.getElementById('edit-ngaysinh').value || "—";
-            localExcelData[idx]["Số sổ bảo hiểm"] = document.getElementById('edit-bhxh').value || "—";
-            localExcelData[idx]["Số căn cước công dân"] = document.getElementById('edit-cccd').value || "—";
-            localExcelData[idx]["Năm về hưu"] = document.getElementById('edit-vehưu').value || "—";
-            localExcelData[idx]["Hưu luật mới"] = document.getElementById('edit-huuluat').value || "—";
-            localExcelData[idx]["An toàn viên"] = document.getElementById('edit-atv').value || "—";
-            localExcelData[idx]["NNĐH"] = document.getElementById('edit-nndh').value || "—";
-            localExcelData[idx]["Chức danh công việc"] = document.getElementById('edit-chucdanh').value || "—";
-
-            // Kích hoạt bộ xử lý để tự động tính lại tuổi theo mốc 2026 và ép chuẩn ngày tháng
-            localExcelData[idx] = calculateRowDependencies(localExcelData[idx], idx);
-
-            renderOrderedTable(localExcelData);
-            closeEditModal();
+            const res = tinhToanToanBoLuong(dynamicStaffDatabase[index]);
+            const rowElement = document.getElementById(`row-${index}`);
+            if (rowElement) {
+                if (activeTab === 'lcb') {
+                    rowElement.querySelector('.td-luongtg').innerText = res.luongThoiGian.toLocaleString();
+                    rowElement.querySelector('.td-luongphep').innerText = res.luongPhepThucTe.toLocaleString();
+                    rowElement.querySelector('.td-luongle').innerText = res.luongLeThucTe.toLocaleString();
+                    rowElement.querySelector('.td-tonglcb').innerText = res.tongTienLCB.toLocaleString();
+                    rowElement.querySelector('.td-thuckinhlcb').innerText = res.thucLinhLCB.toLocaleString();
+                }
+            }
+            updateTotalsFooter();
         }
 
-        function applyAdvancedFilters() {
-            const query = document.getElementById('filter-search-global').value.toLowerCase().trim();
-            if(!query) { renderOrderedTable(localExcelData); return; }
-            const res = localExcelData.filter(r => Object.values(r).some(v => v.toString().toLowerCase().includes(query)));
-            renderOrderedTable(res);
+        function updateTotalsFooter() {
+            let tCong = 0, tPhep = 0, tLe = 0, tLuongTG = 0, tPhepTien = 0, tLeTien = 0, tTongTienLCB = 0, tThucLinhLCB = 0, tLuongCVThuc = 0, tThucLinhLCV = 0, tAnCa = 0, tDocHai = 0, tNganHang = 0;
+            dynamicStaffDatabase.forEach(s => {
+                const res = tinhToanToanBoLuong(s);
+                tCong += s.cong; tPhep += s.phep; tLe += s.le; tLuongTG += res.luongThoiGian;
+                tPhepTien += res.luongPhepThucTe; tLeTien += res.luongLeThucTe;
+                tTongTienLCB += res.tongTienLCB; tThucLinhLCB += res.thucLinhLCB; tLuongCVThuc += res.luongCV_ThucTe;
+                tThucLinhLCV += res.thucLinhLCV; tAnCa += res.anCa; tDocHai += res.boiDuongDocHai; tNganHang += res.tongThucNhanNganHang;
+            });
+
+            const foot = document.getElementById('table-foot');
+            if (activeTab === 'lcb') {
+                foot.innerHTML = `<tr style="background:#f1f5f9; font-weight:bold;"><td colspan="4" class="text-center">TỔNG CỘNG</td><td class="text-center" style="color:#2563eb;">${tCong.toFixed(2)}</td><td>${tLuongTG.toLocaleString()}</td><td class="text-center">${tPhep.toFixed(1)}</td><td>${tPhepTien.toLocaleString()}</td><td class="text-center">${tLe.toFixed(1)}</td><td>${tLeTien.toLocaleString()}</td><td colspan="1"></td><td>${tTongTienLCB.toLocaleString()}</td><td colspan="2"></td><td style="color:#2563eb; font-size:12px;">${tThucLinhLCB.toLocaleString()}</td></tr>`;
+            } else if (activeTab === 'lcv') {
+                foot.innerHTML = `<tr style="background:#f1f5f9; font-weight:bold;"><td colspan="3" class="text-center">TỔNG CỘNG</td><td class="text-center">${tCong.toFixed(2)}</td><td>${tLuongCVThuc.toLocaleString()}</td><td colspan="3"></td><td style="color:#ea580c; font-size:12px;">${tThucLinhLCV.toLocaleString()}</td></tr>`;
+            } else if (activeTab === 'anca') {
+                foot.innerHTML = `<tr style="background:#f1f5f9; font-weight:bold;"><td colspan="2" class="text-center">TỔNG CỘNG</td><td class="text-center">${tCong.toFixed(2)}</td><td></td><td>${tAnCa.toLocaleString()}</td><td></td><td style="color:#059669; font-size:12px;">${tDocHai.toLocaleString()}</td></tr>`;
+            } else if (activeTab === 'nganhang') {
+                foot.innerHTML = `<tr style="background:#f1f5f9; font-weight:bold;"><td colspan="2" class="text-center">TỔNG CỘNG</td><td>${tThucLinhLCB.toLocaleString()}</td><td>${tThucLinhLCV.toLocaleString()}</td><td>${tAnCa.toLocaleString()}</td><td>${tDocHai.toLocaleString()}</td><td style="background:#edd8ff; color:#4c1d95; font-size:13px;">${tNganHang.toLocaleString()}</td></tr>`;
+            }
         }
 
-        function switchTab(tabId) {
-            document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
-            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
-            document.getElementById('tab-' + tabId).style.display = 'block';
-            event.target.classList.add('active');
+        function renderTable() {
+            const head = document.getElementById('table-head');
+            const body = document.getElementById('table-body');
+
+            if (dynamicStaffDatabase.length === 0) return;
+            body.innerHTML = "";
+            
+            if (activeTab === 'lcb') {
+                head.innerHTML = `<tr><th>STT</th><th class="text-left">Họ và Tên</th><th>Hệ Số LCB</th><th>Mức Lương CB</th><th style="background:#1d4ed8; width:65px;">Công NT</th><th>Lương Thời Gian</th><th style="background:#1d4ed8; width:55px;">Phép</th><th>Lương Phép</th><th style="background:#1d4ed8; width:55px;">Lễ</th><th>Lương Lễ</th><th style="background:#1d4ed8; width:55px;">Hệ Số HT</th><th>Tổng Tiền LCB</th><th>BHTN (1%)</th><th>BHXH+BHYT</th><th style="background:#1e40af;">Thực Lĩnh LCB</th></tr>`;
+            } else if (activeTab === 'lcv') {
+                head.innerHTML = `<tr><th>STT</th><th class="text-left">Họ và Tên</th><th>Hệ Số LCV</th><th style="background:#c2410c; width:75px;">Ngày Công NT</th><th>Lương CV Thực Tế</th><th>Tạm Ứng Trừ</th><th>Quỹ PCTT</th><th>Trừ Ứng T4</th><th style="background:#9a3412;">Thực Lĩnh LCV</th></tr>`;
+            } else if (activeTab === 'anca') {
+                head.innerHTML = `<tr><th>STT</th><th class="text-left">Họ và Tên</th><th style="background:#047857; width:75px;">Ngày Công NT</th><th>Mức Ăn Ca</th><th>Tiền Ăn Ca Chi Trả</th><th>Công Độc Hại</th><th style="background:#064e3b;">Bồi Dưỡng Độc Hại</th></tr>`;
+            } else if (activeTab === 'nganhang') {
+                head.innerHTML = `<tr><th>STT</th><th class="text-left">Họ và Tên Nhân Sự</th><th>Thực Lĩnh LCB (1)</th><th>Thực Lĩnh LCV (2)</th><th>Tiền Ăn Ca (3)</th><th>Độc Hại (4)</th><th style="background:#1e1b4b; color:#fde047; font-size:12px;">Thực Nhận CK Ngân Hàng</th></tr>`;
+            }
+
+            dynamicStaffDatabase.forEach((staff, index) => {
+                const res = tinhToanToanBoLuong(staff);
+                
+                let oCong = `<input type="number" step="0.01" value="${staff.cong}" data-col="1" data-row="${index}" oninput="updateFieldHandmade(${index}, 'cong', this.value)" class="input-table input-cong">`;
+                let oPhep = `<input type="number" step="0.5" value="${staff.phep}" data-col="2" data-row="${index}" oninput="updateFieldHandmade(${index}, 'phep', this.value)" class="input-table input-cong">`;
+                let oLe = `<input type="number" step="0.5" value="${staff.le}" data-col="3" data-row="${index}" oninput="updateFieldHandmade(${index}, 'le', this.value)" class="input-table input-cong">`;
+                let oHT = `<input type="number" step="0.1" value="${staff.hsHoanThanh}" data-col="4" data-row="${index}" oninput="updateFieldHandmade(${index}, 'hsHoanThanh', this.value)" class="input-table">`;
+                let oTamUng = `<input type="number" step="500000" value="${staff.tamUng}" data-col="5" data-row="${index}" oninput="updateFieldHandmade(${index}, 'tamUng', this.value)" class="input-table">`;
+
+                let rowHtml = `<tr id="row-${index}">`;
+                if (activeTab === 'lcb') {
+                    rowHtml += `<td class="text-center">${index + 1}</td><td class="text-left font-bold" style="color:#0f172a;">${staff.name}</td><td>${(staff.heSoCB+staff.phuCapCB).toFixed(2)}</td><td>${res.luongCoBanThang.toLocaleString()}</td><td class="text-center" style="padding:1px;">${oCong}</td><td class="td-luongtg">${res.luongThoiGian.toLocaleString()}</td><td class="text-center" style="padding:1px;">${oPhep}</td><td class="td-luongphep">${res.luongPhepThucTe.toLocaleString()}</td><td class="text-center" style="padding:1px;">${oLe}</td><td class="td-luongle">${res.luongLeThucTe.toLocaleString()}</td><td class="text-center" style="padding:1px;">${oHT}</td><td class="font-bold td-tonglcb" style="color:#b45309; background:#fffbeb;">${res.tongTienLCB.toLocaleString()}</td><td style="color:#dc2626;">-${res.bhtn.toLocaleString()}</td><td style="color:#dc2626;">-${res.bhxh_yt.toLocaleString()}</td><td class="font-bold td-thuckinhlcb" style="background:#f0fdf4; color:#2563eb;">${res.thucLinhLCB.toLocaleString()}</td>`;
+                } else if (activeTab === 'lcv') {
+                    rowHtml += `<td class="text-center">${index + 1}</td><td class="text-left font-bold">${staff.name}</td><td class="text-center font-bold">${(staff.heSoCV+staff.phuCapCV).toFixed(2)}</td><td class="text-center" style="padding:1px;">${oCong}</td><td class="td-luongcvtt">${res.luongCV_ThucTe.toLocaleString()}</td><td style="padding:1px;">${oTamUng}</td><td>${staff.pctt > 0 ? staff.pctt.toLocaleString() : '-'}</td><td>${staff.truUngT4 > 0 ? staff.truUngT4.toLocaleString() : '-'}</td><td class="font-bold td-thuckinhlcv" style="background:#fffbeb; color:#ea580c;">${res.thucLinhLCV.toLocaleString()}</td>`;
+                } else if (activeTab === 'anca') {
+                    let mucAnCa = staff.name.includes("HOÀNG MẠNH HÙNG") ? "Khoán" : "5.000đ/ngày";
+                    rowHtml += `<td class="text-center">${index + 1}</td><td class="text-left font-bold">${staff.name}</td><td class="text-center" style="padding:1px;">${oCong}</td><td class="text-center">${mucAnCa}</td><td class="td-tiencan">${res.anCa.toLocaleString()}</td><td class="text-center font-bold">${staff.docHai}</td><td class="font-bold td-tiendochai" style="background:#f0fdf4; color:#059669;">${res.boiDuongDocHai.toLocaleString()}</td>`;
+                } else if (activeTab === 'nganhang') {
+                    rowHtml += `<td class="text-center">${index + 1}</td><td class="text-left font-bold" style="color:#1e1b4b;">${staff.name}</td><td>${res.thucLinhLCB.toLocaleString()}</td><td>${res.thucLinhLCV.toLocaleString()}</td><td>${res.anCa.toLocaleString()}</td><td>${res.boiDuongDocHai.toLocaleString()}</td><td class="font-bold" style="background:#f5f3ff; color:#7c3aed; font-size:12px;">${res.tongThucNhanNganHang.toLocaleString()}</td>`;
+                }
+                rowHtml += `</tr>`;
+                body.innerHTML += rowHtml;
+            });
+
+            updateTotalsFooter();
+            setupNavigationKeys();
         }
 
-        window.onload = () => {
-            checkSupabaseConnection();
-            setInterval(() => {
-                const now = new Date();
-                document.getElementById('live-clock').innerText = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
-            }, 1000);
-            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-            document.getElementById('date-duong').innerText = new Date().toLocaleDateString('vi-VN', options);
-        };
+        function exportCleanExcel() {
+            if (dynamicStaffDatabase.length === 0) return alert("Không có dữ liệu!");
+            let dataForExcel = [["STT", "Họ và Tên", "Ngày Công NT", "Phép", "Lễ", "Thực Lĩnh Cơ Bản", "Thực Lĩnh Công Việc", "Tiền Ăn Ca", "Độc Hại", "Tổng Thực Nhận Chuyển Khoản"]];
+            dynamicStaffDatabase.forEach((s, idx) => {
+                const res = tinhToanToanBoLuong(s);
+                dataForExcel.push([idx + 1, s.name, s.cong, s.phep, s.le, res.thucLinhLCB, res.thucLinhLCV, res.anCa, res.boiDuongDocHai, res.tongThucNhanNganHang]);
+            });
+            const ws = XLSX.utils.aoa_to_sheet(dataForExcel);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Bảng_Lương_Tổng_Hợp");
+            XLSX.writeFile(wb, "Bang_Luong_Khong_K3_Co_Ban.xlsx");
+        }
     </script>
 </body>
 </html>
